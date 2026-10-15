@@ -8,6 +8,7 @@
     uv run pc evolve <site> [--gens 30] [--pop 60] [--seed 1]  breed generations
     uv run pc sites            list sites
     uv run pc app              the designer's sandbox (Streamlit, in the browser)
+    uv run pc export <site>... [--fixture]   sites for the web page (web/dist/)
 """
 
 import argparse
@@ -188,6 +189,15 @@ def cmd_evolve(a):
           f"06-seq{a.seed}-evolution.png")
 
 
+def cmd_export(a):
+    from pc import export
+
+    for sid in a.sites:
+        site = load(sid)
+        print(f"{site.name}:")
+        export.write(site, with_fixture=a.fixture)
+
+
 def cmd_app(a):
     import subprocess
     import sys
@@ -231,9 +241,13 @@ def main():
     ev.add_argument("--show", type=int, default=10, help="families to draw")
     sub.add_parser("sites")
     sub.add_parser("app", help="open the designer's sandbox in the browser")
+    ex = sub.add_parser("export", help="export sites for the web page (web/dist/)")
+    ex.add_argument("sites", nargs="+")
+    ex.add_argument("--fixture", action="store_true", help="also write a parity test fixture")
     a = p.parse_args()
     {"new": cmd_new, "fetch": cmd_fetch, "build": cmd_build, "rules": cmd_rules,
-     "grow": cmd_grow, "evolve": cmd_evolve, "sites": cmd_sites, "app": cmd_app}[a.cmd](a)
+     "grow": cmd_grow, "evolve": cmd_evolve, "sites": cmd_sites, "app": cmd_app,
+     "export": cmd_export}[a.cmd](a)
 
 
 if __name__ == "__main__":

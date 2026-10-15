@@ -122,14 +122,14 @@ def prepare(suit: gpd.GeoDataFrame) -> Ground:
         trees=cells["trees"].to_numpy(),
         # Smoothed, so water gathers into bodies instead of one-cell drainage chains.
         site_water=_norm(smooth(raw_water, nbr, passes=3)),
-        bounds=tuple(cells.total_bounds),
+        bounds=(float(c.x.min()), float(c.y.min()), float(c.x.max()), float(c.y.max())),  # cell centres
     )
 
 
 def decode(genome: np.ndarray, bounds) -> tuple[list[Attractor], dict]:
     """Numbers → attractors (in metres) and site-wide settings."""
     xmin, ymin, xmax, ymax = bounds
-    diag = np.hypot(xmax - xmin, ymax - ymin)
+    diag = np.sqrt((xmax - xmin) ** 2 + (ymax - ymin) ** 2)
     att = []
     for k in range(N_ATTRACTORS):
         x, y, r, w, kind = genome[k * ATTRACTOR_GENES:(k + 1) * ATTRACTOR_GENES]
@@ -159,7 +159,8 @@ def _field(xy, attractors, kind):
     for a in attractors:
         if a.kind != kind:
             continue
-        d = np.hypot(xy[:, 0] - a.x, xy[:, 1] - a.y)
+        dx, dy = xy[:, 0] - a.x, xy[:, 1] - a.y
+        d = np.sqrt(dx * dx + dy * dy)  # not hypot: identical in the browser engine
         f += a.weight * np.clip(1 - d / a.radius, 0, None) ** 2
     return f
 
@@ -185,7 +186,7 @@ def grow(genome: np.ndarray, ground: Ground, locked: np.ndarray | None = None) -
     def claim(score, eligible, share, name):
         k = max(int(round(share * n)) - int((use == name).sum()), 0)
         idx = np.flatnonzero(eligible & free)
-        pick = idx[np.argsort(-score[idx])][:k]
+        pick = idx[np.argsort(-score[idx], kind="stable")][:k]  # stable: same ties as the browser engine
         use[pick] = name
         free[pick] = False
 

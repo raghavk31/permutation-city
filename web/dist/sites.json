@@ -1,0 +1,17 @@
+{
+ "mumbai-ewf": {
+  "name": "Mumbai Eastern Waterfront",
+  "design_ha": 168.7,
+  "target_ha": 337.3
+ },
+ "ahmedabad-wadaj": {
+  "name": "Ahmedabad: Gandhi Ashram and Wadaj",
+  "design_ha": 374.9,
+  "target_ha": 389.0
+ },
+ "mumbai-docks": {
+  "name": "Mumbai Docks (test polygon)",
+  "design_ha": 68.7,
+  "target_ha": 137.4
+ }
+}

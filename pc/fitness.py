@@ -41,6 +41,7 @@ HEAT_PER_LEVEL = 0.1
 CARBON_BASE, CARBON_FREE_LEVELS, CARBON_PER_LEVEL = 400.0, 6, 0.02
 STOREY_M = 3.2
 DAYLIGHT_ANGLE, DAYLIGHT_RINGS = 25.0, 3       # 3 rings of hexes ≈ 100 m at 20 m hexes
+DAYLIGHT_TAN = 0.4663076581549986             # tan(25°), fixed so both engines agree
 HUMAN_MAX_LEVELS = 8
 TARGET_TOLERANCE = 0.10
 DUPLICATE = 0.05                               # share of cells that must differ
@@ -100,7 +101,7 @@ def evaluate(d: Design, ground: Ground, site, storm_factor: float = 1.0) -> dict
     hmax = h.copy()
     for k in range(1, DAYLIGHT_RINGS + 1):
         hmax = _dilate_max(hmax, ground.nbr)           # tallest within k rings
-        z_min = np.maximum(z_min, hmax - k * spacing * np.tan(np.radians(DAYLIGHT_ANGLE)))
+        z_min = np.maximum(z_min, hmax - k * spacing * DAYLIGHT_TAN)
     lit_levels = np.clip(d.levels - np.ceil(z_min / STOREY_M), 0, d.levels)
     lit_fa = a * d.coverage * lit_levels
     daylight = float(lit_fa.sum() / total_fa) if total_fa else 1.0
@@ -154,7 +155,7 @@ def pareto_ranks(scores: list[dict], tol=TARGET_TOLERANCE) -> np.ndarray:
         rank[ok] = _fronts(_as_min([s for s, k in zip(scores, ok) if k]))
     top = rank.max() if ok.any() else 0
     off = np.flatnonzero(~ok)
-    rank[off[np.argsort(gap[off])]] = top + 1 + np.arange(len(off))
+    rank[off[np.argsort(gap[off], kind="stable")]] = top + 1 + np.arange(len(off))
     return rank
 
 
