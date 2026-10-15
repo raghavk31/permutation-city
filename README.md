@@ -197,7 +197,11 @@ rules.template.yaml   starting rules for new sites
   - the site genome sets the envelope (use, height cap, coverage); the block genome fills it with real 3D volumes
   - 3D fitness from the volumes: sun on roofs and facades, shade in courts and streets, sky view, wind permeability (frontal area), plus the site scores recomputed from actual floor area
   - explore it as a massing study: evolve one block, a street, or the whole site; view and compare in 3D; export to Rhino (`.3dm`) and glTF
-- [ ] **Phase 8: On raghavkohli.xyz** (see below)
+- [ ] **Phase 8: On raghavkohli.xyz**, as a static page like Climate Code
+  - [x] `pc export <site>` → `web/dist/<site>.json`
+  - [x] `web/engine.js`: the engine in JavaScript; `node web/test/parity.mjs` checks it matches Python exactly
+  - [x] `web/`: the page (six chapters, canvas maps, 3D view, evolution in a Web Worker). Try it: `uv run python -m http.server 8765`, then open http://127.0.0.1:8765/web/
+  - [ ] Into the site repo: layout, project card, `scripts/sync-permutation-city.py`, a pull request
 - [ ] **Beyond.** Networks and space syntax (Sem 06's foreground/background networks), Eco-machine programs, time steps (2025 → 2035 → 2050)
 
 ### Data to improve
