@@ -1,0 +1,85 @@
+/* Permutation City. Uses the site's tokens when present (--paper, --line, --ink ...) and
+   falls back to its own; dark mode follows the site's data-theme. */
+.pc {
+  --pc-surface: var(--paper, #fcfcfb);
+  --pc-ink: var(--ink, #0b0b0b);
+  --pc-ink-2: #52514e;
+  --pc-muted: #898781;
+  --pc-line: var(--line, #e1e0d9);
+  --pc-sea: #e1e0d9;
+  --pc-retained: #f0efec;
+  --pc-water: #2a78d6;
+  --pc-green: #1baf7a;
+  --pc-build: #eb6834;
+  color: var(--pc-ink);
+  background: var(--pc-surface);
+  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+:root[data-theme="dark"] .pc { --pc-ink-2: #c3c2b7; --pc-sea: #2c2c2a; --pc-retained: #222220; --pc-muted: #a3a29b; }
+body:has(> .pc) { margin: 0; background: var(--paper, #fcfcfb); }
+
+.pc h1 { font-size: clamp(28px, 4.4vw, 46px); line-height: 1.1; margin: 8px 0 16px; font-weight: 600; max-width: 22ch; }
+.pc h2 { font-size: 26px; margin: 4px 0 8px; font-weight: 600; }
+.pc h3 { font-size: 18px; margin: 18px 0 6px; }
+.pc p { max-width: 70ch; }
+.pc a { color: inherit; text-underline-offset: 3px; }
+.pc-kicker, .pc-n { font-size: 13px; letter-spacing: .04em; text-transform: lowercase; color: var(--pc-ink-2); margin: 0; }
+.pc-lead { font-size: 18px; }
+.pc-muted { color: var(--pc-muted); font-size: 14px; }
+.pc-meta { display: flex; flex-wrap: wrap; gap: 8px 28px; font-size: 14px; margin: 16px 0; }
+.pc-meta dt { color: var(--pc-muted); }
+.pc-meta dd { margin: 0; }
+
+.pc-ch { border-top: 1px solid var(--pc-line); margin-top: 48px; padding-top: 20px; }
+.pc-map { width: 100%; display: block; border-radius: 4px; touch-action: none; }
+.pc-solid { cursor: grab; }
+.pc-two { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+@media (max-width: 760px) { .pc-two { grid-template-columns: 1fr; } }
+
+.pc button, .pc select, .pc input { font: inherit; font-size: 14px; color: inherit; }
+.pc button {
+  background: transparent; border: 1px solid var(--pc-line); border-radius: 999px;
+  padding: 5px 14px; cursor: pointer; margin: 2px 4px 2px 0;
+}
+.pc button:hover { border-color: var(--pc-ink-2); }
+.pc button[aria-pressed="true"], .pc button[type="submit"] { background: var(--pc-ink); color: var(--pc-surface); border-color: var(--pc-ink); }
+.pc button:disabled { opacity: .4; cursor: default; }
+.pc select, .pc input[type="number"] {
+  background: transparent; border: 1px solid var(--pc-line); border-radius: 6px; padding: 3px 6px; max-width: 8em;
+}
+.pc-sites, .pc-layer-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 12px 0; }
+.pc-controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin: 14px 0; font-size: 14px; }
+.pc-controls label { display: inline-flex; gap: 6px; align-items: center; }
+.pc-readout { min-height: 1.5em; font-size: 14px; color: var(--pc-ink-2); }
+
+.pc-legend { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 14px; }
+.pc-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; border: 1px solid var(--pc-line); }
+
+.pc-genes { display: grid; grid-template-columns: repeat(47, 1fr); gap: 1px; height: 64px; align-items: end; margin: 0 0 12px; max-width: none; }
+.pc-genes i { display: block; height: calc(8% + var(--v) * 92%); border-radius: 1px; }
+.pc-genes .g-core { background: var(--pc-build); }
+.pc-genes .g-green { background: var(--pc-green); }
+.pc-genes .g-water { background: var(--pc-water); }
+.pc-genes .g-site { background: var(--pc-ink-2); }
+.pc-scores { font-size: 14px; }
+
+.pc-charts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 24px; }
+@media (max-width: 760px) { .pc-charts { grid-template-columns: repeat(2, 1fr); } }
+.pc-charts figure { margin: 0; }
+.pc-charts figcaption { font-size: 13px; color: var(--pc-ink-2); }
+.pc-charts canvas { width: 100%; display: block; }
+
+.pc-gallery { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin: 12px 0; }
+@media (max-width: 900px) { .pc-gallery { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 560px) { .pc-gallery { grid-template-columns: repeat(2, 1fr); } }
+.pc-card { margin: 0; font-size: 12.5px; line-height: 1.45; border-radius: 6px; padding: 4px; border: 1px solid transparent; }
+.pc-card.is-on { border-color: var(--pc-ink-2); }
+.pc-card canvas { width: 100%; display: block; }
+.pc-card figcaption b { display: block; margin: 6px 0 2px; font-size: 13px; }
+.pc-card .pc-actions { display: block; margin-top: 4px; }
+.pc-card button { font-size: 12px; padding: 2px 9px; }
+.pc-detail { margin-top: 24px; }
+.pc-credits { font-size: 12.5px; }

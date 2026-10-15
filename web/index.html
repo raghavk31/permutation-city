@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Permutation City</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- Standalone page for development (python -m http.server, then /web/). On raghavkohli.xyz the
+     same markup sits inside the site's layout; only the data path in data-pc changes. -->
+<main class="pc" data-pc="./dist/">
+
+  <header class="pc-head">
+    <p class="pc-kicker">Permutation City · a sandbox for designing with nature</p>
+    <h1>What could be here, if the land wrote the rules?</h1>
+    <p class="pc-lead">Pick a site. Its ground, water, flooding, green and existing city are read from open data and
+      stacked, as Ian McHarg did in <i>Design with Nature</i>. The stack becomes rules for what can be built where.
+      Inside those rules, designs are written as genes (attractors that pull density, green and water) and bred
+      across generations, scored on flood storage, heat, embodied carbon, daylight and human scale. You play the
+      urban designer: lock what you like, breed by hand, and throw a storm at it.</p>
+    <dl class="pc-meta">
+      <div><dt>method</dt><dd>McHarg overlay · attractor genomes · NSGA-II evolution</dd></div>
+      <div><dt>data</dt><dd>Copernicus · FABDEM · ESA WorldCover · Overture Maps</dd></div>
+      <div><dt>code</dt><dd><a href="https://github.com/raghavk31/permutation-city">github.com/raghavk31/permutation-city</a></dd></div>
+    </dl>
+    <nav class="pc-sites" aria-label="Sites"></nav>
+    <p class="pc-status pc-muted"></p>
+  </header>
+
+  <section class="pc-ch pc-layer" id="pc-layers">
+    <p class="pc-n">01 · what is here</p>
+    <h2>The layers</h2>
+    <p>Each hex is 20 m across the flats, the unit of the studio this grew from. Hover for every layer at once.</p>
+    <div class="pc-layer-tabs" role="group" aria-label="Layer">
+      <button type="button" data-layer="ground">ground</button>
+      <button type="button" data-layer="flood">sea flooding</button>
+      <button type="button" data-layer="pool">rain</button>
+      <button type="button" data-layer="green">green</button>
+      <button type="button" data-layer="built">buildings</button>
+      <button type="button" data-layer="industrial">industry</button>
+    </div>
+    <canvas class="pc-map"></canvas>
+    <p class="pc-note pc-muted"></p>
+    <p class="pc-readout"></p>
+  </section>
+
+  <section class="pc-ch pc-rules" id="pc-rules">
+    <p class="pc-n">02 · what the land allows</p>
+    <h2>The rules</h2>
+    <p>Stacked, the layers decide each cell: forbidden (water, deep flooding, the water's edge), retained (the
+      existing city outside the design area), constrained (buildable, with height caps, permeable ground and
+      allowed uses), or open. Evolution can explore inside these rules but never break them.</p>
+    <canvas class="pc-map"></canvas>
+    <p class="pc-legend"></p>
+    <p class="pc-readout"></p>
+  </section>
+
+  <section class="pc-ch pc-genome" id="pc-genome">
+    <p class="pc-n">03 · one design</p>
+    <h2>A genome</h2>
+    <p>A design is 47 numbers. Eight attractors, each a position, a reach, a strength and a kind (circles: solid
+      pulls building density, dashed pulls green, dotted pulls water), and seven site-wide genes. Water claims its
+      share first, then green; the rest is building, rising towards the cores.</p>
+    <div class="pc-two">
+      <canvas class="pc-map"></canvas>
+      <div>
+        <p class="pc-genes" aria-label="The genome"></p>
+        <p class="pc-scores"></p>
+        <button type="button" class="pc-another">another genome</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="pc-ch pc-evolve" id="pc-evolve">
+    <p class="pc-n">04 · generations</p>
+    <h2>Evolution</h2>
+    <p>Designs within 10% of the floor-area brief always beat those outside it. Among them, a design survives if no
+      other is better on every score at once. Parents swap whole attractors, 60/40; a few genes mutate; a tenth of
+      each generation are newcomers; near-copies lose their place, so distinct families survive.</p>
+    <form class="pc-controls">
+      <label>generations <select name="gens"><option>10</option><option>20</option><option selected>30</option><option>50</option></select></label>
+      <label>population <select name="pop"><option>30</option><option selected>60</option><option>90</option></select></label>
+      <label><input type="checkbox" name="shock"> climate shock</label>
+      <span class="pc-shock-opts" hidden>
+        <label>at generation <input type="number" name="shockAt" value="15" min="1" max="50"></label>
+        <label>storm × <input type="number" name="shockX" value="1.3" min="1.1" max="2.5" step="0.1"></label>
+      </span>
+      <label><input type="checkbox" name="fromPen"> start from the pen (<span class="pc-pen-count">0</span>)</label>
+      <button type="submit">run</button>
+    </form>
+    <p class="pc-locks"></p><button type="button" class="pc-locks-clear" hidden>clear locks</button>
+    <p class="pc-progress pc-muted" aria-live="polite"></p>
+    <div class="pc-charts"></div>
+  </section>
+
+  <section class="pc-ch pc-families" id="pc-families">
+    <p class="pc-n">05 · what survived</p>
+    <h2>Families</h2>
+    <p>The surviving front, grouped into families of similar designs; one of each.</p>
+    <div class="pc-gallery"></div>
+    <button type="button" class="pc-more" hidden></button>
+    <div class="pc-detail" hidden>
+      <h3></h3>
+      <canvas class="pc-map pc-solid" title="drag to turn"></canvas>
+      <p class="pc-muted">Drag to turn. Heights ×2.2 so the massing reads.</p>
+      <div class="pc-two">
+        <canvas class="pc-map pc-plan"></canvas>
+        <div>
+          <p class="pc-scores"></p>
+          <p class="pc-actions">
+            <button type="button" data-lock="3" data-label="water">lock its water</button>
+            <button type="button" data-lock="2" data-label="landscape">lock its landscape</button>
+            <button type="button" data-lock="1" data-label="buildings">lock its buildings</button>
+            <button type="button" class="pc-to-pen">to the pen</button>
+          </p>
+          <p class="pc-muted">Locked cells keep their use in the next run; evolution works around them.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pc-ch pc-breed" id="pc-breed">
+    <p class="pc-n">06 · by hand</p>
+    <h2>Breeding</h2>
+    <p>Pick two parents and breed six children; keep the ones you like and breed again, the way Dawkins bred
+      biomorphs. Then start a new evolution from the pen.</p>
+    <form class="pc-controls">
+      <label>parent A <select name="a"></select></label>
+      <label>parent B <select name="b"></select></label>
+      <button type="submit" disabled>breed six</button>
+      <button type="button" class="pc-add-random">add 4 random</button>
+    </form>
+    <div class="pc-gallery pc-pen"></div>
+    <h3 class="pc-children-head" hidden></h3>
+    <div class="pc-gallery pc-children"></div>
+  </section>
+
+  <footer class="pc-ch pc-foot">
+    <h2>Method</h2>
+    <p>The sandbox grew out of two studios: the evolutionary search of <a href="/work/generative-techniques/">Generative
+      Techniques</a> (Ahmedabad, 2020) and the attractor-and-stream logic of <a href="/work/eco-machine/">Eco-Machine</a>
+      (Mumbai, 2020). The Python engine builds each site from open data; this page runs the same engine in your browser,
+      checked to give identical designs and scores. Scores are simple and indicative: good for comparing designs, not
+      for absolute claims.</p>
+    <p class="pc-muted pc-credits"></p>
+  </footer>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>
