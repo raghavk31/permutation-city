@@ -1,0 +1,8 @@
+{
+"type": "FeatureCollection",
+"name": "boundary",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "name": "Mumbai docks test polygon" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 72.8405, 18.9485 ], [ 72.847, 18.948 ], [ 72.8495, 18.9545 ], [ 72.848, 18.961 ], [ 72.8425, 18.9615 ], [ 72.841, 18.955 ], [ 72.8405, 18.9485 ] ] ] } }
+]
+}

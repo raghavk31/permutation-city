@@ -1,0 +1,12 @@
+name: 'Ahmedabad: Gandhi Ashram and Wadaj'
+bbox:
+- 72.57
+- 23.052
+- 72.592
+- 23.07
+hex_radius: 20.0
+
+# Fitness settings
+design_storm_mm: 150
+# Sem 06 studio, 2050 scenario: 1,55,676 people, 38,91,900 m2 built up required
+target_floor_area_ha: 389

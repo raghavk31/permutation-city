@@ -1,0 +1,21 @@
+# Mumbai Eastern Waterfront: the Eco-machine site (CEPT Sem 07, 2020).
+name: Mumbai Eastern Waterfront
+bbox: [72.829, 18.945, 72.862, 18.964]   # west, south, east, north
+hex_radius: 20                            # Eco-machine's hex size
+
+# Still-water levels for coastal flooding, metres above mean sea level.
+# Working assumptions, to check against MCGM / IMD / INCOIS figures:
+#   high spring tide ~ +2.5 m (tide tables say ~5 m, but from chart datum, ~2.5 m below MSL)
+#   monsoon surge    ~ +1.0 m
+#   sea-level rise   ~ +0.3 m by 2050 (IPCC AR6, mid-range)
+sea_levels:
+  high_tide: 2.5
+  surge_today: 3.5
+  surge_2050: 3.8
+
+# Port Trust land east of P D'Mello Road. West of it is the old city.
+design_area: design_area.geojson
+
+# Fitness settings
+design_storm_mm: 200   # a heavy monsoon day (26 July 2005 brought 944 mm)
+target_far: 2.0        # placeholder: set the floor-area ambition for the port land

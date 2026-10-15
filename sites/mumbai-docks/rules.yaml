@@ -1,0 +1,68 @@
+# Permutation City: the McHarg rules (template, copied for each new site)
+#
+# What the land allows, cell by cell. Every hex ends up in one state:
+#
+#   forbidden    nature's: water, deep flooding, the water's edge. Never built on.
+#   retained     the existing city kept as it is (context, not design ground).
+#   constrained  buildable, but with limits (heights, permeable ground, uses).
+#   open         the genes decide.
+#
+# Forbidden beats retained, and retained beats constrained. A cell can match several
+# constrained rules: their limits combine, and the strictest one wins.
+#
+# `when` is a test on the layer columns (see pc/layers.py), e.g. `flood_surge_2050 > 1.5`.
+# A rule that names a layer the site doesn't have (sea flooding inland) is skipped.
+# Edit, then run `pc rules <site>` to see the map change.
+
+defaults:
+  max_levels: 15         # 0 to 15 levels
+  min_permeable: 0.2     # share of ground that must stay unsealed
+  uses: [water, wetland, landscape, building, street]
+
+forbidden:
+  - name: water
+    when: water
+
+  - name: deep flooding in 2050
+    when: flood_surge_2050 > 1.5
+    why: more than 1.5 m of water in a 2050 surge; give it back to the sea
+
+  - name: water's edge
+    when: edge_dist < 30
+    why: a continuous public edge and room for wetland
+
+retained:
+  - name: outside the design area
+    when: not in_design and not industrial
+    why: existing city outside the design area is context; industrial land stays designable
+
+constrained:
+  - name: shallow flooding in 2050
+    when: flood_surge_2050 > 0
+    why: floods up to 1.5 m in a 2050 surge
+    limits: {raised_ground: true, min_permeable: 0.5}
+
+  - name: rain hollows
+    when: pool > 0.2
+    why: rainwater collects here; keep it as storage
+    limits: {min_permeable: 0.7, uses: [water, wetland, landscape]}
+
+  - name: drainage lines
+    when: upstream >= 40
+    why: water flows through here; keep the path open
+    limits: {min_permeable: 0.5, uses: [water, wetland, landscape, street]}
+
+  - name: breeze edge
+    when: edge_dist < 120
+    why: keep low near the water so the breeze reaches inland
+    limits: {max_levels: 4}
+
+  - name: industrial land
+    when: industrial
+    why: likely contaminated; clean-up comes before building
+    limits: {remediate: true}
+
+  - name: existing trees
+    when: trees >= 0.5
+    why: mature canopy; build around it
+    limits: {min_permeable: 0.6, max_levels: 6}

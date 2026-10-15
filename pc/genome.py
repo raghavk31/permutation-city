@@ -1,0 +1,234 @@
+"""The genome, and how a design grows from it.
+
+A genome is a list of numbers between 0 and 1 (so crossover and mutation stay simple).
+The body plan, read in order:
+
+    8 attractor slots, 5 genes each:
+        x, y      position across the design ground
+        radius    reach, 4% to 30% of the design ground's diagonal (scales with the site)
+        weight    strength
+        kind      core (pulls building density) / green (pulls open space) /
+                  water (pulls storage)
+    7 site-wide genes:
+        water_share   share of design ground given to water and wetland (5-30%)
+        green_share   share given to landscape (10-45%)
+        follow_water  how much water follows the site's own drainage and flood lines
+        coverage      ground coverage of building cells (35-80%, within the permeable rule)
+        peak          how sharply heights rise towards cores (spread out ... towers)
+        intensity     overall height (low-rise ... up to each cell's height cap)
+        base          background density away from the cores (0-60% of the peak)
+
+Positions and reach are relative to the design ground, so a genome can be regrown on
+any site.
+
+Growth (Sem 06 attractor fields + Eco-machine streams as attractors):
+    1. each attractor spreads a field that fades with distance
+    2. water claims its share first, on the cells scoring highest for water
+    3. green claims its share next
+    4. the rest is building, with heights falling off from the cores
+    Every step respects the rules: allowed uses, height cap, permeable minimum.
+"""
+
+from dataclasses import dataclass, field
+
+import geopandas as gpd
+import numpy as np
+
+from pc.layers import neighbours
+
+N_ATTRACTORS = 8
+ATTRACTOR_GENES = 5
+GLOBAL_GENES = ["water_share", "green_share", "follow_water", "coverage", "peak", "intensity",
+                "base"]
+LENGTH = N_ATTRACTORS * ATTRACTOR_GENES + len(GLOBAL_GENES)
+KINDS = ["core", "green", "water"]
+USES = ["building", "landscape", "water"]
+
+
+@dataclass
+class Attractor:
+    x: float
+    y: float
+    radius: float
+    weight: float
+    kind: str
+
+
+@dataclass
+class Ground:
+    """A site's design ground, prepared once and shared by every genome."""
+    cells: gpd.GeoDataFrame
+    xy: np.ndarray
+    area: np.ndarray
+    nbr: np.ndarray          # (n, 6) neighbour positions, -1 where there is none
+    can_build: np.ndarray
+    can_green: np.ndarray
+    can_water: np.ndarray
+    cap: np.ndarray          # height cap (levels)
+    min_perm: np.ndarray     # minimum permeable share
+    trees: np.ndarray
+    site_water: np.ndarray   # the site's own water: hollows, drainage, flooding (smoothed)
+    bounds: tuple
+
+
+@dataclass
+class Design:
+    genome: np.ndarray
+    use: np.ndarray
+    levels: np.ndarray
+    coverage: np.ndarray
+    floor_area: np.ndarray
+    attractors: list
+    settings: dict
+    scores: dict = field(default_factory=dict)
+
+
+def _lerp(g, lo, hi):
+    return lo + g * (hi - lo)
+
+
+def _norm(v):
+    top = v.max() if len(v) else 0
+    return v / top if top > 0 else v
+
+
+def smooth(v, nbr, passes=2):
+    """Average each cell with its neighbours, a few times over."""
+    has = nbr >= 0
+    for _ in range(passes):
+        vals = np.where(has, v[np.where(has, nbr, 0)], 0.0)
+        v = (v + vals.sum(axis=1)) / (1 + has.sum(axis=1))
+    return v
+
+
+def prepare(suit: gpd.GeoDataFrame) -> Ground:
+    cells = suit[(~suit["water"]) & suit["state"].isin(["constrained", "open"])].reset_index(drop=True)
+    nb = neighbours(cells)
+    nbr = np.full((len(cells), 6), -1)
+    for i, row in enumerate(nb):
+        nbr[i, :len(row)] = row
+    uses = cells["uses"]
+    floods = cells.filter(like="flood_")
+    flood = floods.max(axis=1).to_numpy() if floods.shape[1] else np.zeros(len(cells))
+    raw_water = (_norm(cells["pool"].to_numpy()) + _norm(np.log1p(cells["upstream"].to_numpy()))
+                 + _norm(flood))
+    c = cells.centroid
+    return Ground(
+        cells=cells, xy=np.column_stack([c.x, c.y]), area=cells.area.to_numpy(), nbr=nbr,
+        can_build=uses.str.contains("building").to_numpy(),
+        can_green=uses.str.contains("landscape").to_numpy(),
+        can_water=(uses.str.contains("water") | uses.str.contains("wetland")).to_numpy(),
+        cap=cells["max_levels"].to_numpy(), min_perm=cells["min_permeable"].to_numpy(),
+        trees=cells["trees"].to_numpy(),
+        # Smoothed, so water gathers into bodies instead of one-cell drainage chains.
+        site_water=_norm(smooth(raw_water, nbr, passes=3)),
+        bounds=tuple(cells.total_bounds),
+    )
+
+
+def decode(genome: np.ndarray, bounds) -> tuple[list[Attractor], dict]:
+    """Numbers → attractors (in metres) and site-wide settings."""
+    xmin, ymin, xmax, ymax = bounds
+    diag = np.hypot(xmax - xmin, ymax - ymin)
+    att = []
+    for k in range(N_ATTRACTORS):
+        x, y, r, w, kind = genome[k * ATTRACTOR_GENES:(k + 1) * ATTRACTOR_GENES]
+        att.append(Attractor(x=_lerp(x, xmin, xmax), y=_lerp(y, ymin, ymax),
+                             radius=_lerp(r, 0.04, 0.30) * diag, weight=_lerp(w, 0.2, 1.0),
+                             kind=KINDS[min(int(kind * len(KINDS)), len(KINDS) - 1)]))
+    g = dict(zip(GLOBAL_GENES, genome[N_ATTRACTORS * ATTRACTOR_GENES:]))
+    settings = {
+        "water_share": _lerp(g["water_share"], 0.05, 0.30),
+        "green_share": _lerp(g["green_share"], 0.10, 0.45),
+        "follow_water": g["follow_water"],
+        "coverage": _lerp(g["coverage"], 0.35, 0.80),
+        "peak": _lerp(g["peak"], 0.5, 3.0),       # exponent on the core field
+        "intensity": _lerp(g["intensity"], 0.25, 1.0),
+        "base": _lerp(g["base"], 0.0, 0.6),
+    }
+    return att, settings
+
+
+def random_genome(rng) -> np.ndarray:
+    return rng.random(LENGTH)
+
+
+def _field(xy, attractors, kind):
+    """Sum of attractor fields of one kind: weight × (1 - d/r)² inside the radius."""
+    f = np.zeros(len(xy))
+    for a in attractors:
+        if a.kind != kind:
+            continue
+        d = np.hypot(xy[:, 0] - a.x, xy[:, 1] - a.y)
+        f += a.weight * np.clip(1 - d / a.radius, 0, None) ** 2
+    return f
+
+
+def grow(genome: np.ndarray, ground: Ground, locked: np.ndarray | None = None) -> Design:
+    """Grow a design. `locked` (optional): a use code per cell (see use_codes; 0 = free).
+    Locked cells keep their use and count towards that use's share."""
+    att, s = decode(genome, ground.bounds)
+    xy = ground.xy
+    core = _norm(_field(xy, att, "core"))
+    green = _norm(_field(xy, att, "green")) + 0.3 * ground.trees  # keep canopy
+    water = ((1 - s["follow_water"]) * _norm(smooth(_field(xy, att, "water"), ground.nbr, 1))
+             + s["follow_water"] * ground.site_water)
+
+    n = len(xy)
+    use = np.full(n, "", dtype=object)
+    free = np.ones(n, dtype=bool)
+    if locked is not None:
+        for code, name in enumerate(USES, start=1):
+            use[locked == code] = name
+        free[locked > 0] = False
+
+    def claim(score, eligible, share, name):
+        k = max(int(round(share * n)) - int((use == name).sum()), 0)
+        idx = np.flatnonzero(eligible & free)
+        pick = idx[np.argsort(-score[idx])][:k]
+        use[pick] = name
+        free[pick] = False
+
+    claim(water, ground.can_water, s["water_share"], "water")
+    claim(green - 0.5 * core, ground.can_green, s["green_share"], "landscape")
+    use[free & ground.can_build] = "building"
+    left = free & ~ground.can_build
+    use[left] = np.where(ground.can_green[left], "landscape", "water")
+
+    # Heights: peak < 1 spreads height out, > 1 concentrates it in towers; base lifts all.
+    rise = s["base"] + (1 - s["base"]) * core ** s["peak"]
+    is_b = use == "building"
+    levels = np.where(is_b, np.clip(np.round(1 + (ground.cap - 1) * s["intensity"] * rise), 1, ground.cap), 0)
+    cov = np.where(is_b, np.minimum(s["coverage"], 1 - ground.min_perm), 0.0)
+    return Design(genome=genome, use=use, levels=levels.astype(int), coverage=cov,
+                  floor_area=ground.area * cov * levels, attractors=att, settings=s)
+
+
+def use_codes(d: Design) -> np.ndarray:
+    """Uses as small integers (for comparing designs cell by cell)."""
+    return np.select([d.use == u for u in USES], range(1, len(USES) + 1), 0).astype(np.int8)
+
+
+def to_frame(d: Design, ground: Ground) -> gpd.GeoDataFrame:
+    """A design as map cells (for drawing and export)."""
+    f = ground.cells[["geometry"]].copy()
+    f["use"], f["levels"] = d.use, d.levels
+    f["coverage"], f["floor_area"] = d.coverage.round(2), d.floor_area.round(0)
+    f.attrs["attractors"] = d.attractors
+    return f
+
+
+def stats(d: Design, ground: Ground) -> dict:
+    total = ground.area.sum()
+    share = lambda u: ground.area[d.use == u].sum() / total
+    b = d.use == "building"
+    out = {
+        "floor_area_ha": d.floor_area.sum() / 1e4,
+        "far": d.floor_area.sum() / total,
+        "building": share("building"),
+        "landscape": share("landscape"),
+        "water": share("water"),
+        "mean_levels": d.levels[b].mean() if b.any() else 0,
+        "max_levels": d.levels[b].max() if b.any() else 0,
+    }
+    return {k: round(float(v), 3) for k, v in out.items()}

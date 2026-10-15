@@ -1,0 +1,6 @@
+# Downloaded and built data, per site (licences vary; Cartosat must never be hosted)
+data/
+runs/
+.venv/
+__pycache__/
+*.pyc
