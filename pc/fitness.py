@@ -56,6 +56,11 @@ SCORES = {
 }
 
 
+def _round(x, nd):
+    """Round as numpy and the browser engine do: scale, round half to even, unscale."""
+    return float(np.round(float(x), nd))
+
+
 def floor_area_target(site, ground: Ground) -> float:
     """Target floor area in m², from site.yaml."""
     if site.target_floor_area_ha:
@@ -117,9 +122,9 @@ def evaluate(d: Design, ground: Ground, site, storm_factor: float = 1.0) -> dict
     target = floor_area_target(site, ground)
     gap = abs(total_fa - target) / target
 
-    d.scores = {"storage": round(float(storage), 3), "heat": round(heat, 2),
-                "carbon": round(carbon, 0), "daylight": round(daylight, 3),
-                "human": round(human, 3), "gap": round(float(gap), 3)}
+    d.scores = {"storage": _round(storage, 3), "heat": _round(heat, 2),
+                "carbon": _round(carbon, 0), "daylight": _round(daylight, 3),
+                "human": _round(human, 3), "gap": _round(gap, 3)}
     return d.scores
 
 
@@ -167,7 +172,7 @@ def crowding(scores: list[dict], idx) -> np.ndarray:
     if n <= 2:
         return np.full(n, np.inf)
     for k in range(f.shape[1]):
-        order = np.argsort(f[:, k])
+        order = np.argsort(f[:, k], kind="stable")  # stable: same ties as the browser
         span = f[order[-1], k] - f[order[0], k] or 1
         dist[order[0]] = dist[order[-1]] = np.inf
         dist[order[1:-1]] += (f[order[2:], k] - f[order[:-2], k]) / span

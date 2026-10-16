@@ -30,7 +30,19 @@ uv run pc evolve my-site --gens 30         # breed 30 generations; final front +
 
 uv run pc app                              # the designer's sandbox at http://localhost:8501
 uv run pc sites                            # list sites
+uv run pc export my-site --fixture         # for the web app: app/public/sites/ + a parity fixture
 ```
+
+The web app (v2, Vite + TypeScript, deployed on Vercel):
+
+```bash
+cd app && npm install                      # once
+npm run dev                                # http://localhost:5173
+npm test                                   # parity: the TS engine against Python fixtures
+npm run speed                              # 1,860 designs per site, timed
+```
+
+Live: https://permutationcity.vercel.app. Plan and decisions for v2: [docs/architecture-v2.md](docs/architecture-v2.md). Deploying: [docs/deploy.md](docs/deploy.md).
 
 ## Sites
 
@@ -171,7 +183,18 @@ pc/
   layers.py    McHarg layers
   rules.py     rules → forbidden / retained / constrained / open
   maps.py      map sheets
+  genome.py    genome → design (attractor growth); RANGES: how genes are read
+  fitness.py   scores, Pareto ranks, families
+  evolve.py    NSGA-II-style evolution
+  export.py    sites for the web app, parity fixtures
   __main__.py  the `pc` command
+sandbox/app.py        the Streamlit sandbox (`pc app`)
+app/
+  engine/      the TypeScript engine (port of pc/genome, fitness, evolve); worker.ts via Comlink
+  ui/          the page: six chapters on canvas
+  api/         Vercel functions (health now; brief compiler in Phase 4)
+  public/sites/  exported sites
+test/parity/   Python fixtures + Vitest parity test; speed.ts
 rules.template.yaml   starting rules for new sites
 ```
 
@@ -187,8 +210,9 @@ rules.template.yaml   starting rules for new sites
 - [x] **Phase 4: Fitness.** Flood storage, heat, floor area against a target (`pc/fitness.py`); Pareto ranks; trade-off chart `maps/04-seq<n>-gen0-tradeoffs.png`. Water-chain artifact fixed (smoothed water score).
 - [x] **Phase 5: Evolution.** `pc evolve`: NSGA-II-style loop with the Sem 06 breeding rules (60/40 crossover, attractors inherited whole, mutation, ~10% immigrants); saves `final.npy`, `history.json`, `lineage.json`; sheets `05-…-front.png`, `06-…-evolution.png`. 1,860 designs in ~5 s.
   - First Mumbai run with three scores converged on near-identical "towers in a park" (mean 12 levels). Fixed by adding carbon, daylight and human scale, making floor area the brief, and keeping families.
-  - Mumbai Seq1 now (30 × 60): 41 designs on the front in 17 families, 4.5–7.5 storeys on average. Main trade-off: **storage vs daylight** (Family D: 169% storage, 62% daylight; Family B: 106% and 100%).
-- [x] **Phase 6: Play.** `uv run pc app` (Streamlit, `app/app.py`): Site (maps, edit and apply rules), Evolve (brief, storm, climate shock mid-run, locks, start from the pen; progress charts), Families (gallery, 3D view on a basemap, lock water / landscape / buildings, GeoJSON export), Breed (pick two parents, six children, keep, repeat)
+  - Mumbai Seq1 (30 × 60) gave 41 designs on the front in 17 families, 4.5–7.5 storeys on average. Main trade-off: **storage vs daylight**.
+  - Since v2 Phase 1, Python and the browser share one random generator, so a seed gives the same run in both. Seq1 is now 43 designs on the front in 35 families; the trade-off is the same (Family C: 173% storage, 44% daylight; Family B: 78% and 100%).
+- [x] **Phase 6: Play.** `uv run pc app` (Streamlit, `sandbox/app.py`): Site (maps, edit and apply rules), Evolve (brief, storm, climate shock mid-run, locks, start from the pen; progress charts), Families (gallery, 3D view on a basemap, lock water / landscape / buildings, GeoJSON export), Breed (pick two parents, six children, keep, repeat)
   - [ ] Family tree view (lineage is saved, not drawn yet)
   - [ ] Save session brief changes back to `site.yaml`; save and reload runs in the app
 - [x] **Site boundaries as polygons.** `pc new <site> --boundary site.geojson`, or draw one in the app (*New site* mode: search, draw, fetch and build). Layers are worked out on the polygon plus a 250 m context margin (`context_m`), then cropped to the polygon. The design area can be drawn in the app's Site tab. Test site: `sites/mumbai-docks` (an approximate outline, not the studio boundary).
@@ -197,11 +221,18 @@ rules.template.yaml   starting rules for new sites
   - the site genome sets the envelope (use, height cap, coverage); the block genome fills it with real 3D volumes
   - 3D fitness from the volumes: sun on roofs and facades, shade in courts and streets, sky view, wind permeability (frontal area), plus the site scores recomputed from actual floor area
   - explore it as a massing study: evolve one block, a street, or the whole site; view and compare in 3D; export to Rhino (`.3dm`) and glTF
-- [ ] **Phase 8: On raghavkohli.xyz**, as a static page like Climate Code
-  - [x] `pc export <site>` → `web/dist/<site>.json`
-  - [x] `web/engine.js`: the engine in JavaScript; `node web/test/parity.mjs` checks it matches Python exactly
-  - [x] `web/`: the page (six chapters, canvas maps, 3D view, evolution in a Web Worker). Try it: `uv run python -m http.server 8765`, then open http://127.0.0.1:8765/web/
-  - [ ] Into the site repo: layout, project card, `scripts/sync-permutation-city.py`, a pull request
+- [x] **Phase 8: On the web.** `pc export`, the engine in JavaScript with exact parity, the six-chapter page. Superseded by v2: a Vercel app at permutation.raghavkohli.xyz that the main site links to.
+- [ ] **v2** ([brief](docs/permutation-city-v2-prompt.md), [plan](docs/architecture-v2.md))
+  - [x] Phase 0: audit and plan
+  - [x] Phase 1: new layout, TypeScript engine (`app/engine`), Vite app, Vercel preview
+  - [ ] Phase 2: layer service and site picker
+  - [ ] Phase 3: hex or quad grids
+  - [ ] Phase 4: context and the brief compiler
+  - [ ] Phase 5: NSGA-II, NSGA-III, MAP-Elites
+  - [ ] Phase 6: urban and aesthetic metrics (Alexander's fifteen properties)
+  - [ ] Phase 7: 3D massing at building scale
+  - [ ] Phase 8: space syntax and legibility
+  - [ ] Phase 9: runs, lineage, piecemeal growth
 - [ ] **Beyond.** Networks and space syntax (Sem 06's foreground/background networks), Eco-machine programs, time steps (2025 → 2035 → 2050)
 
 ### Data to improve

@@ -1,6 +1,7 @@
-"""Export a built site for the browser (the static page on raghavkohli.xyz).
+"""Export a built site for the browser (the web app in app/).
 
-    uv run pc export <site> [--fixture]      → web/dist/<site>.json (+ web/test/fixture-<site>.json)
+    uv run pc export <site> [--fixture]   → app/public/sites/<site>.json
+                                            (+ test/parity/fixtures/<site>.json)
 
 One JSON file per site, in local metres around an origin (lon, lat), with:
     meta      name, brief, storm, sea levels, hex size, cell area, credits
@@ -10,9 +11,9 @@ One JSON file per site, in local metres around an origin (lon, lat), with:
               allows, height caps, permeable minimums, trees, the site's own water score
     context   major roads and rail (polylines), place names
 
-The browser engine (web/engine.js) reads `design` exactly as pc.genome.Ground holds it;
+The browser engine (app/engine/) reads `design` exactly as pc.genome.Ground holds it;
 `ground_from_export` rebuilds that Ground in Python so both engines can be compared on
-identical inputs (web/test/parity.mjs).
+identical inputs (test/parity/parity.test.ts).
 """
 
 import json
@@ -20,10 +21,12 @@ import json
 import geopandas as gpd
 import numpy as np
 
-from pc import fitness, genome
+from pc import evolve, fitness, genome
+from pc.rng import Rng
 from pc.site import ROOT, Site
 
-WEB = ROOT / "web"
+SITES_OUT = ROOT / "app" / "public" / "sites"
+FIXTURES = ROOT / "test" / "parity" / "fixtures"
 STATE_CODE = {"forbidden": 0, "retained": 1, "constrained": 2, "open": 3}
 CREDITS = [
     "Copernicus DEM GLO-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018, "
@@ -49,15 +52,41 @@ def _lines(gdf, ox, oy, tol=3.0):
     return out
 
 
+def _design(ground: genome.Ground, ox: float, oy: float) -> dict:
+    """The design ground as exported: engine order, local metres, rounded."""
+    gc = ground.cells.centroid
+    return {
+        "x": _r(gc.x - ox, 2), "y": _r(gc.y - oy, 2),
+        "nbr": [int(v) for v in ground.nbr.ravel()],
+        "can": [int(b) | int(g) << 1 | int(w) << 2
+                for b, g, w in zip(ground.can_build, ground.can_green, ground.can_water)],
+        "cap": [int(v) for v in ground.cap],
+        "min_perm": _r(ground.min_perm, 3),
+        "trees": _r(ground.trees, 3),
+        "site_water": _r(ground.site_water, 6),
+    }
+
+
+def engine_ground(suit: gpd.GeoDataFrame) -> tuple[genome.Ground, dict]:
+    """The Ground every engine grows on: the design ground exactly as exported (local
+    metres, rounded, one cell area), so `pc grow` / `pc evolve` and the browser give the
+    same run for the same seed. Keeps the cells (for drawing) and the origin (to put
+    attractors back in map coordinates)."""
+    g = genome.prepare(suit)
+    xmin, ymin, xmax, ymax = g.bounds
+    ox, oy = (xmin + xmax) / 2, (ymin + ymax) / 2  # local origin: the centre of the design ground
+    design = _design(g, ox, oy)
+    ground = ground_from_export({"design": design, "meta": {"cell_area": round(float(g.area[0]), 3)}})
+    ground.cells, ground.origin = g.cells, (ox, oy)
+    return ground, design
+
+
 def export(site: Site) -> dict:
     from pc.maps import context
 
     suit = gpd.read_file(site.layers / "suitability.gpkg", layer="cells")
-    ground = genome.prepare(suit)
-
-    # Local origin: the centre of the design ground.
-    xmin, ymin, xmax, ymax = ground.bounds
-    ox, oy = (xmin + xmax) / 2, (ymin + ymax) / 2
+    ground, design = engine_ground(suit)
+    ox, oy = ground.origin
     lon, lat = gpd.GeoSeries(gpd.points_from_xy([ox], [oy]), crs=site.crs).to_crs(4326).iloc[0].coords[0]
 
     c = suit.centroid
@@ -74,19 +103,6 @@ def export(site: Site) -> dict:
         "built": _r(suit["built"], 2),
         "industrial": [int(v) for v in suit["industrial"]],
         "reasons": list(suit["reasons"].fillna("")),
-    }
-
-    # Design ground, in the engine's order. Positions: local metres.
-    gc = ground.cells.centroid
-    design = {
-        "x": _r(gc.x - ox, 2), "y": _r(gc.y - oy, 2),
-        "nbr": [int(v) for v in ground.nbr.ravel()],
-        "can": [int(b) | int(g) << 1 | int(w) << 2
-                for b, g, w in zip(ground.can_build, ground.can_green, ground.can_water)],
-        "cap": [int(v) for v in ground.cap],
-        "min_perm": _r(ground.min_perm, 3),
-        "trees": _r(ground.trees, 3),
-        "site_water": _r(ground.site_water, 6),
     }
 
     ctx = context(site)
@@ -140,11 +156,43 @@ class _Brief:
         self.hex_radius = meta["hex_radius"]
 
 
+# Whole evolutions for the fixture: plain, with a mid-run shock, and with locked cells,
+# start genomes and a different population. Small, so the fixture stays quick to check.
+EVOLUTIONS = [
+    {"seed": 1, "generations": 8, "pop": 30},
+    {"seed": 7, "generations": 8, "pop": 30, "shock": [4, 1.4]},
+    {"seed": 3, "generations": 6, "pop": 24, "immigrants": 0.2, "locked": "every7", "start": 2},
+]
+
+
+def _evolution(ground, brief, case: dict) -> dict:
+    opts = {k: v for k, v in case.items() if k not in ("locked", "start", "shock")}
+    locked = None
+    if case.get("locked") == "every7":
+        locked = np.zeros(len(ground.xy), dtype=np.int8)
+        locked[::7] = 1 + (np.arange(0, len(ground.xy), 7) % 3)
+    start = None
+    if case.get("start"):
+        r = Rng(99)
+        start = [genome.random_genome(r) for _ in range(case["start"])]
+    run = evolve.evolve(brief, ground, locked=locked, shock=tuple(case["shock"]) if "shock" in case else None,
+                        start=start, log=None, **opts)
+    inf = lambda v: None if np.isinf(v) else float(v)  # JSON has no Infinity
+    return {
+        "case": case,
+        "history": [{k: (float(v) if isinstance(v, (float, np.floating)) else v) for k, v in h.items()}
+                    for h in run.history],
+        "pop": [{"name": i.name, "rank": i.rank, "crowd": inf(i.crowd), "parents": list(i.parents),
+                 "genome": [float(v) for v in i.design.genome], "scores": i.scores} for i in run.pop],
+    }
+
+
 def fixture(data: dict, n=40, seed=7) -> dict:
-    """Random genomes with their designs and scores, grown by the Python engine."""
+    """Random genomes with their designs and scores, grown by the Python engine, and a few
+    whole evolutions."""
     ground = ground_from_export(data)
     brief = _Brief(data["meta"])
-    rng = np.random.default_rng(seed)
+    rng = Rng(seed)
     cases = []
     for _ in range(n):
         g = genome.random_genome(rng)
@@ -155,22 +203,25 @@ def fixture(data: dict, n=40, seed=7) -> dict:
     ranks = fitness.pareto_ranks([c["scores"] for c in cases])
     for c, r in zip(cases, ranks):
         c["rank"] = int(r)
-    return {"site": data["meta"]["id"], "cases": cases}
+    r = Rng(12345)
+    stream = {"seed": 12345, "random": [r.random() for _ in range(200)], "normal": [r.normal(0, 0.12) for _ in range(50)]}
+    return {"site": data["meta"]["id"], "cases": cases, "rng": stream,
+            "evolutions": [_evolution(ground, brief, c) for c in EVOLUTIONS]}
 
 
 def write(site: Site, with_fixture=False):
     data = export(site)
-    (WEB / "dist").mkdir(parents=True, exist_ok=True)
-    out = WEB / "dist" / f"{site.id}.json"
+    SITES_OUT.mkdir(parents=True, exist_ok=True)
+    out = SITES_OUT / f"{site.id}.json"
     out.write_text(json.dumps(data, separators=(",", ":")), encoding="utf-8")
     print(f"  {out.relative_to(ROOT)}  {out.stat().st_size / 1e3:.0f} KB  "
           f"({len(data['grid']['x']):,} cells, {len(data['design']['x']):,} design cells)")
     if with_fixture:
-        (WEB / "test").mkdir(parents=True, exist_ok=True)
-        fx = WEB / "test" / f"fixture-{site.id}.json"
+        FIXTURES.mkdir(parents=True, exist_ok=True)
+        fx = FIXTURES / f"{site.id}.json"
         fx.write_text(json.dumps(fixture(data)), encoding="utf-8")
         print(f"  {fx.relative_to(ROOT)}")
-    index = WEB / "dist" / "sites.json"
+    index = SITES_OUT / "sites.json"
     sites = json.loads(index.read_text(encoding="utf-8")) if index.exists() else {}
     sites[site.id] = {"name": site.name, "design_ha": data["meta"]["design_ha"],
                       "target_ha": data["meta"]["target_ha"]}

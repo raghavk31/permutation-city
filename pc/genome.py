@@ -44,6 +44,20 @@ LENGTH = N_ATTRACTORS * ATTRACTOR_GENES + len(GLOBAL_GENES)
 KINDS = ["core", "green", "water"]
 USES = ["building", "landscape", "water"]
 
+# How each gene (0..1) is read: the run config's gene ranges. A brief may narrow or move
+# these; it never adds genes. Attractor radius is a share of the design ground's diagonal.
+RANGES = {
+    "radius": (0.04, 0.30),
+    "weight": (0.2, 1.0),
+    "water_share": (0.05, 0.30),
+    "green_share": (0.10, 0.45),
+    "follow_water": (0.0, 1.0),
+    "coverage": (0.35, 0.80),
+    "peak": (0.5, 3.0),         # exponent on the core field
+    "intensity": (0.25, 1.0),
+    "base": (0.0, 0.6),
+}
+
 
 @dataclass
 class Attractor:
@@ -69,6 +83,7 @@ class Ground:
     trees: np.ndarray
     site_water: np.ndarray   # the site's own water: hollows, drainage, flooding (smoothed)
     bounds: tuple
+    origin: tuple = (0.0, 0.0)  # where local (0, 0) sits in map coordinates (see pc.export)
 
 
 @dataclass
@@ -126,7 +141,7 @@ def prepare(suit: gpd.GeoDataFrame) -> Ground:
     )
 
 
-def decode(genome: np.ndarray, bounds) -> tuple[list[Attractor], dict]:
+def decode(genome: np.ndarray, bounds, ranges: dict = RANGES) -> tuple[list[Attractor], dict]:
     """Numbers → attractors (in metres) and site-wide settings."""
     xmin, ymin, xmax, ymax = bounds
     diag = np.sqrt((xmax - xmin) ** 2 + (ymax - ymin) ** 2)
@@ -134,23 +149,17 @@ def decode(genome: np.ndarray, bounds) -> tuple[list[Attractor], dict]:
     for k in range(N_ATTRACTORS):
         x, y, r, w, kind = genome[k * ATTRACTOR_GENES:(k + 1) * ATTRACTOR_GENES]
         att.append(Attractor(x=_lerp(x, xmin, xmax), y=_lerp(y, ymin, ymax),
-                             radius=_lerp(r, 0.04, 0.30) * diag, weight=_lerp(w, 0.2, 1.0),
+                             radius=_lerp(r, *ranges["radius"]) * diag,
+                             weight=_lerp(w, *ranges["weight"]),
                              kind=KINDS[min(int(kind * len(KINDS)), len(KINDS) - 1)]))
     g = dict(zip(GLOBAL_GENES, genome[N_ATTRACTORS * ATTRACTOR_GENES:]))
-    settings = {
-        "water_share": _lerp(g["water_share"], 0.05, 0.30),
-        "green_share": _lerp(g["green_share"], 0.10, 0.45),
-        "follow_water": g["follow_water"],
-        "coverage": _lerp(g["coverage"], 0.35, 0.80),
-        "peak": _lerp(g["peak"], 0.5, 3.0),       # exponent on the core field
-        "intensity": _lerp(g["intensity"], 0.25, 1.0),
-        "base": _lerp(g["base"], 0.0, 0.6),
-    }
+    settings = {name: _lerp(g[name], *ranges[name]) for name in GLOBAL_GENES}
     return att, settings
 
 
 def random_genome(rng) -> np.ndarray:
-    return rng.random(LENGTH)
+    """rng: a pc.rng.Rng (one draw per gene, in order, as the browser engine does)."""
+    return np.array([rng.random() for _ in range(LENGTH)])
 
 
 def _field(xy, attractors, kind):
@@ -215,7 +224,8 @@ def to_frame(d: Design, ground: Ground) -> gpd.GeoDataFrame:
     f = ground.cells[["geometry"]].copy()
     f["use"], f["levels"] = d.use, d.levels
     f["coverage"], f["floor_area"] = d.coverage.round(2), d.floor_area.round(0)
-    f.attrs["attractors"] = d.attractors
+    ox, oy = ground.origin
+    f.attrs["attractors"] = [Attractor(a.x + ox, a.y + oy, a.radius, a.weight, a.kind) for a in d.attractors]
     return f
 
 
