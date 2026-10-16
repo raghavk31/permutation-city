@@ -460,6 +460,31 @@ networks (Phase 3, alongside drainage on `CellGraph`).
 
 ---
 
+## Phase 1 log (2026-10-16)
+
+Done:
+- Layout: `app/` (Vite + TS), `app/engine/` (TS engine), `app/ui/` (the six chapters),
+  `app/api/` (Vercel functions), `app/public/sites/` (exports), `test/parity/` (fixtures,
+  Vitest test, speed script), `sandbox/app.py` (Streamlit, still run by `pc app`). `web/`
+  is deleted.
+- TS engine: a line-for-line port of `web/engine.js`, split into `config`, `num`, `ground`,
+  `genome`, `fitness`, `rank`, `rng`, `evolve`, `worker` (Comlink).
+- Behaviour check: before `web/` was deleted, the old JS and new TS engines ran nine full
+  evolutions (three sites × plain / shock / locks + start genomes + other population
+  sizes). History, final population (names, ranks, crowding, genomes, scores, parents),
+  families and hand breeding were identical.
+- Parity: `npm test`, 9 tests on 3 sites, exact.
+- Run config, first step: the gene ranges are one table, `pc.genome.RANGES` and
+  `DEFAULT_RANGES` in `app/engine/config.ts`, passed to `decode` and `grow`. After the
+  change, the Python exports and fixtures are byte-identical.
+- Vercel project `permutation-city`, with `vercel.json`, `/api/health` and the steps in
+  `docs/deploy.md`.
+
+Deferred, waiting on answers:
+- D1 (framework): the ported chapters stay plain TS. The framework is chosen at the start
+  of Phase 2, before any new UI.
+- D3 (shared RNG): not switched. Python evolution still uses numpy.
+
 ## 8. Open questions
 
 See the Phase 0 checkpoint in the conversation. The answers get recorded here once given.
