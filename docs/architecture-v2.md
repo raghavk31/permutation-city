@@ -523,10 +523,7 @@ The user asked to go with the recommendations:
 | Brief model (D7) | Claude Sonnet 5.5 through OpenRouter (`OPENROUTER_API_KEY`, model id in `OPENROUTER_MODEL`), Opus 5.5 as an option, strict JSON schema through tool calling plus our own validator. |
 | Licences | The app stays free and non-commercial (FABDEM is CC BY-NC-SA). |
 | Git | Work on `v2`, one pull request into `main` per phase checkpoint. |
+| CEPT studio work | May be quoted in the app, with credit to the studio, semester and tutors. Phase 4 writes corpus notes from the Sem 06 and Sem 07 files listed in `generative-method.md`; the files themselves stay off the repo. |
 
-Still open (facts only you have):
-- Whether the CEPT studio documents can be quoted in the app or should only inform the
-  brief.
-
-Settled: the DCPR 2034 and CGDCR 2017 (Part II) PDFs are found (see `corpus/SOURCES.md`),
-and `OPENROUTER_API_KEY` is set in Vercel for Production and Preview.
+Nothing is open. The DCPR 2034 and CGDCR 2017 (Part II) PDFs are found (see
+`corpus/SOURCES.md`), and `OPENROUTER_API_KEY` is set in Vercel for Production and Preview.
