@@ -4,10 +4,11 @@ import * as Comlink from "comlink";
 import * as E from "../engine";
 import type { EngineWorker, EvolveResult, FamilyLead } from "../engine/worker";
 import * as Draw from "./draw";
+import * as Sites from "./sites";
 import "./style.css";
 
 const root = document.querySelector<HTMLElement>("[data-pc]")!;
-const DATA = `${import.meta.env.BASE_URL}sites/`; // where sites.json and <site>.json live
+const DATA = Sites.DATA; // where sites.json and <site>.json live
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => root.querySelector<T>(sel)!;
 const $$ = (sel: string) => [...root.querySelectorAll<HTMLElement>(sel)];
 
@@ -55,6 +56,10 @@ const select = (f: HTMLFormElement, name: string) => f.elements.namedItem(name) 
 
 async function loadSites() {
   state.sites = await (await fetch(`${DATA}sites.json`)).json();
+  // A site from a link (?site=<id or layer-service key>&rules=...): shown first, with its rules.
+  const u = Sites.fromUrl();
+  const linked = u.id ? { id: u.id, rules: u.rules } : null;
+  if (linked && !state.sites[linked.id]) state.sites = { [linked.id]: { name: "Your site" }, ...state.sites };
   const bar = $(".pc-sites");
   bar.innerHTML = Object.entries(state.sites)
     .map(([id, s]) => `<button type="button" data-site="${id}">${s.name}</button>`).join("");
@@ -62,7 +67,8 @@ async function loadSites() {
     const b = (e.target as HTMLElement).closest<HTMLElement>("[data-site]");
     if (b) loadSite(b.dataset.site!);
   });
-  await loadSite(Object.keys(state.sites)[0]);
+  await loadSite(linked ? linked.id : Object.keys(state.sites)[0], linked?.rules ?? null);
+  if (linked && location.hash) document.querySelector(location.hash)?.scrollIntoView();
 }
 
 function startWorker(s: E.SiteExport) {
@@ -73,11 +79,20 @@ function startWorker(s: E.SiteExport) {
   state.worker = { raw, api };
 }
 
-async function loadSite(id: string) {
+async function loadSite(id: string, rules: string | null = null) {
   $$(".pc-sites button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.site === id)));
   $(".pc-status").textContent = "loading the site ...";
-  state.site = await (await fetch(`${DATA}${id}.json`)).json();
+  try {
+    let s = await Sites.fetchSite(id);
+    if (rules && s.rules) s = Sites.withRules(s, Sites.decodeRules(rules, s.rules)).site;
+    state.site = s;
+  } catch (err) {
+    $(".pc-status").textContent = (err as Error).message;
+    return;
+  }
   state.id = id;
+  const btn = root.querySelector<HTMLElement>(`.pc-sites [data-site="${id}"]`);
+  if (btn && state.sites[id]?.name === "Your site") btn.textContent = site().meta.name;
   state.G = E.prepare(site());
   Object.assign(state, { run: null, families: [], selected: null, pen: [], children: [], locks: null, lockNote: [] });
   startWorker(site());
