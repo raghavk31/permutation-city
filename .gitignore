@@ -11,3 +11,4 @@ app/dist/
 .env
 .env.*
 !.env.example
+corpus/_sources/

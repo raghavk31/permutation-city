@@ -525,6 +525,8 @@ The user asked to go with the recommendations:
 | Git | Work on `v2`, one pull request into `main` per phase checkpoint. |
 
 Still open (facts only you have):
-- Corpus: Mumbai DCPR 2034 and Ahmedabad GDCR as PDFs, and whether the CEPT studio
-  documents can be quoted in the app or should only inform the brief.
-- The OpenRouter API key, for Phase 4 (the user is adding `OPENROUTER_API_KEY` in Vercel).
+- Whether the CEPT studio documents can be quoted in the app or should only inform the
+  brief.
+
+Settled: the DCPR 2034 and CGDCR 2017 (Part II) PDFs are found (see `corpus/SOURCES.md`),
+and `OPENROUTER_API_KEY` is set in Vercel for Production and Preview.
