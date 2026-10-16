@@ -507,6 +507,63 @@ Added after the decisions below (same day):
   the front in 35 families (it was 41 in 17). The map sheets in `sites/mumbai-ewf/maps/`
   are redrawn.
 
+## Phase 2 log (2026-10-16)
+
+Done, on branch `v2-phase2` (PR #1 merged first):
+- **Structured, overlapping rules (6.2).** `pc/rules.py` parses `when` strings into
+  `{layer, op, value}` clauses joined by `all` / `any` / `not` (the structured form is
+  accepted directly). Nothing goes through `eval` any more, which closes R2. Each cell gets
+  a membership bitmask (one bit per rule, at most 32), the union of its rules' `roles`, and
+  a `conflict` flag when its rules' allowed uses share nothing (then the union applies).
+  Forbidden stays absolute. On all three sites every state, reason, limit and use is the
+  same as before, and the map sheets are byte-identical. Roles added to every
+  `rules.yaml`: `flood_storage`, `drainage_path`, `breeze_corridor`, `canopy`,
+  `public_edge`. Unit tests in `test/python/test_rules.py` (pytest, D8).
+- **Export format 2 (D9).** Site files add every layer column as built, grid neighbours,
+  memberships and the compiled rules. The format-1 fields are unchanged, and so are the
+  `design` blocks. The export now applies `rules.yaml` itself rather than reading
+  `suitability.gpkg`. Sizes: Mumbai 0.67 → 1.4 MB, Ahmedabad 0.52 → 0.92 MB, Docks 0.15 →
+  0.26 MB. Gzipped, as Vercel serves them: 156, 161 and 44 KB.
+- **Rules and `prepare` in TS (refactor 2).** `app/engine/rules.ts` applies a rule set;
+  `ground.ts` rebuilds the design ground from it (`designFromRules`, `prepareFromRules`).
+  Parity covers the site's rules and an edited set (thresholds halved, plus a "yards" rule
+  that conflicts with the rain hollows) on all three sites: memberships, states, limits,
+  uses, conflicts, roles, reasons and the rebuilt design ground, exactly. 43 Vitest tests.
+- **Overture `place` theme** added to `pc fetch`, for activity locations (R5). Existing
+  sites don't have it until they are fetched again.
+- **Layer service (`service/`).** FastAPI: `POST /sites`, `GET /jobs/{id}`,
+  `GET /results/{key}.json`, `GET /limits`, `GET /health`. One job at a time in a thread;
+  progress per step, and per Overture theme. Cache key: polygon, grid, context, sea
+  levels, rules, Overture release (pinned for the download), `LAYERS_VERSION`, export
+  format. Caps: 4 km², 4,500 cells, 6 builds an hour per address; CORS for the app and its
+  previews only; structured rules only. `service/Dockerfile`, `railway.json`,
+  `docs/service.md`. Tested end to end on two Mumbai polygons (0.26 km² in 7.5 minutes,
+  mostly Overture; 2 ha), and both load and evolve in the browser engine.
+- **Front end (D1, D2).** `new.html` in Svelte 5:
+  - search (Photon), MapLibre on OpenFreeMap with an Esri imagery toggle, terra-draw
+    polygon, and the area and cell count checked against `/limits` before sending
+  - build with a step list and the job's own progress
+  - the layer cake: each layer as its own map, toggled on and off, beside the rules map;
+    hovering any map reads every layer, the cell's rules, roles, limits and conflicts
+  - each rule's thresholds, comparison, height cap and unsealed share are editable, and it
+    can be switched off; the map redraws at once
+  - "Evolve designs on this ground" opens the chapters with `?site=<id or key>&rules=<the
+    changes>`, and the same link reloads the cake. The chapters page accepts these links
+    for precomputed and service-built sites.
+
+Not done, or done differently:
+- **Railway is not deployed.** There's no Docker on this machine and Railway needs your
+  login (`railway login`). Until it's up, production's `new.html` says new sites can't be
+  built yet; the layer cake works for the ready-made sites.
+- **Grid choice** stays hex-only in the picker until Phase 3 (the service refuses `quad`
+  with a clear message).
+- **Rules can be edited, not added.** New rules (picking a layer and a test) need a small
+  editor; I'd rather design it with the brief compiler in Phase 4, which will also add rules.
+- **`svelte-check`** doesn't support TypeScript 7 yet, so `.svelte` files aren't
+  type-checked. They stay thin; their logic is in `.ts` files that `tsc` checks.
+- **Bundle:** `new.html` is 1.2 MB of JS (335 KB gzipped), mostly MapLibre. It's a
+  separate page, so the chapters don't pay for it.
+
 ## 8. Decisions (2026-10-16)
 
 The user asked to go with the recommendations:
