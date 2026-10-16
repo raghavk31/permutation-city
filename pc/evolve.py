@@ -5,12 +5,15 @@ Each generation:
     2. crossover, 60/40 as in the Sem 06 workshop: each attractor slot (all 5 genes
        together, so attractors pass on whole) and each site-wide gene comes from parent A
        with probability 0.6, otherwise from parent B
-    3. mutation: each gene has a small chance of a nudge (Gaussian, kept within 0..1)
+    3. mutation: each gene has a small chance of a nudge (near-Gaussian, kept within 0..1)
     4. immigration: ~10% of children are random newcomers (the workshop's G0.11), so the
        population keeps exploring instead of collapsing onto one genome
     5. parents and children compete; the best `pop` by rank, then distinctness, survive
 
 Individuals are named G{generation}.{nn}; each records its parents.
+
+Random numbers come from pc.rng, drawn in the same order as app/engine/evolve.ts, so a
+seed gives the same run in Python and in the browser.
 """
 
 from dataclasses import dataclass, field
@@ -18,6 +21,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from pc import fitness, genome
+from pc.rng import Rng
 
 
 @dataclass
@@ -72,26 +76,37 @@ def _better(a, b):
     return a if (a.rank, -a.crowd) < (b.rank, -b.crowd) else b
 
 
-def _crossover(a, b, rng, p_a=0.6):
-    child = b.copy()
+def _pick(pop, rng: Rng):
+    """Binary tournament between two different individuals."""
+    i = rng.integer(len(pop))
+    j = rng.integer(len(pop) - 1)
+    if j >= i:
+        j += 1
+    return _better(pop[i], pop[j])
+
+
+def _crossover(a, b, rng: Rng, p_a=0.6):
+    child = np.array(b, dtype=float)
     n_att = genome.N_ATTRACTORS * genome.ATTRACTOR_GENES
     for k in range(genome.N_ATTRACTORS):
         if rng.random() < p_a:
             s = slice(k * genome.ATTRACTOR_GENES, (k + 1) * genome.ATTRACTOR_GENES)
             child[s] = a[s]
-    take = rng.random(genome.LENGTH - n_att) < p_a
-    child[n_att:][take] = a[n_att:][take]
+    for k in range(n_att, genome.LENGTH):
+        if rng.random() < p_a:
+            child[k] = a[k]
     return child
 
 
-def _mutate(g, rng, rate=2 / genome.LENGTH, sigma=0.12):
-    hit = rng.random(len(g)) < rate
-    g = g.copy()
-    g[hit] = np.clip(g[hit] + rng.normal(0, sigma, hit.sum()), 0, 1)
-    return g
+def _mutate(g, rng: Rng, rate=2 / genome.LENGTH, sigma=0.12):
+    out = np.array(g, dtype=float)
+    for k in range(len(out)):
+        if rng.random() < rate:
+            out[k] = min(max(float(out[k]) + rng.normal(0, sigma), 0.0), 1.0)
+    return out
 
 
-def breed(a: np.ndarray, b: np.ndarray, rng, n=6) -> list[np.ndarray]:
+def breed(a: np.ndarray, b: np.ndarray, rng: Rng, n=6) -> list[np.ndarray]:
     """Children of two genomes, for breeding by hand (Biomorphs mode)."""
     return [_mutate(_crossover(a, b, rng), rng) for _ in range(n)]
 
@@ -119,7 +134,7 @@ def evolve(site, ground, generations=30, pop=60, seed=1, immigrants=0.1, log=pri
     start     genomes to include in Generation 0 (e.g. designs bred by hand)
     progress  callback(generation, run) after each generation
     """
-    rng = np.random.default_rng(seed)
+    rng = Rng(seed)
     storm = 1.0
     # Generation 0: the same random genomes `pc grow` makes with this seed (plus any start).
     genomes = [genome.random_genome(rng) for _ in range(pop)]
@@ -144,8 +159,7 @@ def evolve(site, ground, generations=30, pop=60, seed=1, immigrants=0.1, log=pri
             if rng.random() < immigrants:
                 child = _make(genome.random_genome(rng), ground, site, name, ("immigrant",), locked, storm)
             else:
-                pa = _better(*rng.choice(run.pop, 2, replace=False))
-                pb = _better(*rng.choice(run.pop, 2, replace=False))
+                pa, pb = _pick(run.pop, rng), _pick(run.pop, rng)
                 g = _mutate(_crossover(pa.design.genome, pb.design.genome, rng), rng)
                 child = _make(g, ground, site, name, (pa.name, pb.name), locked, storm)
             children.append(child)

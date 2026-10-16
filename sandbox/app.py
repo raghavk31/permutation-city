@@ -27,7 +27,8 @@ from matplotlib.collections import PolyCollection
 from shapely.geometry import box
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from pc import evolve, fitness, genome, maps, rules  # noqa: E402
+from pc import evolve, export, fitness, genome, maps, rules  # noqa: E402
+from pc.rng import Rng  # noqa: E402
 from pc.site import SITES, load  # noqa: E402
 
 st.set_page_config(page_title="Permutation City", page_icon="🧬", layout="wide")
@@ -47,10 +48,10 @@ def hex_to_rgb(h, a=255):
 def load_ground(site_id: str, version: int):
     site = load(site_id)
     suit = gpd.read_file(site.layers / "suitability.gpkg", layer="cells")
-    ground = genome.prepare(suit)
+    ground = export.engine_ground(suit)[0]  # same inputs as the browser engine
     # Polygons for fast thumbnails: design cells, and the background within the frame.
     pad = 60
-    xmin, ymin, xmax, ymax = ground.bounds
+    xmin, ymin, xmax, ymax = ground.cells.centroid.total_bounds
     frame = (xmin - pad, ymin - pad, xmax + pad, ymax + pad)
     bg = suit.cx[frame[0]:frame[2], frame[1]:frame[3]]
     bg = bg[bg["water"] | (bg["state"] == "forbidden") | (bg["state"] == "retained")]
@@ -456,7 +457,7 @@ with tab_breed:
     if not ss.pen:
         st.info("Empty. Send designs here from Families, or start with random ones.")
     if st.button("Add 4 random designs"):
-        rng = np.random.default_rng()
+        rng = Rng(int(time.time() * 1000) % 2**31)
         for _ in range(4):
             ss.brood += 1
             ss.pen.append({"name": f"R{ss.brood}", "genome": genome.random_genome(rng)})
@@ -476,7 +477,7 @@ with tab_breed:
             ga = next(p["genome"] for p in ss.pen if p["name"] == pa)
             gb = next(p["genome"] for p in ss.pen if p["name"] == pb)
             ss.brood += 1
-            kids = evolve.breed(ga, gb, np.random.default_rng(), 6)
+            kids = evolve.breed(ga, gb, Rng(int(time.time() * 1000) % 2**31), 6)
             ss.children = [{"name": f"B{ss.brood}.{k + 1}", "genome": g, "parents": (pa, pb)}
                            for k, g in enumerate(kids)]
         gallery(grown, "pen", [("View in 3D", select)])

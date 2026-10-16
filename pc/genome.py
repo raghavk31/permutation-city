@@ -83,6 +83,7 @@ class Ground:
     trees: np.ndarray
     site_water: np.ndarray   # the site's own water: hollows, drainage, flooding (smoothed)
     bounds: tuple
+    origin: tuple = (0.0, 0.0)  # where local (0, 0) sits in map coordinates (see pc.export)
 
 
 @dataclass
@@ -157,7 +158,8 @@ def decode(genome: np.ndarray, bounds, ranges: dict = RANGES) -> tuple[list[Attr
 
 
 def random_genome(rng) -> np.ndarray:
-    return rng.random(LENGTH)
+    """rng: a pc.rng.Rng (one draw per gene, in order, as the browser engine does)."""
+    return np.array([rng.random() for _ in range(LENGTH)])
 
 
 def _field(xy, attractors, kind):
@@ -222,7 +224,8 @@ def to_frame(d: Design, ground: Ground) -> gpd.GeoDataFrame:
     f = ground.cells[["geometry"]].copy()
     f["use"], f["levels"] = d.use, d.levels
     f["coverage"], f["floor_area"] = d.coverage.round(2), d.floor_area.round(0)
-    f.attrs["attractors"] = d.attractors
+    ox, oy = ground.origin
+    f.attrs["attractors"] = [Attractor(a.x + ox, a.y + oy, a.radius, a.weight, a.kind) for a in d.attractors]
     return f
 
 

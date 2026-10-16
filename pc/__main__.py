@@ -22,6 +22,7 @@ import numpy as np
 import yaml
 
 from pc import fetch, maps, pipeline
+from pc.rng import Rng
 from pc.site import ROOT, SITES, load
 
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -70,10 +71,10 @@ def cmd_rules(a):
 # --- generations --------------------------------------------------------------------
 
 def _ground(site):
-    from pc import genome
+    from pc import export
 
     suit = gpd.read_file(site.layers / "suitability.gpkg", layer="cells")
-    return suit, genome.prepare(suit)
+    return suit, export.engine_ground(suit)[0]
 
 
 def _note(scores, floor_ha):
@@ -107,7 +108,7 @@ def cmd_grow(a):
 
     site = load(a.site)
     suit, ground = _ground(site)
-    rng = np.random.default_rng(a.seed)
+    rng = Rng(a.seed)
     designs = [genome.grow(genome.random_genome(rng), ground) for _ in range(a.n)]
     scores = [fitness.evaluate(d, ground, site) for d in designs]
     ranks = fitness.pareto_ranks(scores)
