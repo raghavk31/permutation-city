@@ -23,7 +23,16 @@ The app in `app/` is a static Vite build plus Vercel functions in `app/api/`. Th
   `npx vercel env add ANTHROPIC_API_KEY`. It is read only inside `app/api/`, never in the
   client.
 
-## permutation.raghavkohli.xyz
+## Production name
+
+For now the app lives at **https://permutationcity.vercel.app** (`permutation-city.vercel.app` was taken; a project domain, so every
+production deploy moves it):
+
+```bash
+cd app && npx vercel domains add permutationcity.vercel.app permutation-city
+```
+
+## permutation.raghavkohli.xyz (later)
 
 1. Add the domain to the project:
 

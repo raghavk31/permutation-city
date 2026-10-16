@@ -42,7 +42,7 @@ npm test                                   # parity: the TS engine against Pytho
 npm run speed                              # 1,860 designs per site, timed
 ```
 
-Plan and decisions for v2: [docs/architecture-v2.md](docs/architecture-v2.md). Deploying: [docs/deploy.md](docs/deploy.md).
+Live: https://permutationcity.vercel.app. Plan and decisions for v2: [docs/architecture-v2.md](docs/architecture-v2.md). Deploying: [docs/deploy.md](docs/deploy.md).
 
 ## Sites
 
@@ -210,7 +210,8 @@ rules.template.yaml   starting rules for new sites
 - [x] **Phase 4: Fitness.** Flood storage, heat, floor area against a target (`pc/fitness.py`); Pareto ranks; trade-off chart `maps/04-seq<n>-gen0-tradeoffs.png`. Water-chain artifact fixed (smoothed water score).
 - [x] **Phase 5: Evolution.** `pc evolve`: NSGA-II-style loop with the Sem 06 breeding rules (60/40 crossover, attractors inherited whole, mutation, ~10% immigrants); saves `final.npy`, `history.json`, `lineage.json`; sheets `05-…-front.png`, `06-…-evolution.png`. 1,860 designs in ~5 s.
   - First Mumbai run with three scores converged on near-identical "towers in a park" (mean 12 levels). Fixed by adding carbon, daylight and human scale, making floor area the brief, and keeping families.
-  - Mumbai Seq1 now (30 × 60): 41 designs on the front in 17 families, 4.5–7.5 storeys on average. Main trade-off: **storage vs daylight** (Family D: 169% storage, 62% daylight; Family B: 106% and 100%).
+  - Mumbai Seq1 (30 × 60) gave 41 designs on the front in 17 families, 4.5–7.5 storeys on average. Main trade-off: **storage vs daylight**.
+  - Since v2 Phase 1, Python and the browser share one random generator, so a seed gives the same run in both. Seq1 is now 43 designs on the front in 35 families; the trade-off is the same (Family C: 173% storage, 44% daylight; Family B: 78% and 100%).
 - [x] **Phase 6: Play.** `uv run pc app` (Streamlit, `sandbox/app.py`): Site (maps, edit and apply rules), Evolve (brief, storm, climate shock mid-run, locks, start from the pen; progress charts), Families (gallery, 3D view on a basemap, lock water / landscape / buildings, GeoJSON export), Breed (pick two parents, six children, keep, repeat)
   - [ ] Family tree view (lineage is saved, not drawn yet)
   - [ ] Save session brief changes back to `site.yaml`; save and reload runs in the app

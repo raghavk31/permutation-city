@@ -480,11 +480,45 @@ Done:
 - Vercel project `permutation-city`, with `vercel.json`, `/api/health` and the steps in
   `docs/deploy.md`.
 
-Deferred, waiting on answers:
-- D1 (framework): the ported chapters stay plain TS. The framework is chosen at the start
-  of Phase 2, before any new UI.
-- D3 (shared RNG): not switched. Python evolution still uses numpy.
+Added after the decisions below (same day):
+- **Shared RNG (D3).** `pc/rng.py` and `app/engine/rng.ts` are the same mulberry32. Normal
+  draws are the Irwin-Hall sum of 12 uniforms, not Box-Muller: additions only, so there is
+  no `log`/`cos` whose last digit could differ between the two languages. The JS counter
+  wraps at 2³² (`>>> 0`), so long runs stay exact. Python draws in the browser engine's
+  order: crossover and mutation one gene at a time, parents by the same two-draw
+  tournament.
+- **Ties and rounding.** `fitness.crowding` uses a stable sort, as JS does. Scores round
+  by scale, round half to even, unscale (`np.round`), as JS does.
+- **One set of engine inputs.** `pc grow`, `pc evolve` and the sandbox grow on
+  `export.engine_ground`: the design ground exactly as exported (local metres, rounded,
+  one cell area). Attractors are shifted back by `Ground.origin` for drawing. Before this,
+  the CLI grew on the unrounded geopackage, which broke ties differently.
+- **Result.** The same seed gives the same run in Python and in the browser. Parity now
+  covers the random stream and three whole evolutions per site (`npm test`, 21 tests).
+  Full 30 × 60 runs from `pc evolve` matched the browser engine on all three sites, down
+  to every individual's scores and parents.
+- **Cost.** Every earlier seed now gives a different run. Mumbai Seq1 is now 43 designs on
+  the front in 35 families (it was 41 in 17). The map sheets in `sites/mumbai-ewf/maps/`
+  are redrawn.
 
-## 8. Open questions
+## 8. Decisions (2026-10-16)
 
-See the Phase 0 checkpoint in the conversation. The answers get recorded here once given.
+The user asked to go with the recommendations:
+
+| | Decision |
+|---|---|
+| Hosting | Vercel, on a `vercel.app` name for now (https://permutationcity.vercel.app; `permutation-city` was taken). The custom subdomain steps stay in `docs/deploy.md` for later. |
+| Framework (D1) | Svelte 5 for new UI from Phase 2. The six ported chapters stay plain TS until they are reworked. |
+| Map stack (D2) | MapLibre GL, OpenFreeMap basemap, Esri World Imagery behind a toggle with attribution, terra-draw, Photon search. |
+| Shared RNG (D3) | Done (above). |
+| Phase 7 geometry (D4) | TS only. Python checks scores on exported meshes. |
+| Space syntax (D5) | Segment analysis on the derived network. |
+| Retrieval (D6) | BM25 index built at deploy time; uploads parsed and chunked in the browser. |
+| Brief model (D7) | `claude-sonnet-5-5` by default, `claude-opus-5-5` as an option, strict JSON schema through tool use. |
+| Licences | The app stays free and non-commercial (FABDEM is CC BY-NC-SA). |
+| Git | Work on `v2`, one pull request into `main` per phase checkpoint. |
+
+Still open (facts only you have):
+- Corpus: Mumbai DCPR 2034 and Ahmedabad GDCR as PDFs, and whether the CEPT studio
+  documents can be quoted in the app or should only inform the brief.
+- The Anthropic API key, for Phase 4 (`npx vercel env add ANTHROPIC_API_KEY`).
