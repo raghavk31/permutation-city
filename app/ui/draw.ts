@@ -1,10 +1,16 @@
 // Permutation City: drawing. Hex maps, a hand-rolled 3D view and small line charts, on
 // canvas, with no libraries. Colours come from CSS custom properties so the page's light
 // and dark themes carry through.
+import type { Design, SiteExport } from "../engine";
 
 const SQ3 = Math.sqrt(3);
 
-export function css(name, fallback) {
+export type Palette = ReturnType<typeof palette>;
+type Colour = string | null;
+export interface View { s: number; px: (x: number) => number; py: (y: number) => number; bounds: number[] }
+type Ctx = CanvasRenderingContext2D;
+
+export function css(name: string, fallback: string): string {
   const el = document.querySelector(".pc") || document.documentElement; // tokens live on the page root
   const v = getComputedStyle(el).getPropertyValue(name).trim();
   return v || fallback;
@@ -24,40 +30,40 @@ export const palette = () => ({
   oranges: ["#fbd5c4", "#f19a74", "#eb6834", "#b9481c", "#7a2c0e"],
 });
 
-function hexToRgb(h) {
+function hexToRgb(h: string): number[] {
   const n = parseInt(h.slice(1), 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
 /** A colour along a ramp (list of hex colours), t in 0..1. */
-export function ramp(stops, t) {
+export function ramp(stops: string[], t: number): string {
   t = Math.min(Math.max(t, 0), 1) * (stops.length - 1);
   const i = Math.min(Math.floor(t), stops.length - 2), f = t - i;
   const a = hexToRgb(stops[i]), b = hexToRgb(stops[i + 1]);
   return `rgb(${a.map((v, k) => Math.round(v + (b[k] - v) * f)).join(",")})`;
 }
 
-export function shade(colour, k) {
+export function shade(colour: string, k: number): string {
   const m = colour.match(/\d+/g);
   const rgb = m && colour.startsWith("rgb") ? m.slice(0, 3).map(Number) : hexToRgb(colour);
   return `rgb(${rgb.map((v) => Math.round(Math.min(255, v * k))).join(",")})`;
 }
 
 /** Size a canvas for crisp drawing at the device's pixel ratio. */
-export function fitCanvas(canvas, aspect) {
-  const w = canvas.clientWidth || canvas.parentElement.clientWidth;
+export function fitCanvas(canvas: HTMLCanvasElement, aspect?: number) {
+  const w = canvas.clientWidth || canvas.parentElement!.clientWidth;
   const h = aspect ? Math.round(w * aspect) : canvas.clientHeight;
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   canvas.width = Math.round(w * dpr);
   canvas.height = Math.round(h * dpr);
   canvas.style.height = `${h}px`;
-  const ctx = canvas.getContext("2d");
+  const ctx = canvas.getContext("2d")!;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   return { ctx, w, h };
 }
 
 /** A view that fits a set of points (local metres) into w×h with a margin. */
-export function view(xs, ys, w, h, pad = 8, r = 20) {
+export function view(xs: number[], ys: number[], w: number, h: number, pad = 8, r = 20): View {
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   for (let i = 0; i < xs.length; i++) {
     if (xs[i] < x0) x0 = xs[i]; if (xs[i] > x1) x1 = xs[i];
@@ -70,12 +76,12 @@ export function view(xs, ys, w, h, pad = 8, r = 20) {
 }
 
 /** Aspect ratio (height / width) of a set of points. */
-export function aspectOf(xs, ys) {
+export function aspectOf(xs: number[], ys: number[]): number {
   const w = Math.max(...xs) - Math.min(...xs) + 40, h = Math.max(...ys) - Math.min(...ys) + 40;
   return Math.min(Math.max(h / w, 0.45), 1.6);
 }
 
-function hexPath(ctx, cx, cy, r) {
+function hexPath(ctx: Ctx, cx: number, cy: number, r: number) {
   ctx.moveTo(cx + r * SQ3 / 2, cy - r / 2);
   ctx.lineTo(cx, cy - r);
   ctx.lineTo(cx - r * SQ3 / 2, cy - r / 2);
@@ -86,14 +92,14 @@ function hexPath(ctx, cx, cy, r) {
 }
 
 /** Fill hexes: xs, ys (local metres), colours (one per hex, null to skip). Batched by colour. */
-export function hexes(ctx, v, xs, ys, colours, radius, gap = 0) {
+export function hexes(ctx: Ctx, v: View, xs: number[], ys: number[], colours: Colour[], radius: number, gap = 0) {
   const r = radius * v.s * 1.02 - gap;
-  const groups = new Map();
+  const groups = new Map<string, number[]>();
   for (let i = 0; i < xs.length; i++) {
     const c = colours[i];
     if (!c) continue;
     if (!groups.has(c)) groups.set(c, []);
-    groups.get(c).push(i);
+    groups.get(c)!.push(i);
   }
   for (const [c, idx] of groups) {
     ctx.beginPath();
@@ -104,8 +110,9 @@ export function hexes(ctx, v, xs, ys, colours, radius, gap = 0) {
 }
 
 /** Roads, rail, the boundary and place names. */
-export function context(ctx, v, c, p, { labels = false, boundary = true } = {}) {
-  const line = (pts) => {
+export function context(ctx: Ctx, v: View, c: SiteExport["context"], p: Palette,
+  { labels = false, boundary = true } = {}) {
+  const line = (pts: [number, number][]) => {
     ctx.beginPath();
     pts.forEach(([x, y], k) => (k ? ctx.lineTo(v.px(x), v.py(y)) : ctx.moveTo(v.px(x), v.py(y))));
     ctx.stroke();
@@ -130,13 +137,15 @@ export function context(ctx, v, c, p, { labels = false, boundary = true } = {}) 
 }
 
 /** Colour per design cell: water, landscape, or buildings by storeys. */
-export function designColours(d, p) {
+export function designColours(d: Design, p: Palette): Colour[] {
   return Array.from(d.use, (u, i) => (u === 3 ? p.water : u === 2 ? p.green : u === 1
     ? ramp(p.oranges, d.levels[i] / 15) : null));
 }
 
 /** A design in plan: background (existing water, protected edge, retained city) + design. */
-export function plan(canvas, site, d, p, { aspect, attractors = false, labels = false, locked = null } = {}) {
+export function plan(canvas: HTMLCanvasElement, site: SiteExport, d: Design, p: Palette,
+  { aspect, attractors = false, labels = false, locked = null }:
+  { aspect?: number; attractors?: boolean; labels?: boolean; locked?: ArrayLike<number> | null } = {}): View {
   const g = site.grid, D = site.design, r = site.meta.hex_radius;
   const { ctx, w, h } = fitCanvas(canvas, aspect);
   const v = view(D.x, D.y, w, h, 6, r * 3);
@@ -162,7 +171,8 @@ export function plan(canvas, site, d, p, { aspect, attractors = false, labels = 
 }
 
 /** Any per-cell grid layer: values → colours with `colourOf`. */
-export function layer(canvas, site, colourOf, p, { aspect, labels = false } = {}) {
+export function layer(canvas: HTMLCanvasElement, site: SiteExport, colourOf: (i: number) => Colour, p: Palette,
+  { aspect, labels = false }: { aspect?: number; labels?: boolean } = {}): View {
   const g = site.grid, r = site.meta.hex_radius;
   const { ctx, w, h } = fitCanvas(canvas, aspect);
   const v = view(g.x, g.y, w, h, 6, r);
@@ -173,7 +183,7 @@ export function layer(canvas, site, colourOf, p, { aspect, labels = false } = {}
 }
 
 /** Which grid cell is under a canvas point (for hover). */
-export function cellAt(v, xs, ys, mx, my, radius) {
+export function cellAt(v: View, xs: number[], ys: number[], mx: number, my: number, radius: number): number {
   let best = -1, bd = (radius * v.s) ** 2;
   for (let i = 0; i < xs.length; i++) {
     const dx = v.px(xs[i]) - mx, dy = v.py(ys[i]) - my, dd = dx * dx + dy * dy;
@@ -186,12 +196,13 @@ export function cellAt(v, xs, ys, mx, my, radius) {
  * The design in 3D: hex prisms in an oblique projection, painted far to near.
  * bearing in radians (drag to change); tilt is the view angle from straight down.
  */
-export function solid(canvas, site, d, p, { aspect = 0.62, bearing = -0.5, tilt = 0.95 } = {}) {
+export function solid(canvas: HTMLCanvasElement, site: SiteExport, d: Design, p: Palette,
+  { aspect = 0.62, bearing = -0.5, tilt = 0.95 } = {}) {
   const g = site.grid, D = site.design, r = site.meta.hex_radius;
   const { ctx, w, h } = fitCanvas(canvas, aspect);
   ctx.fillStyle = p.paper; ctx.fillRect(0, 0, w, h);
   const cb = Math.cos(bearing), sb = Math.sin(bearing), ct = Math.cos(tilt), st = Math.sin(tilt);
-  const rot = (x, y) => [x * cb - y * sb, x * sb + y * cb];
+  const rot = (x: number, y: number): [number, number] => [x * cb - y * sb, x * sb + y * cb];
   // Fit the rotated design ground.
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   for (let i = 0; i < D.x.length; i++) {
@@ -201,7 +212,7 @@ export function solid(canvas, site, d, p, { aspect = 0.62, bearing = -0.5, tilt 
   const zmax = 15 * 3.2 * 2.2; // storeys → metres, exaggerated for legibility
   const s = Math.min((w - 20) / (x1 - x0 + 2 * r), (h - 20) / ((y1 - y0 + 2 * r) * ct + zmax * st));
   const cx = w / 2 - ((x0 + x1) / 2) * s, cy = h / 2 + ((y0 + y1) / 2) * ct * s + (zmax * st * s) / 2;
-  const P = (x, y, z) => [cx + x * s, cy - y * ct * s - z * st * s];
+  const P = (x: number, y: number, z: number): [number, number] => [cx + x * s, cy - y * ct * s - z * st * s];
 
   // Corners of a pointy-top hex, rotated with the scene.
   const corners = [30, 90, 150, 210, 270, 330].map((deg) => {
@@ -210,7 +221,7 @@ export function solid(canvas, site, d, p, { aspect = 0.62, bearing = -0.5, tilt 
   });
   const light = [-0.45, -0.7]; // from the viewer's lower left
 
-  const cells = [];
+  const cells: { x: number; y: number; z: number; colour: string }[] = [];
   for (let i = 0; i < g.x.length; i++) {
     if (!(g.water[i] || g.state[i] === 0 || g.state[i] === 1)) continue;
     const [x, y] = rot(g.x[i], g.y[i]);
@@ -219,7 +230,7 @@ export function solid(canvas, site, d, p, { aspect = 0.62, bearing = -0.5, tilt 
   const colours = designColours(d, p);
   for (let i = 0; i < D.x.length; i++) {
     const [x, y] = rot(D.x[i], D.y[i]);
-    cells.push({ x, y, z: d.use[i] === 1 ? d.levels[i] * 3.2 * 2.2 : 0, colour: colours[i] });
+    cells.push({ x, y, z: d.use[i] === 1 ? d.levels[i] * 3.2 * 2.2 : 0, colour: colours[i]! });
   }
   cells.sort((a, b) => b.y - a.y || a.z - b.z); // far first
 
@@ -244,17 +255,20 @@ export function solid(canvas, site, d, p, { aspect = 0.62, bearing = -0.5, tilt 
 }
 
 /** A small line chart: one series, end labels. */
-export function sparkline(canvas, values, p, { format = (v) => v, colour, marker = null } = {}) {
+export function sparkline(canvas: HTMLCanvasElement, values: (number | null)[], p: Palette,
+  { format = (v: number) => String(v), colour, marker = null }:
+  { format?: (v: number) => string; colour?: string; marker?: number | null } = {}) {
   const { ctx, w, h } = fitCanvas(canvas, 0.42);
   ctx.fillStyle = p.paper; ctx.fillRect(0, 0, w, h);
-  const pts = values.map((v, i) => [i, v]).filter(([, v]) => v !== null && v !== undefined);
+  const pts = values.map((v, i) => [i, v] as [number, number | null])
+    .filter((pt): pt is [number, number] => pt[1] !== null && pt[1] !== undefined);
   if (pts.length < 1) return;
   const vs = pts.map(([, v]) => v);
   let lo = Math.min(...vs), hi = Math.max(...vs);
   if (hi === lo) { hi += 1; lo -= 1; }
   const L = 8, R = 52, T = 10, B = 16;
-  const X = (i) => L + (i / Math.max(values.length - 1, 1)) * (w - L - R);
-  const Y = (v) => T + (1 - (v - lo) / (hi - lo)) * (h - T - B);
+  const X = (i: number) => L + (i / Math.max(values.length - 1, 1)) * (w - L - R);
+  const Y = (v: number) => T + (1 - (v - lo) / (hi - lo)) * (h - T - B);
   ctx.strokeStyle = p.sea; ctx.lineWidth = 1;
   [0, 0.5, 1].forEach((f) => { ctx.beginPath(); ctx.moveTo(L, T + f * (h - T - B)); ctx.lineTo(w - R, T + f * (h - T - B)); ctx.stroke(); });
   if (marker !== null) {

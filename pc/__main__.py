@@ -8,7 +8,7 @@
     uv run pc evolve <site> [--gens 30] [--pop 60] [--seed 1]  breed generations
     uv run pc sites            list sites
     uv run pc app              the designer's sandbox (Streamlit, in the browser)
-    uv run pc export <site>... [--fixture]   sites for the web page (web/dist/)
+    uv run pc export <site>... [--fixture]   sites for the web app (app/public/sites/)
 """
 
 import argparse
@@ -203,7 +203,7 @@ def cmd_app(a):
     import sys
 
     print("Permutation City: open http://localhost:8501 (Ctrl+C to stop)")
-    subprocess.run([sys.executable, "-m", "streamlit", "run", str(ROOT / "app" / "app.py"),
+    subprocess.run([sys.executable, "-m", "streamlit", "run", str(ROOT / "sandbox" / "app.py"),
                     "--server.headless", "true", "--browser.gatherUsageStats", "false"])
 
 
@@ -241,7 +241,7 @@ def main():
     ev.add_argument("--show", type=int, default=10, help="families to draw")
     sub.add_parser("sites")
     sub.add_parser("app", help="open the designer's sandbox in the browser")
-    ex = sub.add_parser("export", help="export sites for the web page (web/dist/)")
+    ex = sub.add_parser("export", help="export sites for the web app (app/public/sites/)")
     ex.add_argument("sites", nargs="+")
     ex.add_argument("--fixture", action="store_true", help="also write a parity test fixture")
     a = p.parse_args()

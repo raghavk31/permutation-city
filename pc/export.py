@@ -1,6 +1,7 @@
-"""Export a built site for the browser (the static page on raghavkohli.xyz).
+"""Export a built site for the browser (the web app in app/).
 
-    uv run pc export <site> [--fixture]      → web/dist/<site>.json (+ web/test/fixture-<site>.json)
+    uv run pc export <site> [--fixture]   → app/public/sites/<site>.json
+                                            (+ test/parity/fixtures/<site>.json)
 
 One JSON file per site, in local metres around an origin (lon, lat), with:
     meta      name, brief, storm, sea levels, hex size, cell area, credits
@@ -10,9 +11,9 @@ One JSON file per site, in local metres around an origin (lon, lat), with:
               allows, height caps, permeable minimums, trees, the site's own water score
     context   major roads and rail (polylines), place names
 
-The browser engine (web/engine.js) reads `design` exactly as pc.genome.Ground holds it;
+The browser engine (app/engine/) reads `design` exactly as pc.genome.Ground holds it;
 `ground_from_export` rebuilds that Ground in Python so both engines can be compared on
-identical inputs (web/test/parity.mjs).
+identical inputs (test/parity/parity.test.ts).
 """
 
 import json
@@ -23,7 +24,8 @@ import numpy as np
 from pc import fitness, genome
 from pc.site import ROOT, Site
 
-WEB = ROOT / "web"
+SITES_OUT = ROOT / "app" / "public" / "sites"
+FIXTURES = ROOT / "test" / "parity" / "fixtures"
 STATE_CODE = {"forbidden": 0, "retained": 1, "constrained": 2, "open": 3}
 CREDITS = [
     "Copernicus DEM GLO-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018, "
@@ -160,17 +162,17 @@ def fixture(data: dict, n=40, seed=7) -> dict:
 
 def write(site: Site, with_fixture=False):
     data = export(site)
-    (WEB / "dist").mkdir(parents=True, exist_ok=True)
-    out = WEB / "dist" / f"{site.id}.json"
+    SITES_OUT.mkdir(parents=True, exist_ok=True)
+    out = SITES_OUT / f"{site.id}.json"
     out.write_text(json.dumps(data, separators=(",", ":")), encoding="utf-8")
     print(f"  {out.relative_to(ROOT)}  {out.stat().st_size / 1e3:.0f} KB  "
           f"({len(data['grid']['x']):,} cells, {len(data['design']['x']):,} design cells)")
     if with_fixture:
-        (WEB / "test").mkdir(parents=True, exist_ok=True)
-        fx = WEB / "test" / f"fixture-{site.id}.json"
+        FIXTURES.mkdir(parents=True, exist_ok=True)
+        fx = FIXTURES / f"{site.id}.json"
         fx.write_text(json.dumps(fixture(data)), encoding="utf-8")
         print(f"  {fx.relative_to(ROOT)}")
-    index = WEB / "dist" / "sites.json"
+    index = SITES_OUT / "sites.json"
     sites = json.loads(index.read_text(encoding="utf-8")) if index.exists() else {}
     sites[site.id] = {"name": site.name, "design_ha": data["meta"]["design_ha"],
                       "target_ha": data["meta"]["target_ha"]}

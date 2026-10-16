@@ -5,3 +5,6 @@ runs/
 __pycache__/
 *.pyc
 .gstack/
+node_modules/
+app/dist/
+.vercel/

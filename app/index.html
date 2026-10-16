@@ -4,12 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Permutation City</title>
-  <link rel="stylesheet" href="style.css">
+  <meta name="description" content="A sandbox for generative design with nature, on any site.">
 </head>
 <body>
-<!-- Standalone page for development (python -m http.server, then /web/). On raghavkohli.xyz the
-     same markup sits inside the site's layout; only the data path in data-pc changes. -->
-<main class="pc" data-pc="./dist/">
+<main class="pc" data-pc>
 
   <header class="pc-head">
     <p class="pc-kicker">Permutation City · a sandbox for designing with nature</p>
@@ -138,14 +136,14 @@
 
   <footer class="pc-ch pc-foot">
     <h2>Method</h2>
-    <p>The sandbox grew out of two studios: the evolutionary search of <a href="/work/generative-techniques/">Generative
-      Techniques</a> (Ahmedabad, 2020) and the attractor-and-stream logic of <a href="/work/eco-machine/">Eco-Machine</a>
+    <p>The sandbox grew out of two studios: the evolutionary search of <a href="https://raghavkohli.xyz/work/generative-techniques/">Generative
+      Techniques</a> (Ahmedabad, 2020) and the attractor-and-stream logic of <a href="https://raghavkohli.xyz/work/eco-machine/">Eco-Machine</a>
       (Mumbai, 2020). The Python engine builds each site from open data; this page runs the same engine in your browser,
       checked to give identical designs and scores. Scores are simple and indicative: good for comparing designs, not
       for absolute claims.</p>
     <p class="pc-muted pc-credits"></p>
   </footer>
 </main>
-<script type="module" src="app.js"></script>
+<script type="module" src="/ui/main.ts"></script>
 </body>
 </html>
