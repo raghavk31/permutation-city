@@ -146,10 +146,12 @@ app/engine/
    browser has to rebuild `Ground` (design-cell filter, neighbour remap, `site_water`
    smoothing). That needs the export to carry per-cell layer columns plus the rules, and
    `prepare` ported with a parity test.
-3. **Structured rules (Phase 2).** `when: "flood_surge_2050 > 1.5"` is run through pandas
-   `eval`. The browser can't run it, and the service must never run user strings through it
-   (see risk R2). Rules become `{layer, op, value}` clauses joined with `all`/`any`/`not`.
-   The existing string form is parsed into that structure for back-compat.
+3. **Structured rules with overlapping memberships (Phase 2, rasterised in Phase 3).**
+   `when: "flood_surge_2050 > 1.5"` is run through pandas `eval`. The browser can't run it,
+   and the service must never run user strings through it (see risk R2). Rules become
+   `{layer, op, value}` clauses joined with `all`/`any`/`not`. The existing string form is
+   parsed into that structure for back-compat. The same refactor replaces the single class
+   per cell with overlapping memberships (section 6.2).
 4. **CellGraph (Phase 3).** As in section 2.
 5. **Derived street and block network (Phase 6, not 8).** See risk R5.
 6. **Lineage in JS (Phase 9 or earlier).** `run.everyone` in JS is only a count. Keep
@@ -241,17 +243,33 @@ Structured rules (refactor 3) remove it, and the service only accepts the struct
 serving derived layers (not the raster) is fine. A paid tier or commercial use would not
 be. Cartosat stays local, as now. Credits must show in the app, as they do on the page.
 
-**R5. Phase 6 metrics need streets, and designs have none.**
+**R5. Phase 6 metrics need streets and activities, and designs have neither.**
 - The genome places building, landscape and water. "street" is an allowed use in the
   rules, but nothing ever places it.
-- D/H ratio, block perimeter, intersection density, active frontage and permeability all
-  need streets and blocks.
+- D/H ratio, block perimeter, intersection density, active frontage, permeability, strong
+  centres, boundaries and positive space all need streets and blocks.
 - Proposal: in Phase 6, derive them from each design. Blocks are connected groups of
   building cells. The street network is the shared edges between blocks and open cells,
   plus the existing Overture roads.
 - Phase 8 reuses the same network for space syntax.
-- The alternative is a street gene, which changes the genome schema. That would be a v3
-  conversation.
+- Semilattice richness needs the locations of activities (transit, market, school), not
+  just green and water. Buildings carry no programme today. The proposal (section 6.4):
+  - existing activities come from Overture `place` points, a new fetch theme
+  - new ones come from the design: the peaks of core attractors are local centres
+  - the brief's programme mix (Phase 4) shares out building floor area among centres
+  This is derived, so the genome schema stays fixed.
+- The alternative is a street gene and a programme gene, which change the genome schema.
+  That would be a v3 conversation.
+
+**R10. Copyright on Alexander's books.** Pattern cards and metric notes paraphrase and give
+page references. No verbatim text goes into `/corpus`, the prompt or the UI. Dimensions
+are checked against the book before they become code (section 6.3).
+
+**R11. Metrics an architect can attack.** Several of the fifteen properties (good shape,
+deep interlock, inner calm) have no proxy a jury would accept on a 20 m cell grid. These
+are documented as not measured rather than given weak scores. Salingaros's formulas were
+written for facades and plans at building scale. Applying them at urban scale is our
+choice, and `docs/metrics.md` says so.
 
 **R6. Gene-range config vs reproducibility.** Once the LLM can set ranges, two runs with
 the same seed and genome but different briefs give different designs. The frozen run
@@ -273,12 +291,166 @@ sync script is dropped and `web/` retires. See Q1.
 
 ---
 
-## 6. Phase plan, adjusted
+## 6. Christopher Alexander (brief section 5b)
+
+Alexander shapes four layers of the tool: the rules model, the brief vocabulary, the
+aesthetic metrics and a second growth mode. He is cited as a critic as well as a source.
+After *Notes on the Synthesis of Form* he disowned the design-methods movement that the
+book helped start (preface to the 1971 paperback edition), and later turned to unfolding,
+step-by-step processes. A tool that breeds whole designs at once is exactly what he
+argued against. The piecemeal mode (6.6) is the tool's answer to that, and
+`docs/alexander.md` says so plainly.
+
+New docs: `docs/alexander.md` (how each work is used), a note in `generative-method.md`
+(his scepticism, and fitness as misfit reduction), and the Alexander and Salingaros
+sources in `docs/metrics.md`.
+
+### 6.1 Notes on the Synthesis of Form: fitness as misfit
+
+No engine change. The scores are already minimised internally (`_as_min`), and `gap` is
+already a misfit. What changes is the framing:
+- each score is described as a misfit variable (a way the form fails its context)
+- the UI groups requirements by how they interact: water (storage, flooding), climate
+  (heat, daylight), material (carbon, floor area), scale (human scale, Phase 6 metrics)
+- the grouping is checked against each run. Requirements whose scores are strongly
+  correlated across the population interact. Showing that matrix is cheap and is the
+  book's own method (decomposing requirements by their interactions).
+
+### 6.2 A City is Not a Tree: overlapping rules (decide in Phase 2, rasterise in Phase 3)
+
+Today `rules.apply` gives each cell one state, and later rules overwrite earlier ones. That
+is a tree: every cell belongs to exactly one class. The new model:
+
+```
+rule        {id, name, kind: forbidden | retained | membership, when: <structured>,
+             limits: {max_levels, min_permeable, uses, raised_ground, remediate},
+             roles: [flood_storage, public_open_space, breeze_corridor, …], why, source}
+cell        memberships: bitmask of rule ids (≤ 32 per site; 64 with two words)
+            limits: combined from all memberships (strictest wins, as now)
+            roles: union of the memberships' roles
+            state: derived, kept for drawing and back-compat
+                   forbidden if any forbidden rule matches   (absolute, as the brief requires)
+                   retained  if any retained rule matches    (existing city, not design ground)
+                   constrained if it has any membership
+                   open otherwise
+```
+
+- **Forbidden stays absolute.** Nothing overrides it, and nothing can be built there.
+- **Limits are safety constraints**, so they still combine by taking the strictest.
+- **Allowed uses** are where overlap bites. Today the allowed uses are intersected
+  (rain hollows ∩ drainage lines). If two memberships share no use, the intersection is
+  empty and the cell becomes unusable without anyone deciding that. The new rule:
+  intersect; if the intersection is empty, take the union and flag the cell as a conflict
+  on the rules map. A person resolves it.
+- **Roles** are what makes this a semilattice rather than a relabelled tree. A landscape
+  cell in both `flood_storage` and `public_open_space` serves both. In Phase 6:
+  - storage counts a cell's storage only if the cell is in the storage role or holds water
+  - semilattice richness counts role overlap
+- **Export:** `memberships` (bitmask per cell) plus a rules table. `state` is still
+  exported, so format-1 readers keep working.
+- **Parity:** rule evaluation moves into both engines (browser rule edits need it), with
+  fixtures on all three sites.
+
+### 6.3 A Pattern Language: the fixed vocabulary (Phase 4)
+
+```
+corpus/patterns/021-four-story-limit.md
+  number, name, scale (town | neighbourhood | building),
+  intent (paraphrased), page, use: constraint | metric | prior,
+  maps_to: the RunConfig keys, rules or metric it drives, with the allowed range,
+  checked: who checked the dimensions against the book, and when
+```
+
+- The brief schema's vocabulary is the set of pattern ids plus the `RunConfig` keys they
+  map to. The compiler can switch patterns on, set values within a card's range, and cite.
+  It can't add patterns, keys or genes.
+- **constraint:** becomes a rule membership or a config limit (e.g. 21 Four-Story Limit
+  sets a height cap over most of the design ground).
+- **metric:** becomes a Phase 6 readout (e.g. 60 Accessible Green becomes walking distance
+  to green of a minimum size).
+- **prior:** biases the initial population or building-scale typologies (e.g. 107 Wings
+  of Light and 159 Light on Two Sides apply to Phase 7 massing, not to the 20 m grid).
+- The brief panel lists active patterns, why each is on (a snippet or "assumed"), and what
+  each one changed.
+- First set of cards: 21, 60, 61, 106, 107, 159. Dimensions are **not** coded until
+  checked against the book. Until then a card's `checked` field is empty and the compiler
+  treats its numbers as assumed.
+
+### 6.4 The Nature of Order: the main aesthetic framework (Phase 6)
+
+The fifteen properties replace the brief's generic list where they overlap. Each one is
+computed at urban scale (U, Phase 6), at building scale (B, Phase 7), or not measured.
+
+| Property | Scale | Proxy (Salingaros as the formula reference) | Replaces |
+|---|---|---|---|
+| Levels of scale | U, B | sizes of blocks, open spaces and buildings as a ladder; penalise large gaps between rungs (even spacing in log size) | proportion / golden ratio |
+| Strong centres | U | centres = core peaks, squares, landmarks; score how many other elements (frontage, paths, height gradients) point to each | contrast and emphasis (in part) |
+| Boundaries | U, B | share of each centre's perimeter with a defined edge (frontage, water, planting band), and its thickness | (new) |
+| Alternating repetition | U, B | along streets and the skyline: alternation of built/open and high/low, its regularity and strength (FFT on a two-symbol sequence) | rhythm |
+| Positive space | U | convexity of each open-space patch (area / convex-hull area), weighted by area | (new) |
+| Local symmetries | U, B | count of small symmetric groups (mirror test on windows of 3–7 cells); global mirror kept as a secondary readout | balance and symmetry |
+| Contrast | U | built/open and high/low contrast across edges | contrast and emphasis |
+| Gradients | U | smoothness of height and density change from centres outwards | (new) |
+| Roughness | U | variation within a repeated element, low but not zero | (new) |
+| Echoes | B | similarity of angles and proportions across elements | (Phase 7) |
+| The void | U | presence of one large calm open space relative to the busy parts | (new) |
+| Not-separateness | U | edge interlock between the design and its context (shared, stepped edges) | (new) |
+| Good shape, deep interlock and ambiguity, simplicity and inner calm | — | not measured; documented why | |
+
+Kept from the brief's list: human scale, permeability and active edges, connection to
+nature, harmony vs variety. They are urban-design metrics, not properties of wholeness.
+
+**Semilattice richness** (new): the walking catchments of green, water, transit, market
+and school, each about 400 m on the street network. The score is the share of design
+cells in two or more catchments, weighted by how many. Strict single-use zoning scores
+low. Needs activity locations: see R5.
+
+**Wholeness** is the vector of the computed properties, never one number, in line with
+the brief's "measures form and lets a person judge".
+
+### 6.5 Engine shape this asks for
+
+- `app/engine/metrics/` and `pc/metrics/` hold one module per property, with pure
+  functions `(design, ground, network) → number`. Parity fixtures cover every metric.
+- `network` (blocks, street segments, open-space patches, centres) is built once per
+  design and shared by Phase 6 and Phase 8. It is only built for the readout panel and
+  for promoted metrics, never for the whole population, unless the metric is promoted.
+  This keeps the 5 s budget.
+
+### 6.6 A New Theory of Urban Design, The Oregon Experiment: piecemeal growth (Phase 9)
+
+```
+increment 0 (2025): the existing fabric (retained + whatever stands on the design ground)
+increment k:        evolve only new interventions on cells not yet committed;
+                    earlier increments are locked (the existing `locked` mechanism);
+                    floor-area target for this step (Sem 06's population table);
+                    increment size capped (no single step builds most of the site)
+acceptance:         the new fabric must not make any wholeness property worse than the
+                    previous increment beyond a small tolerance (a constraint on the
+                    vector, not a summed score); designs that fail are pushed back like
+                    off-brief designs are now
+```
+
+- Reuses `locked`, `start`, the brief-as-constraint ranking, and the per-step targets.
+- Needs the time steps from the data backlog (2025 / 2035 / 2050 layers, sea levels per
+  year), so it lands after them.
+- Experiment: `docs/experiments/piecemeal-vs-oneshot.md`. Same site and final target,
+  compared on final scores, wholeness vector, diversity and run time.
+
+---
+
+## 7. Phase plan, adjusted
 
 No changes to your order except:
 - Phase 1 adds the `RunConfig` extraction and the Streamlit move.
-- Phase 2 adds structured rules and `prepare` in TS (needed for browser rule edits).
-- Phase 6 builds the derived street/block network that Phase 8 reuses (R5).
+- Phase 2 adds structured rules **with overlapping memberships** (6.2) and `prepare` in TS
+  (needed for browser rule edits). It also adds the Overture `place` theme to fetch (R5).
+- Phase 3 rasterises memberships onto any `CellGraph`.
+- Phase 4 adds the pattern cards and pattern vocabulary (6.3), `docs/alexander.md`, and the
+  misfit framing in `generative-method.md` (6.1).
+- Phase 6 builds the derived street/block network that Phase 8 reuses (R5), and uses the
+  fifteen properties as its framework (6.4).
+- Phase 9 adds piecemeal growth (6.6).
 - D3 (shared RNG) lands in Phase 1 if you approve it, since every later search method
   depends on it.
 
@@ -288,6 +460,6 @@ networks (Phase 3, alongside drainage on `CellGraph`).
 
 ---
 
-## 7. Open questions
+## 8. Open questions
 
 See the Phase 0 checkpoint in the conversation. The answers get recorded here once given.
