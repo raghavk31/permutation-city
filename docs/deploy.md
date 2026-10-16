@@ -5,20 +5,19 @@ The app in `app/` is a static Vite build plus Vercel functions in `app/api/`. Th
 
 ## Vercel project
 
-- Project: `permutation-city` (team `raghav-6207's projects`). The local link lives in
-  `app/.vercel/` (not committed).
+- Project: `permutation-city` (team `raghav-6207's projects`), with **Root Directory** set to
+  `app`. The CLI link lives in `.vercel/` at the repo root (not committed).
 - Build: `npm run build` (type-check, then `vite build`), output `dist/`. See `app/vercel.json`.
-- Deploy a preview from the command line:
+- Git deploys: the GitHub repo is connected. Every push to a branch gives a preview, and
+  `main` goes to production.
+- CLI deploys run from the **repo root**, not from `app/` (with Root Directory set, a deploy
+  from `app/` looks for `app/app` and fails). `.vercelignore` uploads only `app/` and `test/`:
 
   ```bash
-  cd app
   npx vercel deploy          # preview (behind Vercel login by default)
   npx vercel deploy --prod   # production
   ```
 
-- Git deploys (optional): in the Vercel dashboard, connect the GitHub repo and set **Root
-  Directory** to `app`. Then every push to a branch gives a preview, and `main` goes to
-  production.
 - Environment variables (Phase 4):
   - `OPENROUTER_API_KEY` (secret). Set it with `npx vercel env add OPENROUTER_API_KEY`
     for Production and Preview (and Development if you run functions locally with
@@ -27,7 +26,7 @@ The app in `app/` is a static Vite build plus Vercel functions in `app/api/`. Th
     defaults to Claude Sonnet 5.5.
 
   Both are read only inside `app/api/`, never in the client. For local work,
-  `npx vercel env pull .env.local` copies them down. `.env*` files are not committed.
+  `npx vercel env pull app/.env.local` copies them down (run from the repo root). `.env*` files are not committed.
 
 ## Production name
 
@@ -35,7 +34,7 @@ For now the app lives at **https://permutationcity.vercel.app** (`permutation-ci
 production deploy moves it):
 
 ```bash
-cd app && npx vercel domains add permutationcity.vercel.app permutation-city
+npx vercel domains add permutationcity.vercel.app permutation-city
 ```
 
 ## permutation.raghavkohli.xyz (later)
@@ -43,7 +42,7 @@ cd app && npx vercel domains add permutationcity.vercel.app permutation-city
 1. Add the domain to the project:
 
    ```bash
-   cd app && npx vercel domains add permutation.raghavkohli.xyz
+   npx vercel domains add permutation.raghavkohli.xyz
    ```
 
    (or Project → Settings → Domains → Add.)
@@ -66,7 +65,6 @@ GitHub Pages stay as they are.
 ## Checks after a deploy
 
 ```bash
-cd app
 npx vercel curl <deployment-url>/api/health        # {"ok":true,...}
 npx vercel curl <deployment-url>/sites/sites.json  # the site list
 ```

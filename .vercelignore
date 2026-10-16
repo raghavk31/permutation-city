@@ -1,0 +1,7 @@
+# CLI deploys run from the repo root (Root Directory is app/). Upload only what the build needs.
+/*
+!/app
+!/test
+/app/node_modules
+/app/dist
+/app/.vercel
