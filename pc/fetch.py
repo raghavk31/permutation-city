@@ -4,7 +4,8 @@
     terrain.tif    FABDEM bare earth (30 m; free for non-commercial research)
     landcover.tif  ESA WorldCover 2021 (10 m)
     overture/      Overture Maps: buildings (Google Open Buildings + OSM + Microsoft),
-                   roads and rail, land use, water, place names
+                   roads and rail, land use, water, place names,
+                   places (shops, schools, transit: where activities are today)
 
 Rasters are read straight from the cloud copies, so only the site's window is downloaded.
 """
@@ -21,7 +22,7 @@ from rasterio.merge import merge
 from pc.site import Site
 
 BUFFER = 0.005  # degrees (~500 m) around the box, so edge cells have data
-OVERTURE_THEMES = ["building", "segment", "land_use", "water", "division"]
+OVERTURE_THEMES = ["building", "segment", "land_use", "water", "division", "place"]
 
 
 def _tiles(bbox, step=1):
