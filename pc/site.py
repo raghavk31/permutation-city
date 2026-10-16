@@ -17,14 +17,16 @@ site.yaml
     target_floor_area_ha:  or an absolute floor-area target (wins if set)
 """
 
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
-SITES = ROOT / "sites"
-DATA = ROOT / "data"
+# The layer service (service/) keeps its sites and downloads elsewhere.
+SITES = Path(os.environ.get("PC_SITES", ROOT / "sites"))
+DATA = Path(os.environ.get("PC_DATA", ROOT / "data"))
 
 
 def utm_crs(bbox) -> str:

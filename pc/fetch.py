@@ -80,20 +80,22 @@ def fetch_terrain(site: Site):
                     show_progress=False)
 
 
-def fetch_overture(site: Site, tries=5):
+def fetch_overture(site: Site, tries=5, release: str | None = None, on_theme=lambda k, theme: None):
     """Overture's catalogue server sometimes drops connections: retry with pauses, and
     from the third try skip the catalogue (--no-stac; slower but independent of it).
-    Themes already downloaded are kept, so a re-run resumes."""
+    Themes already downloaded are kept, so a re-run resumes. `release` pins the Overture
+    release (default: the latest). `on_theme(k, theme)` reports progress."""
     cli = shutil.which("overturemaps") or str(sys.executable).replace("python", "overturemaps")
     bbox = ",".join(str(v) for v in site.bbox)
-    for theme in OVERTURE_THEMES:
+    for k, theme in enumerate(OVERTURE_THEMES):
+        on_theme(k, theme)
         out = site.overture(theme)
         if out.exists():
             continue
         out.parent.mkdir(parents=True, exist_ok=True)
         for attempt in range(tries):
             cmd = [cli, "download", f"--bbox={bbox}", "-f", "geoparquet", f"--type={theme}",
-                   "-o", str(out)] + (["--no-stac"] if attempt >= 2 else [])
+                   "-o", str(out)] + (["-r", release] if release else []) + (["--no-stac"] if attempt >= 2 else [])
             r = subprocess.run(cmd, capture_output=True, text=True)
             if r.returncode == 0:
                 break
