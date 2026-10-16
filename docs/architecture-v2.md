@@ -201,9 +201,15 @@ and a cell-derived network has no hand-drawn axial lines to begin with.
   because text is far smaller than the PDF.
 
 **D7. Brief compiler model.**
-- `claude-sonnet-5-5` by default, with `claude-opus-5-5` as an option.
-- Output goes through tool use with a strict JSON schema. A validator rejects any key or
-  value outside the vocabulary before the UI sees it.
+- Called through **OpenRouter** (the user's choice), from a Vercel function, with
+  `OPENROUTER_API_KEY`. OpenRouter's API is OpenAI-compatible
+  (`https://openrouter.ai/api/v1/chat/completions`).
+- Model: Claude Sonnet 5.5 by default, Opus 5.5 as an option. The OpenRouter model id
+  comes from `OPENROUTER_MODEL`, so the model can change without a deploy. The exact id
+  is read from OpenRouter's model list in Phase 4, not guessed.
+- Output goes through tool calling with a strict JSON schema. A validator rejects any key
+  or value outside the vocabulary before the UI sees it, so the result doesn't depend on
+  how a given provider enforces the schema.
 
 **D8. Python tests.** Add `pytest` as a dev dependency. Metric unit tests live in
 `test/metrics/` for both engines and read the same JSON cases.
@@ -514,11 +520,11 @@ The user asked to go with the recommendations:
 | Phase 7 geometry (D4) | TS only. Python checks scores on exported meshes. |
 | Space syntax (D5) | Segment analysis on the derived network. |
 | Retrieval (D6) | BM25 index built at deploy time; uploads parsed and chunked in the browser. |
-| Brief model (D7) | `claude-sonnet-5-5` by default, `claude-opus-5-5` as an option, strict JSON schema through tool use. |
+| Brief model (D7) | Claude Sonnet 5.5 through OpenRouter (`OPENROUTER_API_KEY`, model id in `OPENROUTER_MODEL`), Opus 5.5 as an option, strict JSON schema through tool calling plus our own validator. |
 | Licences | The app stays free and non-commercial (FABDEM is CC BY-NC-SA). |
 | Git | Work on `v2`, one pull request into `main` per phase checkpoint. |
 
 Still open (facts only you have):
 - Corpus: Mumbai DCPR 2034 and Ahmedabad GDCR as PDFs, and whether the CEPT studio
   documents can be quoted in the app or should only inform the brief.
-- The Anthropic API key, for Phase 4 (`npx vercel env add ANTHROPIC_API_KEY`).
+- The OpenRouter API key, for Phase 4 (the user is adding `OPENROUTER_API_KEY` in Vercel).

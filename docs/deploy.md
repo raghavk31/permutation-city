@@ -19,9 +19,15 @@ The app in `app/` is a static Vite build plus Vercel functions in `app/api/`. Th
 - Git deploys (optional): in the Vercel dashboard, connect the GitHub repo and set **Root
   Directory** to `app`. Then every push to a branch gives a preview, and `main` goes to
   production.
-- Environment variables (Phase 4): `ANTHROPIC_API_KEY`, set with
-  `npx vercel env add ANTHROPIC_API_KEY`. It is read only inside `app/api/`, never in the
-  client.
+- Environment variables (Phase 4):
+  - `OPENROUTER_API_KEY` (secret). Set it with `npx vercel env add OPENROUTER_API_KEY`
+    for Production and Preview (and Development if you run functions locally with
+    `npx vercel dev`).
+  - `OPENROUTER_MODEL` (optional), the OpenRouter model id for the brief compiler. It
+    defaults to Claude Sonnet 5.5.
+
+  Both are read only inside `app/api/`, never in the client. For local work,
+  `npx vercel env pull .env.local` copies them down. `.env*` files are not committed.
 
 ## Production name
 

@@ -8,3 +8,6 @@ __pycache__/
 node_modules/
 app/dist/
 .vercel/
+.env
+.env.*
+!.env.example
