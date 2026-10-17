@@ -1,6 +1,17 @@
 # The layer service
 
-`service/` is a small FastAPI app around the `pc` pipeline. The web app sends it a polygon
+**How the live app builds sites (since 2026-10-17): GitHub Actions, no server of our own.**
+`/api/sites` (a Vercel function, `app/sites/build.ts`) checks a drawn site with the checks
+below, returns a cached build from Vercel Blob at once, or starts
+`.github/workflows/build-site.yml` with the site's cache key. The workflow runs this same
+pipeline on a GitHub runner (free for this public repo), one workflow step per stage
+(`service/actions.py`), so the page shows progress from the run's step list. It saves the
+site to Blob as `sites/<key>/site.json` (or the reason it failed as `error.json`). The
+answers keep this service's shapes, so the picker works with either. See "Building on
+GitHub Actions" at the end.
+
+`service/` is a small FastAPI app around the `pc` pipeline, kept for local development
+(`npm run dev` uses it) and for anyone who wants to host it. The web app sends it a polygon
 and gets back the same site file `pc export` writes (format 2: layers, rules, design
 ground). Everything after that, including editing rules and evolving designs, runs in the
 browser.
@@ -93,3 +104,37 @@ The repo has `railway.json` (Dockerfile build, `/health` check) and `service/Doc
 Memory: I haven't measured a 4 km² build yet. Building rasterises land cover and overlays
 every building footprint, so start with 2 GB and watch Railway's metrics on the first big
 site.
+
+## Building on GitHub Actions
+
+What it needs (set once):
+
+| Where | Name | What |
+|---|---|---|
+| Vercel (Production, Preview) | `BLOB_READ_WRITE_TOKEN` | set by connecting the Blob store `permutation-city-sites` (bom1, public) |
+| Vercel (Production, Preview) | `GITHUB_DISPATCH_TOKEN` | a fine-grained GitHub token for this repo only, with **Actions: read and write**; it starts runs and reads their steps |
+| GitHub (repo secret) | `BLOB_READ_WRITE_TOKEN` | the same Blob token, for the workflow's upload step |
+| Vercel (optional) | `BUILD_REF` | the branch whose workflow runs (default: the deployment's branch, else `main`) |
+
+GitHub only starts `workflow_dispatch` workflows that exist on the default branch, so builds
+from the app work once `build-site.yml` is on `main`. Until then, `/api/sites` answers but
+starting a build fails with GitHub's 404.
+
+How a build goes:
+- **Key:** a hash of the polygon (to 6 decimals), grid, context margin, sea levels, rules,
+  `LAYERS_VERSION`, the export format and the month. The month stands in for the Overture
+  release (the build fetches the latest), so a cached site is reused for at most a month.
+- **Limits:** the ones above, plus at most 3 builds queued or running at once, and 6 new
+  builds per address per hour (per function instance).
+- **Steps:** installing (uv, about 30 s with its cache), setting up (the checks again, in
+  Python), elevation, bare earth, land cover, Overture map data, layers, rules and export,
+  saving. A runner takes 20 to 60 s to start.
+- **FABDEM** (bare earth) has one host, data.bris.ac.uk, which drops connections now and
+  then. Each build tries four times over about two minutes; if it still fails, the build
+  uses the Copernicus surface model instead and the site carries a warning, shown on the
+  layer cake and in the chapters. `pc fetch` on the command line still fails instead.
+- **Smoke test:** pushing a change to the workflow, `service/` or `pc/` on any branch but
+  `main` builds a 2 ha site in Mumbai (not uploaded).
+
+Inputs reach the workflow's scripts only through environment variables, never through
+the shell, and the request is checked again in Python before anything runs.

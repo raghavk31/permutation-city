@@ -119,6 +119,9 @@ async function loadSite(id: string, rules: string | null = null, brief: string |
     ? "a 20 m hex (centre to corner), the unit of the studio this grew from"
     : `a ${grid.size} m ${grid.type === "hex" ? "hex (centre to corner)" : "square"}, ${Math.round(m.cell_area).toLocaleString("en-IN")} m²`;
   $(".pc-credits").textContent = `Data: ${m.credits.join(" · ")}.`;
+  const warnings = m.service?.warnings ?? [];
+  $(".pc-site-warning").hidden = !warnings.length;
+  $(".pc-site-warning").textContent = warnings.join(" ");
   drawBriefLine();
   state.genome = E.randomGenome(rng);
   drawAll();

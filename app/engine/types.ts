@@ -73,6 +73,8 @@ export interface SiteMeta {
   design_storm_mm: number; target_far: number; target_floor_area_ha: number | null;
   target_ha: number; design_ha: number;
   sea_levels: Record<string, number>; states: string[]; credits: string[];
+  /** Sites built for someone who drew them: the data used, and anything a person should know. */
+  service?: { overture: string | null; layers: number; terrain?: string; warnings?: string[] };
 }
 
 /** The engine's view of a site's design ground (pc.genome.Ground). */

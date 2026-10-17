@@ -1,0 +1,75 @@
+# Build a site drawn in the web app: the layer service's pipeline, run on a GitHub runner
+# (free for this public repo). Started by the app's /api/sites (app/sites/) with a cache key
+# and the request; the finished site goes to Vercel Blob as sites/<key>/site.json, or the
+# reason it failed as sites/<key>/error.json. The step names are the progress the app shows,
+# so keep them in step with STEPS in app/sites/build.ts.
+#
+# Pushing a change to this workflow, service/ or pc/ on a branch runs a smoke test instead: a
+# 2 ha site in Mumbai, built but not uploaded.
+name: build-site
+run-name: ${{ inputs.key && format('site {0}', inputs.key) || 'smoke test' }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      key:
+        description: cache key (24 hex characters)
+        required: true
+        type: string
+      request:
+        description: the request as JSON
+        required: true
+        type: string
+  push:
+    branches-ignore: [main]
+    paths: [".github/workflows/build-site.yml", ".github/scripts/**", "service/**", "pc/**"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-site-${{ inputs.key || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      KEY: ${{ inputs.key }}
+      REQUEST: ${{ inputs.request }}
+      WORK: ${{ github.workspace }}/../build
+      UV_FROZEN: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.11.19"
+          enable-cache: true
+      - name: installing
+        run: uv sync --no-default-groups --group service
+      - name: setting up
+        run: uv run --no-sync python -m service.actions setup
+      - name: elevation
+        run: uv run --no-sync python -m service.actions elevation
+      - name: bare earth
+        run: uv run --no-sync python -m service.actions bare-earth
+      - name: land cover
+        run: uv run --no-sync python -m service.actions land-cover
+      - name: Overture map data
+        run: uv run --no-sync python -m service.actions overture
+      - name: layers
+        run: uv run --no-sync python -m service.actions layers
+      - name: rules and export
+        run: uv run --no-sync python -m service.actions export
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: ${{ always() && inputs.key }}
+        with:
+          node-version: "24"
+      - name: saving
+        if: ${{ always() && inputs.key }}
+        env:
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+        run: |
+          npm install --no-save --no-audit --no-fund --prefix .github/scripts @vercel/blob@2.8.0
+          node .github/scripts/upload-site.mjs
