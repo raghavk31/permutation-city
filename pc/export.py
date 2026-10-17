@@ -286,6 +286,25 @@ def rule_cases(site: Site) -> list[dict]:
             _rule_case(site, "edited", grid, edited_rules(r), base.origin)]
 
 
+BRIEF_CASES = ROOT / "test" / "parity" / "brief-cases.json"
+
+
+def brief_cases(data: dict) -> dict:
+    """The hand-written briefs in test/parity/brief-cases.json, validated and applied on
+    this site's rules (pc/brief.py), and the typology seeds."""
+    from pc import brief
+
+    spec = json.loads(BRIEF_CASES.read_text(encoding="utf-8"))
+    ctx = brief.context_for(data["rules"], spec["snippets"], brief.pattern_numbers())
+    meta = {k: data["meta"][k] for k in ("target_far", "target_floor_area_ha", "design_storm_mm")}
+    cases = []
+    for c in spec["cases"]:
+        b, warnings = brief.validate(c["input"], ctx)
+        cases.append({"name": c["name"], "brief": b, "warnings": warnings, "config": brief.apply(b, data["rules"], meta)})
+    seeds = [brief.typology_seeds(s["priors"], s["count"], s["seed"]) for s in spec["seeds"]]
+    return {"context": ctx, "cases": cases, "seeds": seeds}
+
+
 def fixture(data: dict, n=40, seed=7, site: Site | None = None) -> dict:
     """Random genomes with their designs and scores, grown by the Python engine, a few
     whole evolutions, and (with the site) the rules applied to its layers."""
@@ -306,7 +325,8 @@ def fixture(data: dict, n=40, seed=7, site: Site | None = None) -> dict:
     stream = {"seed": 12345, "random": [r.random() for _ in range(200)], "normal": [r.normal(0, 0.12) for _ in range(50)]}
     return {"site": data["meta"]["id"], "cases": cases, "rng": stream,
             "evolutions": [_evolution(ground, brief, c) for c in EVOLUTIONS],
-            "rule_cases": rule_cases(site) if site else []}
+            "rule_cases": rule_cases(site) if site else [],
+            "briefs": brief_cases(data)}
 
 
 def write(site: Site, with_fixture=False):

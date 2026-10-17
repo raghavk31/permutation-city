@@ -6,6 +6,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  applyBrief, validateBrief, typologySeeds, type BriefContext, type RunConfig, type Brief,
   applyRules, designFromRules, evaluate, evolve, grow, makeRng, paretoRanks, prepare, prepareFromRules, randomGenome,
   type HistoryRow, type RuleSet, type Scores, type SiteExport,
 } from "../../app/engine";
@@ -32,7 +33,14 @@ interface Fixture {
     conflict: number[]; roles: string[]; reasons: string[]; raised_ground: number[]; remediate: number[];
     design: SiteExport["design"];
   }[];
+  briefs: {
+    context: BriefContext;
+    cases: { name: string; brief: Brief; warnings: string[]; config: RunConfig }[];
+    seeds: number[][][];
+  };
 }
+
+const BRIEF_CASES = JSON.parse(readFileSync(join(__dirname, "brief-cases.json"), "utf8"));
 
 for (const file of readdirSync(FIXTURES).filter((f) => f.endsWith(".json"))) {
   const fx: Fixture = JSON.parse(readFileSync(join(FIXTURES, file), "utf8"));
@@ -98,6 +106,24 @@ for (const file of readdirSync(FIXTURES).filter((f) => f.endsWith(".json"))) {
         }
       });
     }
+
+    describe("briefs", () => {
+      const meta = { target_far: site.meta.target_far, target_floor_area_ha: site.meta.target_floor_area_ha,
+        design_storm_mm: site.meta.design_storm_mm };
+      fx.briefs.cases.forEach((c, k) => {
+        it(`validates and applies the same: ${c.name}`, () => {
+          const { brief, warnings } = validateBrief(BRIEF_CASES.cases[k].input, fx.briefs.context);
+          expect(warnings).toEqual(c.warnings);
+          expect(brief).toEqual(c.brief);
+          expect(applyBrief(brief, { rules: site.rules!, meta })).toEqual(c.config);
+        });
+      });
+      it("makes the same typology seeds", () => {
+        BRIEF_CASES.seeds.forEach((s: { priors: never[]; count: number; seed: number }, k: number) => {
+          expect(typologySeeds(s.priors, s.count, s.seed)).toEqual(fx.briefs.seeds[k]);
+        });
+      });
+    });
 
     it("draws the same random numbers", () => {
       const r = makeRng(fx.rng.seed);

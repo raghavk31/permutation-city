@@ -1,5 +1,5 @@
 // Evolution, NSGA-II style with the Sem 06 breeding rules (pc/evolve.py).
-import { ATTRACTOR_GENES, DUPLICATE, LENGTH, N_ATTRACTORS, TARGET_TOLERANCE } from "./config";
+import { ATTRACTOR_GENES, DEFAULT_RANGES, DUPLICATE, LENGTH, N_ATTRACTORS, TARGET_TOLERANCE, type Ranges } from "./config";
 import { evaluate, SCORES, SCORE_KEYS } from "./fitness";
 import { grow, randomGenome } from "./genome";
 import { makeRng } from "./rng";
@@ -32,6 +32,7 @@ export interface EvolveOptions {
   locked?: ArrayLike<number> | null;
   shock?: [number, number] | null;   // [generation, storm factor]
   start?: number[][] | null;         // genomes for Generation 0
+  ranges?: Ranges;                   // how genes are read (a brief may narrow them)
   progress?: ((gen: number, run: Run) => void) | null;
 }
 
@@ -86,11 +87,11 @@ function record(run: Run, gen: number, storm: number) {
 
 /** Breed `generations` of `pop` designs (pc.evolve.evolve). */
 export function evolve(G: Ground, { generations = 30, pop = 60, seed = 1, immigrants = 0.1, locked = null,
-  shock = null, start = null, progress = null }: EvolveOptions = {}): Run {
+  shock = null, start = null, progress = null, ranges = DEFAULT_RANGES }: EvolveOptions = {}): Run {
   const rng = makeRng(seed);
   let storm = 1.0;
   const make = (g: number[], name: string, parents: string[]): Individual => {
-    const design = grow(g, G, locked);
+    const design = grow(g, G, locked, ranges);
     evaluate(design, G, storm);
     return { name, design, parents, rank: 0, crowd: 0 };
   };

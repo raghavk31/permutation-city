@@ -7,8 +7,9 @@
   import * as Cake from "./cake";
   import { cellAt, layerMap, rulesMap, STATE_COLOURS } from "./draw-cake";
 
-  let { id, site, initialRules, onback }:
-    { id: string; site: E.SiteExport; initialRules: E.RuleSet | null; onback: () => void } = $props();
+  let { id, site, initialRules, onback, onbrief }: {
+    id: string; site: E.SiteExport; initialRules: E.RuleSet | null; onback: () => void; onbrief: (rules: E.RuleSet) => void;
+  } = $props();
 
   // Read once: App remounts this component for each site ({#key id}).
   // svelte-ignore state_referenced_locally
@@ -185,7 +186,8 @@
       {/each}
     </ol>
     <div class="pcn-actions">
-      <a class="pcn-go" href={Sites.evolveLink(id, rules, original)}>Evolve designs on this ground</a>
+      <button type="button" class="pcn-go" onclick={() => onbrief(rules)}>Write a brief</button>
+      <a href={Sites.evolveLink(id, rules, original)}>Evolve without a brief</a>
       <button type="button" onclick={copyLink}>{copied ? "Link copied" : "Copy a link to these rules"}</button>
       {#if edited}<button type="button" onclick={() => (rules = original)}>Back to the site's rules</button>{/if}
     </div>

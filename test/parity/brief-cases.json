@@ -1,0 +1,77 @@
+{
+  "_about": "Briefs as a compiler might send them. pc export --fixture validates and applies each one on every site's rules (pc/brief.py) and writes the result into the site's fixture; test/parity checks app/engine/brief.ts gives the same. 'deep flooding in 2050' is forbidden on every site; 'rain hollows' and 'industrial land' are constrained.",
+  "snippets": ["mumbai-dcpr-fsi#1", "mumbai-dcpr-open-space#1", "typologies#5", "pattern-021#1", "upload:brief.pdf:p3:2"],
+  "cases": [
+    {
+      "name": "full",
+      "input": {
+        "version": 1,
+        "summary": "A dense, low-rise waterfront that keeps a quarter of the ground open.",
+        "fsi": {"value": 2.4, "sources": ["mumbai-dcpr-fsi#1"], "note": "Island City, roads 12.2 to 18.3 m"},
+        "floor_area_ha": null,
+        "height_limit_levels": {"value": 8, "sources": [], "note": "assumed: mid-rise"},
+        "ground_coverage_max": {"value": 0.6, "sources": ["mumbai-dcpr-open-space#1"], "note": ""},
+        "design_storm_mm": {"value": 250, "sources": ["upload:brief.pdf:p3:2"], "note": "from the client's brief"},
+        "setbacks_m": {"value": {"front": 3, "side": 3.6, "rear": 3.6}, "sources": [], "note": ""},
+        "programme_mix": {"value": {"residential": 0.6, "commercial": 0.25, "civic": 0.15}, "sources": [], "note": ""},
+        "objective_weights": {"value": {"storage": 1, "heat": 0.5, "daylight": 0.8, "human": 0.7, "carbon": 0.3}, "sources": [], "note": ""},
+        "gene_ranges": {"value": {"green_share": [0.25, 0.45], "water_share": [0.1, 0.3], "intensity": [0.3, 0.8]}, "sources": ["mumbai-dcpr-open-space#1"], "note": ""},
+        "typology_priors": {"value": [{"type": "courtyard", "weight": 0.6}, {"type": "slab", "weight": 0.3}, {"type": "tower", "weight": 0.1}], "sources": ["typologies#5"], "note": ""},
+        "aesthetic_priorities": {"value": [{"metric": "positive_space", "weight": 0.9}, {"metric": "human_scale", "weight": 0.7}], "sources": [], "note": ""},
+        "rule_changes": [
+          {"rule": "rain hollows", "min_permeable": 0.8, "sources": [], "note": "keep hollows wetter"},
+          {"rule": "industrial land", "enabled": false, "sources": [], "note": "assume remediated"}
+        ],
+        "patterns": [{"id": 106, "sources": [], "note": ""}, {"id": 60, "sources": [], "note": ""}],
+        "tags": ["exposed brick", "lime plaster"]
+      }
+    },
+    {
+      "name": "broken",
+      "input": {
+        "version": 1,
+        "summary": "Things a compiler should not send.",
+        "colour": "blue",
+        "fsi": {"value": 12, "sources": ["mumbai-dcpr-fsi#1"]},
+        "floor_area_ha": 250,
+        "height_limit_levels": {"value": 4.5, "sources": []},
+        "ground_coverage_max": {"value": "0.5", "sources": []},
+        "design_storm_mm": {"value": 300, "sources": ["made-up#9", "mumbai-dcpr-fsi#1", "mumbai-dcpr-fsi#1"], "note": "  spaced  "},
+        "setbacks_m": {"value": {"front": 3, "side": 40, "rear": 3}},
+        "programme_mix": {"value": {"residential": 1.4, "farms": 0.2}},
+        "objective_weights": {"value": {"storage": 0.5, "beauty": 1}},
+        "gene_ranges": {"value": {"green_share": [0.05, 0.5], "coverage": [0.5, 0.4], "radius": [0.1, 0.2], "peak": [1, 2]}},
+        "typology_priors": {"value": [{"type": "pagoda", "weight": 1}, {"type": "tower", "weight": 2}, {"type": "slab", "weight": 0.5}, {"type": "slab", "weight": 0.4}]},
+        "aesthetic_priorities": {"value": "lots"},
+        "rule_changes": [
+          {"rule": "deep flooding in 2050", "enabled": false},
+          {"rule": "no such rule", "enabled": false},
+          {"rule": "rain hollows"},
+          {"rule": "rain hollows", "max_levels": 0, "enabled": "yes", "min_permeable": 0.9},
+          {"rule": "rain hollows", "max_levels": 3},
+          "rain hollows"
+        ],
+        "patterns": [{"id": 999}, {"id": 21, "sources": ["pattern-021#1"]}, {"id": 21}],
+        "tags": ["", "a very long tag that goes on well past forty characters", "steel", "steel", "a", "b", "c", "d", "e", "f", "g", "h"]
+      }
+    },
+    {
+      "name": "pattern 21 sets the height",
+      "input": {
+        "summary": "Four storeys.",
+        "patterns": [{"id": 21, "sources": ["pattern-021#1"], "note": "keep it low"}],
+        "floor_area_ha": {"value": 120, "sources": [], "note": ""},
+        "fsi": {"value": 1.5, "sources": [], "note": "ignored: floor area wins"},
+        "ground_coverage_max": {"value": 0.25, "sources": [], "note": "below the gene's default low end"},
+        "rule_changes": {"rule": "rain hollows"}
+      }
+    },
+    {"name": "empty", "input": {}},
+    {"name": "not an object", "input": "make it nice"}
+  ],
+  "seeds": [
+    {"priors": [{"type": "courtyard", "weight": 0.6}, {"type": "slab", "weight": 0.3}, {"type": "tower", "weight": 0.1}], "count": 30, "seed": 11},
+    {"priors": [{"type": "podium_tower", "weight": 1}, {"type": "l_shape", "weight": 1}, {"type": "u_shape", "weight": 1}], "count": 5, "seed": 3},
+    {"priors": [{"type": "tower", "weight": 0}], "count": 10, "seed": 1}
+  ]
+}

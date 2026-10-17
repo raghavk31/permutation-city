@@ -7,11 +7,13 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "speed": "vite-node ../test/parity/speed.ts"
+    "speed": "vite-node ../test/parity/speed.ts",
+    "corpus": "vite-node scripts/write-corpus.ts"
   },
   "dependencies": {
     "comlink": "^4.4.2",
     "maplibre-gl": "6.11.2",
+    "pdfjs-dist": "6.3.289",
     "terra-draw": "1.35.0",
     "terra-draw-maplibre-gl-adapter": "1.4.1"
   },

@@ -20,4 +20,5 @@ export { decode, grow, randomGenome, stats } from "./genome";
 export { evaluate, floorAreaTarget, SCORES, SCORE_KEYS } from "./fitness";
 export { paretoRanks, crowding, difference, families } from "./rank";
 export { makeRng } from "./rng";
+export * from "./brief";
 export { evolve, breed, frontFamilies, type Individual, type Run, type HistoryRow, type EvolveOptions } from "./evolve";

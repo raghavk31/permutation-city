@@ -9,6 +9,7 @@
     uv run pc sites            list sites
     uv run pc app              the designer's sandbox (Streamlit, in the browser)
     uv run pc export <site>... [--fixture]   sites for the web app (app/public/sites/)
+    uv run pc brief <site> <brief.json>      save a confirmed brief with the site (pc/brief.py)
 """
 
 import argparse
@@ -73,10 +74,19 @@ def cmd_rules(a):
 # --- generations --------------------------------------------------------------------
 
 def _ground(site):
-    from pc import export
+    """The design ground, and the gene ranges to read genomes with. With a saved brief
+    (sites/<id>/brief.json), its rules and ranges are used."""
+    from pc import brief, export, genome, rules
 
-    suit = gpd.read_file(site.layers / "suitability.gpkg", layer="cells")
-    return suit, export.site_ground(site, suit)[0]
+    cfg = brief.run_config(site)
+    if cfg is None:
+        suit = gpd.read_file(site.layers / "suitability.gpkg", layer="cells")
+        return suit, export.site_ground(site, suit)[0], genome.RANGES
+    print(f"  using the site's brief (sites/{site.id}/brief.json): its rules and gene ranges")
+    grid = gpd.read_file(site.layers / "grid.gpkg", layer="cells")
+    suit, _ = rules.apply(grid, brief.rules_yaml(cfg["rules"]))
+    ranges = {k: tuple(v) for k, v in cfg["ranges"].items()}
+    return suit, export.site_ground(site, suit)[0], ranges
 
 
 def _note(scores, floor_ha):
@@ -109,9 +119,9 @@ def cmd_grow(a):
     from pc import fitness, genome
 
     site = load(a.site)
-    suit, ground = _ground(site)
+    suit, ground, ranges = _ground(site)
     rng = Rng(a.seed)
-    designs = [genome.grow(genome.random_genome(rng), ground) for _ in range(a.n)]
+    designs = [genome.grow(genome.random_genome(rng), ground, ranges=ranges) for _ in range(a.n)]
     scores = [fitness.evaluate(d, ground, site) for d in designs]
     ranks = fitness.pareto_ranks(scores)
     labels = [f"G0.{i + 1:02d}" for i in range(a.n)]
@@ -145,12 +155,12 @@ def cmd_evolve(a):
     from pc import evolve, fitness, genome
 
     site = load(a.site)
-    suit, ground = _ground(site)
+    suit, ground, ranges = _ground(site)
     target = fitness.floor_area_target(site, ground) / 1e4
     print(f"{site.name}: Seq{a.seed}, population {a.pop}, {a.gens} generations "
           f"(brief: {target:.0f} ha ±{fitness.TARGET_TOLERANCE:.0%})")
     t0 = time.time()
-    run = evolve.evolve(site, ground, generations=a.gens, pop=a.pop, seed=a.seed)
+    run = evolve.evolve(site, ground, generations=a.gens, pop=a.pop, seed=a.seed, ranges=ranges)
     print(f"  {len(run.everyone):,} designs grown in {time.time() - t0:.0f} s")
 
     out = site.layers.parent / "runs" / f"seq{a.seed}"
@@ -190,6 +200,20 @@ def cmd_evolve(a):
     _table(rows, show, labels)
     print(f"  sheets: sites/{site.id}/maps/{sheet.name}, 04-seq{a.seed}-gen{a.gens}-tradeoffs.png, "
           f"06-seq{a.seed}-evolution.png")
+
+
+def cmd_brief(a):
+    from pathlib import Path
+
+    from pc import brief
+
+    site = load(a.site)
+    raw = json.loads(Path(a.file).read_text(encoding="utf-8"))
+    warnings = brief.save(site, raw)
+    for w in warnings:
+        print(f"  dropped or changed: {w}")
+    print(f"  saved sites/{site.id}/brief.json; targets and storm written to site.yaml. "
+          f"pc grow / pc evolve now use it (delete the file to stop).")
 
 
 def cmd_export(a):
@@ -250,10 +274,13 @@ def main():
     ex = sub.add_parser("export", help="export sites for the web app (app/public/sites/)")
     ex.add_argument("sites", nargs="+")
     ex.add_argument("--fixture", action="store_true", help="also write a parity test fixture")
+    br = sub.add_parser("brief", help="save a confirmed brief (from the web app) with a site")
+    br.add_argument("site")
+    br.add_argument("file", help="the brief JSON the web app downloads")
     a = p.parse_args()
     {"new": cmd_new, "fetch": cmd_fetch, "build": cmd_build, "rules": cmd_rules,
      "grow": cmd_grow, "evolve": cmd_evolve, "sites": cmd_sites, "app": cmd_app,
-     "export": cmd_export}[a.cmd](a)
+     "export": cmd_export, "brief": cmd_brief}[a.cmd](a)
 
 
 if __name__ == "__main__":
