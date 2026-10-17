@@ -151,7 +151,26 @@
   const stepIndex = $derived(job?.step && job.steps ? job.steps.indexOf(job.step) : -1);
 </script>
 
+{#snippet readyMade(lead: string)}
+  {#if Object.keys(ready).length}
+    <p class="pcn-ready">{lead}
+      {#each Object.entries(ready) as [rid, s]}
+        <button type="button" onclick={() => onbuilt(rid)}>{s.name}</button>
+      {/each}
+    </p>
+  {/if}
+{/snippet}
+
 <section class="pcn-picker">
+  {#if serviceError}
+    <div class="pcn-offline" role="status">
+      <p><b>New sites can't be built here yet.</b> Building one needs the layer service, which downloads the site's ground,
+        water, land cover and buildings, and it isn't running for this copy of the app. You can still search and draw.</p>
+      <p class="pc-muted">{serviceError}</p>
+      {@render readyMade("Open a ready-made site instead:")}
+    </div>
+  {/if}
+
   <div class="pcn-search">
     <label for="pcn-q" class="pc-muted">Find a place</label>
     <input id="pcn-q" type="search" placeholder="a neighbourhood, a street, a landmark" autocomplete="off"
@@ -207,9 +226,9 @@
       {:else}No site drawn yet.{/if}
     </p>
     <button type="submit" disabled={!polygon || tooBig || busy || !!serviceError}>Build the layers</button>
+    {#if serviceError}<span class="pc-muted">Not available here yet (see the note above the map).</span>{/if}
   </form>
 
-  {#if serviceError}<p class="pc-error" role="alert">{serviceError}</p>{/if}
   {#if submitError}<p class="pc-error" role="alert">{submitError}</p>{/if}
 
   {#if job && busy}
@@ -227,11 +246,5 @@
     </div>
   {/if}
 
-  {#if Object.keys(ready).length}
-    <p class="pcn-ready">Or open a ready-made site:
-      {#each Object.entries(ready) as [rid, s]}
-        <button type="button" onclick={() => onbuilt(rid)}>{s.name}</button>
-      {/each}
-    </p>
-  {/if}
+  {#if !serviceError}{@render readyMade("Or open a ready-made site:")}{/if}
 </section>
