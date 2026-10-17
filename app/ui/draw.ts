@@ -1,9 +1,7 @@
-// Permutation City: drawing. Hex maps, a hand-rolled 3D view and small line charts, on
-// canvas, with no libraries. Colours come from CSS custom properties so the page's light
-// and dark themes carry through.
-import type { Design, SiteExport } from "../engine";
-
-const SQ3 = Math.sqrt(3);
+// Permutation City: drawing. Cell maps (hexes or squares), a hand-rolled 3D view and small
+// line charts, on canvas, with no libraries. Colours come from CSS custom properties so the
+// page's light and dark themes carry through.
+import { circumradius, corners, gridOf, type Design, type SiteExport } from "../engine";
 
 export type Palette = ReturnType<typeof palette>;
 type Colour = string | null;
@@ -81,19 +79,18 @@ export function aspectOf(xs: number[], ys: number[]): number {
   return Math.min(Math.max(h / w, 0.45), 1.6);
 }
 
-function hexPath(ctx: Ctx, cx: number, cy: number, r: number) {
-  ctx.moveTo(cx + r * SQ3 / 2, cy - r / 2);
-  ctx.lineTo(cx, cy - r);
-  ctx.lineTo(cx - r * SQ3 / 2, cy - r / 2);
-  ctx.lineTo(cx - r * SQ3 / 2, cy + r / 2);
-  ctx.lineTo(cx, cy + r);
-  ctx.lineTo(cx + r * SQ3 / 2, cy + r / 2);
-  ctx.closePath();
+/** A site's cell outline (metres from the centre, y up) and its centre-to-corner radius. */
+export function shapeOf(site: SiteExport) {
+  const g = gridOf(site.meta);
+  return { corners: corners(g), r: circumradius(g) };
 }
 
-/** Fill hexes: xs, ys (local metres), colours (one per hex, null to skip). Batched by colour. */
-export function hexes(ctx: Ctx, v: View, xs: number[], ys: number[], colours: Colour[], radius: number, gap = 0) {
-  const r = radius * v.s * 1.02 - gap;
+/** Fill cells: xs, ys (local metres), colours (one per cell, null to skip), the cell outline
+ *  in metres (`shapeOf`), shrunk by `scale` for marks drawn inside cells. Batched by colour. */
+export function cells(ctx: Ctx, v: View, xs: number[], ys: number[], colours: Colour[],
+  shape: [number, number][], scale = 1) {
+  const k = v.s * 1.02 * scale; // a hair larger than the cell, so no seams show between cells
+  const pts = shape.map(([dx, dy]) => [dx * k, -dy * k]);
   const groups = new Map<string, number[]>();
   for (let i = 0; i < xs.length; i++) {
     const c = colours[i];
@@ -103,7 +100,11 @@ export function hexes(ctx: Ctx, v: View, xs: number[], ys: number[], colours: Co
   }
   for (const [c, idx] of groups) {
     ctx.beginPath();
-    for (const i of idx) hexPath(ctx, v.px(xs[i]), v.py(ys[i]), r);
+    for (const i of idx) {
+      const cx = v.px(xs[i]), cy = v.py(ys[i]);
+      pts.forEach(([dx, dy], k) => (k ? ctx.lineTo(cx + dx, cy + dy) : ctx.moveTo(cx + dx, cy + dy)));
+      ctx.closePath();
+    }
     ctx.fillStyle = c;
     ctx.fill();
   }
@@ -146,15 +147,15 @@ export function designColours(d: Design, p: Palette): Colour[] {
 export function plan(canvas: HTMLCanvasElement, site: SiteExport, d: Design, p: Palette,
   { aspect, attractors = false, labels = false, locked = null }:
   { aspect?: number; attractors?: boolean; labels?: boolean; locked?: ArrayLike<number> | null } = {}): View {
-  const g = site.grid, D = site.design, r = site.meta.hex_radius;
+  const g = site.grid, D = site.design, { corners: shape, r } = shapeOf(site);
   const { ctx, w, h } = fitCanvas(canvas, aspect);
   const v = view(D.x, D.y, w, h, 6, r * 3);
   ctx.fillStyle = p.paper; ctx.fillRect(0, 0, w, h);
-  hexes(ctx, v, g.x, g.y, g.state.map((s, i) => (g.water[i] || s === 0 ? p.sea : s === 1 ? p.retained : null)), r);
-  hexes(ctx, v, D.x, D.y, designColours(d, p), r);
+  cells(ctx, v, g.x, g.y, g.state.map((s, i) => (g.water[i] || s === 0 ? p.sea : s === 1 ? p.retained : null)), shape);
+  cells(ctx, v, D.x, D.y, designColours(d, p), shape);
   if (locked) {
     ctx.save(); ctx.globalAlpha = 0.5;
-    hexes(ctx, v, D.x, D.y, Array.from(locked, (c) => (c ? p.ink : null)), r * 0.35);
+    cells(ctx, v, D.x, D.y, Array.from(locked, (c) => (c ? p.ink : null)), shape, 0.35);
     ctx.restore();
   }
   context(ctx, v, site.context, p, { labels });
@@ -173,16 +174,17 @@ export function plan(canvas: HTMLCanvasElement, site: SiteExport, d: Design, p: 
 /** Any per-cell grid layer: values → colours with `colourOf`. */
 export function layer(canvas: HTMLCanvasElement, site: SiteExport, colourOf: (i: number) => Colour, p: Palette,
   { aspect, labels = false }: { aspect?: number; labels?: boolean } = {}): View {
-  const g = site.grid, r = site.meta.hex_radius;
+  const g = site.grid, { corners: shape, r } = shapeOf(site);
   const { ctx, w, h } = fitCanvas(canvas, aspect);
   const v = view(g.x, g.y, w, h, 6, r);
   ctx.fillStyle = p.paper; ctx.fillRect(0, 0, w, h);
-  hexes(ctx, v, g.x, g.y, g.x.map((_, i) => colourOf(i)), r);
+  cells(ctx, v, g.x, g.y, g.x.map((_, i) => colourOf(i)), shape);
   context(ctx, v, site.context, p, { labels });
   return v;
 }
 
-/** Which grid cell is under a canvas point (for hover). */
+/** Which grid cell is under a canvas point (for hover): the nearest centre, within one
+ *  cell radius. On both grids the nearest centre is the cell the point is in. */
 export function cellAt(v: View, xs: number[], ys: number[], mx: number, my: number, radius: number): number {
   let best = -1, bd = (radius * v.s) ** 2;
   for (let i = 0; i < xs.length; i++) {
@@ -193,12 +195,12 @@ export function cellAt(v: View, xs: number[], ys: number[], mx: number, my: numb
 }
 
 /**
- * The design in 3D: hex prisms in an oblique projection, painted far to near.
+ * The design in 3D: cell prisms in an oblique projection, painted far to near.
  * bearing in radians (drag to change); tilt is the view angle from straight down.
  */
 export function solid(canvas: HTMLCanvasElement, site: SiteExport, d: Design, p: Palette,
   { aspect = 0.62, bearing = -0.5, tilt = 0.95 } = {}) {
-  const g = site.grid, D = site.design, r = site.meta.hex_radius;
+  const g = site.grid, D = site.design, { corners: shape, r } = shapeOf(site);
   const { ctx, w, h } = fitCanvas(canvas, aspect);
   ctx.fillStyle = p.paper; ctx.fillRect(0, 0, w, h);
   const cb = Math.cos(bearing), sb = Math.sin(bearing), ct = Math.cos(tilt), st = Math.sin(tilt);
@@ -214,11 +216,8 @@ export function solid(canvas: HTMLCanvasElement, site: SiteExport, d: Design, p:
   const cx = w / 2 - ((x0 + x1) / 2) * s, cy = h / 2 + ((y0 + y1) / 2) * ct * s + (zmax * st * s) / 2;
   const P = (x: number, y: number, z: number): [number, number] => [cx + x * s, cy - y * ct * s - z * st * s];
 
-  // Corners of a pointy-top hex, rotated with the scene.
-  const corners = [30, 90, 150, 210, 270, 330].map((deg) => {
-    const a = (deg * Math.PI) / 180;
-    return rot(r * Math.cos(a), r * Math.sin(a));
-  });
+  // Corners of a cell, rotated with the scene.
+  const corners = shape.map(([x, y]) => rot(x, y));
   const light = [-0.45, -0.7]; // from the viewer's lower left
 
   const cells: { x: number; y: number; z: number; colour: string }[] = [];
@@ -237,8 +236,8 @@ export function solid(canvas: HTMLCanvasElement, site: SiteExport, d: Design, p:
   for (const c of cells) {
     const top = corners.map(([dx, dy]) => P(c.x + dx, c.y + dy, c.z));
     if (c.z > 0) {
-      for (let k = 0; k < 6; k++) {
-        const [ax, ay] = corners[k], [bx, by] = corners[(k + 1) % 6];
+      for (let k = 0; k < corners.length; k++) {
+        const [ax, ay] = corners[k], [bx, by] = corners[(k + 1) % corners.length];
         const mx = (ax + bx) / 2, my = (ay + by) / 2;
         if (my > 0) continue; // this side faces away from the viewer
         const lit = 0.72 + 0.28 * Math.max(0, -(mx * light[0] + my * light[1]) / r);

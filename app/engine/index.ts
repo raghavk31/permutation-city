@@ -8,6 +8,9 @@
 export * from "./config";
 export * from "./types";
 export { roundHalfEven, smooth } from "./num";
+export {
+  cellAreaOf, circumradius, corners, designGraph, gridLabel, gridOf, passes, siteGraph, type CellGraph,
+} from "./graph";
 export { prepare, prepareFromRules, designFromRules } from "./ground";
 export {
   applyRules, evaluate as evaluateCondition, layersUsed, MissingLayer, STATES, FORBIDDEN, RETAINED, CONSTRAINED, OPEN,

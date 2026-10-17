@@ -56,13 +56,14 @@ def test_key_changes_with_what_changes_the_result():
     k = pipeline.cache_key(base, "r1")
     assert pipeline.cache_key(base, "r2") != k
     assert pipeline.cache_key(pipeline.Request(boundary=base.boundary, cell_size=25), "r1") != k
+    assert pipeline.cache_key(pipeline.Request(boundary=base.boundary, grid_type="quad"), "r1") != k
     assert pipeline.cache_key(pipeline.Request(boundary=base.boundary, sea_levels={"surge_2050": 3.8}), "r1") != k
     assert pipeline.cache_key(pipeline.Request(boundary=base.boundary, name="Other name"), "r1") == k
 
 
 @pytest.mark.parametrize("body, message", [
     ({"boundary": {"type": "Point", "coordinates": [72.84, 18.95]}}, "polygon"),
-    ({"boundary": SQUARE, "grid": {"type": "quad"}}, "isn't available yet"),
+    ({"boundary": SQUARE, "grid": {"type": "voronoi"}}, "use hex or quad"),
     ({"boundary": SQUARE, "grid": {"size": 5}}, "between 10 and 50"),
     ({"boundary": SQUARE, "sea_levels": {"a b": 1}}, "letters"),
     ({"boundary": {"type": "Polygon", "coordinates": [[[72.80, 18.90], [72.86, 18.90], [72.86, 18.96],
@@ -82,6 +83,12 @@ def test_cell_cap():
                                                [72.840, 18.962], [72.840, 18.950]]]}  # ~2 km²
     with pytest.raises(pipeline.Rejected, match="cells"):
         pipeline.check(pipeline.Request(boundary=pipeline.polygon_from_geojson(big), cell_size=10))
+
+
+def test_cell_estimate_follows_the_grid():
+    # 1 km²: 20 m hexes are 1,039 m² each, 20 m squares 400 m²
+    assert pipeline.estimated_cells(1.0, 20, "hex") == 962
+    assert pipeline.estimated_cells(1.0, 20, "quad") == 2500
 
 
 def test_rate_limit_counts_new_builds_only(client):

@@ -2,7 +2,7 @@
 import * as E from "../../engine";
 import * as Draw from "../draw";
 
-type Kind = "metres" | "share" | "flag" | "count";
+type Kind = "metres" | "share" | "flag" | "count" | "hectares";
 type Ramp = "blues" | "oranges" | "greens" | "greys";
 interface LayerInfo { label: string; note: string; kind: Kind; ramp: Ramp }
 
@@ -11,7 +11,8 @@ const INFO: Record<string, LayerInfo> = {
   water: { label: "water", note: "sea, river, pond, dock", kind: "flag", ramp: "blues" },
   ground: { label: "ground", note: "bare-earth height above sea level (FABDEM)", kind: "metres", ramp: "greys" },
   pool: { label: "rain pooling", note: "water that sits in hollows after rain", kind: "metres", ramp: "blues" },
-  upstream: { label: "drainage lines", note: "how many cells drain through this one", kind: "count", ramp: "blues" },
+  catchment_ha: { label: "drainage lines", note: "the area that drains through this cell", kind: "hectares", ramp: "blues" },
+  upstream: { label: "cells upstream", note: "how many cells drain through this one", kind: "count", ramp: "blues" },
   edge_dist: { label: "distance to water", note: "metres to the nearest land-water edge", kind: "metres", ramp: "greys" },
   trees: { label: "trees", note: "tree cover (ESA WorldCover)", kind: "share", ramp: "greens" },
   green: { label: "other green", note: "grass, shrubs, crops, wetland plants", kind: "share", ramp: "greens" },
@@ -26,9 +27,9 @@ const INFO: Record<string, LayerInfo> = {
   wl_built: { label: "built-up (WorldCover)", note: "built-up land cover", kind: "share", ramp: "oranges" },
   wl_water: { label: "water (WorldCover)", note: "water land cover", kind: "share", ramp: "blues" },
 };
-const ORDER = ["water", "ground", "flood_", "pool", "upstream", "edge_dist", "trees", "green", "mangrove", "built",
+const ORDER = ["water", "ground", "flood_", "pool", "catchment_ha", "upstream", "edge_dist", "trees", "green", "mangrove", "built",
   "industrial", "in_design"];
-const HIDDEN = new Set(["sea", "elev", "bare", "wl_built", "wl_water"]);
+const HIDDEN = new Set(["sea", "elev", "bare", "wl_built", "wl_water", "upstream"]);
 
 export interface Layer extends LayerInfo { name: string }
 
@@ -64,14 +65,16 @@ export function colours(site: E.SiteExport, l: Layer, P: Draw.Palette): (i: numb
   const sorted = [...land].sort((a, b) => a - b);
   const q = (t: number) => (sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(t * sorted.length))] : 0);
   let lo = l.kind === "share" ? 0 : q(0.02), hi = l.kind === "share" ? 1 : q(0.98);
-  if (l.name === "upstream") { lo = 1; hi = Math.max(q(0.99), 10); }
+  // Drainage on a log scale, from one cell (nothing drains in) up.
+  const logScale = l.name === "upstream" || l.name === "catchment_ha";
+  if (logScale) { lo = l.name === "upstream" ? 1 : site.meta.cell_area / 1e4; hi = Math.max(q(0.99), 10 * lo); }
   if (l.name === "edge_dist") hi = Math.min(hi, 1000);
-  const t = (x: number) => (l.name === "upstream" ? Math.log(x / lo) / Math.log(hi / lo) : (x - lo) / (hi - lo || 1));
+  const t = (x: number) => (logScale ? Math.log(x / lo) / Math.log(hi / lo) : (x - lo) / (hi - lo || 1));
   const continuous = l.name === "ground" || l.name === "edge_dist";
   return (i) => {
     const x = v[i];
     if (x === null || (water[i] && l.name !== "water")) return null;
-    if (!continuous && x <= (l.name === "upstream" ? 1 : 0)) return null; // nothing here
+    if (!continuous && x <= (logScale ? lo * 1.0001 : 0)) return null; // nothing here (or only itself)
     return Draw.ramp(ramp, t(x));
   };
 }
@@ -81,6 +84,7 @@ export function format(l: Layer, x: number | null): string {
   if (l.kind === "flag") return x ? "yes" : "no";
   if (l.kind === "share") return `${Math.round(x * 100)}%`;
   if (l.kind === "count") return Math.round(x).toLocaleString("en-IN");
+  if (l.kind === "hectares") return `${Number(x.toFixed(x >= 10 ? 0 : 2))} ha`;
   return `${Math.abs(x) >= 100 ? Math.round(x) : Number(x.toFixed(2))} m`;
 }
 

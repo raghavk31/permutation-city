@@ -1,6 +1,6 @@
 """Permutation City command line.
 
-    uv run pc new <site> --name "..." (--bbox W S E N | --boundary site.geojson) [--hex 20] [--sea]
+    uv run pc new <site> --name "..." (--bbox W S E N | --boundary site.geojson) [--grid hex|quad] [--size 20] [--sea]
     uv run pc fetch <site> [--only dem terrain landcover overture]
     uv run pc build <site>     grid + layers + rules + maps
     uv run pc rules <site>     re-apply rules.yaml and redraw (fast; after editing rules)
@@ -37,7 +37,9 @@ def cmd_new(a):
     if not a.bbox and not a.boundary:
         raise SystemExit("give --bbox W S E N or --boundary polygon.geojson")
     folder.mkdir(parents=True)
-    cfg = {"name": a.name or a.site, "hex_radius": a.hex, "design_storm_mm": 100, "target_far": 1.5}
+    size = a.hex if a.hex is not None else a.size
+    cfg = {"name": a.name or a.site, "grid": {"type": a.grid, "size": size}, "design_storm_mm": 100,
+           "target_far": 1.5}
     if a.boundary:
         import geopandas as gpd
 
@@ -74,7 +76,7 @@ def _ground(site):
     from pc import export
 
     suit = gpd.read_file(site.layers / "suitability.gpkg", layer="cells")
-    return suit, export.engine_ground(suit)[0]
+    return suit, export.site_ground(site, suit)[0]
 
 
 def _note(scores, floor_ha):
@@ -222,7 +224,10 @@ def main():
     n.add_argument("--name")
     n.add_argument("--bbox", nargs=4, type=float, metavar=("W", "S", "E", "N"))
     n.add_argument("--boundary", help="GeoJSON polygon of the site (instead of --bbox)")
-    n.add_argument("--hex", type=float, default=20.0, help="hex radius in metres")
+    n.add_argument("--grid", choices=["hex", "quad"], default="hex", help="cell shape (default hex)")
+    n.add_argument("--size", type=float, default=20.0,
+                   help="cell size in metres: hex centre to corner, quad side (default 20)")
+    n.add_argument("--hex", type=float, help=argparse.SUPPRESS)  # older spelling of --size
     n.add_argument("--sea", action="store_true", help="coastal site: add sea levels")
     f = sub.add_parser("fetch", help="download data for a site")
     f.add_argument("site")

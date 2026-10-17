@@ -1,0 +1,10 @@
+# Mumbai Docks on a square grid: the parity site for quad cells (Phase 3).
+# Same polygon, rules and downloads as mumbai-docks.
+name: Mumbai Docks (test polygon, squares)
+data: mumbai-docks
+grid: {type: quad, size: 20}
+design_storm_mm: 200
+target_far: 2.0
+boundary: boundary.geojson
+context_m: 250
+sea_levels: {high_tide: 2.5, surge_today: 3.5, surge_2050: 3.8}

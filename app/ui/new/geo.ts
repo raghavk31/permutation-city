@@ -1,5 +1,7 @@
 // Polygon area on the sphere (the same formula turf.js uses), for checking a drawn site
 // against the service's limits before sending it.
+import { cellAreaOf } from "../../engine/graph";
+
 const R = 6378137;
 const rad = (d: number) => (d * Math.PI) / 180;
 
@@ -18,5 +20,6 @@ export function polygonKm2(coords: number[][][]): number {
   return (ringArea(outer) - holes.reduce((s, h) => s + ringArea(h), 0)) / 1e6;
 }
 
-/** Cells of a hex grid of this radius over that area (pc's estimate). */
-export const estimatedCells = (km2: number, size: number) => Math.floor((km2 * 1e6) / (1.5 * Math.sqrt(3) * size * size));
+/** Cells of a grid over that area (the service's estimate, service/pipeline.py). */
+export const estimatedCells = (km2: number, type: "hex" | "quad", size: number) =>
+  Math.floor((km2 * 1e6) / cellAreaOf({ type, size }));

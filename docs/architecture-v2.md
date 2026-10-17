@@ -67,6 +67,9 @@ reproducible" holds within an engine, not across them. See decision D3.
 
 Every place that would break or change meaning on a quad grid or an irregular graph.
 
+All fixed in Phase 3 (see the Phase 3 log), plus one the table missed: the drainage rule
+counted cells upstream.
+
 | Where | Assumption | Phase 3 fix |
 |---|---|---|
 | `pc/grid.py` `hex_grid` | pointy-top hexes, odd rows offset by half a cell | `HexGrid` implements `CellGraph` |
@@ -565,6 +568,69 @@ Not done, or done differently:
   type-checked. They stay thin; their logic is in `.ts` files that `tsc` checks.
 - **Bundle:** `new.html` is 1.2 MB of JS (335 KB gzipped), mostly MapLibre. It's a
   separate page, so the chapters don't pay for it.
+
+## Phase 3 log (2026-10-17)
+
+Done, on branch `v2-phase3` (stacked on `v2-phase2`, PR #2 not merged yet):
+- **`CellGraph` in both engines.** `pc/grid.py`: `HexGrid` and `QuadGrid` behind one
+  interface (cover a shape, neighbours from row and col, outline, cell area, degree,
+  spacing, shared edge). `app/engine/graph.ts`: the same grid read from the export
+  (`gridOf`), a `CellGraph` over the site grid or the design ground (neighbours, centroid,
+  area, polygon, weight), outlines and areas for drawing. Hex size is centre to corner (as
+  `hex_radius` was); quad size is the side.
+- **Quad neighbours share an edge (4), not a corner.** Water can't leak through a diagonal
+  in the flood fill, "fronts a park" means a shared edge as it does on hexes, and drainage
+  is D4. Every neighbour is then one spacing away, so the lowest neighbour is also the
+  steepest and the table's "slope by distance" fix isn't needed. On these two grids every
+  adjacency weight is equal (one whole edge), so smoothing stays a plain mean; a Voronoi
+  graph would bring its own weights.
+- **Reaches in metres, not hops.** Heat smoothing, the site's water, the water attractors'
+  field and the daylight search are each set in metres (100, 100, 35, 100) and turned into
+  steps with `passes()`. On 20 m hexes these are the old 3, 3, 1 and 3 steps exactly. On
+  20 m squares they are 5, 5, 2 and 5. (Hexes of 15, 25 or 30 m from the picker now
+  search about 100 m for daylight, where before they always searched 3 rings.)
+- **A hex assumption the Phase 0 table missed: the drainage rule.** `upstream >= 40`
+  counted cells: 4.2 ha of catchment on 20 m hexes, 1.6 ha on 20 m squares. New layer
+  `catchment_ha` (upstream × cell area), and the rule is now `catchment_ha >= 4.1` in the
+  template and every site. On 20 m hexes that picks exactly the same cells.
+  `LAYERS_VERSION` is 2.
+- **Export format 3.** `meta.grid` = `{type, size, spacing, degree, edge}`; hex files keep
+  `hex_radius`. Neighbour arrays are n × degree. The TS loader still reads formats 1 and 2
+  as hexes.
+- **Hex results unchanged.** After rebuilding the three sites, map sheet 02 and every
+  export block except `meta` (grid, design, context, and rules apart from the drainage
+  rule's wording) are byte-identical. The fixtures' 40 grown designs, their scores and
+  ranks, and all nine Python evolutions are byte-identical too. Map sheet 01's caption
+  changed ("4+ ha drains through").
+- **Quad parity sites.** `sites/mumbai-docks-quad` (20 m squares, coastal, polygon) and
+  `sites/ahmedabad-wadaj-quad` (30 m squares, inland, box). They share their downloads
+  through a new `data:` key in `site.yaml`. Parity is exact on both: rules, rebuilt
+  design ground, growth, scores, ranks and three whole evolutions (`npm test`, 76 tests,
+  including `test/ui/graph.test.ts`). Grid tests in Python: `test/python/test_grid.py`
+  (42 Python tests in all).
+- **Picker, CLI and sandbox.** The picker offers hexes or squares and a size, shows the
+  m² per cell, and estimates cells per grid type, as the service does. The service builds
+  quad sites. `pc new --grid quad --size 25` (`--hex` still works); the sandbox's new-site
+  form has grid and size. The chapters, the cake and the 3D view draw from the grid's
+  outline, so squares draw as squares and prisms get four sides.
+
+Speed (`npm run speed`, 30 × 60 with a shock, this laptop): Docks 2.3 s (661 cells),
+Docks on squares 5.2 s (1,749), EWF 4.5 s (1,623), Ahmedabad 10.0 s (3,607), Ahmedabad
+on 30 m squares 10.9 s (4,146). Time follows cell count, as R1 said; a 20 m square has
+40% of a 20 m hex's area, so the same site has 2.6 times the cells.
+
+Unsure about, or left open:
+- **Scores across grids.** Heat and human scale use neighbour counts (6 vs 4), so the same
+  layout scores a little differently on each grid. The picker says to compare designs on
+  one grid. Fitting the constants so the grids agree would be a separate experiment.
+- **D4 drainage** gives straight, axis-aligned drainage lines on squares (visible on map
+  sheet 01). D8 would look more natural but needs distance-weighted slopes and diagonal
+  flow; I'd only do it if the quad grid becomes a main mode.
+- **The two quad sites are public**: they show in the chapters' site list, which is a
+  way to see the grids side by side. They can be hidden from `sites.json` if you'd rather
+  not show test sites.
+- **Hover on squares** uses the nearest centre within the circumradius, which is exactly
+  the square the pointer is in.
 
 ## 8. Decisions (2026-10-16)
 

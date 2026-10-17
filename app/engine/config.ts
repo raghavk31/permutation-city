@@ -37,7 +37,10 @@ export const HEAT = { sealed: 5.0, roof: 4.0, unsealed: 1.0, landscape: 0.5, wat
 export const HEAT_PER_LEVEL = 0.1;
 export const CARBON_BASE = 400.0, CARBON_FREE_LEVELS = 6, CARBON_PER_LEVEL = 0.02;
 export const STOREY_M = 3.2;
-export const DAYLIGHT_RINGS = 3, DAYLIGHT_TAN = 0.4663076581549986; // tan(25°)
+// Reaches in metres (pc/genome.py, pc/fitness.py); pc.grid.passes turns them into
+// neighbour steps. On 20 m hexes: 3, 1, 3 and 3 steps, as before grids were abstracted.
+export const SITE_WATER_REACH_M = 100.0, WATER_FIELD_REACH_M = 35.0, HEAT_REACH_M = 100.0;
+export const DAYLIGHT_REACH_M = 100.0, DAYLIGHT_TAN = 0.4663076581549986; // tan(25°)
 export const HUMAN_MAX_LEVELS = 8;
 export const TARGET_TOLERANCE = 0.10;
 export const DUPLICATE = 0.05;

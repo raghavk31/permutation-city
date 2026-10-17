@@ -98,7 +98,11 @@ async function loadSite(id: string, rules: string | null = null) {
   startWorker(site());
   const m = site().meta;
   $(".pc-status").textContent = `${m.name} · design ground ${fmtHa(m.design_ha)} · brief ${fmtHa(m.target_ha)} of floor area (±10%) · `
-    + `design storm ${m.design_storm_mm} mm`;
+    + `design storm ${m.design_storm_mm} mm · ${E.gridLabel(E.gridOf(m))}`;
+  const grid = E.gridOf(m);
+  $(".pc-grid-note").textContent = grid.type === "hex" && grid.size === 20
+    ? "a 20 m hex (centre to corner), the unit of the studio this grew from"
+    : `a ${grid.size} m ${grid.type === "hex" ? "hex (centre to corner)" : "square"}, ${Math.round(m.cell_area).toLocaleString("en-IN")} m²`;
   $(".pc-credits").textContent = `Data: ${m.credits.join(" · ")}.`;
   state.genome = E.randomGenome(rng);
   drawAll();
@@ -161,7 +165,7 @@ function drawLayer() {
   const v = Draw.layer(canvas, site(), colourOf, P, { aspect: gridAspect(), labels: true });
   $(".pc-layer .pc-note").textContent = `${L.note}${state.layer === "industrial" ? "" : ` · ${L.unit(lo)} to ${L.unit(hi)}`}`;
   canvas.onpointermove = (e) => {
-    const i = Draw.cellAt(v, g.x, g.y, e.offsetX, e.offsetY, site().meta.hex_radius);
+    const i = Draw.cellAt(v, g.x, g.y, e.offsetX, e.offsetY, Draw.shapeOf(site()).r);
     $(".pc-layer .pc-readout").textContent = i < 0 ? "" : g.water[i] ? "water"
       : (Object.entries(LAYERS) as [LayerKey, LayerDef][]).filter(([k]) => k !== "flood" || hasSea)
         .map(([, l]) => `${l.label} ${l.unit(l.value(g, i))}`).join(" · ");
@@ -182,7 +186,7 @@ function drawRules() {
   $(".pc-rules .pc-legend").innerHTML = [0, 2, 3, 1].map((s) => `<span><i style="background:${cols[s]}"></i>`
     + `${STATE_NAMES[s]}: ${notes[STATE_NAMES[s]]} · ${fmtHa(ha[s])}</span>`).join("");
   canvas.onpointermove = (e) => {
-    const i = Draw.cellAt(v, g.x, g.y, e.offsetX, e.offsetY, site().meta.hex_radius);
+    const i = Draw.cellAt(v, g.x, g.y, e.offsetX, e.offsetY, Draw.shapeOf(site()).r);
     $(".pc-rules .pc-readout").textContent = i < 0 ? "" : g.water[i] ? "water"
       : `${STATE_NAMES[g.state[i]]}${g.reasons[i] ? `: ${g.reasons[i]}` : ""}`;
   };

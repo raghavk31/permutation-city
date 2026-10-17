@@ -48,7 +48,7 @@ def hex_to_rgb(h, a=255):
 def load_ground(site_id: str, version: int):
     site = load(site_id)
     suit = gpd.read_file(site.layers / "suitability.gpkg", layer="cells")
-    ground = export.engine_ground(suit)[0]  # same inputs as the browser engine
+    ground = export.site_ground(site, suit)[0]  # same inputs as the browser engine
     # Polygons for fast thumbnails: design cells, and the background within the frame.
     pad = 60
     xmin, ymin, xmax, ymax = ground.cells.centroid.total_bounds
@@ -177,11 +177,13 @@ def new_site_page():
     feature = draw_map([19.07, 72.88], 11)
     if feature:
         st.success(f"Drawn: {shape_area_ha(feature):.0f} ha")
-    c1, c2, c3, c4 = st.columns([2, 3, 1, 1])
+    c1, c2, c3, c4, c5 = st.columns([2, 3, 1, 1, 1])
     sid = c1.text_input("Site id (folder name)", placeholder="pune-riverfront")
     name = c2.text_input("Name", placeholder="Pune: Mula-Mutha riverfront")
-    hexr = c3.number_input("Hex radius (m)", 10, 100, 20, 5)
-    coastal = c4.checkbox("Coastal", help="Adds sea levels to check and edit in site.yaml")
+    gtype = c3.selectbox("Grid", ["hex", "quad"], help="Hexes (6 neighbours) or squares (4)")
+    size = c4.number_input("Cell size (m)", 10, 100, 20, 5,
+                           help="Hex: centre to corner. Square: side.")
+    coastal = c5.checkbox("Coastal", help="Adds sea levels to check and edit in site.yaml")
     valid = bool(feature and re.fullmatch(r"[a-z0-9][a-z0-9-]{1,40}", sid or "") and name)
     if st.button("Create site", type="primary", disabled=not valid):
         folder = SITES / sid
@@ -191,7 +193,8 @@ def new_site_page():
             folder.mkdir(parents=True)
             gpd.GeoDataFrame.from_features([feature], crs=4326).to_file(folder / "boundary.geojson",
                                                                         driver="GeoJSON")
-            cfg = {"name": name, "boundary": "boundary.geojson", "context_m": 250, "hex_radius": hexr,
+            cfg = {"name": name, "boundary": "boundary.geojson", "context_m": 250,
+                   "grid": {"type": gtype, "size": size},
                    "design_storm_mm": 100, "target_far": 1.5}
             if coastal:
                 cfg["sea_levels"] = {"high_tide": 1.5, "surge_today": 2.5, "surge_2050": 2.8}

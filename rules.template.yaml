@@ -61,7 +61,7 @@ constrained:
     limits: {min_permeable: 0.7, uses: [water, wetland, landscape]}
 
   - name: drainage lines
-    when: upstream >= 40
+    when: catchment_ha >= 4.1   # 4 ha or more drains through (40+ cells of 20 m hexes)
     why: water flows through here; keep the path open
     roles: [drainage_path]
     limits: {min_permeable: 0.5, uses: [water, wetland, landscape, street]}
