@@ -30,6 +30,9 @@
 .pcn-progress li.done { color: var(--pc-ink-2); }
 .pcn-progress li.done::marker { content: "✓  "; }
 .pcn-progress li.now { color: var(--pc-ink); font-weight: 600; }
+.pcn-offline { border: 1px solid var(--pc-line); border-left: 3px solid var(--pc-build); border-radius: 4px; padding: 10px 14px; margin: 8px 0 16px; max-width: 760px; }
+.pcn-offline p { margin: 4px 0; }
+.pcn-offline .pcn-ready { margin-top: 10px; }
 .pcn-ready { margin-top: 24px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 
 /* cake */
