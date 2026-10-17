@@ -632,6 +632,93 @@ Unsure about, or left open:
 - **Hover on squares** uses the nearest centre within the circumradius, which is exactly
   the square the pointer is in.
 
+## Phase 4 log (2026-10-17)
+
+Done, on branch `v2-phase4` (stacked on `v2-phase3`):
+- **Corpus (`corpus/`).** 18 files, 57 snippets, each with its source, reference, licence and
+  how it was checked in its front matter:
+  - Mumbai DCPR 2034: FSI (Reg. 30, Table 12), layout open space (Reg. 27), margins, tower
+    step-backs and heights (Regs. 19, 41, 43)
+  - Gujarat CGDCR 2017: AUDA FSI (Table 6.5), height and margins (6.6, 6.7), common plot
+    (Table 6.50), Gandhi Ashram, riverfront and restricted zones (8.4, 8.5)
+  - CEPT Sem 06 (densification at Wadaj; the workshop and block evolution) and Sem 07
+    (Eco-machine), quoted with credit
+  - a typology library (courtyard, L, U, tower, slab, podium and tower)
+  - six pattern cards (21, 60, 61, 106, 107, 159), paraphrased, page and checked fields empty
+  - Mumbai tide, surge and sea-level figures (secondary sources; see "Unsure about")
+  Every regulation note cites the PDF page and the printed page. Where the PDF prints an
+  amendment as both values ("two three times", "8% 10%"), the note says so.
+- **Retrieval (`app/brief/`).** BM25 with a small synonym list (FSI/FAR, storey/height,
+  setback/margin), run once for the description (uploads first) and once per part of the
+  brief (FSI, height, margins, open space, flooding, typology, floor area, patterns), filtered
+  to the site's place (Mumbai, Ahmedabad, or anywhere). About 25 snippets, 10 to 15 k
+  characters. The corpus ships as `app/api/_corpus.ts` (`npm run corpus`; a test fails if it
+  is stale), since the function can't read `../corpus` on Vercel.
+- **The brief schema (`app/engine/brief.ts`, `pc/brief.py`).** A fixed vocabulary: FSI or
+  floor area, height cap, coverage, storm, setbacks, programme mix, objective weights, gene
+  ranges, typology priors, aesthetic priorities (the Phase 6 metrics), changes to constrained
+  rules, patterns, material tags. Every value carries its snippet ids or none (assumed). The
+  validator drops anything outside the vocabulary or its limits, with a warning: unknown
+  fields, forbidden or retained rules, patterns without a card, ranges outside the defaults.
+  `applyBrief` turns a brief into a run config: targets and storm, gene ranges, the height cap
+  (on the rules' default; pattern 21 gives 4 storeys when the brief sets none), rule switches
+  and limits. Typology priors give optional starting genomes (a site-scale reading of each
+  type, labelled). **Parity:** five hand-written briefs (one full, one broken in about 30
+  ways) are validated and applied on every site's rules in both engines: same brief, same
+  warnings word for word, same run config, same seeds (30 tests).
+- **`evolve` takes gene ranges** in both engines (default unchanged, so every earlier
+  fixture still matches).
+- **`POST /api/brief` (`app/brief/compile.ts`).** Checks the origin (the app and its
+  previews), body size, description and upload limits, and a per-instance rate limit (8 an
+  hour per address). Then retrieval, then OpenRouter with the brief as a tool whose schema
+  only offers this site's changeable rules, the snippets shown and the pattern cards, then
+  the validator. Model `anthropic/claude-sonnet-5.5` (from OpenRouter's list), or
+  `anthropic/claude-opus-5.5` when "careful" is chosen; both overridable by env.
+  OpenRouter refuses a forced `tool_choice` for these models, so it is `auto` and the prompt
+  requires the tool; a text answer is a clear 502.
+- **Tested on the preview** (`permutation-city-phczg368e`) with Mumbai Docks: HTTP 200 in
+  30 s, 17 k prompt and 3.4 k completion tokens, **$0.069**. The brief: FSI 2.0 (DCPR Table
+  12), 8 storeys (under the 32 m high-rise threshold), coverage 60%, DCPR setbacks, storage
+  weighted first (Sem 07, sea levels), courtyard, L and U types, patterns 60, 106 and 61; the
+  programme mix and most weights marked assumed. No warnings.
+- **The brief panel (`new.html`, after the layer cake).** Description, documents (PDF via
+  pdf.js 6.3.289 or text, read in the browser; only chosen passages are sent, at most 150),
+  the model, then the proposed brief: every value editable, cited values as chips that open
+  the passage, assumed ones marked, what each field drives, the checker's warnings, and the
+  effect ("137 ha of floor area on 68.7 ha"). A value changed by hand loses its citation and
+  says so. "Write it myself" starts an empty brief. "Evolve designs with this brief" carries
+  it in the link (`&brief=`); the chapters check it again, apply it, show a brief line with
+  an edit link, put typology seeds into Generation 0, and order families by the weights.
+  Download gives the brief with the passages it cites.
+- **Saved with the site.** `uv run pc brief <site> <file>` checks the downloaded brief, saves
+  `sites/<id>/brief.json` and writes its targets and storm into `site.yaml`. `pc grow` and
+  `pc evolve` then use its rules and gene ranges. The sandbox's brief controls gained "Save
+  the brief to site.yaml". This closes the v1 item "save brief changes to site.yaml".
+- **Docs:** `docs/alexander.md`; "Fitness as misfit" in `docs/generative-method.md`;
+  `corpus/SOURCES.md`.
+- **Fixes on the way:** the function's imports name their `.js` files (Vercel runs it as
+  unbundled Node ESM; a test checks this); in dev, Vite serves `/api/brief` through the same
+  handler (`BRIEF_REPLAY=<file>` answers from a recorded response).
+
+Tests: `npm test` 132, `uv run pytest` 47.
+
+Unsure about, or left open:
+- **Mumbai's sea levels may be low.** Reported official figures (maximum tide 2.83 m above
+  MSL, maximum surge 2.09 m, 0.38 m rise by 2050) stack to about +4.9 m today and +5.3 m in
+  2050, against the sites' +3.5 m and +3.8 m. That stack is a worst case, and the primary
+  INCOIS and Maritime Board documents weren't found, so I didn't change `site.yaml`. Your call.
+- **Pattern cards are unchecked** against *A Pattern Language* (I don't have the book). Only
+  pattern 21's 4 storeys reaches the engine, and only when switched on.
+- **Cost control** is an origin check plus an in-memory limit per function instance, which
+  Fluid Compute only partly shares. A Vercel Firewall rate-limit rule on `/api/brief` would be
+  firmer; say if you want it.
+- **Uploads come back as ids** after a link round trip (corpus citations are looked up again;
+  upload passages aren't stored anywhere, by design).
+- **Typology seeds** are my site-scale reading of each type (`TYPOLOGY_GENES`), not something a
+  source states. They're optional and labelled.
+- **The model can set material tags freely** (recorded only); everything else is from the
+  fixed vocabulary.
+
 ## 8. Decisions (2026-10-16)
 
 The user asked to go with the recommendations:

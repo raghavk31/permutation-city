@@ -1,7 +1,7 @@
 // Seeded random numbers, identical in the browser and Python (pc/rng.py).
 // mulberry32, with normal draws as the Irwin-Hall sum of 12 uniforms (additions only, so
 // no log or cos whose last digit could differ between the two languages).
-import type { Rng } from "./types";
+import type { Rng } from "./types.js";
 
 export function makeRng(seed = 1): Rng {
   let t = seed >>> 0;

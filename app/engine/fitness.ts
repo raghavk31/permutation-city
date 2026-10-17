@@ -3,10 +3,10 @@ import {
   BUILDING, CARBON_BASE, CARBON_FREE_LEVELS, CARBON_PER_LEVEL, DAYLIGHT_REACH_M, DAYLIGHT_TAN, HEAT,
   HEAT_PER_LEVEL, HEAT_REACH_M, HUMAN_MAX_LEVELS, LANDSCAPE, PLOT_STORAGE, STOREY_M, STORAGE_LANDSCAPE, STORAGE_WATER,
   WATER,
-} from "./config";
-import { passes } from "./graph";
-import { roundTo, smooth } from "./num";
-import type { Design, Ground, ScoreKey, Scores } from "./types";
+} from "./config.js";
+import { passes } from "./graph.js";
+import { roundTo, smooth } from "./num.js";
+import type { Design, Ground, ScoreKey, Scores } from "./types.js";
 
 // name: [label, format, higher is better]
 export const SCORES: Record<ScoreKey, [string, (v: number) => string, boolean]> = {

@@ -245,7 +245,7 @@ rules.template.yaml   starting rules for new sites
   - [x] Phase 1: new layout, TypeScript engine (`app/engine`), Vite app, Vercel preview
   - [x] Phase 2: overlapping rules (in both engines), layer service, site picker and layer cake
   - [x] Phase 3: hex or quad grids (`CellGraph` in both engines; quad parity sites `mumbai-docks-quad`, `ahmedabad-wadaj-quad`)
-  - [ ] Phase 4: context and the brief compiler
+  - [x] Phase 4: context and the brief compiler (cited corpus in `corpus/`, BM25 retrieval, `POST /api/brief`, the brief panel, `pc brief`)
   - [ ] Phase 5: NSGA-II, NSGA-III, MAP-Elites
   - [ ] Phase 6: urban and aesthetic metrics (Alexander's fifteen properties)
   - [ ] Phase 7: 3D massing at building scale

@@ -1,8 +1,8 @@
 // Runs evolution off the main thread, so the page stays responsive. Called through Comlink.
 import * as Comlink from "comlink";
-import { evolve, frontFamilies, type EvolveOptions, type HistoryRow } from "./evolve";
-import { prepare } from "./ground";
-import type { Ground, SiteExport } from "./types";
+import { evolve, frontFamilies, type EvolveOptions, type HistoryRow } from "./evolve.js";
+import { prepare } from "./ground.js";
+import type { Ground, SiteExport } from "./types.js";
 
 let G: Ground | null = null;
 
