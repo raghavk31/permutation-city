@@ -1,9 +1,10 @@
 // Scores (pc/fitness.py). See that file for what each score means and where it comes from.
 import {
-  BUILDING, CARBON_BASE, CARBON_FREE_LEVELS, CARBON_PER_LEVEL, DAYLIGHT_RINGS, DAYLIGHT_TAN, HEAT,
-  HEAT_PER_LEVEL, HUMAN_MAX_LEVELS, LANDSCAPE, PLOT_STORAGE, STOREY_M, STORAGE_LANDSCAPE, STORAGE_WATER,
+  BUILDING, CARBON_BASE, CARBON_FREE_LEVELS, CARBON_PER_LEVEL, DAYLIGHT_REACH_M, DAYLIGHT_TAN, HEAT,
+  HEAT_PER_LEVEL, HEAT_REACH_M, HUMAN_MAX_LEVELS, LANDSCAPE, PLOT_STORAGE, STOREY_M, STORAGE_LANDSCAPE, STORAGE_WATER,
   WATER,
 } from "./config";
+import { passes } from "./graph";
 import { roundTo, smooth } from "./num";
 import type { Design, Ground, ScoreKey, Scores } from "./types";
 
@@ -23,12 +24,12 @@ export function floorAreaTarget(G: Ground): number {
   return m.target_far * G.cellArea * G.n;
 }
 
-function dilateMax(v: Float64Array, nbr: Int32Array): Float64Array {
+function dilateMax(v: Float64Array, nbr: Int32Array, deg: number): Float64Array {
   const out = new Float64Array(v.length);
   for (let i = 0; i < v.length; i++) {
     let m = v[i];
-    for (let k = 0; k < 6; k++) {
-      const j = nbr[i * 6 + k];
+    for (let k = 0; k < deg; k++) {
+      const j = nbr[i * deg + k];
       if (j >= 0 && v[j] > m) m = v[j];
     }
     out[i] = m;
@@ -56,7 +57,7 @@ export function evaluate(d: Design, G: Ground, stormFactor = 1.0): Scores {
         + HEAT_PER_LEVEL * d.levels[i];
     } else dt[i] = d.use[i] === WATER ? HEAT.water : HEAT.landscape;
   }
-  const sm = smooth(dt, G.nbr, 3);
+  const sm = smooth(dt, G.nbr, G.deg, passes(HEAT_REACH_M, G.grid.spacing));
   let heatSum = 0;
   for (let i = 0; i < n; i++) heatSum += sm[i] * a;
   const heat = heatSum / (a * n);
@@ -69,11 +70,11 @@ export function evaluate(d: Design, G: Ground, stormFactor = 1.0): Scores {
   const carbon = totalFa ? carbonSum / totalFa : CARBON_BASE;
 
   // Daylight: floors below zMin sit under a 25° line from some building within ~100 m.
-  const spacing = Math.sqrt(3) * m.hex_radius;
+  const spacing = G.grid.spacing, rings = passes(DAYLIGHT_REACH_M, spacing);
   let hmax: Float64Array = Float64Array.from(d.levels, (lv) => lv * STOREY_M);
   const zMin = new Float64Array(n);
-  for (let k = 1; k <= DAYLIGHT_RINGS; k++) {
-    hmax = dilateMax(hmax, G.nbr);
+  for (let k = 1; k <= rings; k++) {
+    hmax = dilateMax(hmax, G.nbr, G.deg);
     for (let i = 0; i < n; i++) zMin[i] = Math.max(zMin[i], hmax[i] - k * spacing * DAYLIGHT_TAN);
   }
   let litFa = 0;
@@ -89,8 +90,8 @@ export function evaluate(d: Design, G: Ground, stormFactor = 1.0): Scores {
     if (d.levels[i] <= HUMAN_MAX_LEVELS) mid += d.floorArea[i];
     if (d.use[i] !== BUILDING) continue;
     nb++;
-    for (let k = 0; k < 6; k++) {
-      const j = G.nbr[i * 6 + k];
+    for (let k = 0; k < G.deg; k++) {
+      const j = G.nbr[i * G.deg + k];
       if (j >= 0 && (d.use[j] === LANDSCAPE || d.use[j] === WATER)) { fronting++; break; }
     }
   }

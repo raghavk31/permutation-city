@@ -9,14 +9,14 @@ export interface SiteExport {
     ground: number[]; flood: number[]; pool: number[]; green: number[]; built: number[];
     industrial: number[]; reasons: string[];
     // format 2
-    nbr?: number[];         // n × 6 over the whole grid, -1 where there is no neighbour
+    nbr?: number[];         // n × degree over the whole grid, -1 where there is no neighbour
     memberships?: number[]; // bit k: the cell matches rule k
     layers?: LayerTable;    // every layer column as built
   };
   rules?: RuleSet;          // format 2
   design: {
     x: number[]; y: number[];
-    nbr: number[];        // n × 6, -1 where there is no neighbour
+    nbr: number[];        // n × degree, -1 where there is no neighbour
     can: number[];        // bits: 1 building, 2 landscape, 4 water
     cap: number[]; min_perm: number[]; trees: number[]; site_water: number[];
   };
@@ -55,10 +55,21 @@ export interface RuleSet {
   list: Rule[];
 }
 
+/** The cell grid (pc.grid): hex size is centre to corner, quad size is the side. */
+export interface GridInfo {
+  type: "hex" | "quad";
+  size: number;     // m
+  spacing: number;  // m between neighbouring centres
+  degree: number;   // neighbours of an interior cell (hex 6, quad 4)
+  edge: number;     // m of edge two neighbours share
+}
+
 export interface SiteMeta {
   format?: number;
   id: string; name: string; origin: [number, number];
-  hex_radius: number; cell_area: number;
+  grid?: GridInfo;      // format 3; read through gridOf()
+  hex_radius?: number;  // hex sites (all that formats 1 and 2 had)
+  cell_area: number;
   design_storm_mm: number; target_far: number; target_floor_area_ha: number | null;
   target_ha: number; design_ha: number;
   sea_levels: Record<string, number>; states: string[]; credits: string[];
@@ -68,6 +79,8 @@ export interface SiteMeta {
 export interface Ground {
   n: number;
   x: Float64Array; y: Float64Array;
+  grid: GridInfo;
+  deg: number;             // nbr is n × deg
   nbr: Int32Array;
   canBuild: boolean[]; canGreen: boolean[]; canWater: boolean[];
   cap: Float64Array; minPerm: Float64Array; trees: Float64Array; siteWater: Float64Array;

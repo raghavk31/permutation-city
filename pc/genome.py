@@ -27,6 +27,9 @@ Growth (Sem 06 attractor fields + Eco-machine streams as attractors):
     3. green claims its share next
     4. the rest is building, with heights falling off from the cores
     Every step respects the rules: allowed uses, height cap, permeable minimum.
+
+Nothing here assumes a cell shape: neighbours come from the grid (pc/grid.py), and the
+smoothing is set in metres and turned into neighbour steps for the grid in use.
 """
 
 from dataclasses import dataclass, field
@@ -34,7 +37,7 @@ from dataclasses import dataclass, field
 import geopandas as gpd
 import numpy as np
 
-from pc.layers import neighbours
+from pc.grid import CellGraph, passes
 
 N_ATTRACTORS = 8
 ATTRACTOR_GENES = 5
@@ -43,6 +46,11 @@ GLOBAL_GENES = ["water_share", "green_share", "follow_water", "coverage", "peak"
 LENGTH = N_ATTRACTORS * ATTRACTOR_GENES + len(GLOBAL_GENES)
 KINDS = ["core", "green", "water"]
 USES = ["building", "landscape", "water"]
+
+# How far the smoothing reaches, in metres. On 20 m hexes (35 m between centres) these are
+# the original 3 passes and 1 pass.
+SITE_WATER_REACH_M = 100.0   # the site's own water gathers into bodies
+WATER_FIELD_REACH_M = 35.0   # the water attractors' field
 
 # How each gene (0..1) is read: the run config's gene ranges. A brief may narrow or move
 # these; it never adds genes. Attractor radius is a share of the design ground's diagonal.
@@ -74,7 +82,7 @@ class Ground:
     cells: gpd.GeoDataFrame
     xy: np.ndarray
     area: np.ndarray
-    nbr: np.ndarray          # (n, 6) neighbour positions, -1 where there is none
+    nbr: np.ndarray          # (n, degree) neighbour positions, -1 where there is none
     can_build: np.ndarray
     can_green: np.ndarray
     can_water: np.ndarray
@@ -82,6 +90,7 @@ class Ground:
     min_perm: np.ndarray     # minimum permeable share
     trees: np.ndarray
     site_water: np.ndarray   # the site's own water: hollows, drainage, flooding (smoothed)
+    spacing: float           # metres between neighbouring cell centres (pc.grid)
     bounds: tuple
     origin: tuple = (0.0, 0.0)  # where local (0, 0) sits in map coordinates (see pc.export)
 
@@ -116,12 +125,9 @@ def smooth(v, nbr, passes=2):
     return v
 
 
-def prepare(suit: gpd.GeoDataFrame) -> Ground:
+def prepare(suit: gpd.GeoDataFrame, graph: CellGraph) -> Ground:
     cells = suit[(~suit["water"]) & suit["state"].isin(["constrained", "open"])].reset_index(drop=True)
-    nb = neighbours(cells)
-    nbr = np.full((len(cells), 6), -1)
-    for i, row in enumerate(nb):
-        nbr[i, :len(row)] = row
+    nbr = graph.padded(graph.neighbours(cells))
     uses = cells["uses"]
     floods = cells.filter(like="flood_")
     flood = floods.max(axis=1).to_numpy() if floods.shape[1] else np.zeros(len(cells))
@@ -136,7 +142,8 @@ def prepare(suit: gpd.GeoDataFrame) -> Ground:
         cap=cells["max_levels"].to_numpy(), min_perm=cells["min_permeable"].to_numpy(),
         trees=cells["trees"].to_numpy(),
         # Smoothed, so water gathers into bodies instead of one-cell drainage chains.
-        site_water=_norm(smooth(raw_water, nbr, passes=3)),
+        site_water=_norm(smooth(raw_water, nbr, passes=passes(SITE_WATER_REACH_M, graph.spacing))),
+        spacing=graph.spacing,
         bounds=(float(c.x.min()), float(c.y.min()), float(c.x.max()), float(c.y.max())),  # cell centres
     )
 
@@ -181,7 +188,8 @@ def grow(genome: np.ndarray, ground: Ground, locked: np.ndarray | None = None) -
     xy = ground.xy
     core = _norm(_field(xy, att, "core"))
     green = _norm(_field(xy, att, "green")) + 0.3 * ground.trees  # keep canopy
-    water = ((1 - s["follow_water"]) * _norm(smooth(_field(xy, att, "water"), ground.nbr, 1))
+    water_passes = passes(WATER_FIELD_REACH_M, ground.spacing)
+    water = ((1 - s["follow_water"]) * _norm(smooth(_field(xy, att, "water"), ground.nbr, water_passes))
              + s["follow_water"] * ground.site_water)
 
     n = len(xy)

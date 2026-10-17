@@ -4,10 +4,13 @@
                                             (+ test/parity/fixtures/<site>.json)
 
 One JSON file per site, in local metres around an origin (lon, lat), with:
-    meta      format (2), name, brief, storm, sea levels, hex size, cell area, credits
+    meta      format (3), name, brief, storm, sea levels, the grid (type, size, spacing,
+              degree, edge; from format 3), cell area, credits. Hex sites also keep
+              `hex_radius`, which is all format 1 and 2 had.
     grid      every cell (after cropping): position, water, rule state, the McHarg layers
               the page draws (ground, flood, pool, green, built, industrial), and from
-              format 2: neighbours, rule memberships, and every layer column as built
+              format 2: neighbours (n × degree), rule memberships, and every layer column
+              as built
     rules     the site's rules, structured (pc.rules.compile_rules), with the defaults
     design    the design ground the engine grows on: positions, neighbours, what each cell
               allows, height caps, permeable minimums, trees, the site's own water score
@@ -27,13 +30,13 @@ import geopandas as gpd
 import numpy as np
 
 from pc import evolve, fitness, genome, rules
-from pc.layers import neighbours
+from pc import grid as cellgrid
 from pc.rng import Rng
 from pc.site import ROOT, Site
 
 SITES_OUT = ROOT / "app" / "public" / "sites"
 FIXTURES = ROOT / "test" / "parity" / "fixtures"
-FORMAT = 2
+FORMAT = 3
 STATE_CODE = {"forbidden": 0, "retained": 1, "constrained": 2, "open": 3}
 NOT_LAYERS = {"geometry", "cell", "row", "col"}
 CREDITS = [
@@ -75,17 +78,18 @@ def _design(ground: genome.Ground, ox: float, oy: float) -> dict:
     }
 
 
-def engine_ground(suit: gpd.GeoDataFrame, origin=None) -> tuple[genome.Ground, dict]:
+def engine_ground(suit: gpd.GeoDataFrame, graph: cellgrid.CellGraph, origin=None) -> tuple[genome.Ground, dict]:
     """The Ground every engine grows on: the design ground exactly as exported (local
     metres, rounded, one cell area), so `pc grow` / `pc evolve` and the browser give the
     same run for the same seed. Keeps the cells (for drawing) and the origin (to put
     attractors back in map coordinates). The origin is the centre of the design ground,
     unless given (edited rules keep the export's origin, as the browser does)."""
-    g = genome.prepare(suit)
+    g = genome.prepare(suit, graph)
     xmin, ymin, xmax, ymax = g.bounds
     ox, oy = origin if origin is not None else ((xmin + xmax) / 2, (ymin + ymax) / 2)
     design = _design(g, ox, oy)
-    ground = ground_from_export({"design": design, "meta": {"cell_area": round(float(g.area[0]), 3)}})
+    ground = ground_from_export({"design": design, "meta": {"cell_area": round(float(g.area[0]), 3),
+                                                            "grid": graph.describe()}})
     ground.cells, ground.origin = g.cells, (ox, oy)
     return ground, design
 
@@ -109,6 +113,11 @@ def rule_table(r: dict) -> dict:
     return {"defaults": r["defaults"], "list": rules.compile_rules(r)}
 
 
+def site_ground(site: Site, suit: gpd.GeoDataFrame, origin=None) -> tuple[genome.Ground, dict]:
+    """engine_ground on the site's own grid."""
+    return engine_ground(suit, cellgrid.for_site(site), origin)
+
+
 def suitability(site: Site) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, dict]:
     """The built layers, and the site's current rules applied to them."""
     grid = gpd.read_file(site.layers / "grid.gpkg", layer="cells")
@@ -121,7 +130,8 @@ def export(site: Site) -> dict:
     from pc.maps import context
 
     grid_layers, suit, r = suitability(site)
-    ground, design = engine_ground(suit)
+    graph = cellgrid.for_site(site)
+    ground, design = engine_ground(suit, graph)
     ox, oy = ground.origin
     lon, lat = gpd.GeoSeries(gpd.points_from_xy([ox], [oy]), crs=site.crs).to_crs(4326).iloc[0].coords[0]
 
@@ -139,7 +149,7 @@ def export(site: Site) -> dict:
         "built": _r(suit["built"], 2),
         "industrial": [int(v) for v in suit["industrial"]],
         "reasons": list(suit["reasons"].fillna("")),
-        "nbr": [int(v) for row in _padded(neighbours(suit)) for v in row],
+        "nbr": [int(v) for v in graph.padded(graph.neighbours(suit)).ravel()],
         "memberships": [int(v) for v in suit["memberships"]],
         "layers": layer_table(grid_layers),
     }
@@ -149,7 +159,8 @@ def export(site: Site) -> dict:
     out = {
         "meta": {
             "format": FORMAT, "id": site.id, "name": site.name, "origin": [round(lon, 6), round(lat, 6)],
-            "hex_radius": site.hex_radius, "cell_area": round(float(ground.area[0]), 3),
+            **({"hex_radius": graph.size} if graph.type == "hex" else {}),
+            "grid": graph.describe(), "cell_area": round(float(ground.area[0]), 3),
             "design_storm_mm": site.design_storm_mm, "target_far": site.target_far,
             "target_floor_area_ha": site.target_floor_area_ha,
             "target_ha": round(fitness.floor_area_target(site, ground) / 1e4, 1),
@@ -171,22 +182,19 @@ def export(site: Site) -> dict:
     return out
 
 
-def _padded(nbrs, width=6):
-    return [row + [-1] * (width - len(row)) for row in nbrs]
-
-
 def ground_from_export(data: dict) -> genome.Ground:
     """The engine's Ground, rebuilt from an export (identical inputs for both engines)."""
     d = data["design"]
     n = len(d["x"])
     can = np.array(d["can"])
+    graph = cellgrid.from_meta(data["meta"])
     area = np.full(n, data["meta"]["cell_area"])
     xy = np.column_stack([d["x"], d["y"]])
     return genome.Ground(
-        cells=None, xy=xy, area=area, nbr=np.array(d["nbr"]).reshape(n, 6),
+        cells=None, xy=xy, area=area, nbr=np.array(d["nbr"]).reshape(n, graph.degree),
         can_build=(can & 1) > 0, can_green=(can & 2) > 0, can_water=(can & 4) > 0,
         cap=np.array(d["cap"]), min_perm=np.array(d["min_perm"]), trees=np.array(d["trees"]),
-        site_water=np.array(d["site_water"]),
+        site_water=np.array(d["site_water"]), spacing=graph.spacing,
         bounds=(xy[:, 0].min(), xy[:, 1].min(), xy[:, 0].max(), xy[:, 1].max()),
     )
 
@@ -197,7 +205,6 @@ class _Brief:
         self.design_storm_mm = meta["design_storm_mm"]
         self.target_far = meta["target_far"]
         self.target_floor_area_ha = meta["target_floor_area_ha"]
-        self.hex_radius = meta["hex_radius"]
 
 
 # Whole evolutions for the fixture: plain, with a mid-run shock, and with locked cells,
@@ -255,9 +262,9 @@ def edited_rules(r: dict) -> dict:
     return e
 
 
-def _rule_case(name, grid, r, origin) -> dict:
+def _rule_case(site, name, grid, r, origin) -> dict:
     suit, skipped = rules.apply(grid, r)
-    _, design = engine_ground(suit, origin)
+    _, design = site_ground(site, suit, origin)
     return {"name": name, "rules": rule_table(r), "skipped": skipped,
             "state": [STATE_CODE[v] for v in suit["state"]],
             "memberships": [int(v) for v in suit["memberships"]],
@@ -274,8 +281,9 @@ def rule_cases(site: Site) -> list[dict]:
     """The site's rules and an edited set, applied in Python, with the design ground each
     gives (on the export's origin, as the browser rebuilds it)."""
     grid, suit, r = suitability(site)
-    base, _ = engine_ground(suit)
-    return [_rule_case("site", grid, r, base.origin), _rule_case("edited", grid, edited_rules(r), base.origin)]
+    base, _ = site_ground(site, suit)
+    return [_rule_case(site, "site", grid, r, base.origin),
+            _rule_case(site, "edited", grid, edited_rules(r), base.origin)]
 
 
 def fixture(data: dict, n=40, seed=7, site: Site | None = None) -> dict:

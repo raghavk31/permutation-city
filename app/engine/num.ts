@@ -23,16 +23,17 @@ export function norm(v: Float64Array): Float64Array {
   return v.map((x) => x / top);
 }
 
-/** Average each cell with its neighbours, a few times over (pc.genome.smooth). */
-export function smooth(v: ArrayLike<number>, nbr: Int32Array, passes = 2): Float64Array {
+/** Average each cell with its neighbours, a few times over (pc.genome.smooth). nbr is
+ *  n × deg, -1 where there is no neighbour. */
+export function smooth(v: ArrayLike<number>, nbr: Int32Array, deg: number, passes = 2): Float64Array {
   const n = v.length;
   let cur = Float64Array.from(v);
   for (let p = 0; p < passes; p++) {
     const next = new Float64Array(n);
     for (let i = 0; i < n; i++) {
       let s = 0, c = 0;
-      for (let k = 0; k < 6; k++) {
-        const j = nbr[i * 6 + k];
+      for (let k = 0; k < deg; k++) {
+        const j = nbr[i * deg + k];
         if (j >= 0) { s += cur[j]; c++; } else s += 0;
       }
       next[i] = (cur[i] + s) / (1 + c);

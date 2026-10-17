@@ -1,4 +1,4 @@
-"""McHarg layers. Each layer adds columns to the hex grid.
+"""McHarg layers. Each layer adds columns to the cell grid (hex or quad, pc/grid.py).
 
     elev        surface height (m above sea level), includes buildings
     ground      bare-earth height (m above sea level)
@@ -11,6 +11,8 @@
     flood_*     coastal flood depth (m), one column per sea level in site.yaml
     pool        rainwater pooling depth (m): water that would sit in hollows
     upstream    how many cells drain through this one (drainage lines)
+    catchment_ha  the area that drains through this cell (ha): `upstream` in hectares, so
+                rules mean the same on any grid and cell size
     industrial  on industrial or rail land (a stand-in for contaminated land)
     in_design   inside the site's design area (everywhere, if none is given)
 
@@ -28,7 +30,7 @@ import rasterio
 from rasterio.features import rasterize
 from rasterio.windows import from_bounds
 
-from pc.grid import hex_grid
+from pc import grid as cellgrid
 from pc.site import Site, read_polygon
 
 
@@ -60,19 +62,6 @@ def _covers(grid, shapes) -> np.ndarray:
     return grid.index.isin(hit)
 
 
-# --- neighbours on the hex grid -----------------------------------------------------
-
-def neighbours(grid) -> list[list[int]]:
-    """Six neighbours per cell. Odd rows sit half a cell to the right."""
-    pos = {(r, c): i for i, (r, c) in enumerate(zip(grid["row"], grid["col"]))}
-    out = []
-    for r, c in zip(grid["row"], grid["col"]):
-        dc = (0, 1) if r % 2 else (-1, 0)  # columns touched in the rows above and below
-        cand = [(r, c - 1), (r, c + 1)] + [(r + dr, c + d) for dr in (-1, 1) for d in dc]
-        out.append([pos[k] for k in cand if k in pos])
-    return out
-
-
 # --- ground, cover, buildings -------------------------------------------------------
 
 def add_ground(site, grid):
@@ -87,7 +76,7 @@ WORLDCOVER = {10: "trees", 20: "green", 30: "green", 40: "green", 50: "wl_built"
 
 
 def add_landcover(site, grid):
-    """Share of each hex in each land-cover class, from 10 m pixels."""
+    """Share of each cell in each land-cover class, from 10 m pixels."""
     with rasterio.open(site.landcover) as src:
         cells = grid.to_crs(src.crs)
         win = from_bounds(*cells.total_bounds, src.transform).round_offsets().round_lengths()
@@ -174,16 +163,20 @@ def add_flood(site, grid, nbrs):
     return grid
 
 
-def add_drainage(site, grid, nbrs):
+def add_drainage(site, grid, nbrs, degree):
     """Rainwater pooling and drainage lines.
 
     1. 'Fill' the ground from the outlets (water + site edge) upwards, so every hollow
        fills until it spills (priority-flood). pool = filled level - ground.
     2. Each cell drains to its lowest neighbour; count how many cells drain through it.
+
+    Cells with fewer neighbours than the grid's `degree` sit on the edge and are outlets.
+    Neighbours share an edge (no diagonals on quad), so every step is one spacing long and
+    the lowest neighbour is also the steepest.
     """
     ground = grid["ground"].to_numpy()
     n = len(grid)
-    outlet = grid["water"].to_numpy() | np.array([len(nb) < 6 for nb in nbrs])
+    outlet = grid["water"].to_numpy() | np.array([len(nb) < degree for nb in nbrs])
 
     filled = np.full(n, np.inf)
     heap = [(ground[i], i) for i in np.flatnonzero(outlet)]
@@ -207,6 +200,7 @@ def add_drainage(site, grid, nbrs):
         if filled[j] < filled[i]:
             upstream[j] += upstream[i]
     grid["upstream"] = upstream.astype(int)
+    grid["catchment_ha"] = (upstream * grid.area.to_numpy() / 1e4).round(2)
     return grid
 
 
@@ -223,13 +217,14 @@ def crop_to_boundary(site: Site, grid):
 
 
 def build(site: Site) -> gpd.GeoDataFrame:
-    grid = hex_grid(site)
-    nbrs = neighbours(grid)
+    graph = cellgrid.for_site(site)
+    grid = graph.cover(cellgrid.boundary(site).geometry.iloc[0], site.crs)
+    nbrs = graph.neighbours(grid)
     for step in (add_ground, add_landcover, add_water, add_buildings, add_edge_distance,
                  add_industrial, add_design_area):
         grid = step(site, grid)
     grid = add_flood(site, grid, nbrs)
-    grid = add_drainage(site, grid, nbrs)
+    grid = add_drainage(site, grid, nbrs, graph.degree)
     return crop_to_boundary(site, grid)
 
 

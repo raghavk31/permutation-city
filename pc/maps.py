@@ -118,9 +118,9 @@ def layers_sheet(site: Site, grid, out):
                 _frame(ax, grid, "2 · Sea flooding", "not a coastal site (no sea_levels in site.yaml)")
         elif key == "rain":
             _sequential(ax, fig, land, "pool", 0, 1, "{:.1f} m")
-            lines = land[land["upstream"] >= 40].centroid
+            lines = land[land["catchment_ha"] >= 4.1].centroid
             ax.scatter(lines.x, lines.y, s=1.2, color=INK, linewidths=0)
-            _frame(ax, grid, "3 · Rain", "pooling depth in hollows; dots = drainage lines (40+ cells upstream)")
+            _frame(ax, grid, "3 · Rain", "pooling depth in hollows; dots = drainage lines (4+ ha drains through)")
         elif key == "green":
             veg = land.assign(veg=land["trees"] + land["green"] + land["mangrove"])
             _sequential(ax, fig, veg, "veg", 0, 1, "{:.0%}")
@@ -135,7 +135,7 @@ def layers_sheet(site: Site, grid, out):
             _frame(ax, grid, "6 · Industrial and rail land", "stand-in for contaminated land (Overture land use)")
         _overlay(ax, ctx, labels=(key == "ground"))
 
-    fig.text(0.01, 0.01, f"{site.name} · {len(grid):,} hex cells ({site.hex_radius:.0f} m) · "
+    fig.text(0.01, 0.01, f"{site.name} · {len(grid):,} {'hex' if site.grid_type == 'hex' else 'square'} cells ({site.cell_size:.0f} m) · "
              "grey = water · black lines = major roads · dashed = rail · "
              "heights carry ±2–3 m error: treat depths as indicative", fontsize=8, color=MUTED)
     fig.tight_layout(rect=(0, 0.03, 1, 1))
