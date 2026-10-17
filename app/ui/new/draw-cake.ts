@@ -17,7 +17,7 @@ export function layerMap(canvas: HTMLCanvasElement, site: E.SiteExport, l: Layer
  *  in ink when `highlight` is set. */
 export function rulesMap(canvas: HTMLCanvasElement, site: E.SiteExport, res: E.RuleResult, P: Draw.Palette,
   highlight: number | null = null): Draw.View {
-  const g = site.grid, water = g.layers!.water, cols = STATE_COLOURS(P), r = site.meta.hex_radius;
+  const g = site.grid, water = g.layers!.water, cols = STATE_COLOURS(P), shape = Draw.shapeOf(site).corners;
   const aspect = Draw.aspectOf(g.x, g.y);
   const v = Draw.layer(canvas, site, (i) => (water[i] ? P.sea : cols[res.state[i]]), P, { aspect, labels: true });
   const ctx = canvas.getContext("2d")!;
@@ -25,13 +25,13 @@ export function rulesMap(canvas: HTMLCanvasElement, site: E.SiteExport, res: E.R
     const hits = res.hits[highlight];
     ctx.save();
     ctx.globalAlpha = 0.55;
-    Draw.hexes(ctx, v, g.x, g.y, g.x.map((_, i) => (hits[i] && !water[i] ? P.ink : null)), r);
+    Draw.cells(ctx, v, g.x, g.y, g.x.map((_, i) => (hits[i] && !water[i] ? P.ink : null)), shape);
     ctx.restore();
   }
-  Draw.hexes(ctx, v, g.x, g.y, g.x.map((_, i) => (res.conflict[i] ? P.ink : null)), r * 0.3);
+  Draw.cells(ctx, v, g.x, g.y, g.x.map((_, i) => (res.conflict[i] ? P.ink : null)), shape, 0.3);
   return v;
 }
 
 export function cellAt(v: Draw.View, site: E.SiteExport, e: PointerEvent): number {
-  return Draw.cellAt(v, site.grid.x, site.grid.y, e.offsetX, e.offsetY, site.meta.hex_radius);
+  return Draw.cellAt(v, site.grid.x, site.grid.y, e.offsetX, e.offsetY, Draw.shapeOf(site).r);
 }

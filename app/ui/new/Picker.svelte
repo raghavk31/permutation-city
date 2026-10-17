@@ -4,6 +4,7 @@
   import { onDestroy, onMount } from "svelte";
   import { TerraDraw, TerraDrawPolygonMode, TerraDrawSelectMode } from "terra-draw";
   import { TerraDrawMapLibreGLAdapter } from "terra-draw-maplibre-gl-adapter";
+  import { cellAreaOf } from "../../engine";
   import * as Sites from "../sites";
   import { estimatedCells, polygonKm2 } from "./geo";
   import { search, type Place } from "./search";
@@ -29,6 +30,9 @@
   let drawing = $state(false);
   let imagery = $state(false);
   let name = $state("");
+  type GridType = "hex" | "quad";
+  const SIZES: Record<GridType, number[]> = { hex: [15, 20, 25, 30], quad: [15, 20, 25, 30, 35] };
+  let gridType = $state<GridType>("hex");
   let cellSize = $state(20);
   let coastal = $state(false);
 
@@ -37,7 +41,13 @@
   let busy = $state(false);
 
   const km2 = $derived(polygon ? polygonKm2(polygon) : 0);
-  const cells = $derived(estimatedCells(km2, cellSize));
+  const cells = $derived(estimatedCells(km2, gridType, cellSize));
+  const offered = $derived(limits ? SIZES[gridType].filter((s) => s >= limits!.cell_size[0] && s <= limits!.cell_size[1]) : SIZES[gridType]);
+
+  function setGridType(t: GridType) {
+    gridType = t;
+    if (!SIZES[t].includes(cellSize)) cellSize = 20;
+  }
   const tooBig = $derived(!!limits && !!polygon && (km2 > limits.max_km2 || cells > limits.max_cells));
 
   onMount(() => {
@@ -121,7 +131,7 @@
     busy = true;
     try {
       job = await Service.submit({
-        boundary: { type: "Polygon", coordinates: polygon }, grid: { type: "hex", size: cellSize },
+        boundary: { type: "Polygon", coordinates: polygon }, grid: { type: gridType, size: cellSize },
         name: name.trim() || "My site", context_m: 250, sea_levels: coastal ? Service.COASTAL_SEA_LEVELS : {},
       });
       while (job.status === "queued" || job.status === "running") {
@@ -172,11 +182,22 @@
 
   <form class="pcn-form" onsubmit={(e) => { e.preventDefault(); build(); }}>
     <label>Name <input type="text" bind:value={name} maxlength="80" placeholder="My site" /></label>
-    <label>Cell size
-      <select bind:value={cellSize}>
-        {#each [15, 20, 25, 30] as s}<option value={s}>{s} m hexes</option>{/each}
-      </select>
-    </label>
+    <fieldset class="pcn-grid">
+      <legend>Grid</legend>
+      {#each [["hex", "Hexes"], ["quad", "Squares"]] as [t, label]}
+        <label class="pcn-check"><input type="radio" name="pcn-grid" value={t} checked={gridType === t}
+          disabled={!!limits && !limits.grid_types.includes(t)} onchange={() => setGridType(t as GridType)} /> {label}</label>
+      {/each}
+      <label>Cell size
+        <select bind:value={cellSize}>
+          {#each offered as s}
+            <option value={s}>{s} m · {Math.round(cellAreaOf({ type: gridType, size: s })).toLocaleString("en-IN")} m²</option>
+          {/each}
+        </select>
+      </label>
+      <div class="pcn-grid-note"><p class="pc-muted">A hex's size is centre to corner, a square's is its side. Hexes touch 6 neighbours,
+        squares 4. Scores compare designs on the same grid, not across grids.</p></div>
+    </fieldset>
     <label class="pcn-check"><input type="checkbox" bind:checked={coastal} /> On the coast (model sea flooding with
       Mumbai's sea levels: +2.5 m tide, +3.5 m surge, +3.8 m surge in 2050)</label>
     <p class="pcn-size">
