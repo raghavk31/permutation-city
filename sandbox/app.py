@@ -250,7 +250,14 @@ with st.sidebar:
     site = dataclasses.replace(site, design_storm_mm=storm)
     target = fitness.floor_area_target(site, ground) / 1e4
     st.caption(f"Design ground {ground.area.sum() / 1e4:.0f} ha · target {target:.0f} ha ±10%. "
-               "Changes here apply to this session; edit site.yaml to keep them.")
+               "Changes here apply to this session until you save them.")
+    changed = (site.target_far, site.target_floor_area_ha, site.design_storm_mm) !=         (site0.target_far, site0.target_floor_area_ha, site0.design_storm_mm)
+    if st.button("Save the brief to site.yaml", disabled=not changed):
+        from pc.site import set_value
+        set_value(site.id, "target_far", site.target_far)
+        set_value(site.id, "target_floor_area_ha", site.target_floor_area_ha if by_area else "null")
+        set_value(site.id, "design_storm_mm", site.design_storm_mm)
+        st.success(f"Saved to sites/{site.id}/site.yaml.")
 
     if ss.locks is not None:
         st.subheader("Locks")

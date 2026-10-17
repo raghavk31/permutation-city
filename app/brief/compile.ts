@@ -115,9 +115,15 @@ export async function compileBrief(req: BriefRequest, corpus: Snippet[], deps: D
   });
   const data = await r.json().catch(() => null) as {
     choices?: { message?: { tool_calls?: { function?: { arguments?: string } }[]; content?: string } }[];
-    usage?: BriefResponse["usage"]; error?: { message?: string };
+    usage?: BriefResponse["usage"]; error?: { message?: string; metadata?: { raw?: string; provider_name?: string } };
   } | null;
-  if (!r.ok || !data) throw new Refused(502, `The language model didn't answer (${data?.error?.message ?? r.status}).`);
+  if (!r.ok || !data) {
+    // The provider's own reason is in metadata.raw; keep it in the logs and, shortened, in the answer.
+    console.error("openrouter", r.status, JSON.stringify(data?.error ?? data).slice(0, 2000));
+    const raw = data?.error?.metadata?.raw;
+    const why = [data?.error?.message ?? String(r.status), raw ? String(raw).slice(0, 300) : ""].filter(Boolean).join(": ");
+    throw new Refused(502, `The language model didn't answer (${why}).`);
+  }
   const msg = data.choices?.[0]?.message;
   const text = msg?.tool_calls?.[0]?.function?.arguments ?? msg?.content ?? "";
   let raw: unknown;
