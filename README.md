@@ -50,7 +50,8 @@ uv run uvicorn service.main:app --port 8765    # the app's dev server looks for 
 uv run pytest test/python                      # rules and service tests
 ```
 
-See [docs/service.md](docs/service.md) for the API, limits, cache and Railway deploy.
+The live app builds drawn sites on GitHub Actions instead (no server to run); see
+[docs/service.md](docs/service.md) for both, the API, limits and cache.
 
 Live: https://permutationcity.vercel.app. Plan and decisions for v2: [docs/architecture-v2.md](docs/architecture-v2.md). Deploying: [docs/deploy.md](docs/deploy.md).
 
