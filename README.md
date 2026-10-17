@@ -18,6 +18,7 @@ uv sync                                    # once
 # a new site: any box, in degrees (west south east north)
 uv run pc new my-site --name "My site" --bbox 72.570 23.052 72.592 23.070
 uv run pc new my-coast --bbox ... --sea    # coastal: adds sea levels to edit
+uv run pc new my-grid --bbox ... --grid quad --size 25   # 25 m squares instead of 20 m hexes
 
 uv run pc fetch my-site                    # download data (1-5 min; resumes if interrupted)
 uv run pc build my-site                    # grid + layers + rules + maps (~1 min)
@@ -64,7 +65,7 @@ Each site is a folder:
 
 ```
 sites/<id>/
-  site.yaml            name, box, hex size, sea levels (coastal), design area (optional)
+  site.yaml            name, box, grid (hex or quad, and size), sea levels (coastal), design area (optional)
   rules.yaml           the McHarg rules; copied from rules.template.yaml, then edited per site
   design_area.geojson  optional: the ground to design (draw it in QGIS or geojson.io)
   maps/                01-layers.png, 02-rules.png
@@ -192,7 +193,7 @@ Downloaded data is not in this repo (`data/` is git-ignored); `pc fetch` gets it
 pc/
   site.py      Site: loads sites/<id>/site.yaml; paths; UTM projection
   fetch.py     downloads for any box
-  grid.py      hex grid
+  grid.py      CellGraph: hex or quad grids (cells, neighbours, outlines, spacing)
   layers.py    McHarg layers
   rules.py     structured, overlapping rules → memberships, roles, forbidden / retained / constrained / open
   maps.py      map sheets
@@ -243,7 +244,7 @@ rules.template.yaml   starting rules for new sites
   - [x] Phase 0: audit and plan
   - [x] Phase 1: new layout, TypeScript engine (`app/engine`), Vite app, Vercel preview
   - [x] Phase 2: overlapping rules (in both engines), layer service, site picker and layer cake
-  - [ ] Phase 3: hex or quad grids
+  - [x] Phase 3: hex or quad grids (`CellGraph` in both engines; quad parity sites `mumbai-docks-quad`, `ahmedabad-wadaj-quad`)
   - [ ] Phase 4: context and the brief compiler
   - [ ] Phase 5: NSGA-II, NSGA-III, MAP-Elites
   - [ ] Phase 6: urban and aesthetic metrics (Alexander's fifteen properties)

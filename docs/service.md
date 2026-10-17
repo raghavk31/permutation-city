@@ -9,7 +9,7 @@ browser.
 
 | | |
 |---|---|
-| `POST /sites` | `{boundary, grid: {type: "hex", size: 20}, name, context_m: 250, sea_levels: {}, rules: null}`. `boundary` is a GeoJSON Polygon (or a Feature or a one-feature FeatureCollection) in degrees. Returns `200 {status: "done", result}` when the site is cached, otherwise `202 {job, status: "queued", position, size}`. |
+| `POST /sites` | `{boundary, grid: {type: "hex" | "quad", size: 20}, name, context_m: 250, sea_levels: {}, rules: null}`. `boundary` is a GeoJSON Polygon (or a Feature or a one-feature FeatureCollection) in degrees. Returns `200 {status: "done", result}` when the site is cached, otherwise `202 {job, status: "queued", position, size}`. |
 | `GET /jobs/{job}` | `{status: queued / running / done / failed, step, detail, steps, position, seconds, result, error}` |
 | `GET /results/{key}.json` | the site file (gzipped on the wire, cached for a day) |
 | `GET /limits` | the caps below, so the app can check a polygon before sending it |
@@ -27,8 +27,9 @@ user text is ever parsed on the server, although the parser never evaluates code
 
 - Design polygon at most **4 km²** (before the 250 m context margin).
 - At most **4,500 cells** (the browser engine's budget: about 5 s for a full run). At 20 m
-  hexes that is the 4 km² limit; at 10 m it is about 1 km².
-- Cell size 10 to 50 m; context margin 100 to 500 m; hex grids only until Phase 3.
+  hexes that is the 4 km² limit; 20 m squares (400 m² each) reach it at 1.8 km².
+- Grid `hex` (size = centre to corner) or `quad` (size = side). Cell size 10 to 50 m;
+  context margin 100 to 500 m.
 - **6 new builds per client address per hour** (`JOBS_PER_HOUR`). Cached sites don't
   count.
 - One job runs at a time; the rest queue.
