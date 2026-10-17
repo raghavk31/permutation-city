@@ -79,6 +79,7 @@
 .pcn-context { display: flex; flex-direction: column; gap: 8px; position: sticky; top: 12px; }
 .pcn-context h2, .pcn-proposal h2 { margin: 0 0 4px; }
 .pcn-context textarea, .pcn-summary textarea { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid var(--pc-line); border-radius: 4px; background: var(--pc-surface); font: inherit; color: inherit; }
+.pcn-context select { max-width: none; }
 .pcn-context select, .pcn-proposal input[type="number"], .pcn-proposal input[type="text"] { padding: 3px 6px; border: 1px solid var(--pc-line); border-radius: 4px; background: var(--pc-surface); color: inherit; font: inherit; }
 .pcn-proposal input[type="number"] { width: 5.5em; }
 .pcn-proposal input[type="text"] { width: min(100%, 36em); }

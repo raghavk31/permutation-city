@@ -44,6 +44,13 @@
     history.replaceState(null, "", `${Sites.query(id, rules, original, linked)}#brief`);
   });
 
+  // A brief opened from a link carries only snippet ids. Corpus snippets can be looked up
+  // again (a small chunk, loaded only then); passages from uploads can't, and keep their id.
+  $effect(() => {
+    if (!brief || snippets.length) return;
+    import("../../api/_corpus.js").then(({ CORPUS }) => { if (!snippets.length) snippets = CORPUS; });
+  });
+
   async function addFiles(files: FileList | null) {
     if (!files?.length) return;
     docError = "";
@@ -104,6 +111,11 @@
     setTimeout(() => (copied = false), 1500);
   }
 
+  /** "Mumbai DCPR 2034: Height by road width"; a heading that already names the document stands alone. */
+  const citeLabel = (s: Snippet) => {
+    const doc = s.title.split(":")[0];
+    return s.heading.startsWith(doc) ? s.heading : `${doc}: ${s.heading}`;
+  };
   const pctOf = (v: number | undefined) => (v === undefined ? "" : String(Math.round(v * 100)));
   const label = (s: string) => s.replace(/_/g, " ");
   const set = (next: E.Brief) => { brief = next; };
@@ -124,7 +136,7 @@
         {#each c.sources as sid}
           {@const s = byId.get(sid)}
           <button type="button" class="pcn-cite" onclick={() => (open = s ?? null)} title={s ? `${s.title}: ${s.heading}` : sid}>
-            {s ? `${s.title.split(":")[0]}: ${s.heading}` : sid}</button>
+            {s ? citeLabel(s) : sid}</button>
         {/each}
       {:else}<span class="pcn-assumed">assumed</span>{/if}
       {#if c.note}<span class="pc-muted">{c.note}</span>{/if}

@@ -37,7 +37,9 @@ export function corpusSnippets(md: string): Snippet[] {
   return parts.map((p, k) => {
     const nl = p.indexOf("\n");
     const heading = (nl < 0 ? p : p.slice(0, nl)).trim();
-    const text = (nl < 0 ? "" : p.slice(nl + 1)).replace(/\s+\n/g, "\n").replace(/[ \t]+/g, " ").trim();
+    // Join the lines the markdown wraps; keep paragraphs and list items on their own lines.
+    const text = (nl < 0 ? "" : p.slice(nl + 1)).replace(/\r/g, "").replace(/[ \t]+\n/g, "\n")
+      .replace(/\n(?!\n|- |\d+\. )/g, " ").replace(/\n /g, "\n").replace(/[ \t]+/g, " ").trim();
     return {
       id: `${meta.id}#${k + 1}`, title: meta.title ?? meta.id, heading, ref: meta.ref ?? "", source: meta.source ?? "",
       place: meta.place ?? "any", kind: meta.kind ?? "", text,

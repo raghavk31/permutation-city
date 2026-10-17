@@ -11,7 +11,7 @@ export const CORPUS: Snippet[] = [
   "source": "Raghav Kohli, 'Develop a livable neighbourhood which is resilient towards densification', final report, Generative Techniques for Urban Place Making studio, CEPT University, Semester 6, 2020. Tutors: Radhika Amin, Arpi Maheshwari, Anuradha Ramchandani.",
   "place": "ahmedabad",
   "kind": "studio",
-  "text": "The site is 1.45 km² in central north Ahmedabad, by the Sabarmati, with 1.38 km² to\ndevelop. The studio projected the population and the built-up area it needs:\n- 2025: 65,873 people; 16,46,825 m² built up; 5,92,857 m² of open space; about 4 floors\n- 2035: 92,921 people; 23,23,025 m² built up; 8,36,289 m² of open space; about 7 floors\n- 2050: 1,55,676 people; 38,91,900 m² built up; 14,01,084 m² of open space\nIn 2050 the open space needed exceeds the ground available, so the studio put part of it\non roofs (5,64,795 m² of roof open space), which brought the height down to about 12\nfloors on average (the figure for keeping all open space on the ground extracts as \"151\"\nfrom the PDF; it reads as about 15). 38,91,900 m² is the floor-area target of the\n`ahmedabad-wadaj` site (389 ha)."
+  "text": "The site is 1.45 km² in central north Ahmedabad, by the Sabarmati, with 1.38 km² to develop. The studio projected the population and the built-up area it needs:\n\n- 2025: 65,873 people; 16,46,825 m² built up; 5,92,857 m² of open space; about 4 floors\n- 2035: 92,921 people; 23,23,025 m² built up; 8,36,289 m² of open space; about 7 floors\n- 2050: 1,55,676 people; 38,91,900 m² built up; 14,01,084 m² of open space\nIn 2050 the open space needed exceeds the ground available, so the studio put part of it on roofs (5,64,795 m² of roof open space), which brought the height down to about 12 floors on average (the figure for keeping all open space on the ground extracts as \"151\" from the PDF; it reads as about 15). 38,91,900 m² is the floor-area target of the `ahmedabad-wadaj` site (389 ha)."
  },
  {
   "id": "sem06-densification#2",
@@ -21,7 +21,7 @@ export const CORPUS: Snippet[] = [
   "source": "Raghav Kohli, 'Develop a livable neighbourhood which is resilient towards densification', final report, Generative Techniques for Urban Place Making studio, CEPT University, Semester 6, 2020. Tutors: Radhika Amin, Arpi Maheshwari, Anuradha Ramchandani.",
   "place": "ahmedabad",
   "kind": "studio",
-  "text": "Four places were kept and never built on: the sewage treatment plant (20,081 m²), Gandhi\nAshram (21,256 m²), the bioswale (15,000 m²) and Kalam Kush (6,762 m²), 6.3 ha in all."
+  "text": "Four places were kept and never built on: the sewage treatment plant (20,081 m²), Gandhi Ashram (21,256 m²), the bioswale (15,000 m²) and Kalam Kush (6,762 m²), 6.3 ha in all."
  },
  {
   "id": "sem06-densification#3",
@@ -31,7 +31,7 @@ export const CORPUS: Snippet[] = [
   "source": "Raghav Kohli, 'Develop a livable neighbourhood which is resilient towards densification', final report, Generative Techniques for Urban Place Making studio, CEPT University, Semester 6, 2020. Tutors: Radhika Amin, Arpi Maheshwari, Anuradha Ramchandani.",
   "place": "ahmedabad",
   "kind": "studio",
-  "text": "Density came from attractors with radii that change over time. High density was pulled\ntowards bus and metro stops, junctions and the transit-oriented edge (100 to 150 m in 2025,\ngrowing to 150 to 250 m by 2050). Low density was kept near the swale and green patch, the\nAshram, the treatment plant and Kalam Kush (100 to 150 m in 2025, shrinking to 50 to 100 m\nby 2050). The built mix moved from 45/31/24 per cent low/medium/high in 2025 to 33/24/43 in\n2050."
+  "text": "Density came from attractors with radii that change over time. High density was pulled towards bus and metro stops, junctions and the transit-oriented edge (100 to 150 m in 2025, growing to 150 to 250 m by 2050). Low density was kept near the swale and green patch, the Ashram, the treatment plant and Kalam Kush (100 to 150 m in 2025, shrinking to 50 to 100 m by 2050). The built mix moved from 45/31/24 per cent low/medium/high in 2025 to 33/24/43 in 2050."
  },
  {
   "id": "sem06-densification#4",
@@ -41,7 +41,7 @@ export const CORPUS: Snippet[] = [
   "source": "Raghav Kohli, 'Develop a livable neighbourhood which is resilient towards densification', final report, Generative Techniques for Urban Place Making studio, CEPT University, Semester 6, 2020. Tutors: Radhika Amin, Arpi Maheshwari, Anuradha Ramchandani.",
   "place": "ahmedabad",
   "kind": "studio",
-  "text": "The studio's land use split was about 85 per cent residential, 25 per cent commercial\n(overlapping in mixed use) and 35 per cent open and green space. High-density housing sits\nby transit and major nodes, commercial along the primary network and stops, and green\nspace along the swale and spread through the neighbourhood."
+  "text": "The studio's land use split was about 85 per cent residential, 25 per cent commercial (overlapping in mixed use) and 35 per cent open and green space. High-density housing sits by transit and major nodes, commercial along the primary network and stops, and green space along the swale and spread through the neighbourhood."
  },
  {
   "id": "sem06-densification#5",
@@ -51,7 +51,7 @@ export const CORPUS: Snippet[] = [
   "source": "Raghav Kohli, 'Develop a livable neighbourhood which is resilient towards densification', final report, Generative Techniques for Urban Place Making studio, CEPT University, Semester 6, 2020. Tutors: Radhika Amin, Arpi Maheshwari, Anuradha Ramchandani.",
   "place": "ahmedabad",
   "kind": "studio",
-  "text": "This is the brief the Ahmedabad site was built from. It supports a floor-area target of\n389 ha, a green share of 30 to 40 per cent, core attractors near transit and low density\nnear the Ashram, swale and treatment plant, and growing in steps (2025, 2035, 2050)."
+  "text": "This is the brief the Ahmedabad site was built from. It supports a floor-area target of 389 ha, a green share of 30 to 40 per cent, core attractors near transit and low density near the Ashram, swale and treatment plant, and growing in steps (2025, 2035, 2050)."
  },
  {
   "id": "sem06-evolutionary-method#1",
@@ -61,7 +61,7 @@ export const CORPUS: Snippet[] = [
   "source": "Evolutionary Computation workshop (with Jaimin Bali and Ishita Singh) and Raghav Kohli's final report, Generative Techniques for Urban Place Making studio, CEPT University, Semester 6, 2020. Tutors: Radhika Amin, Arpi Maheshwari, Anuradha Ramchandani. Summarised in docs/generative-method.md.",
   "place": "any",
   "kind": "studio",
-  "text": "The workshop ran a genetic algorithm by hand on a box: a genome of six operations\n(twist, move, rotate, polar array, mirror, scale) with intensifiers, two fitness criteria,\nsingle-point 60/40 crossover, and killing the weakest. By the second generation the\npopulation had collapsed onto a few genomes. Small populations converge fast and stop\nexploring, so the method needs immigrants, mutation and larger populations."
+  "text": "The workshop ran a genetic algorithm by hand on a box: a genome of six operations (twist, move, rotate, polar array, mirror, scale) with intensifiers, two fitness criteria, single-point 60/40 crossover, and killing the weakest. By the second generation the population had collapsed onto a few genomes. Small populations converge fast and stop exploring, so the method needs immigrants, mutation and larger populations."
  },
  {
   "id": "sem06-evolutionary-method#2",
@@ -71,7 +71,7 @@ export const CORPUS: Snippet[] = [
   "source": "Evolutionary Computation workshop (with Jaimin Bali and Ishita Singh) and Raghav Kohli's final report, Generative Techniques for Urban Place Making studio, CEPT University, Semester 6, 2020. Tutors: Radhika Amin, Arpi Maheshwari, Anuradha Ramchandani. Summarised in docs/generative-method.md.",
   "place": "any",
   "kind": "studio",
-  "text": "Averaging the fitness criteria hid trade-offs; ranking on each criterion and reading the\nresults as Pareto fronts showed them. Permutation City keeps its scores separate for the\nsame reason."
+  "text": "Averaging the fitness criteria hid trade-offs; ranking on each criterion and reading the results as Pareto fronts showed them. Permutation City keeps its scores separate for the same reason."
  },
  {
   "id": "sem06-evolutionary-method#3",
@@ -81,7 +81,7 @@ export const CORPUS: Snippet[] = [
   "source": "Evolutionary Computation workshop (with Jaimin Bali and Ishita Singh) and Raghav Kohli's final report, Generative Techniques for Urban Place Making studio, CEPT University, Semester 6, 2020. Tutors: Radhika Amin, Arpi Maheshwari, Anuradha Ramchandani. Summarised in docs/generative-method.md.",
   "place": "any",
   "kind": "studio",
-  "text": "At block scale the studio evolved typologies (single courtyard, L, U, tower) with genes for\ngrid size (3 to 7.5 m), building depth (12 to 18 m), height (0 to 24 m), voids and scaling,\njudged on eight criteria: shade in the court, built volume, sun on the roof, height\ndifference, and open space on the ground and roof among them. Blocks of larger unit cells\nwere more porous and accessible, with larger open spaces, suited to commercial and mixed\nuse. Blocks of smaller cells were compact and private, with small voids for community\ngatherings, suited to housing."
+  "text": "At block scale the studio evolved typologies (single courtyard, L, U, tower) with genes for grid size (3 to 7.5 m), building depth (12 to 18 m), height (0 to 24 m), voids and scaling, judged on eight criteria: shade in the court, built volume, sun on the roof, height difference, and open space on the ground and roof among them. Blocks of larger unit cells were more porous and accessible, with larger open spaces, suited to commercial and mixed use. Blocks of smaller cells were compact and private, with small voids for community gatherings, suited to housing."
  },
  {
   "id": "sem06-evolutionary-method#4",
@@ -91,7 +91,7 @@ export const CORPUS: Snippet[] = [
   "source": "Evolutionary Computation workshop (with Jaimin Bali and Ishita Singh) and Raghav Kohli's final report, Generative Techniques for Urban Place Making studio, CEPT University, Semester 6, 2020. Tutors: Radhika Amin, Arpi Maheshwari, Anuradha Ramchandani. Summarised in docs/generative-method.md.",
   "place": "any",
   "kind": "studio",
-  "text": "Population about 60 with immigrants (about 10 per cent) and mutation; scores as a Pareto\nfront; typologies as a second, building-scale gene pool (Phase 7)."
+  "text": "Population about 60 with immigrants (about 10 per cent) and mutation; scores as a Pareto front; typologies as a second, building-scale gene pool (Phase 7)."
  },
  {
   "id": "sem07-eco-machine#1",
@@ -101,7 +101,7 @@ export const CORPUS: Snippet[] = [
   "source": "Eco-machine, Every / Any / All / Some studio, CEPT University, Semester 7, 2020. Tutor: Deepa Ramaswamy. Pre-final presentation; method summarised in the README and docs/generative-method.md.",
   "place": "mumbai",
   "kind": "studio",
-  "text": "The Eastern Waterfront runs along Mumbai's docks (Prince's, Victoria and Indira docks,\nMasjid Bunder, the fish market, P D'Mello Road), with oil and chemical works, ship\nbreaking and the Koliwada community. The studio framed two problems: waste reaching the sea\nthrough drains and creeks, and flooding. As presented, Mumbai averages about 2,142 mm of\nrain a year, 96 per cent of it in the monsoon; the storm-water drains can take about 25 mm of\nrain; low-lying drains match the flood spots; and about 40 per cent of the city could face\nregular flooding by 2050 with sea-level rise."
+  "text": "The Eastern Waterfront runs along Mumbai's docks (Prince's, Victoria and Indira docks, Masjid Bunder, the fish market, P D'Mello Road), with oil and chemical works, ship breaking and the Koliwada community. The studio framed two problems: waste reaching the sea through drains and creeks, and flooding. As presented, Mumbai averages about 2,142 mm of rain a year, 96 per cent of it in the monsoon; the storm-water drains can take about 25 mm of rain; low-lying drains match the flood spots; and about 40 per cent of the city could face regular flooding by 2050 with sea-level rise."
  },
  {
   "id": "sem07-eco-machine#2",
@@ -111,7 +111,7 @@ export const CORPUS: Snippet[] = [
   "source": "Eco-machine, Every / Any / All / Some studio, CEPT University, Semester 7, 2020. Tutor: Deepa Ramaswamy. Pre-final presentation; method summarised in the README and docs/generative-method.md.",
   "place": "mumbai",
   "kind": "studio",
-  "text": "The site becomes a transition between land and sea. Infrastructure goes underground (flood\nreservoir, water treatment, waste-to-energy, recycling) with public programmes on top.\nPublic wetlands act as a buffer, and floating modules collect waste from the water and\ncarry recreational, cultural and sports uses, spread across the site rather than\ncentralised."
+  "text": "The site becomes a transition between land and sea. Infrastructure goes underground (flood reservoir, water treatment, waste-to-energy, recycling) with public programmes on top. Public wetlands act as a buffer, and floating modules collect waste from the water and carry recreational, cultural and sports uses, spread across the site rather than centralised."
  },
  {
   "id": "sem07-eco-machine#3",
@@ -121,7 +121,7 @@ export const CORPUS: Snippet[] = [
   "source": "Eco-machine, Every / Any / All / Some studio, CEPT University, Semester 7, 2020. Tutor: Deepa Ramaswamy. Pre-final presentation; method summarised in the README and docs/generative-method.md.",
   "place": "mumbai",
   "kind": "studio",
-  "text": "A 20 m hex grid (a 40 m square grid was tried too), streams used as attractors to spread\nwater across the land, unit scale factors of 0.3 to 0.9, programmes by unit size (under\n100, 100 to 350, 350 to 700 and 700 to 850 m²), and heights from sun and wind in bands of\n0, 1 to 3, 3 to 6, 6 to 10 and 10 to 15 levels."
+  "text": "A 20 m hex grid (a 40 m square grid was tried too), streams used as attractors to spread water across the land, unit scale factors of 0.3 to 0.9, programmes by unit size (under 100, 100 to 350, 350 to 700 and 700 to 850 m²), and heights from sun and wind in bands of 0, 1 to 3, 3 to 6, 6 to 10 and 10 to 15 levels."
  },
  {
   "id": "sem07-eco-machine#4",
@@ -131,7 +131,7 @@ export const CORPUS: Snippet[] = [
   "source": "Eco-machine, Every / Any / All / Some studio, CEPT University, Semester 7, 2020. Tutor: Deepa Ramaswamy. Pre-final presentation; method summarised in the README and docs/generative-method.md.",
   "place": "mumbai",
   "kind": "studio",
-  "text": "Water shares at the high end (up to 30 per cent), water that follows the site's own\ndrainage and flood lines (the follow-water gene near 1), heights mostly under 10 to 15\nlevels, and flood storage as a leading objective."
+  "text": "Water shares at the high end (up to 30 per cent), water that follows the site's own drainage and flood lines (the follow-water gene near 1), heights mostly under 10 to 15 levels, and flood storage as a leading objective."
  },
  {
   "id": "pattern-021#1",
@@ -141,7 +141,7 @@ export const CORPUS: Snippet[] = [
   "source": "Christopher Alexander, Sara Ishikawa, Murray Silverstein et al., A Pattern Language (Oxford University Press, 1977). Paraphrased; no text from the book.",
   "place": "any",
   "kind": "pattern",
-  "text": "Intent (paraphrased): in most of a town, keep most buildings at four storeys or fewer, so\npeople stay in touch with the street and the ground. Some buildings can be taller, but\nthey should be the exception.\nUse in Permutation City: a constraint. When switched on, the brief caps heights at about 4\nstoreys over most of the design ground (the brief's height limit). Taller exceptions are\nleft to the rules (for example near transit), not to the cap. The number 4 is the book's;\nthe allowed range of 3 to 5 is ours. Unchecked against the book: treat as assumed."
+  "text": "Intent (paraphrased): in most of a town, keep most buildings at four storeys or fewer, so people stay in touch with the street and the ground. Some buildings can be taller, but they should be the exception.\nUse in Permutation City: a constraint. When switched on, the brief caps heights at about 4 storeys over most of the design ground (the brief's height limit). Taller exceptions are left to the rules (for example near transit), not to the cap. The number 4 is the book's; the allowed range of 3 to 5 is ours. Unchecked against the book: treat as assumed."
  },
  {
   "id": "pattern-060#1",
@@ -151,7 +151,7 @@ export const CORPUS: Snippet[] = [
   "source": "Christopher Alexander, Sara Ishikawa, Murray Silverstein et al., A Pattern Language (Oxford University Press, 1977). Paraphrased; no text from the book.",
   "place": "any",
   "kind": "pattern",
-  "text": "Intent (paraphrased): people need open green within a few minutes' walk of where they\nlive and work, and the green has to be big enough to feel like a place of its own, not a\nstrip. The book gives a walking time of about three minutes and a minimum size; both are\nto be checked against the book before use.\nUse in Permutation City: a metric from Phase 6 (walking distance from building cells to a\ngreen patch above a minimum size). Until then, a brief can raise the lower end of the green\nshare so every design keeps more green. Numbers unchecked: treat as assumed."
+  "text": "Intent (paraphrased): people need open green within a few minutes' walk of where they live and work, and the green has to be big enough to feel like a place of its own, not a strip. The book gives a walking time of about three minutes and a minimum size; both are to be checked against the book before use.\nUse in Permutation City: a metric from Phase 6 (walking distance from building cells to a green patch above a minimum size). Until then, a brief can raise the lower end of the green share so every design keeps more green. Numbers unchecked: treat as assumed."
  },
  {
   "id": "pattern-061#1",
@@ -161,7 +161,7 @@ export const CORPUS: Snippet[] = [
   "source": "Christopher Alexander, Sara Ishikawa, Murray Silverstein et al., A Pattern Language (Oxford University Press, 1977). Paraphrased; no text from the book.",
   "place": "any",
   "kind": "pattern",
-  "text": "Intent (paraphrased): public squares feel alive when they are small, so that people in\nthem are close enough to see each other; large plazas feel empty. The book gives a range\nof widths, roughly 15 to 20 metres; to be checked against the book.\nUse in Permutation City: a metric in Phase 6 (the size of open-space patches that front\nbuildings on several sides). Until then the brief records it. Numbers unchecked: treat as\nassumed."
+  "text": "Intent (paraphrased): public squares feel alive when they are small, so that people in them are close enough to see each other; large plazas feel empty. The book gives a range of widths, roughly 15 to 20 metres; to be checked against the book.\nUse in Permutation City: a metric in Phase 6 (the size of open-space patches that front buildings on several sides). Until then the brief records it. Numbers unchecked: treat as assumed."
  },
  {
   "id": "pattern-106#1",
@@ -171,7 +171,7 @@ export const CORPUS: Snippet[] = [
   "source": "Christopher Alexander, Sara Ishikawa, Murray Silverstein et al., A Pattern Language (Oxford University Press, 1977). Paraphrased; no text from the book.",
   "place": "any",
   "kind": "pattern",
-  "text": "Intent (paraphrased): outdoor spaces should have a definite shape, partly enclosed by\nbuildings, so they are places people use, not leftovers between buildings. A space is\npositive when it is enclosed enough to feel convex.\nUse in Permutation City: the positive-space metric of Phase 6 (area of each open patch\nover the area of its convex hull, weighted by area), one of the fifteen properties from\nThe Nature of Order as well. Until then the brief records it."
+  "text": "Intent (paraphrased): outdoor spaces should have a definite shape, partly enclosed by buildings, so they are places people use, not leftovers between buildings. A space is positive when it is enclosed enough to feel convex.\nUse in Permutation City: the positive-space metric of Phase 6 (area of each open patch over the area of its convex hull, weighted by area), one of the fifteen properties from The Nature of Order as well. Until then the brief records it."
  },
  {
   "id": "pattern-107#1",
@@ -181,7 +181,7 @@ export const CORPUS: Snippet[] = [
   "source": "Christopher Alexander, Sara Ishikawa, Murray Silverstein et al., A Pattern Language (Oxford University Press, 1977). Paraphrased; no text from the book.",
   "place": "any",
   "kind": "pattern",
-  "text": "Intent (paraphrased): buildings should be made of long, narrow wings so every room gets\ndaylight, instead of deep floor plates with dark interiors. The book gives a maximum wing\nwidth; to be checked against the book.\nUse in Permutation City: a prior for building-scale massing in Phase 7 (narrow wings in\nthe courtyard, L, U and slab typologies). It cannot apply on the 20 m site grid, so the\nbrief records it and may favour courtyard, L and U typologies. Numbers unchecked."
+  "text": "Intent (paraphrased): buildings should be made of long, narrow wings so every room gets daylight, instead of deep floor plates with dark interiors. The book gives a maximum wing width; to be checked against the book.\nUse in Permutation City: a prior for building-scale massing in Phase 7 (narrow wings in the courtyard, L, U and slab typologies). It cannot apply on the 20 m site grid, so the brief records it and may favour courtyard, L and U typologies. Numbers unchecked."
  },
  {
   "id": "pattern-159#1",
@@ -191,7 +191,7 @@ export const CORPUS: Snippet[] = [
   "source": "Christopher Alexander, Sara Ishikawa, Murray Silverstein et al., A Pattern Language (Oxford University Press, 1977). Paraphrased; no text from the book.",
   "place": "any",
   "kind": "pattern",
-  "text": "Intent (paraphrased): rooms lit from two sides are calmer and more pleasant to be in than\nrooms lit from one, so plans should be shallow enough that most rooms have windows on two\nsides.\nUse in Permutation City: a prior for Phase 7 massing (shallow plans, dual-aspect wings).\nOn the site grid it is recorded only, and may favour slab and L typologies over deep\nblocks."
+  "text": "Intent (paraphrased): rooms lit from two sides are calmer and more pleasant to be in than rooms lit from one, so plans should be shallow enough that most rooms have windows on two sides.\nUse in Permutation City: a prior for Phase 7 massing (shallow plans, dual-aspect wings). On the site grid it is recorded only, and may favour slab and L typologies over deep blocks."
  },
  {
   "id": "ahmedabad-cgdcr-common-plot#1",
@@ -201,7 +201,7 @@ export const CORPUS: Snippet[] = [
   "source": "Comprehensive General Development Control Regulations 2017, Part II: Planning Regulations (UD & UHD, Government of Gujarat), as modified up to October 2019",
   "place": "ahmedabad",
   "kind": "regulation",
-  "text": "Building units of 2,000 m² or more keep a common plot (shared open space) of 10 per cent\nof their area (8 per cent in the core walled city and gamtal). Religious, educational,\ninstitutional and assembly uses keep 20 per cent. Industrial units keep none up to\n5,000 m², 8 per cent up to 20,000 m², and 1,600 m² plus 5 per cent of the area above\nthat. Smaller units with buildings over 25 m high keep 10 per cent or 200 m², whichever is\nmore."
+  "text": "Building units of 2,000 m² or more keep a common plot (shared open space) of 10 per cent of their area (8 per cent in the core walled city and gamtal). Religious, educational, institutional and assembly uses keep 20 per cent. Industrial units keep none up to 5,000 m², 8 per cent up to 20,000 m², and 1,600 m² plus 5 per cent of the area above that. Smaller units with buildings over 25 m high keep 10 per cent or 200 m², whichever is more."
  },
  {
   "id": "ahmedabad-cgdcr-common-plot#2",
@@ -211,7 +211,7 @@ export const CORPUS: Snippet[] = [
   "source": "Comprehensive General Development Control Regulations 2017, Part II: Planning Regulations (UD & UHD, Government of Gujarat), as modified up to October 2019",
   "place": "ahmedabad",
   "kind": "regulation",
-  "text": "A common plot may be split, but each piece is at least 200 m² with no side under 10 m\n(8 m for affordable housing), and no angle between sides under 60 degrees. It excludes\napproaches but may sit in marginal spaces. Little may be built on it: substations, tanks,\npump rooms, security cabins and community facilities, covering at most 15 per cent and up\nto 7.5 m high. In residential schemes up to half may be used for parking."
+  "text": "A common plot may be split, but each piece is at least 200 m² with no side under 10 m (8 m for affordable housing), and no angle between sides under 60 degrees. It excludes approaches but may sit in marginal spaces. Little may be built on it: substations, tanks, pump rooms, security cabins and community facilities, covering at most 15 per cent and up to 7.5 m high. In residential schemes up to half may be used for parking."
  },
  {
   "id": "ahmedabad-cgdcr-common-plot#3",
@@ -221,7 +221,7 @@ export const CORPUS: Snippet[] = [
   "source": "Comprehensive General Development Control Regulations 2017, Part II: Planning Regulations (UD & UHD, Government of Gujarat), as modified up to October 2019",
   "place": "ahmedabad",
   "kind": "regulation",
-  "text": "The 10 per cent common plot is a floor for open space in Ahmedabad layouts, well under the\nengine's green share range. A brief can keep the green share's lower end at 10 per cent or\nmore and record the common plot as a pattern of small shared spaces (see pattern 61,\nSmall Public Squares)."
+  "text": "The 10 per cent common plot is a floor for open space in Ahmedabad layouts, well under the engine's green share range. A brief can keep the green share's lower end at 10 per cent or more and record the common plot as a pattern of small shared spaces (see pattern 61, Small Public Squares)."
  },
  {
   "id": "ahmedabad-cgdcr-fsi#1",
@@ -231,7 +231,7 @@ export const CORPUS: Snippet[] = [
   "source": "Comprehensive General Development Control Regulations 2017, Part II: Planning Regulations (UD & UHD, Government of Gujarat), as modified up to October 2019",
   "place": "ahmedabad",
   "kind": "regulation",
-  "text": "Ahmedabad's municipal and urban development areas are Category D1 (AUDA). Each use zone\nhas a base (free) FSI and a chargeable FSI bought at 40 per cent of the jantri (government\nland) rate. The maximum is their sum:\n- Core walled city and gamtal: 2.0 (no chargeable FSI)\n- Gamtal extension: 1.2 + 0.6 = 1.8\n- Residential zone I (R1): 1.8 + 0.9 = 2.7\n- Residential zone II (R2): 1.2 + 0.6 = 1.8\n- Residential zone III (R3): 0.3 (1.2 for some educational uses)\n- Commercial zone (C2): 1.8 + 0.9 = 2.7\n- Knowledge and institutional zone: 1.8\n- Residential affordable housing (RAH1): 1.8 + 0.9 = 2.7\n- Recreation, gardens and open space: 0.15\n- Central business district (C5): 1.8 + 3.6 = 5.4\n- Transit oriented zone (SPD5): base zone FSI, up to 4.0 for TOZ uses\n- Gandhi Ashram special area (SPD4): as applicable under its own scheme (see the Gandhi\n Ashram note)\n- Sabarmati Riverfront (SPD2): as per the SRFDCL master plan"
+  "text": "Ahmedabad's municipal and urban development areas are Category D1 (AUDA). Each use zone has a base (free) FSI and a chargeable FSI bought at 40 per cent of the jantri (government land) rate. The maximum is their sum:\n\n- Core walled city and gamtal: 2.0 (no chargeable FSI)\n- Gamtal extension: 1.2 + 0.6 = 1.8\n- Residential zone I (R1): 1.8 + 0.9 = 2.7\n- Residential zone II (R2): 1.2 + 0.6 = 1.8\n- Residential zone III (R3): 0.3 (1.2 for some educational uses)\n- Commercial zone (C2): 1.8 + 0.9 = 2.7\n- Knowledge and institutional zone: 1.8\n- Residential affordable housing (RAH1): 1.8 + 0.9 = 2.7\n- Recreation, gardens and open space: 0.15\n- Central business district (C5): 1.8 + 3.6 = 5.4\n- Transit oriented zone (SPD5): base zone FSI, up to 4.0 for TOZ uses\n- Gandhi Ashram special area (SPD4): as applicable under its own scheme (see the Gandhi Ashram note)\n- Sabarmati Riverfront (SPD2): as per the SRFDCL master plan"
  },
  {
   "id": "ahmedabad-cgdcr-fsi#2",
@@ -241,7 +241,7 @@ export const CORPUS: Snippet[] = [
   "source": "Comprehensive General Development Control Regulations 2017, Part II: Planning Regulations (UD & UHD, Government of Gujarat), as modified up to October 2019",
   "place": "ahmedabad",
   "kind": "regulation",
-  "text": "The Gandhi Ashram scheme treats most of its area as residential zone I. The zoning of the\nrest of the Wadaj site isn't in this document (check the AUDA development plan). If it is\nR1 too, a floor-area target of about FSI 1.8 (base) to 2.7 (with chargeable FSI) is the\nregulatory envelope.\nLand along a transit corridor may go to 4.0. The Sem 06 studio's 2050 target of\n38,91,900 m² on about 1.38 km² of developable land is an FSI of about 2.8, slightly over\nthe R1 maximum."
+  "text": "The Gandhi Ashram scheme treats most of its area as residential zone I. The zoning of the rest of the Wadaj site isn't in this document (check the AUDA development plan). If it is R1 too, a floor-area target of about FSI 1.8 (base) to 2.7 (with chargeable FSI) is the regulatory envelope. Land along a transit corridor may go to 4.0. The Sem 06 studio's 2050 target of 38,91,900 m² on about 1.38 km² of developable land is an FSI of about 2.8, slightly over the R1 maximum."
  },
  {
   "id": "ahmedabad-cgdcr-height-margins#1",
@@ -251,7 +251,7 @@ export const CORPUS: Snippet[] = [
   "source": "Comprehensive General Development Control Regulations 2017, Part II: Planning Regulations (UD & UHD, Government of Gujarat), as modified up to October 2019",
   "place": "ahmedabad",
   "kind": "regulation",
-  "text": "Building height follows the width of the road a plot abuts (Table 6.23). For D1\n(except Gandhinagar):\n- road under 9 m: 10 m\n- 9 m to under 12 m: 16.5 m\n- 12 m to under 18 m: 30 m\n- 18 m to under 36 m: 45 m\n- 36 m and above: 70 m (as read from a poorly extracted column; check)\nAt about 3.2 m a storey, 16.5 m is 5 storeys, 30 m about 9, 45 m about 14 and 70 m about 21."
+  "text": "Building height follows the width of the road a plot abuts (Table 6.23). For D1 (except Gandhinagar):\n\n- road under 9 m: 10 m\n- 9 m to under 12 m: 16.5 m\n- 12 m to under 18 m: 30 m\n- 18 m to under 36 m: 45 m\n- 36 m and above: 70 m (as read from a poorly extracted column; check)\nAt about 3.2 m a storey, 16.5 m is 5 storeys, 30 m about 9, 45 m about 14 and 70 m about 21."
  },
  {
   "id": "ahmedabad-cgdcr-height-margins#2",
@@ -261,7 +261,7 @@ export const CORPUS: Snippet[] = [
   "source": "Comprehensive General Development Control Regulations 2017, Part II: Planning Regulations (UD & UHD, Government of Gujarat), as modified up to October 2019",
   "place": "ahmedabad",
   "kind": "regulation",
-  "text": "Road-side margins for D1 rise with road width (Table 6.24): 2.5 m up to 9 m, 3.0 m up to\n15 m, 4.5 m for 15 to 18 m, 6.0 m for 18 to 30 m, 7.5 m for 30 to 45 m and 9.0 m above\nthat. Special buildings keep 12 m. Where the height-based margin of Table 6.26 is larger,\nit applies."
+  "text": "Road-side margins for D1 rise with road width (Table 6.24): 2.5 m up to 9 m, 3.0 m up to 15 m, 4.5 m for 15 to 18 m, 6.0 m for 18 to 30 m, 7.5 m for 30 to 45 m and 9.0 m above that. Special buildings keep 12 m. Where the height-based margin of Table 6.26 is larger, it applies."
  },
  {
   "id": "ahmedabad-cgdcr-height-margins#3",
@@ -271,7 +271,7 @@ export const CORPUS: Snippet[] = [
   "source": "Comprehensive General Development Control Regulations 2017, Part II: Planning Regulations (UD & UHD, Government of Gujarat), as modified up to October 2019",
   "place": "ahmedabad",
   "kind": "regulation",
-  "text": "Between two buildings in one plot (Table 6.25, D1): 4.5 m up to 16.5 m high, 6 m up to\n25 m, 9 m up to 45 m and 12 m up to 70 m. Buildings keep 3 m from the common plot up to\n25 m high, and 6 m above."
+  "text": "Between two buildings in one plot (Table 6.25, D1): 4.5 m up to 16.5 m high, 6 m up to 25 m, 9 m up to 45 m and 12 m up to 70 m. Buildings keep 3 m from the common plot up to 25 m high, and 6 m above."
  },
  {
   "id": "ahmedabad-cgdcr-height-margins#4",
@@ -281,7 +281,7 @@ export const CORPUS: Snippet[] = [
   "source": "Comprehensive General Development Control Regulations 2017, Part II: Planning Regulations (UD & UHD, Government of Gujarat), as modified up to October 2019",
   "place": "ahmedabad",
   "kind": "regulation",
-  "text": "On the 20 m grid, the height cap per cell is the place for these limits: most internal\nstreets of a neighbourhood are 9 to 12 m, which allows 16.5 m (5 storeys), and arterial\nroads of 18 m or more allow up to 45 m. A brief can set a site-wide cap of about 5\nstoreys for a fabric of local streets, or leave higher caps near major roads to the rules."
+  "text": "On the 20 m grid, the height cap per cell is the place for these limits: most internal streets of a neighbourhood are 9 to 12 m, which allows 16.5 m (5 storeys), and arterial roads of 18 m or more allow up to 45 m. A brief can set a site-wide cap of about 5 storeys for a fabric of local streets, or leave higher caps near major roads to the rules."
  },
  {
   "id": "ahmedabad-special-areas#1",
@@ -291,7 +291,7 @@ export const CORPUS: Snippet[] = [
   "source": "Comprehensive General Development Control Regulations 2017, Part II: Planning Regulations (UD & UHD, Government of Gujarat), as modified up to October 2019",
   "place": "ahmedabad",
   "kind": "regulation",
-  "text": "Buildings owned by trusts related to Gandhi Ashram's work are to be conserved and kept in\ntheir original state; renewal or rebuilding is reviewed by the competent authority. Slums\nin the area are to be rehabilitated within it, on government, municipal or trust land.\nMost of the scheme area is treated as residential zone I. For plots on Ashram Road between\nWadaj Circle and Subhash Circle owned by the government, the trusts or AMC, only\nresidential and institutional uses (education, culture, health, tourist support such as\nhotels, restaurants and craft showrooms) are allowed, with a maximum height of 10 m, light\nexterior colours matching the Ashram, and tree planting in open space."
+  "text": "Buildings owned by trusts related to Gandhi Ashram's work are to be conserved and kept in their original state; renewal or rebuilding is reviewed by the competent authority. Slums in the area are to be rehabilitated within it, on government, municipal or trust land. Most of the scheme area is treated as residential zone I. For plots on Ashram Road between Wadaj Circle and Subhash Circle owned by the government, the trusts or AMC, only residential and institutional uses (education, culture, health, tourist support such as hotels, restaurants and craft showrooms) are allowed, with a maximum height of 10 m, light exterior colours matching the Ashram, and tree planting in open space."
  },
  {
   "id": "ahmedabad-special-areas#2",
@@ -301,7 +301,7 @@ export const CORPUS: Snippet[] = [
   "source": "Comprehensive General Development Control Regulations 2017, Part II: Planning Regulations (UD & UHD, Government of Gujarat), as modified up to October 2019",
   "place": "ahmedabad",
   "kind": "regulation",
-  "text": "On the riverfront, the special regulations of the Sabarmati Riverfront Development\nCorporation (SRFDCL) on ground coverage, margins, height and use prevail over the general\nones."
+  "text": "On the riverfront, the special regulations of the Sabarmati Riverfront Development Corporation (SRFDCL) on ground coverage, margins, height and use prevail over the general ones."
  },
  {
   "id": "ahmedabad-special-areas#3",
@@ -311,7 +311,7 @@ export const CORPUS: Snippet[] = [
   "source": "Comprehensive General Development Control Regulations 2017, Part II: Planning Regulations (UD & UHD, Government of Gujarat), as modified up to October 2019",
   "place": "ahmedabad",
   "kind": "regulation",
-  "text": "Zone RZ1 allows only structures that control floods or prevent pollution of the river,\npond or lake and the land near it. RZ2 also allows ground-floor-only construction on up to\n5 per cent of a building unit, if it preserves the natural scenery and landscape. RZ3\nallows no development."
+  "text": "Zone RZ1 allows only structures that control floods or prevent pollution of the river, pond or lake and the land near it. RZ2 also allows ground-floor-only construction on up to 5 per cent of a building unit, if it preserves the natural scenery and landscape. RZ3 allows no development."
  },
  {
   "id": "ahmedabad-special-areas#4",
@@ -321,7 +321,7 @@ export const CORPUS: Snippet[] = [
   "source": "Comprehensive General Development Control Regulations 2017, Part II: Planning Regulations (UD & UHD, Government of Gujarat), as modified up to October 2019",
   "place": "ahmedabad",
   "kind": "regulation",
-  "text": "On the Wadaj site, land along Ashram Road near the Ashram should carry a 10 m cap (about\n3 storeys), and the Ashram's own buildings are retained, as the Sem 06 studio retained\nthem. Land along the river and the swale behaves like RZ1 or RZ2: kept for water and\nlandscape, which the site's forbidden and constrained rules already do."
+  "text": "On the Wadaj site, land along Ashram Road near the Ashram should carry a 10 m cap (about 3 storeys), and the Ashram's own buildings are retained, as the Sem 06 studio retained them. Land along the river and the swale behaves like RZ1 or RZ2: kept for water and landscape, which the site's forbidden and constrained rules already do."
  },
  {
   "id": "mumbai-dcpr-fsi#1",
@@ -331,7 +331,7 @@ export const CORPUS: Snippet[] = [
   "source": "Development Control and Promotion Regulations 2034 for Greater Mumbai (MCGM), as notified in 2018",
   "place": "mumbai",
   "kind": "regulation",
-  "text": "Table 12 sets floor space index (FSI) by road width for residential and commercial zones\nin the Island City. Zonal (basic) FSI is 1.33 everywhere. On top of it come additional FSI\non payment of a premium and admissible TDR (transferable development rights). The\npermissible totals are:\n- road up to 9 m: 1.33\n- more than 9 m up to 12.2 m: 2.0\n- more than 12.2 m up to 18.3 m: 2.4\n- more than 18.3 m up to 30 m: 2.7\n- more than 30 m: 3.0\nThe Eastern Waterfront and the docks lie in the Island City."
+  "text": "Table 12 sets floor space index (FSI) by road width for residential and commercial zones in the Island City. Zonal (basic) FSI is 1.33 everywhere. On top of it come additional FSI on payment of a premium and admissible TDR (transferable development rights). The permissible totals are:\n\n- road up to 9 m: 1.33\n- more than 9 m up to 12.2 m: 2.0\n- more than 12.2 m up to 18.3 m: 2.4\n- more than 18.3 m up to 30 m: 2.7\n- more than 30 m: 3.0\nThe Eastern Waterfront and the docks lie in the Island City."
  },
  {
   "id": "mumbai-dcpr-fsi#2",
@@ -341,7 +341,7 @@ export const CORPUS: Snippet[] = [
   "source": "Development Control and Promotion Regulations 2034 for Greater Mumbai (MCGM), as notified in 2018",
   "place": "mumbai",
   "kind": "regulation",
-  "text": "In the remaining suburbs and extended suburbs, zonal FSI is 1.0 and the permissible total\nrises with road width: 1.0 (up to 9 m), 2.0 (9 to 12.2 m), 2.2 (12.2 to 18.3 m), 2.4\n(18.3 to 30 m) and 2.5 (over 30 m). Some areas (parts of N and M wards near BARC) are\ncapped at 0.75, and CRZ-affected villages such as Akse, Marve, Erangal, Gorai and Manori\nat 0.5. Industrial zones in the Island City and the suburbs have zonal FSI 1.0, with up\nto 2.0 using TDR for uses allowed only in the industrial zone."
+  "text": "In the remaining suburbs and extended suburbs, zonal FSI is 1.0 and the permissible total rises with road width: 1.0 (up to 9 m), 2.0 (9 to 12.2 m), 2.2 (12.2 to 18.3 m), 2.4 (18.3 to 30 m) and 2.5 (over 30 m). Some areas (parts of N and M wards near BARC) are capped at 0.75, and CRZ-affected villages such as Akse, Marve, Erangal, Gorai and Manori at 0.5. Industrial zones in the Island City and the suburbs have zonal FSI 1.0, with up to 2.0 using TDR for uses allowed only in the industrial zone."
  },
  {
   "id": "mumbai-dcpr-fsi#3",
@@ -351,7 +351,7 @@ export const CORPUS: Snippet[] = [
   "source": "Development Control and Promotion Regulations 2034 for Greater Mumbai (MCGM), as notified in 2018",
   "place": "mumbai",
   "kind": "regulation",
-  "text": "Permissible FSI is reckoned on the gross plot area, excluding land under DP roads,\nregular-line road widening, DP reservations, and land handed over for amenity plots and\ninclusive housing (Regulations 14 to 17). Recreational open space required under\nRegulation 27 is not deducted when computing FSI. Fungible compensatory area is allowed\nover and above the permissible FSI under Regulation 31(3). Where several regulations\ncombine on one plot, the total may not exceed the FSI limit of the applicable regulations\n(Reg. 30(A)(12); the wording does not say which limit governs when they differ)."
+  "text": "Permissible FSI is reckoned on the gross plot area, excluding land under DP roads, regular-line road widening, DP reservations, and land handed over for amenity plots and inclusive housing (Regulations 14 to 17). Recreational open space required under Regulation 27 is not deducted when computing FSI. Fungible compensatory area is allowed over and above the permissible FSI under Regulation 31(3). Where several regulations combine on one plot, the total may not exceed the FSI limit of the applicable regulations (Reg. 30(A)(12); the wording does not say which limit governs when they differ)."
  },
  {
   "id": "mumbai-dcpr-fsi#4",
@@ -361,7 +361,7 @@ export const CORPUS: Snippet[] = [
   "source": "Development Control and Promotion Regulations 2034 for Greater Mumbai (MCGM), as notified in 2018",
   "place": "mumbai",
   "kind": "regulation",
-  "text": "The engine's floor-area target is an FSI (FAR) over the design ground. For a large site\nan FSI of 2.0 to 3.0 is the regulatory envelope in the Island City, depending on road\nwidths. The design ground excludes forbidden and retained land, which roughly matches the\ngross-plot rule. Port Trust land on the eastern waterfront may be planned by its own\nauthority; check which regulations apply before treating these figures as binding."
+  "text": "The engine's floor-area target is an FSI (FAR) over the design ground. For a large site an FSI of 2.0 to 3.0 is the regulatory envelope in the Island City, depending on road widths. The design ground excludes forbidden and retained land, which roughly matches the gross-plot rule. Port Trust land on the eastern waterfront may be planned by its own authority; check which regulations apply before treating these figures as binding."
  },
  {
   "id": "mumbai-dcpr-margins-height#1",
@@ -371,7 +371,7 @@ export const CORPUS: Snippet[] = [
   "source": "Development Control and Promotion Regulations 2034 for Greater Mumbai (MCGM), as notified in 2018",
   "place": "mumbai",
   "kind": "regulation",
-  "text": "In residential and commercial zones the side and rear open spaces depend on height\n(Table A). For buildings up to 32 m, the minimum is 3.6 m for residential and 4.5 m for\ncommercial buildings, increasing with height (H/5 on small plots, H/4 on plots over\n1,000 m² with average width over 20 m, capped at 6 m or 12 m). From 32 m to 70 m the\nspaces are H/5 (to 12 m) or H/4 (to 16 m). Above 120 m, 20 m on the larger plots. Dead-wall\nsides need less (3.6 m to 9 m). Tables B and C allow smaller margins on payment of a\npremium where there is hardship."
+  "text": "In residential and commercial zones the side and rear open spaces depend on height (Table A). For buildings up to 32 m, the minimum is 3.6 m for residential and 4.5 m for commercial buildings, increasing with height (H/5 on small plots, H/4 on plots over 1,000 m² with average width over 20 m, capped at 6 m or 12 m). From 32 m to 70 m the spaces are H/5 (to 12 m) or H/4 (to 16 m). Above 120 m, 20 m on the larger plots. Dead-wall sides need less (3.6 m to 9 m). Tables B and C allow smaller margins on payment of a premium where there is hardship."
  },
  {
   "id": "mumbai-dcpr-margins-height#2",
@@ -381,7 +381,7 @@ export const CORPUS: Snippet[] = [
   "source": "Development Control and Promotion Regulations 2034 for Greater Mumbai (MCGM), as notified in 2018",
   "place": "mumbai",
   "kind": "regulation",
-  "text": "Table 18 sets front setbacks from the street line: 6 m on express highways and roads wider\nthan 52 m. Elsewhere in the Island City 3 m for residential and 4.5 m for commercial\nbuildings; 4.5 m in the suburbs. Industrial zones need more (6 m to 22.5 m). Small\ngaothan and koliwada plots under 250 m² need 0 to 1.5 m depending on street width."
+  "text": "Table 18 sets front setbacks from the street line: 6 m on express highways and roads wider than 52 m. Elsewhere in the Island City 3 m for residential and 4.5 m for commercial buildings; 4.5 m in the suburbs. Industrial zones need more (6 m to 22.5 m). Small gaothan and koliwada plots under 250 m² need 0 to 1.5 m depending on street width."
  },
  {
   "id": "mumbai-dcpr-margins-height#3",
@@ -391,7 +391,7 @@ export const CORPUS: Snippet[] = [
   "source": "Development Control and Promotion Regulations 2034 for Greater Mumbai (MCGM), as notified in 2018",
   "place": "mumbai",
   "kind": "regulation",
-  "text": "A tower-like structure up to 32 m needs 6 m of open space at ground level. From 32 m to\n70 m: 6 m at the rear and one side and 9 m on the road side. Above 70 m: 9 m at ground and\nstep-backs at upper levels (two up to 70 m, three up to 120 m, four beyond)."
+  "text": "A tower-like structure up to 32 m needs 6 m of open space at ground level. From 32 m to 70 m: 6 m at the rear and one side and 9 m on the road side. Above 70 m: 9 m at ground and step-backs at upper levels (two up to 70 m, three up to 120 m, four beyond)."
  },
  {
   "id": "mumbai-dcpr-margins-height#4",
@@ -401,7 +401,7 @@ export const CORPUS: Snippet[] = [
   "source": "Development Control and Promotion Regulations 2034 for Greater Mumbai (MCGM), as notified in 2018",
   "place": "mumbai",
   "kind": "regulation",
-  "text": "A building's height may not exceed a multiple of the street width plus the front open\nspace. This copy shows the multiple as \"two three times\", an amendment printed as both\nwords; check the notified figure. The limit does not apply where the plot has a 9 m front\nopen space on roads up to 9 m wide, or 12 m on wider roads, nor to several Regulation 33\nredevelopment schemes. High-rise buildings need wider access roads (Table 6): 9 m for\n32 to 70 m, 12 m for 70 to 120 m, 18 m above 120 m."
+  "text": "A building's height may not exceed a multiple of the street width plus the front open space. This copy shows the multiple as \"two three times\", an amendment printed as both words; check the notified figure. The limit does not apply where the plot has a 9 m front open space on roads up to 9 m wide, or 12 m on wider roads, nor to several Regulation 33 redevelopment schemes. High-rise buildings need wider access roads (Table 6): 9 m for 32 to 70 m, 12 m for 70 to 120 m, 18 m above 120 m."
  },
  {
   "id": "mumbai-dcpr-margins-height#5",
@@ -411,7 +411,7 @@ export const CORPUS: Snippet[] = [
   "source": "Development Control and Promotion Regulations 2034 for Greater Mumbai (MCGM), as notified in 2018",
   "place": "mumbai",
   "kind": "regulation",
-  "text": "If each building cell is read as a whole plot, setbacks set how much of a cell a building\ncan cover. A 20 m hex cell is about 1,040 m², roughly a 32 m square. With a 3 to 4.5 m\nfront and 3.6 m side and rear margins, such a plot keeps roughly 55 to 65 per cent\ncoverage (worked out here, not stated in the regulations); taller buildings need more space and less\ncoverage. The coverage gene's upper end is the place to apply this. Heights above 32 m\n(about 10 storeys) bring fire, access and step-back requirements."
+  "text": "If each building cell is read as a whole plot, setbacks set how much of a cell a building can cover. A 20 m hex cell is about 1,040 m², roughly a 32 m square. With a 3 to 4.5 m front and 3.6 m side and rear margins, such a plot keeps roughly 55 to 65 per cent coverage (worked out here, not stated in the regulations); taller buildings need more space and less coverage. The coverage gene's upper end is the place to apply this. Heights above 32 m (about 10 storeys) bring fire, access and step-back requirements."
  },
  {
   "id": "mumbai-dcpr-open-space#1",
@@ -421,7 +421,7 @@ export const CORPUS: Snippet[] = [
   "source": "Development Control and Promotion Regulations 2034 for Greater Mumbai (MCGM), as notified in 2018",
   "place": "mumbai",
   "kind": "regulation",
-  "text": "In residential and commercial zones, a layout or plot keeps a share of its area as layout\nopen space (LOS, called recreational open space, ROS, in the earlier draft):\n- 1,001 to 2,500 m²: 15 per cent\n- 2,501 to 10,000 m²: 20 per cent\n- above 10,000 m²: 25 per cent\nThe share excludes access roads, internal roads, reservations, DP roads and road\nwidening. It should be in one place where possible; above 5,000 m² it may be split, but\none piece must be at least 1,000 m². For several redevelopment schemes under Regulation 33\nit may be reduced to a minimum the text gives as \"8% 10%\" (an amendment shown as both\nvalues in this copy; check the notified figure)."
+  "text": "In residential and commercial zones, a layout or plot keeps a share of its area as layout open space (LOS, called recreational open space, ROS, in the earlier draft):\n\n- 1,001 to 2,500 m²: 15 per cent\n- 2,501 to 10,000 m²: 20 per cent\n- above 10,000 m²: 25 per cent\nThe share excludes access roads, internal roads, reservations, DP roads and road widening. It should be in one place where possible; above 5,000 m² it may be split, but one piece must be at least 1,000 m². For several redevelopment schemes under Regulation 33 it may be reduced to a minimum the text gives as \"8% 10%\" (an amendment shown as both values in this copy; check the notified figure)."
  },
  {
   "id": "mumbai-dcpr-open-space#2",
@@ -431,7 +431,7 @@ export const CORPUS: Snippet[] = [
   "source": "Development Control and Promotion Regulations 2034 for Greater Mumbai (MCGM), as notified in 2018",
   "place": "mumbai",
   "kind": "regulation",
-  "text": "No piece may be smaller than 125 m² or narrower than 7.5 m. If its average width is under\n16.6 m, its length may not exceed 2.5 times the average width. It must be reachable from\nevery building or have its own access. It stays open to the sky and accessible to all\noccupants, with 5 indigenous trees per 100 m² of open space planted in the plot (1 per\n100 m² where no open space is needed). A 1.5 m unpaved strip along the plot boundary is\nkept for groundwater recharge and trees, and does not count towards the open space."
+  "text": "No piece may be smaller than 125 m² or narrower than 7.5 m. If its average width is under 16.6 m, its length may not exceed 2.5 times the average width. It must be reachable from every building or have its own access. It stays open to the sky and accessible to all occupants, with 5 indigenous trees per 100 m² of open space planted in the plot (1 per 100 m² where no open space is needed). A 1.5 m unpaved strip along the plot boundary is kept for groundwater recharge and trees, and does not count towards the open space."
  },
  {
   "id": "mumbai-dcpr-open-space#3",
@@ -441,7 +441,7 @@ export const CORPUS: Snippet[] = [
   "source": "Development Control and Promotion Regulations 2034 for Greater Mumbai (MCGM), as notified in 2018",
   "place": "mumbai",
   "kind": "regulation",
-  "text": "At least 60 per cent of the required open space must be on the ground, and at least half\nof that on natural ground (\"mother earth\"), unpaved, so water soaks in. The other 40 per\ncent may be on a podium beyond the building line. Remaining paving in the compound should\nbe perforated so rain percolates."
+  "text": "At least 60 per cent of the required open space must be on the ground, and at least half of that on natural ground (\"mother earth\"), unpaved, so water soaks in. The other 40 per cent may be on a podium beyond the building line. Remaining paving in the compound should be perforated so rain percolates."
  },
  {
   "id": "mumbai-dcpr-open-space#4",
@@ -451,7 +451,7 @@ export const CORPUS: Snippet[] = [
   "source": "Development Control and Promotion Regulations 2034 for Greater Mumbai (MCGM), as notified in 2018",
   "place": "mumbai",
   "kind": "regulation",
-  "text": "Industrial plots of 1,000 m² or more keep 15 per cent as open space, with the same planting\nrule. Within open space of 400 m² or more, tanks, substations and pump houses may take up\nto 10 per cent. Within 1,000 m² or more, sports and club structures may take up to 15 per\ncent of floor area (10 per cent footprint), at most ground plus one storey and 8 m high."
+  "text": "Industrial plots of 1,000 m² or more keep 15 per cent as open space, with the same planting rule. Within open space of 400 m² or more, tanks, substations and pump houses may take up to 10 per cent. Within 1,000 m² or more, sports and club structures may take up to 15 per cent of floor area (10 per cent footprint), at most ground plus one storey and 8 m high."
  },
  {
   "id": "mumbai-dcpr-open-space#5",
@@ -461,7 +461,7 @@ export const CORPUS: Snippet[] = [
   "source": "Development Control and Promotion Regulations 2034 for Greater Mumbai (MCGM), as notified in 2018",
   "place": "mumbai",
   "kind": "regulation",
-  "text": "For a whole-site design the 25 per cent rule is the relevant one, and at least 60 per cent\nof it on the ground. The engine's green share gene (10 to 45 per cent of the design ground)\ncovers it; a brief can raise the lower end of the green share to 15 per cent so every design\nkeeps the ground-level part. Unpaved, planted open space also counts towards flood storage."
+  "text": "For a whole-site design the 25 per cent rule is the relevant one, and at least 60 per cent of it on the ground. The engine's green share gene (10 to 45 per cent of the design ground) covers it; a brief can raise the lower end of the green share to 15 per cent so every design keeps the ground-level part. Unpaved, planted open space also counts towards flood storage."
  },
  {
   "id": "mumbai-sea-levels#1",
@@ -471,7 +471,7 @@ export const CORPUS: Snippet[] = [
   "source": "Secondary reports of two official sources: (1) Minister of Earth Sciences, Rajya Sabha answer, December 2019, citing INCOIS, as reported by The Quint, 4 December 2019; (2) Maharashtra Maritime Board shoreline management plan, as reported by ICSF ('Maharashtra: State's sea levels may rise by 0.38 metre by 2050', date not given)",
   "place": "mumbai",
   "kind": "site-data",
-  "text": "INCOIS, from the long-term trend at the Apollo Bandar tide gauge (about 0.74 mm a year,\n1878 to 2005), estimated a rise of 33.3 mm at the Mumbai coast by 2050, as told to the\nRajya Sabha in 2019. The Maharashtra Maritime Board's shoreline management plan uses a\nuniform 0.38 m rise along the state's 720 km coast by 2050. The first extrapolates a past\ntrend; the second is a planning allowance that includes accelerating rise. For design, the\nlarger allowance is the safer one."
+  "text": "INCOIS, from the long-term trend at the Apollo Bandar tide gauge (about 0.74 mm a year, 1878 to 2005), estimated a rise of 33.3 mm at the Mumbai coast by 2050, as told to the Rajya Sabha in 2019. The Maharashtra Maritime Board's shoreline management plan uses a uniform 0.38 m rise along the state's 720 km coast by 2050. The first extrapolates a past trend; the second is a planning allowance that includes accelerating rise. For design, the larger allowance is the safer one."
  },
  {
   "id": "mumbai-sea-levels#2",
@@ -481,7 +481,7 @@ export const CORPUS: Snippet[] = [
   "source": "Secondary reports of two official sources: (1) Minister of Earth Sciences, Rajya Sabha answer, December 2019, citing INCOIS, as reported by The Quint, 4 December 2019; (2) Maharashtra Maritime Board shoreline management plan, as reported by ICSF ('Maharashtra: State's sea levels may rise by 0.38 metre by 2050', date not given)",
   "place": "mumbai",
   "kind": "site-data",
-  "text": "The same plan, as reported, gives the maximum reported tidal level in Mumbai as 2.83 m\nabove mean sea level, and a maximum possible storm surge of 2.09 m above prevailing sea\nlevel, a rare event. It asks that construction near the coast in Mumbai rise to at least\n7.59 m above mean sea level by 2050."
+  "text": "The same plan, as reported, gives the maximum reported tidal level in Mumbai as 2.83 m above mean sea level, and a maximum possible storm surge of 2.09 m above prevailing sea level, a rare event. It asks that construction near the coast in Mumbai rise to at least 7.59 m above mean sea level by 2050."
  },
  {
   "id": "mumbai-sea-levels#3",
@@ -491,7 +491,7 @@ export const CORPUS: Snippet[] = [
   "source": "Secondary reports of two official sources: (1) Minister of Earth Sciences, Rajya Sabha answer, December 2019, citing INCOIS, as reported by The Quint, 4 December 2019; (2) Maharashtra Maritime Board shoreline management plan, as reported by ICSF ('Maharashtra: State's sea levels may rise by 0.38 metre by 2050', date not given)",
   "place": "mumbai",
   "kind": "site-data",
-  "text": "The Mumbai sites use a high tide of +2.5 m, a surge today of +3.5 m and a surge in 2050 of\n+3.8 m above mean sea level (working assumptions in `site.yaml`). The reported maximum\ntide (2.83 m) is a little higher than +2.5 m. A 2.09 m surge on top of a 2.83 m tide would\nreach about +4.9 m, well above +3.5 m, and +5.3 m with 0.38 m of rise by 2050. These are\nworst-case stacks (the highest tide and the largest surge together); the sites' levels are\ncloser to a common monsoon surge. The 7.59 m construction level includes freeboard above\nany of them."
+  "text": "The Mumbai sites use a high tide of +2.5 m, a surge today of +3.5 m and a surge in 2050 of +3.8 m above mean sea level (working assumptions in `site.yaml`). The reported maximum tide (2.83 m) is a little higher than +2.5 m. A 2.09 m surge on top of a 2.83 m tide would reach about +4.9 m, well above +3.5 m, and +5.3 m with 0.38 m of rise by 2050. These are worst-case stacks (the highest tide and the largest surge together); the sites' levels are closer to a common monsoon surge. The 7.59 m construction level includes freeboard above any of them."
  },
  {
   "id": "mumbai-sea-levels#4",
@@ -501,7 +501,7 @@ export const CORPUS: Snippet[] = [
   "source": "Secondary reports of two official sources: (1) Minister of Earth Sciences, Rajya Sabha answer, December 2019, citing INCOIS, as reported by The Quint, 4 December 2019; (2) Maharashtra Maritime Board shoreline management plan, as reported by ICSF ('Maharashtra: State's sea levels may rise by 0.38 metre by 2050', date not given)",
   "place": "mumbai",
   "kind": "site-data",
-  "text": "Changing sea levels means rebuilding the site's flood layers, which the brief cannot do.\nA brief can cite these figures to argue for raised ground floors and larger water and\nlandscape shares on low land, and the site's `sea_levels` can be raised by hand\n(`site.yaml`, then `pc build`)."
+  "text": "Changing sea levels means rebuilding the site's flood layers, which the brief cannot do. A brief can cite these figures to argue for raised ground floors and larger water and landscape shares on low land, and the site's `sea_levels` can be raised by hand (`site.yaml`, then `pc build`)."
  },
  {
   "id": "typologies#1",
@@ -511,7 +511,7 @@ export const CORPUS: Snippet[] = [
   "source": "Courtyard, L, U and tower: CEPT Sem 06 final report (Raghav Kohli, 2020), pp. 46-49, with the courtyard pseudocode. Podium: Gujarat CGDCR 2017 Regulation 6.14 (podium provision) and Mumbai DCPR 2034 Regulation 27 (open space on a podium). Slab: no document in the corpus; described from general practice.",
   "place": "any",
   "kind": "typology",
-  "text": "The 20 m cell grid can't draw a courtyard: each cell is one use and one height. So a\ntypology works at two levels. At site scale it is a prior on the density pattern, a\nstarting population biased towards its kind of fabric (labelled as such and optional). At\nbuilding scale (Phase 7) it becomes a parametric form inside each plot's envelope."
+  "text": "The 20 m cell grid can't draw a courtyard: each cell is one use and one height. So a typology works at two levels. At site scale it is a prior on the density pattern, a starting population biased towards its kind of fabric (labelled as such and optional). At building scale (Phase 7) it becomes a parametric form inside each plot's envelope."
  },
  {
   "id": "typologies#2",
@@ -521,7 +521,7 @@ export const CORPUS: Snippet[] = [
   "source": "Courtyard, L, U and tower: CEPT Sem 06 final report (Raghav Kohli, 2020), pp. 46-49, with the courtyard pseudocode. Podium: Gujarat CGDCR 2017 Regulation 6.14 (podium provision) and Mumbai DCPR 2034 Regulation 27 (open space on a podium). Slab: no document in the corpus; described from general practice.",
   "place": "any",
   "kind": "typology",
-  "text": "A perimeter block around a central court. Sem 06: a 60 m block, the court offset 12 to\n18 m in from the edge (576 to 1,296 m² of court), unit cells of 3 to 7.5 m, floor plates\nevery 3 m, low (1 to 3 floors), medium (3 to 5) and high (5 to 8). Shades its court, keeps\nopen space inside the block, suits housing. At site scale: even, mid-rise heights, high\ncoverage, little difference between cores and the background."
+  "text": "A perimeter block around a central court. Sem 06: a 60 m block, the court offset 12 to 18 m in from the edge (576 to 1,296 m² of court), unit cells of 3 to 7.5 m, floor plates every 3 m, low (1 to 3 floors), medium (3 to 5) and high (5 to 8). Shades its court, keeps open space inside the block, suits housing. At site scale: even, mid-rise heights, high coverage, little difference between cores and the background."
  },
  {
   "id": "typologies#3",
@@ -531,7 +531,7 @@ export const CORPUS: Snippet[] = [
   "source": "Courtyard, L, U and tower: CEPT Sem 06 final report (Raghav Kohli, 2020), pp. 46-49, with the courtyard pseudocode. Podium: Gujarat CGDCR 2017 Regulation 6.14 (podium provision) and Mumbai DCPR 2034 Regulation 27 (open space on a podium). Slab: no document in the corpus; described from general practice.",
   "place": "any",
   "kind": "typology",
-  "text": "Two wings at a corner, open on two sides. Sem 06 primitive. More light and air than a\nclosed court, an open corner for access. At site scale: mid-rise, medium coverage."
+  "text": "Two wings at a corner, open on two sides. Sem 06 primitive. More light and air than a closed court, an open corner for access. At site scale: mid-rise, medium coverage."
  },
  {
   "id": "typologies#4",
@@ -541,7 +541,7 @@ export const CORPUS: Snippet[] = [
   "source": "Courtyard, L, U and tower: CEPT Sem 06 final report (Raghav Kohli, 2020), pp. 46-49, with the courtyard pseudocode. Podium: Gujarat CGDCR 2017 Regulation 6.14 (podium provision) and Mumbai DCPR 2034 Regulation 27 (open space on a podium). Slab: no document in the corpus; described from general practice.",
   "place": "any",
   "kind": "typology",
-  "text": "Three wings around a court open on one side. Sem 06 primitive. The open side faces a\nstreet, view or breeze. At site scale: like the courtyard, a little lower coverage."
+  "text": "Three wings around a court open on one side. Sem 06 primitive. The open side faces a street, view or breeze. At site scale: like the courtyard, a little lower coverage."
  },
  {
   "id": "typologies#5",
@@ -551,7 +551,7 @@ export const CORPUS: Snippet[] = [
   "source": "Courtyard, L, U and tower: CEPT Sem 06 final report (Raghav Kohli, 2020), pp. 46-49, with the courtyard pseudocode. Podium: Gujarat CGDCR 2017 Regulation 6.14 (podium provision) and Mumbai DCPR 2034 Regulation 27 (open space on a podium). Slab: no document in the corpus; described from general practice.",
   "place": "any",
   "kind": "typology",
-  "text": "A tall, slender building with open ground around it. Sem 06 primitive (up to 24 m in the\nblock study). High floor area on a small footprint, but long shadows and little street\nfrontage; \"towers in a park\" was the failure mode of Permutation City's first runs. At\nsite scale: low coverage, heights concentrated at cores (a high peak), low background\ndensity."
+  "text": "A tall, slender building with open ground around it. Sem 06 primitive (up to 24 m in the block study). High floor area on a small footprint, but long shadows and little street frontage; \"towers in a park\" was the failure mode of Permutation City's first runs. At site scale: low coverage, heights concentrated at cores (a high peak), low background density."
  },
  {
   "id": "typologies#6",
@@ -561,7 +561,7 @@ export const CORPUS: Snippet[] = [
   "source": "Courtyard, L, U and tower: CEPT Sem 06 final report (Raghav Kohli, 2020), pp. 46-49, with the courtyard pseudocode. Podium: Gujarat CGDCR 2017 Regulation 6.14 (podium provision) and Mumbai DCPR 2034 Regulation 27 (open space on a podium). Slab: no document in the corpus; described from general practice.",
   "place": "any",
   "kind": "typology",
-  "text": "A long, thin block, often 10 to 15 m deep so every flat has light on two sides (author's\ndescription; no corpus document). Efficient, but long slabs block breezes and views. At\nsite scale: mid to high-rise, medium coverage, moderate concentration."
+  "text": "A long, thin block, often 10 to 15 m deep so every flat has light on two sides (author's description; no corpus document). Efficient, but long slabs block breezes and views. At site scale: mid to high-rise, medium coverage, moderate concentration."
  },
  {
   "id": "typologies#7",
@@ -571,6 +571,6 @@ export const CORPUS: Snippet[] = [
   "source": "Courtyard, L, U and tower: CEPT Sem 06 final report (Raghav Kohli, 2020), pp. 46-49, with the courtyard pseudocode. Podium: Gujarat CGDCR 2017 Regulation 6.14 (podium provision) and Mumbai DCPR 2034 Regulation 27 (open space on a podium). Slab: no document in the corpus; described from general practice.",
   "place": "any",
   "kind": "typology",
-  "text": "A low podium (parking, shops, services) covering most of the plot, with one or more\ntowers above. Both regulations provide for podiums. In Ahmedabad (CGDCR 6.14.2) a podium\nneeds a plot of at least 4,000 m², may be at most 10 m high, and keeps 6 m from the plot\nboundary for fire tenders. Mumbai lets up to 40 per cent of layout open space sit on one. Busy street edges and dense floor area, but sealed ground. At\nsite scale: high coverage, high peak, low background."
+  "text": "A low podium (parking, shops, services) covering most of the plot, with one or more towers above. Both regulations provide for podiums. In Ahmedabad (CGDCR 6.14.2) a podium needs a plot of at least 4,000 m², may be at most 10 m high, and keeps 6 m from the plot boundary for fire tenders. Mumbai lets up to 40 per cent of layout open space sit on one. Busy street edges and dense floor area, but sealed ground. At site scale: high coverage, high peak, low background."
  }
 ];

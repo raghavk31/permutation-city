@@ -128,6 +128,6 @@ export function describe(b: E.Brief): string[] {
   if (b.design_storm_mm) out.push(`${b.design_storm_mm.value} mm storm${tag(b.design_storm_mm)}`);
   if (b.gene_ranges) out.push(`${Object.keys(b.gene_ranges.value).length} gene ranges narrowed`);
   if (b.rule_changes.length) out.push(`${b.rule_changes.length} rule change${b.rule_changes.length > 1 ? "s" : ""}`);
-  if (b.patterns.length) out.push(`patterns ${b.patterns.map((p) => p.id).join(", ")}`);
+  if (b.patterns.length) out.push(`patterns ${b.patterns.map((p) => p.id).sort((x, y) => x - y).join(", ")}`);
   return out;
 }
