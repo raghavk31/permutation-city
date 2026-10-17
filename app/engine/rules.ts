@@ -1,7 +1,7 @@
 // The McHarg rules, run in the browser exactly as pc/rules.py runs them, so a person can
 // edit a threshold and see the map change without the layer service. Rules overlap: a cell
 // keeps every rule it matches (a bitmask), and their limits combine.
-import type { Condition, LayerTable, Rule, RuleSet } from "./types";
+import type { Condition, LayerTable, Rule, RuleSet } from "./types.js";
 
 export const STATES = ["forbidden", "retained", "constrained", "open"] as const;
 export const FORBIDDEN = 0, RETAINED = 1, CONSTRAINED = 2, OPEN = 3;

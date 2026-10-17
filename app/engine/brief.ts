@@ -6,11 +6,11 @@
 // sources). It can't add fields, genes, rules or patterns: the validator drops anything
 // else, with a warning. The genome schema never changes; a brief only changes how genes are
 // read (gene ranges), the rules' limits, and the targets the designs are judged against.
-import { DEFAULT_RANGES, GLOBAL_GENES, LENGTH, N_ATTRACTORS, ATTRACTOR_GENES, type Ranges } from "./config";
-import { SCORE_KEYS } from "./fitness";
-import { roundHalfEven } from "./num";
-import { makeRng } from "./rng";
-import type { Condition, Rule, RuleSet, ScoreKey } from "./types";
+import { DEFAULT_RANGES, GLOBAL_GENES, LENGTH, N_ATTRACTORS, ATTRACTOR_GENES, type Ranges } from "./config.js";
+import { SCORE_KEYS } from "./fitness.js";
+import { roundHalfEven } from "./num.js";
+import { makeRng } from "./rng.js";
+import type { Condition, Rule, RuleSet, ScoreKey } from "./types.js";
 
 export const BRIEF_VERSION = 1;
 

@@ -1,7 +1,7 @@
 // Pareto ranks, crowding and families (pc/fitness.py).
-import { TARGET_TOLERANCE } from "./config";
-import { SCORES, SCORE_KEYS } from "./fitness";
-import type { Scores } from "./types";
+import { TARGET_TOLERANCE } from "./config.js";
+import { SCORES, SCORE_KEYS } from "./fitness.js";
+import type { Scores } from "./types.js";
 
 /** All five scores as "lower is better". */
 const asMin = (s: Scores) => SCORE_KEYS.map((k) => (SCORES[k][2] ? -s[k] : s[k]));

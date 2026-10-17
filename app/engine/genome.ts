@@ -2,10 +2,10 @@
 import {
   ATTRACTOR_GENES, BUILDING, DEFAULT_RANGES, GLOBAL_GENES, KINDS, LANDSCAPE, LENGTH, N_ATTRACTORS,
   WATER, WATER_FIELD_REACH_M, type Ranges,
-} from "./config";
-import { passes } from "./graph";
-import { lerp, norm, roundHalfEven, smooth } from "./num";
-import type { Attractor, Design, Ground, Kind, Rng, Settings, Stats } from "./types";
+} from "./config.js";
+import { passes } from "./graph.js";
+import { lerp, norm, roundHalfEven, smooth } from "./num.js";
+import type { Attractor, Design, Ground, Kind, Rng, Settings, Stats } from "./types.js";
 
 export function decode(genome: number[], bounds: Ground["bounds"], ranges: Ranges = DEFAULT_RANGES) {
   const [xmin, ymin, xmax, ymax] = bounds;

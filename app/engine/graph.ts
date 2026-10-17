@@ -7,8 +7,8 @@
 // Every pair of neighbours on these grids shares one whole edge at one spacing, so the
 // adjacency weights are all equal and smoothing stays a plain mean. An irregular graph
 // (Voronoi cells, parcels) would carry its own weight per pair; it isn't built yet.
-import { roundHalfEven } from "./num";
-import type { GridInfo, Ground, SiteExport, SiteMeta } from "./types";
+import { roundHalfEven } from "./num.js";
+import type { GridInfo, Ground, SiteExport, SiteMeta } from "./types.js";
 
 /** The grid of a site. Files before format 3 have only `hex_radius`. */
 export function gridOf(meta: SiteMeta): GridInfo {

@@ -2,7 +2,7 @@
 // question the brief needs answered, so every field gets its best evidence. No embeddings:
 // the corpus is small, the words are technical (FSI, setback, storey), and BM25 is easy to
 // check by hand.
-import type { Snippet } from "./chunk";
+import type { Snippet } from "./chunk.js";
 
 const STOP = new Set(("a an and are as at be by for from has have in is it its of on or that the this to was were "
   + "will with which shall may not no be been if than then there these those such per any all each other").split(" "));

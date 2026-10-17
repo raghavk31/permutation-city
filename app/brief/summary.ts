@@ -1,8 +1,8 @@
 // What the brief compiler is told about a site: its size, its layers in a few numbers, its
 // rules and its current brief. Made in the browser from the site file and the rules as
 // edited in the layer cake, so the compiler sees the same ground the person does.
-import * as E from "../engine";
-import { placeOf } from "./retrieve";
+import * as E from "../engine/index.js";
+import { placeOf } from "./retrieve.js";
 
 export interface SiteSummary {
   name: string;

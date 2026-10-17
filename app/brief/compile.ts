@@ -4,11 +4,11 @@
 // In: the site summary (made in the browser), the person's description, and snippets cut
 // from their uploads. Out: a validated brief, the warnings for anything dropped, and every
 // snippet the compiler was shown, so the page can show each citation.
-import * as E from "../engine";
-import type { Snippet } from "./chunk";
-import { briefSchema, SYSTEM, TOOL, userMessage } from "./prompt";
-import { retrieve } from "./retrieve";
-import type { SiteSummary } from "./summary";
+import * as E from "../engine/index.js";
+import type { Snippet } from "./chunk.js";
+import { briefSchema, SYSTEM, TOOL, userMessage } from "./prompt.js";
+import { retrieve } from "./retrieve.js";
+import type { SiteSummary } from "./summary.js";
 
 export const LIMITS = {
   bodyBytes: 4_000_000, description: 4000, uploads: 600, uploadChars: 2000, uploadTotal: 1_200_000,

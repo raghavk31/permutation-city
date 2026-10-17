@@ -1,10 +1,10 @@
 // Evolution, NSGA-II style with the Sem 06 breeding rules (pc/evolve.py).
-import { ATTRACTOR_GENES, DEFAULT_RANGES, DUPLICATE, LENGTH, N_ATTRACTORS, TARGET_TOLERANCE, type Ranges } from "./config";
-import { evaluate, SCORES, SCORE_KEYS } from "./fitness";
-import { grow, randomGenome } from "./genome";
-import { makeRng } from "./rng";
-import { crowding, difference, families, paretoRanks } from "./rank";
-import type { Design, Ground, Rng, ScoreKey } from "./types";
+import { ATTRACTOR_GENES, DEFAULT_RANGES, DUPLICATE, LENGTH, N_ATTRACTORS, TARGET_TOLERANCE, type Ranges } from "./config.js";
+import { evaluate, SCORES, SCORE_KEYS } from "./fitness.js";
+import { grow, randomGenome } from "./genome.js";
+import { makeRng } from "./rng.js";
+import { crowding, difference, families, paretoRanks } from "./rank.js";
+import type { Design, Ground, Rng, ScoreKey } from "./types.js";
 
 export interface Individual {
   name: string;

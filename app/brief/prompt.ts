@@ -1,9 +1,9 @@
 // The brief compiler's instructions and the tool it must fill. The tool's schema mirrors
 // app/engine/brief.ts, with the choices narrowed to this site: its changeable rules, the
 // snippets it was given, the pattern cards. The validator checks everything again after.
-import * as E from "../engine";
-import type { Snippet } from "./chunk";
-import type { SiteSummary } from "./summary";
+import * as E from "../engine/index.js";
+import type { Snippet } from "./chunk.js";
+import type { SiteSummary } from "./summary.js";
 
 export const TOOL = "propose_brief";
 
