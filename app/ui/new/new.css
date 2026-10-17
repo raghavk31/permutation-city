@@ -1,0 +1,72 @@
+/* Draw a site: the picker and the layer cake. Builds on style.css (.pc tokens). */
+.pc-error { color: #b42318; }
+.pc-head .pc-kicker a { text-decoration: none; }
+
+/* picker */
+.pcn-search { position: relative; max-width: 560px; margin: 8px 0 12px; }
+.pcn-search label { display: block; margin-bottom: 4px; }
+.pcn-search input { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--pc-line); border-radius: 4px; background: var(--pc-surface); font-size: 16px; }
+.pcn-results { position: absolute; z-index: 5; left: 0; right: 0; margin: 2px 0 0; padding: 4px; list-style: none; background: var(--pc-surface); border: 1px solid var(--pc-line); border-radius: 4px; box-shadow: 0 4px 16px rgb(0 0 0 / .08); }
+.pc .pcn-results button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 6px 8px; border-radius: 3px; }
+.pc .pcn-results button:hover { background: var(--pc-retained); }
+.pcn-map-wrap { position: relative; }
+.pcn-map { height: min(62vh, 560px); border: 1px solid var(--pc-line); border-radius: 4px; }
+.pcn-map-tools { position: absolute; left: 8px; top: 8px; display: flex; gap: 4px; flex-wrap: wrap; }
+.pc .pcn-map-tools button { background: var(--pc-surface); box-shadow: 0 1px 4px rgb(0 0 0 / .15); }
+/* MapLibre's own controls keep their look, not the page's buttons. */
+.pc .maplibregl-ctrl-group button { margin: 0; padding: 0; border: 0; border-radius: 0; background-color: transparent; width: 29px; height: 29px; }
+.pc .maplibregl-ctrl-group button + button { border-top: 1px solid #ddd; }
+.pc .maplibregl-ctrl-attrib-button { padding: 0; border: 0; }
+.pc .pcn-map-tools button[aria-pressed="true"] { background: var(--pc-ink); color: var(--pc-surface); }
+.pcn-hint { margin: 6px 0 16px; }
+.pcn-form { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; padding: 12px 0; border-top: 1px solid var(--pc-line); }
+.pcn-form label { display: flex; gap: 6px; align-items: center; }
+.pcn-form input[type="text"], .pcn-form select { padding: 4px 6px; border: 1px solid var(--pc-line); border-radius: 4px; background: var(--pc-surface); }
+.pcn-check { display: flex; gap: 6px; align-items: baseline; max-width: 60ch; }
+.pcn-size { flex-basis: 100%; margin: 0; }
+.pcn-progress { border: 1px solid var(--pc-line); border-radius: 4px; padding: 8px 16px; margin: 12px 0; max-width: 640px; }
+.pcn-progress ol { margin: 8px 0; padding-left: 20px; }
+.pcn-progress li { color: var(--pc-muted); }
+.pcn-progress li.done { color: var(--pc-ink-2); }
+.pcn-progress li.done::marker { content: "✓  "; }
+.pcn-progress li.now { color: var(--pc-ink); font-weight: 600; }
+.pcn-offline { border: 1px solid var(--pc-line); border-left: 3px solid var(--pc-build); border-radius: 4px; padding: 10px 14px; margin: 8px 0 16px; max-width: 760px; }
+.pcn-offline p { margin: 4px 0; }
+.pcn-offline .pcn-ready { margin-top: 10px; }
+.pcn-ready { margin-top: 24px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+
+/* cake */
+.pcn-cake-head h1 { margin-bottom: 4px; }
+.pc .pcn-link { border: 0; padding: 0; background: none; text-decoration: underline; text-underline-offset: 3px; font-size: inherit; color: inherit; cursor: pointer; }
+.pcn-cake-body { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 28px; align-items: start; margin-top: 24px; }
+.pcn-toggles { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0 12px; }
+.pc .pcn-toggles button { font-size: 12px; padding: 2px 8px; }
+.pcn-layers { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+.pcn-layers figure { margin: 0; }
+.pcn-layers canvas { width: 100%; display: block; border: 1px solid var(--pc-line); border-radius: 3px; }
+.pcn-layers figcaption { font-size: 13px; margin-top: 4px; line-height: 1.35; }
+.pcn-sticky { position: sticky; top: 12px; }
+.pcn-cell { min-height: 5.5em; font-size: 14px; margin-top: 8px; }
+.pcn-dot { background: var(--pc-ink) !important; border-radius: 50%; width: 6px !important; height: 6px !important; }
+.pcn-rules { border-top: 1px solid var(--pc-line); margin-top: 40px; padding-top: 16px; }
+.pcn-rule-list { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; }
+.pcn-rule { border: 1px solid var(--pc-line); border-left-width: 4px; border-radius: 4px; padding: 8px 12px; }
+.pcn-rule p { margin: 4px 0; font-size: 13px; }
+.pcn-rule.off { opacity: .55; }
+.pcn-forbidden { border-left-color: var(--pc-water); }
+.pcn-retained { border-left-color: var(--pc-muted); }
+.pcn-constrained { border-left-color: var(--pc-build); }
+.pcn-rule-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.pcn-kind { font-size: 12px; color: var(--pc-ink-2); text-transform: lowercase; }
+.pcn-when, .pcn-limits { font-size: 14px; margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
+.pcn-when input, .pcn-limits input { width: 5.5em; padding: 2px 4px; border: 1px solid var(--pc-line); border-radius: 3px; background: var(--pc-surface); }
+.pcn-when select { padding: 1px 2px; }
+.pcn-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 16px 0; }
+.pcn-go { background: var(--pc-ink); color: var(--pc-surface) !important; padding: 6px 14px; border-radius: 4px; text-decoration: none; font-size: 15px; }
+
+@media (max-width: 860px) {
+  .pcn-cake-body { grid-template-columns: 1fr; }
+  .pcn-sticky { position: static; }
+  .pcn-allows { order: -1; }
+  .pcn-rule-list { grid-template-columns: 1fr; }
+}

@@ -1,0 +1,9 @@
+# Only pc/, service/, the rules template and the lock file go into the service image.
+*
+!pyproject.toml
+!uv.lock
+!README.md
+!rules.template.yaml
+!pc/
+!service/
+**/__pycache__

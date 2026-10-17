@@ -27,7 +27,12 @@ def _name(n):
 
 
 def context(site: Site):
-    load = lambda t: gpd.read_parquet(site.overture(t)).to_crs(site.crs)
+    def load(theme):  # a theme with nothing in the box (or not fetched) is empty
+        p = site.overture(theme)
+        if not p.exists():
+            return gpd.GeoDataFrame({"subtype": [], "class": [], "names": []}, geometry=[], crs=site.crs)
+        return gpd.read_parquet(p).to_crs(site.crs)
+
     seg = load("segment")
     div = load("division")
     div = div[div["subtype"].isin(["neighborhood", "macrohood", "locality"])

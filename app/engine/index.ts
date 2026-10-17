@@ -1,6 +1,6 @@
 // Permutation City: the browser engine.
 //
-// A line-for-line port of pc/genome.py (growth), pc/fitness.py (scores, Pareto ranks,
+// A line-for-line port of pc/rules.py (the McHarg rules), pc/genome.py (growth), pc/fitness.py (scores, Pareto ranks,
 // families) and pc/evolve.py (evolution), reading a site exported by `pc export`.
 // test/parity checks that it grows and scores designs exactly as Python does.
 //
@@ -8,7 +8,11 @@
 export * from "./config";
 export * from "./types";
 export { roundHalfEven, smooth } from "./num";
-export { prepare } from "./ground";
+export { prepare, prepareFromRules, designFromRules } from "./ground";
+export {
+  applyRules, evaluate as evaluateCondition, layersUsed, MissingLayer, STATES, FORBIDDEN, RETAINED, CONSTRAINED, OPEN,
+  type RuleResult,
+} from "./rules";
 export { decode, grow, randomGenome, stats } from "./genome";
 export { evaluate, floorAreaTarget, SCORES, SCORE_KEYS } from "./fitness";
 export { paretoRanks, crowding, difference, families } from "./rank";
