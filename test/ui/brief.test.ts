@@ -158,7 +158,8 @@ describe("POST /api/brief", () => {
     expect(out.warnings).toEqual(["unknown field nonsense dropped", "height_limit_levels: outside the allowed range; left out"]);
     expect(out.snippets.map((s: { id: string }) => s.id)).toContain(out.brief.fsi.sources[0]);
     expect(out.model).toBe("anthropic/claude-sonnet-5.5");
-    expect(d.sent[0].tool_choice.function.name).toBe("propose_brief");
+    expect(d.sent[0].tools[0].function.name).toBe("propose_brief");
+    expect(d.sent[0].tool_choice).toBe("auto");
     expect(d.sent[0].messages[1].content).toContain("A low, green waterfront");
   });
 

@@ -109,7 +109,9 @@ export async function compileBrief(req: BriefRequest, corpus: Snippet[], deps: D
       model, temperature: 0.2, max_tokens: LIMITS.maxTokens,
       messages: [{ role: "system", content: SYSTEM }, { role: "user", content: userMessage(req.site, req.description, snippets) }],
       tools: [{ type: "function", function: { name: TOOL, description: "Propose the brief for this site.", parameters: briefSchema(ctx) } }],
-      tool_choice: { type: "function", function: { name: TOOL } },
+      // Forcing a named tool isn't supported for these models on OpenRouter ("tool_choice: type
+      // tool and any are not supported"), so the model is told to use it and may answer in text.
+      tool_choice: "auto",
     }),
     signal: AbortSignal.timeout(LIMITS.timeoutMs),
   });
