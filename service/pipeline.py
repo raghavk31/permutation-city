@@ -7,6 +7,7 @@ everything that changes it (see `cache_key`).
 
 import hashlib
 import json
+import re
 import shutil
 import time
 from dataclasses import dataclass, field
@@ -130,47 +131,95 @@ STEPS = ["setting up", "elevation", "bare earth", "land cover", "Overture map da
          "rules and export"]
 
 
-def run(req: Request, key: str, overture_release: str | None, cache: Path, progress=lambda step: None) -> Path:
+THEMES = {"building": "buildings", "segment": "roads and rail", "land_use": "land use",
+          "water": "water", "division": "place names", "place": "places"}
+KEY_RE = re.compile(r"^[0-9a-f]{24}$")
+
+
+def request_from_json(body) -> Request:
+    """A request as the app sends it ({boundary, grid: {type, size}, name, context_m,
+    sea_levels, rules}), checked for shape. `check` then checks the values."""
+    if not isinstance(body, dict):
+        raise Rejected("send a JSON object")
+    grid = body.get("grid") or {}
+    try:
+        return Request(
+            boundary=polygon_from_geojson(body.get("boundary") or {}),
+            grid_type=str(grid.get("type", "hex")), cell_size=float(grid.get("size", 20)),
+            context_m=float(body.get("context_m", 250)),
+            sea_levels={str(k): float(v) for k, v in (body.get("sea_levels") or {}).items()},
+            rules=body.get("rules"), name=(str(body.get("name") or "").strip() or "New site")[:80])
+    except (TypeError, ValueError, AttributeError) as e:
+        raise Rejected(f"can't read the request: {e}") from None
+
+
+# --- the stages of a build (run below, and one per workflow step in service/actions.py) --
+
+def site_id_for(key: str) -> str:
+    return f"svc-{key}"
+
+
+def write_site(req: Request, key: str):
+    """Stage 0: the throwaway site folder (site.yaml, boundary, rules)."""
+    folder = SITES / site_id_for(key)
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "boundary.geojson").write_text(json.dumps(
+        {"type": "FeatureCollection", "features": [{"type": "Feature", "properties": {},
+                                                    "geometry": mapping(req.boundary)}]}), encoding="utf-8")
+    cfg = {"name": req.name, "boundary": "boundary.geojson", "context_m": req.context_m,
+           "grid": {"type": req.grid_type, "size": req.cell_size}, "sea_levels": req.sea_levels or None}
+    (folder / "site.yaml").write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
+    r = req.rules or yaml.safe_load((ROOT / "rules.template.yaml").read_text(encoding="utf-8"))
+    (folder / "rules.yaml").write_text(yaml.safe_dump(r, sort_keys=False), encoding="utf-8")
+    return load(site_id_for(key))
+
+
+FETCHES = [fetch.fetch_dem, fetch.fetch_terrain, fetch.fetch_landcover]  # stages 1 to 3
+
+
+def fetch_overture(site, release: str | None, progress=lambda step, detail=None: None):
+    """Stage 4."""
+    fetch.fetch_overture(site, release=release, on_theme=lambda k, t: progress(
+        4, f"{THEMES.get(t, t)} ({k + 1} of {len(fetch.OVERTURE_THEMES)})"))
+
+
+def build_layers(site):
+    """Stage 5."""
+    grid = layers.build(site)
+    site.layers.mkdir(parents=True, exist_ok=True)
+    grid.to_file(site.layers / "grid.gpkg", layer="cells", driver="GPKG")
+
+
+def export_site(site, key: str, release: str | None, out: Path) -> Path:
+    """Stage 6: the export, written atomically to `out`."""
+    data_out = export.export(site)
+    data_out["meta"]["id"] = key
+    data_out["meta"]["service"] = {"overture": release, "layers": LAYERS_VERSION}
+    out.parent.mkdir(parents=True, exist_ok=True)
+    tmp = out.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data_out, separators=(",", ":")), encoding="utf-8")
+    tmp.replace(out)
+    return out
+
+
+def clean(key: str):
+    shutil.rmtree(SITES / site_id_for(key), ignore_errors=True)
+    shutil.rmtree(DATA / site_id_for(key), ignore_errors=True)
+
+
+def run(req: Request, key: str, overture_release: str | None, cache: Path, progress=lambda step, detail=None: None) -> Path:
     """Build the site and write <cache>/<key>.json. The work folders are removed after."""
-    site_id = f"svc-{key}"
-    folder, data = SITES / site_id, DATA / site_id
     try:
         progress(0)
-        folder.mkdir(parents=True, exist_ok=True)
-        (folder / "boundary.geojson").write_text(json.dumps(
-            {"type": "FeatureCollection", "features": [{"type": "Feature", "properties": {},
-                                                        "geometry": mapping(req.boundary)}]}), encoding="utf-8")
-        cfg = {"name": req.name, "boundary": "boundary.geojson", "context_m": req.context_m,
-               "grid": {"type": req.grid_type, "size": req.cell_size}, "sea_levels": req.sea_levels or None}
-        (folder / "site.yaml").write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
-        r = req.rules or yaml.safe_load((ROOT / "rules.template.yaml").read_text(encoding="utf-8"))
-        (folder / "rules.yaml").write_text(yaml.safe_dump(r, sort_keys=False), encoding="utf-8")
-        site = load(site_id)
-
-        for k, step in enumerate([fetch.fetch_dem, fetch.fetch_terrain, fetch.fetch_landcover]):
+        site = write_site(req, key)
+        for k, step in enumerate(FETCHES):
             progress(1 + k)
             step(site)
         progress(4)
-        themes = {"building": "buildings", "segment": "roads and rail", "land_use": "land use",
-                  "water": "water", "division": "place names", "place": "places"}
-        fetch.fetch_overture(site, release=overture_release, on_theme=lambda k, t: progress(
-            4, f"{themes.get(t, t)} ({k + 1} of {len(fetch.OVERTURE_THEMES)})"))
-
+        fetch_overture(site, overture_release, progress)
         progress(5)
-        grid = layers.build(site)
-        site.layers.mkdir(parents=True, exist_ok=True)
-        grid.to_file(site.layers / "grid.gpkg", layer="cells", driver="GPKG")
-
+        build_layers(site)
         progress(6)
-        data_out = export.export(site)
-        data_out["meta"]["id"] = key
-        data_out["meta"]["service"] = {"overture": overture_release, "layers": LAYERS_VERSION}
-        cache.mkdir(parents=True, exist_ok=True)
-        out = cache / f"{key}.json"
-        tmp = out.with_suffix(".tmp")
-        tmp.write_text(json.dumps(data_out, separators=(",", ":")), encoding="utf-8")
-        tmp.replace(out)
-        return out
+        return export_site(site, key, overture_release, cache / f"{key}.json")
     finally:
-        shutil.rmtree(folder, ignore_errors=True)
-        shutil.rmtree(data, ignore_errors=True)
+        clean(key)

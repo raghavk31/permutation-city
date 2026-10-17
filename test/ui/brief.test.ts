@@ -191,11 +191,11 @@ describe("POST /api/brief", () => {
 });
 
 describe("the function's code runs unbundled on Vercel", () => {
-  it("every relative import in engine/, brief/ and api/ names its .js file (Node ESM needs it)", async () => {
+  it("every relative import in engine/, brief/, sites/ and api/ names its .js file (Node ESM needs it)", async () => {
     const { readdirSync } = await import("node:fs");
     const app = join(__dirname, "..", "..", "app");
     const bad: string[] = [];
-    for (const dir of ["engine", "brief", "api"]) {
+    for (const dir of ["engine", "brief", "api", "sites"]) {
       for (const f of readdirSync(join(app, dir)).filter((x) => x.endsWith(".ts"))) {
         const src = readFileSync(join(app, dir, f), "utf8");
         for (const m of src.matchAll(/(?:from |import\()["'](\.[^"']*)["']/g)) {

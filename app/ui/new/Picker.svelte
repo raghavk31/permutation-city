@@ -6,7 +6,7 @@
   import { TerraDrawMapLibreGLAdapter } from "terra-draw-maplibre-gl-adapter";
   import { cellAreaOf } from "../../engine";
   import * as Sites from "../sites";
-  import { estimatedCells, polygonKm2 } from "./geo";
+  import { estimatedCells, polygonKm2 } from "../../sites/geo";
   import { search, type Place } from "./search";
   import * as Service from "./service";
 
@@ -76,7 +76,10 @@
       draw.on("finish", () => { sync(); drawing = false; draw!.setMode("select"); });
       draw.on("change", sync);
     });
-    Service.limits().then((l) => (limits = l)).catch((e) => (serviceError = e.message));
+    Service.limits().then((l) => {
+      limits = l;
+      if (l.available === false) serviceError = "Building isn't set up for this copy of the app.";
+    }).catch((e) => (serviceError = e.message));
     fetch(`${Sites.DATA}sites.json`).then((r) => r.json()).then((s) => (ready = s)).catch(() => {});
   });
 
@@ -164,8 +167,8 @@
 <section class="pcn-picker">
   {#if serviceError}
     <div class="pcn-offline" role="status">
-      <p><b>New sites can't be built here yet.</b> Building one needs the layer service, which downloads the site's ground,
-        water, land cover and buildings, and it isn't running for this copy of the app. You can still search and draw.</p>
+      <p><b>New sites can't be built here yet.</b> Building one downloads the site's ground, water, land cover and
+        buildings, and that isn't working for this copy of the app. You can still search and draw.</p>
       <p class="pc-muted">{serviceError}</p>
       {@render readyMade("Open a ready-made site instead:")}
     </div>
