@@ -457,6 +457,8 @@ No changes to your order except:
 - Phase 6 builds the derived street/block network that Phase 8 reuses (R5), and uses the
   fifteen properties as its framework (6.4).
 - Phase 9 adds piecemeal growth (6.6).
+- Phase 10 (added 2026-10-17) is a design and UI pass over the whole app: audit, design
+  system, flow, states, accessibility and copy. It runs last so no screen is redesigned twice.
 - D3 (shared RNG) lands in Phase 1 if you approve it, since every later search method
   depends on it.
 
