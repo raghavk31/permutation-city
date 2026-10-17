@@ -91,6 +91,7 @@
     <h1>{site.meta.name}</h1>
     <p class="pc-muted">{site.grid.x.length.toLocaleString("en-IN")} cells, {E.gridLabel(E.gridOf(site.meta))} ·
       design ground {fmtHa(designHa)} · <button type="button" class="pcn-link" onclick={onback}>pick another site</button></p>
+    {#each site.meta.service?.warnings ?? [] as w}<p class="pcn-warn" role="note">{w}</p>{/each}
   </div>
 
   <div class="pcn-cake-body">

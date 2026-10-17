@@ -174,7 +174,14 @@ def write_site(req: Request, key: str):
     return load(site_id_for(key))
 
 
-FETCHES = [fetch.fetch_dem, fetch.fetch_terrain, fetch.fetch_landcover]  # stages 1 to 3
+# Stages 1 to 3. A web build falls back to the surface model if FABDEM is down, and says so
+# (export_site records it; the layer cake shows it).
+FETCHES = [fetch.fetch_dem, lambda site: fetch.fetch_terrain(site, fallback=True), fetch.fetch_landcover]
+FALLBACK_NOTES = {
+    "copernicus-surface": "Bare-earth heights (FABDEM) couldn't be downloaded, so ground heights come from the "
+                          "Copernicus surface model and include buildings and trees: flooding and rain pooling in "
+                          "built-up areas are underestimated, and building heights read as zero.",
+}
 
 
 def fetch_overture(site, release: str | None, progress=lambda step, detail=None: None):
@@ -190,11 +197,12 @@ def build_layers(site):
     grid.to_file(site.layers / "grid.gpkg", layer="cells", driver="GPKG")
 
 
-def export_site(site, key: str, release: str | None, out: Path) -> Path:
-    """Stage 6: the export, written atomically to `out`."""
+def export_site(site, key: str, release: str | None, out: Path, terrain: str = "fabdem") -> Path:
+    """Stage 6: the export, written atomically to `out`. `terrain`: what stage 2 used."""
     data_out = export.export(site)
     data_out["meta"]["id"] = key
-    data_out["meta"]["service"] = {"overture": release, "layers": LAYERS_VERSION}
+    data_out["meta"]["service"] = {"overture": release, "layers": LAYERS_VERSION, "terrain": terrain,
+                                   "warnings": [FALLBACK_NOTES[terrain]] if terrain in FALLBACK_NOTES else []}
     out.parent.mkdir(parents=True, exist_ok=True)
     tmp = out.with_suffix(".tmp")
     tmp.write_text(json.dumps(data_out, separators=(",", ":")), encoding="utf-8")
@@ -212,14 +220,15 @@ def run(req: Request, key: str, overture_release: str | None, cache: Path, progr
     try:
         progress(0)
         site = write_site(req, key)
+        used = [None, None, None]
         for k, step in enumerate(FETCHES):
             progress(1 + k)
-            step(site)
+            used[k] = step(site)
         progress(4)
         fetch_overture(site, overture_release, progress)
         progress(5)
         build_layers(site)
         progress(6)
-        return export_site(site, key, overture_release, cache / f"{key}.json")
+        return export_site(site, key, overture_release, cache / f"{key}.json", used[1] or "fabdem")
     finally:
         clean(key)

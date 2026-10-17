@@ -85,16 +85,22 @@ def overture():
     pipeline.fetch_overture(site(), release, lambda step, detail=None: print(f"  {detail or ''}", flush=True))
 
 
+def bare_earth():
+    (WORK / "terrain.txt").write_text(pipeline.FETCHES[1](site()), encoding="utf-8")
+
+
 def export():
     release = (WORK / "release.txt").read_text(encoding="utf-8").strip() or None
-    out = pipeline.export_site(site(), key(), release, OUT / "site.json")
+    terrain_file = WORK / "terrain.txt"
+    terrain = terrain_file.read_text(encoding="utf-8").strip() if terrain_file.exists() else "fabdem"
+    out = pipeline.export_site(site(), key(), release, OUT / "site.json", terrain)
     print(f"wrote {out} ({out.stat().st_size / 1e3:.0f} KB)")
 
 
 STEPS = {
     "setup": setup,
     "elevation": lambda: pipeline.FETCHES[0](site()),
-    "bare-earth": lambda: pipeline.FETCHES[1](site()),
+    "bare-earth": bare_earth,
     "land-cover": lambda: pipeline.FETCHES[2](site()),
     "overture": overture,
     "layers": lambda: pipeline.build_layers(site()),

@@ -71,13 +71,38 @@ def fetch_landcover(site: Site):
     _clip(urls, site.bbox, site.landcover)
 
 
-def fetch_terrain(site: Site):
+class TerrainUnavailable(RuntimeError):
+    pass
+
+
+def fetch_terrain(site: Site, tries: int = 4, fallback: bool = False) -> str:
+    """FABDEM bare earth for the box. Its only host (data.bris.ac.uk) drops connections now
+    and then, so it is tried a few times, waiting longer each time. If it still fails:
+    with `fallback`, the Copernicus surface model stands in (heights then include buildings
+    and trees, so building heights read as zero and built-up land looks higher than it is);
+    without, it raises. Returns which source was used: "fabdem" or "copernicus-surface"."""
     import fabdem
 
     w, s, e, n = site.bbox
     site.raw.mkdir(parents=True, exist_ok=True)
-    fabdem.download((w - BUFFER, s - BUFFER, e + BUFFER, n + BUFFER), str(site.terrain),
-                    show_progress=False)
+    for attempt in range(tries):
+        try:
+            fabdem.download((w - BUFFER, s - BUFFER, e + BUFFER, n + BUFFER), str(site.terrain),
+                            show_progress=False)
+            return "fabdem"
+        except Exception as err:  # connection dropped, server error
+            last = err
+            if attempt < tries - 1:
+                wait = 15 * 2 ** attempt
+                print(f"  FABDEM didn't answer ({type(err).__name__}); trying again in {wait} s", flush=True)
+                time.sleep(wait)
+    if not fallback:
+        raise TerrainUnavailable(f"FABDEM (data.bris.ac.uk) didn't answer after {tries} tries: {last}")
+    if not site.dem.exists():
+        fetch_dem(site)
+    shutil.copyfile(site.dem, site.terrain)
+    print("  FABDEM unavailable: using the Copernicus surface model as the ground", flush=True)
+    return "copernicus-surface"
 
 
 def fetch_overture(site: Site, tries=5, release: str | None = None, on_theme=lambda k, theme: None):
