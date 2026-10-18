@@ -30,6 +30,7 @@ forbidden:
   - name: water's edge
     when: edge_dist < 30
     why: a continuous public edge and room for wetland
+    roles: [public_edge]
 
 retained:
   - name: outside the design area
@@ -40,21 +41,25 @@ constrained:
   - name: shallow flooding in 2050
     when: flood_surge_2050 > 0
     why: floods up to 1.5 m in a 2050 surge
+    roles: [flood_storage]
     limits: {raised_ground: true, min_permeable: 0.5}
 
   - name: rain hollows
     when: pool > 0.2
     why: rainwater collects here; keep it as storage
+    roles: [flood_storage]
     limits: {min_permeable: 0.7, uses: [water, wetland, landscape]}
 
   - name: drainage lines
     when: upstream >= 40
     why: water flows through here; keep the path open
+    roles: [drainage_path]
     limits: {min_permeable: 0.5, uses: [water, wetland, landscape, street]}
 
   - name: breeze edge
     when: edge_dist < 120
     why: keep low near the water so the breeze reaches inland
+    roles: [breeze_corridor]
     limits: {max_levels: 4}
 
   - name: industrial land
@@ -65,4 +70,5 @@ constrained:
   - name: existing trees
     when: trees >= 0.5
     why: mature canopy; build around it
+    roles: [canopy]
     limits: {min_permeable: 0.6, max_levels: 6}

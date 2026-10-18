@@ -18,14 +18,19 @@ The app in `app/` is a static Vite build plus Vercel functions in `app/api/`. Th
   npx vercel deploy --prod   # production
   ```
 
-- Environment variables (Phase 4):
+- Environment variables:
   - `OPENROUTER_API_KEY` (secret). Set it with `npx vercel env add OPENROUTER_API_KEY`
     for Production and Preview (and Development if you run functions locally with
     `npx vercel dev`).
   - `OPENROUTER_MODEL` (optional), the OpenRouter model id for the brief compiler. It
     defaults to Claude Sonnet 5.5.
+  - `VITE_SERVICE_URL` (Phase 2), the layer service's address, e.g.
+    `https://<name>.up.railway.app`. Unlike the two above it is public: Vite builds it into
+    the page, which calls the service directly. Without it, `new.html` says new sites
+    can't be built yet and still opens the ready-made ones. In `npm run dev` it defaults
+    to `http://localhost:8765`. Changing it needs a redeploy.
 
-  Both are read only inside `app/api/`, never in the client. For local work,
+  The OpenRouter variables are read only inside `app/api/`, never in the client. For local work,
   `npx vercel env pull app/.env.local` copies them down (run from the repo root). `.env*` files are not committed.
 
 ## Production name

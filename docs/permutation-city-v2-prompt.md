@@ -153,6 +153,20 @@ The user can promote up to two metrics to objectives or MAP-Elites axes. The Bre
 - Shock testing in the browser (sea level, extreme rain, heatwave) on any selected design.
 - A short "how it works" chapter in the app, based on `docs/generative-method.md`.
 
+### Phase 10 - Design and UI
+Runs last, once every screen exists. Engine behaviour does not change; parity must still pass.
+
+- **Audit first.** Screenshot every screen and state of the deployed app (search, layer cake, context and brief, evolve, explore, 3D, runs). List what is inconsistent, cluttered or unclear, ranked by how much it hurts the flow. Agree the list with me before changing anything.
+- **Design system.** One set of tokens (type scale, colour, spacing, radius, elevation) and shared Svelte components in `app/ui/`. Map and layer palettes are colour-blind safe and readable in light and dark themes. Document it in `docs/design.md`.
+- **One flow.** The six steps of section 2 read as one path: a clear current step, back and forward without losing state, and the site, brief and run always visible in a summary.
+- **States.** Every screen has designed loading, empty, error and long-job states (layer fetches and evolution runs show progress and can be cancelled where the engine allows).
+- **Data views.** Pareto views, metric panels and the archive grid share one chart style, with readable axes, units and legends.
+- **Layout.** 2D screens work from phone width to a wide desktop with no horizontal scroll. 3D stays desktop-first (see section 7) but must not break on small screens.
+- **Accessibility.** Keyboard use for every control, visible focus, WCAG AA contrast, reduced motion respected, and text labels for anything shown only by colour.
+- **Copy.** One pass over all UI text against the ground rules: plain, short, no marketing tone, no em dashes.
+- **Performance.** Measure first load and bundle size before and after; the redesign must not make either worse.
+- Checkpoint: before and after screenshots of each screen in `docs/design.md`.
+
 ---
 
 ## 5b. Christopher Alexander as a core reference

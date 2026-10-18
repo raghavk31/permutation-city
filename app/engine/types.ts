@@ -8,7 +8,12 @@ export interface SiteExport {
     water: number[]; state: number[];
     ground: number[]; flood: number[]; pool: number[]; green: number[]; built: number[];
     industrial: number[]; reasons: string[];
+    // format 2
+    nbr?: number[];         // n × 6 over the whole grid, -1 where there is no neighbour
+    memberships?: number[]; // bit k: the cell matches rule k
+    layers?: LayerTable;    // every layer column as built
   };
+  rules?: RuleSet;          // format 2
   design: {
     x: number[]; y: number[];
     nbr: number[];        // n × 6, -1 where there is no neighbour
@@ -23,7 +28,35 @@ export interface SiteExport {
   };
 }
 
+/** Layer name → one value per grid cell (yes/no layers as 1/0; null for no value). */
+export type LayerTable = Record<string, (number | null)[]>;
+
+/** A rule condition (pc.rules): a comparison, a yes/no layer, or a combination. */
+export type Condition =
+  | { layer: string; op?: ">" | ">=" | "<" | "<=" | "==" | "!="; value?: number }
+  | { all: Condition[] }
+  | { any: Condition[] }
+  | { not: Condition };
+
+export interface RuleLimits {
+  max_levels?: number; min_permeable?: number; uses?: string[];
+  raised_ground?: boolean; remediate?: boolean;
+}
+
+export interface Rule {
+  id: number;               // membership bit
+  kind: "forbidden" | "retained" | "constrained";
+  name: string; when: Condition; limits: RuleLimits; roles: string[];
+  why: string; source: string;
+}
+
+export interface RuleSet {
+  defaults: { max_levels: number; min_permeable: number; uses: string[] };
+  list: Rule[];
+}
+
 export interface SiteMeta {
+  format?: number;
   id: string; name: string; origin: [number, number];
   hex_radius: number; cell_area: number;
   design_storm_mm: number; target_far: number; target_floor_area_ha: number | null;

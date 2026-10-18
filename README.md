@@ -37,10 +37,19 @@ The web app (v2, Vite + TypeScript, deployed on Vercel):
 
 ```bash
 cd app && npm install                      # once
-npm run dev                                # http://localhost:5173
+npm run dev                                # http://localhost:5173 (and /new.html: draw a site)
 npm test                                   # parity: the TS engine against Python fixtures
 npm run speed                              # 1,860 designs per site, timed
 ```
+
+The layer service (FastAPI; builds a drawn site's layers for the web app):
+
+```bash
+uv run uvicorn service.main:app --port 8765    # the app's dev server looks for it here
+uv run pytest test/python                      # rules and service tests
+```
+
+See [docs/service.md](docs/service.md) for the API, limits, cache and Railway deploy.
 
 Live: https://permutationcity.vercel.app. Plan and decisions for v2: [docs/architecture-v2.md](docs/architecture-v2.md). Deploying: [docs/deploy.md](docs/deploy.md).
 
@@ -114,7 +123,11 @@ Heights carry ±2–3 m error, so flood and pooling depths are indicative.
 
 ### 4 · Rules (`pc/rules.py`, `sites/<id>/rules.yaml`)
 
-Each rule is a plain test on the layer columns, e.g. `when: flood_surge_2050 > 1.5`.
+Each rule is a plain test on the layer columns, e.g. `when: flood_surge_2050 > 1.5`, or the
+same in structured form (`{layer: flood_surge_2050, op: ">", value: 1.5}`). Strings are parsed,
+never evaluated. Rules overlap (Alexander's *A City is Not a Tree*): a cell belongs to every rule
+it matches and keeps all their roles (flood storage, breeze corridor, canopy ...); if their
+allowed uses share nothing, the cell is flagged as a conflict for a person to decide.
 
 - **Forbidden:** water, deep flooding, the water's edge. Never built on.
 - **Retained:** existing city outside the design area. Context only (Sem 06's "retained areas").
@@ -181,7 +194,7 @@ pc/
   fetch.py     downloads for any box
   grid.py      hex grid
   layers.py    McHarg layers
-  rules.py     rules → forbidden / retained / constrained / open
+  rules.py     structured, overlapping rules → memberships, roles, forbidden / retained / constrained / open
   maps.py      map sheets
   genome.py    genome → design (attractor growth); RANGES: how genes are read
   fitness.py   scores, Pareto ranks, families
@@ -189,12 +202,16 @@ pc/
   export.py    sites for the web app, parity fixtures
   __main__.py  the `pc` command
 sandbox/app.py        the Streamlit sandbox (`pc app`)
+service/       the layer service (FastAPI): polygon in, site file out; Dockerfile for Railway
 app/
-  engine/      the TypeScript engine (port of pc/genome, fitness, evolve); worker.ts via Comlink
-  ui/          the page: six chapters on canvas
+  engine/      the TypeScript engine (port of pc/rules, genome, fitness, evolve); worker.ts via Comlink
+  ui/          the page: six chapters on canvas; sites.ts (site files, rules in links)
+  ui/new/      new.html: draw a site and the layer cake (Svelte 5, MapLibre, terra-draw)
   api/         Vercel functions (health now; brief compiler in Phase 4)
   public/sites/  exported sites
 test/parity/   Python fixtures + Vitest parity test; speed.ts
+test/python/   pytest: rules, service
+test/ui/       Vitest: the layer cake's rule editing
 rules.template.yaml   starting rules for new sites
 ```
 
@@ -225,7 +242,7 @@ rules.template.yaml   starting rules for new sites
 - [ ] **v2** ([brief](docs/permutation-city-v2-prompt.md), [plan](docs/architecture-v2.md))
   - [x] Phase 0: audit and plan
   - [x] Phase 1: new layout, TypeScript engine (`app/engine`), Vite app, Vercel preview
-  - [ ] Phase 2: layer service and site picker
+  - [x] Phase 2: overlapping rules (in both engines), layer service, site picker and layer cake
   - [ ] Phase 3: hex or quad grids
   - [ ] Phase 4: context and the brief compiler
   - [ ] Phase 5: NSGA-II, NSGA-III, MAP-Elites

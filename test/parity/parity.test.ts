@@ -1,11 +1,13 @@
-// Does the TypeScript engine grow, score, rank and evolve exactly as the Python engine?
-// Fixtures: `uv run pc export <site> --fixture` (40 genomes grown and scored in Python, a
-// stream of random numbers, and three whole evolutions).
+// Does the TypeScript engine apply rules, grow, score, rank and evolve exactly as the
+// Python engine? Fixtures: `uv run pc export <site> --fixture` (the site's rules and an
+// edited set applied in Python, 40 genomes grown and scored, a stream of random numbers,
+// and three whole evolutions).
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
-  evaluate, evolve, grow, makeRng, paretoRanks, prepare, randomGenome, type HistoryRow, type Scores, type SiteExport,
+  applyRules, designFromRules, evaluate, evolve, grow, makeRng, paretoRanks, prepare, prepareFromRules, randomGenome,
+  type HistoryRow, type RuleSet, type Scores, type SiteExport,
 } from "../../app/engine";
 
 const ROOT = join(__dirname, "..", "..");
@@ -23,6 +25,12 @@ interface Fixture {
       locked?: "every7"; start?: number };
     history: HistoryRow[];
     pop: { name: string; rank: number; crowd: number | null; parents: string[]; genome: number[]; scores: Scores }[];
+  }[];
+  rule_cases: {
+    name: string; rules: RuleSet; skipped: string[];
+    state: number[]; memberships: number[]; max_levels: number[]; min_permeable: number[]; uses: string[];
+    conflict: number[]; roles: string[]; reasons: string[]; raised_ground: number[]; remediate: number[];
+    design: SiteExport["design"];
   }[];
 }
 
@@ -56,6 +64,40 @@ for (const file of readdirSync(FIXTURES).filter((f) => f.endsWith(".json"))) {
       const ranks = paretoRanks(grown.map((g) => g.s));
       expect(Array.from(ranks)).toEqual(fx.cases.map((c) => c.rank));
     });
+
+    for (const rc of fx.rule_cases) {
+      describe(`rules: ${rc.name}`, () => {
+        const res = applyRules(rc.rules, site.grid.layers!, site.grid.x.length);
+
+        it("gives every cell the same memberships, state and limits", () => {
+          expect(res.skipped).toEqual(rc.skipped);
+          expect(Array.from(res.memberships)).toEqual(rc.memberships);
+          expect(Array.from(res.state)).toEqual(rc.state);
+          expect(Array.from(res.maxLevels)).toEqual(rc.max_levels);
+          expect(Array.from(res.minPermeable)).toEqual(rc.min_permeable);
+          expect(res.uses).toEqual(rc.uses);
+          expect(Array.from(res.conflict)).toEqual(rc.conflict);
+          expect(res.roles).toEqual(rc.roles);
+          expect(res.reasons).toEqual(rc.reasons);
+          expect(Array.from(res.raisedGround)).toEqual(rc.raised_ground);
+          expect(Array.from(res.remediate)).toEqual(rc.remediate);
+        });
+
+        it("rebuilds the same design ground", () => {
+          expect(designFromRules(site, res)).toEqual(rc.design);
+        });
+
+        if (rc.name === "site") {
+          it("matches the exported site exactly", () => {
+            expect(Array.from(res.state)).toEqual(site.grid.state);
+            expect(Array.from(res.memberships)).toEqual(site.grid.memberships);
+            expect(designFromRules(site, res)).toEqual(site.design);
+            const a = prepareFromRules(site, res), b = prepare(site);
+            expect(a).toEqual(b);
+          });
+        }
+      });
+    }
 
     it("draws the same random numbers", () => {
       const r = makeRng(fx.rng.seed);

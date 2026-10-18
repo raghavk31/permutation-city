@@ -4,7 +4,8 @@
     terrain.tif    FABDEM bare earth (30 m; free for non-commercial research)
     landcover.tif  ESA WorldCover 2021 (10 m)
     overture/      Overture Maps: buildings (Google Open Buildings + OSM + Microsoft),
-                   roads and rail, land use, water, place names
+                   roads and rail, land use, water, place names,
+                   places (shops, schools, transit: where activities are today)
 
 Rasters are read straight from the cloud copies, so only the site's window is downloaded.
 """
@@ -21,7 +22,7 @@ from rasterio.merge import merge
 from pc.site import Site
 
 BUFFER = 0.005  # degrees (~500 m) around the box, so edge cells have data
-OVERTURE_THEMES = ["building", "segment", "land_use", "water", "division"]
+OVERTURE_THEMES = ["building", "segment", "land_use", "water", "division", "place"]
 
 
 def _tiles(bbox, step=1):
@@ -79,20 +80,22 @@ def fetch_terrain(site: Site):
                     show_progress=False)
 
 
-def fetch_overture(site: Site, tries=5):
+def fetch_overture(site: Site, tries=5, release: str | None = None, on_theme=lambda k, theme: None):
     """Overture's catalogue server sometimes drops connections: retry with pauses, and
     from the third try skip the catalogue (--no-stac; slower but independent of it).
-    Themes already downloaded are kept, so a re-run resumes."""
+    Themes already downloaded are kept, so a re-run resumes. `release` pins the Overture
+    release (default: the latest). `on_theme(k, theme)` reports progress."""
     cli = shutil.which("overturemaps") or str(sys.executable).replace("python", "overturemaps")
     bbox = ",".join(str(v) for v in site.bbox)
-    for theme in OVERTURE_THEMES:
+    for k, theme in enumerate(OVERTURE_THEMES):
+        on_theme(k, theme)
         out = site.overture(theme)
         if out.exists():
             continue
         out.parent.mkdir(parents=True, exist_ok=True)
         for attempt in range(tries):
             cmd = [cli, "download", f"--bbox={bbox}", "-f", "geoparquet", f"--type={theme}",
-                   "-o", str(out)] + (["--no-stac"] if attempt >= 2 else [])
+                   "-o", str(out)] + (["-r", release] if release else []) + (["--no-stac"] if attempt >= 2 else [])
             r = subprocess.run(cmd, capture_output=True, text=True)
             if r.returncode == 0:
                 break

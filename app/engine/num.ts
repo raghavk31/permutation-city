@@ -41,3 +41,9 @@ export function smooth(v: ArrayLike<number>, nbr: Int32Array, passes = 2): Float
   }
   return cur;
 }
+
+/** Python's round(x, nd) on an exported value: correctly rounded to nd decimals, as
+ *  toFixed is (they differ only on exact binary ties, which computed values don't hit). */
+export function pyRound(x: number, nd: number): number {
+  return Number(x.toFixed(nd));
+}
