@@ -1,5 +1,5 @@
 // The engine's fixed schema and default settings (pc/genome.py, pc/fitness.py).
-import type { Kind, Settings } from "./types";
+import type { Kind, Settings } from "./types.js";
 
 // --- genome schema: fixed within a run ------------------------------------------------
 

@@ -181,10 +181,10 @@ def _field(xy, attractors, kind):
     return f
 
 
-def grow(genome: np.ndarray, ground: Ground, locked: np.ndarray | None = None) -> Design:
+def grow(genome: np.ndarray, ground: Ground, locked: np.ndarray | None = None, ranges: dict = RANGES) -> Design:
     """Grow a design. `locked` (optional): a use code per cell (see use_codes; 0 = free).
     Locked cells keep their use and count towards that use's share."""
-    att, s = decode(genome, ground.bounds)
+    att, s = decode(genome, ground.bounds, ranges)
     xy = ground.xy
     core = _norm(_field(xy, att, "core"))
     green = _norm(_field(xy, att, "green")) + 0.3 * ground.trees  # keep canopy

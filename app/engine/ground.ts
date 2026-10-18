@@ -1,11 +1,11 @@
 // The site's design ground, as the engine sees it: read from an export
 // (pc.export.ground_from_export), or rebuilt in the browser from the layers and a rule
 // set (pc.genome.prepare + pc.export._design), so edited rules need no server.
-import { SITE_WATER_REACH_M } from "./config";
-import { gridOf, passes } from "./graph";
-import { norm, pyRound, smooth } from "./num";
-import { CONSTRAINED, OPEN, type RuleResult } from "./rules";
-import type { Ground, SiteExport } from "./types";
+import { SITE_WATER_REACH_M } from "./config.js";
+import { gridOf, passes } from "./graph.js";
+import { norm, pyRound, smooth } from "./num.js";
+import { CONSTRAINED, OPEN, type RuleResult } from "./rules.js";
+import type { Ground, SiteExport } from "./types.js";
 
 export function prepare(site: SiteExport): Ground {
   return fromDesign(site, site.design);

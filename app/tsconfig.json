@@ -12,5 +12,5 @@
     "resolveJsonModule": true,
     "paths": { "vitest": ["./node_modules/vitest"] }
   },
-  "include": ["engine", "ui", "api", "vite.config.ts", "../test"]
+  "include": ["engine", "ui", "api", "brief", "scripts", "vite.config.ts", "../test"]
 }

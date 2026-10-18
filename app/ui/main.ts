@@ -4,6 +4,7 @@ import * as Comlink from "comlink";
 import * as E from "../engine";
 import type { EngineWorker, EvolveResult, FamilyLead } from "../engine/worker";
 import * as Draw from "./draw";
+import { describe as describeBrief } from "./new/brief";
 import * as Sites from "./sites";
 import "./style.css";
 
@@ -16,7 +17,7 @@ const $$ = (sel: string) => [...root.querySelectorAll<HTMLElement>(sel)];
 interface Item { name: string; title: string; genome: number[]; design: E.Design; size?: number; parents?: string[] }
 interface PenEntry { name: string; genome: number[]; title?: string; parents?: string[] }
 interface RunSummary { history: E.HistoryRow[]; everyone: number; frontSize: number; opts: RunOptions }
-type RunOptions = Omit<E.EvolveOptions, "progress" | "locked"> & { locked: number[] | null };
+type RunOptions = Omit<E.EvolveOptions, "progress" | "locked"> & { locked: number[] | null; typologySeeds?: number };
 
 const state = {
   sites: {} as Record<string, { name: string }>, id: null as string | null,
@@ -25,6 +26,8 @@ const state = {
   genome: [] as number[], run: null as RunSummary | null, families: [] as Item[], selected: null as Item | null,
   pen: [] as PenEntry[], children: [] as PenEntry[], brood: 0, locks: null as Int8Array | null, lockNote: [] as string[],
   bearing: -0.55, layer: "ground" as LayerKey, showAll: false,
+  // A confirmed brief from the link: how genes are read, and whether to seed by typology.
+  brief: null as Sites.LinkedBrief | null, ranges: E.DEFAULT_RANGES as E.Ranges, linkRules: null as string | null,
 };
 let P = Draw.palette();
 const rng = E.makeRng(Date.now() % 2 ** 31);
@@ -42,7 +45,7 @@ function scoreLine(d: E.Design) {
     + `daylight ${pct(s.daylight)} · human scale ${pct(s.human)}`;
 }
 function grown(genome: number[]) {
-  const d = E.grow(genome, G(), state.locks);
+  const d = E.grow(genome, G(), state.locks, state.ranges);
   E.evaluate(d, G());
   return d;
 }
@@ -58,7 +61,7 @@ async function loadSites() {
   state.sites = await (await fetch(`${DATA}sites.json`)).json();
   // A site from a link (?site=<id or layer-service key>&rules=...): shown first, with its rules.
   const u = Sites.fromUrl();
-  const linked = u.id ? { id: u.id, rules: u.rules } : null;
+  const linked = u.id ? { id: u.id, rules: u.rules, brief: u.brief } : null;
   if (linked && !state.sites[linked.id]) state.sites = { [linked.id]: { name: "Your site" }, ...state.sites };
   const bar = $(".pc-sites");
   bar.innerHTML = Object.entries(state.sites)
@@ -67,7 +70,7 @@ async function loadSites() {
     const b = (e.target as HTMLElement).closest<HTMLElement>("[data-site]");
     if (b) loadSite(b.dataset.site!);
   });
-  await loadSite(linked ? linked.id : Object.keys(state.sites)[0], linked?.rules ?? null);
+  await loadSite(linked ? linked.id : Object.keys(state.sites)[0], linked?.rules ?? null, linked?.brief ?? null);
   if (linked && location.hash) document.querySelector(location.hash)?.scrollIntoView();
 }
 
@@ -79,13 +82,25 @@ function startWorker(s: E.SiteExport) {
   state.worker = { raw, api };
 }
 
-async function loadSite(id: string, rules: string | null = null) {
+async function loadSite(id: string, rules: string | null = null, brief: string | null = null) {
   $$(".pc-sites button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.site === id)));
   $(".pc-status").textContent = "loading the site ...";
   try {
     let s = await Sites.fetchSite(id);
-    if (rules && s.rules) s = Sites.withRules(s, Sites.decodeRules(rules, s.rules)).site;
+    const own = s.rules;
+    const base = rules && own ? Sites.decodeRules(rules, own) : own;
+    state.brief = null;
+    state.ranges = E.DEFAULT_RANGES;
+    if (brief && base) {
+      const linked = Sites.decodeBrief(brief);
+      const checked = Sites.recheck(linked.brief, base).brief;
+      const under = Sites.withBrief(s, base, checked);
+      s = under.site;
+      state.brief = { brief: checked, seeds: linked.seeds && !!checked.typology_priors };
+      state.ranges = under.config.ranges;
+    } else if (rules && base) s = Sites.withRules(s, base).site;
     state.site = s;
+    state.linkRules = rules;
   } catch (err) {
     $(".pc-status").textContent = (err as Error).message;
     return;
@@ -104,8 +119,20 @@ async function loadSite(id: string, rules: string | null = null) {
     ? "a 20 m hex (centre to corner), the unit of the studio this grew from"
     : `a ${grid.size} m ${grid.type === "hex" ? "hex (centre to corner)" : "square"}, ${Math.round(m.cell_area).toLocaleString("en-IN")} m²`;
   $(".pc-credits").textContent = `Data: ${m.credits.join(" · ")}.`;
+  drawBriefLine();
   state.genome = E.randomGenome(rng);
   drawAll();
+}
+
+function drawBriefLine() {
+  const line = $(".pc-brief-line"), b = state.brief;
+  line.hidden = !b;
+  if (!b) return;
+  const parts = describeBrief(b.brief);
+  const q = new URLSearchParams({ site: state.id!, ...(state.linkRules ? { rules: state.linkRules } : {}), brief: Sites.encodeBrief(b) });
+  const edit = `new.html?${q}#brief`;
+  line.innerHTML = `<b>Brief</b>: ${parts.length ? parts.join(" · ") : "no values set"}`
+    + `${b.seeds ? " · starts from typology seeds" : ""} · <a href="${edit}">edit the brief</a>`;
 }
 
 function drawAll() {
@@ -217,10 +244,15 @@ function evolveOptions(): RunOptions {
   const gens = +select(f, "gens").value;
   const shock: [number, number] | null = input(f, "shock").checked
     ? [Math.min(+input(f, "shockAt").value, gens), +input(f, "shockX").value] : null;
+  const pop = +select(f, "pop").value, seed = Math.floor(rng.random() * 1e9);
+  const pen = input(f, "fromPen").checked ? state.pen.map((p) => p.genome) : [];
+  const priors = state.brief?.seeds ? state.brief.brief.typology_priors?.value ?? [] : [];
+  // Typology seeds fill up to half of Generation 0 (after any designs from the pen).
+  const seeds = E.typologySeeds(priors, Math.max(0, Math.floor(pop / 2) - pen.length), seed + 1);
+  const start = [...pen, ...seeds];
   return {
-    generations: gens, pop: +select(f, "pop").value, seed: Math.floor(rng.random() * 1e9),
-    shock, locked: state.locks ? Array.from(state.locks) : null,
-    start: input(f, "fromPen").checked ? state.pen.map((p) => p.genome) : null,
+    generations: gens, pop, seed, shock, locked: state.locks ? Array.from(state.locks) : null,
+    start: start.length ? start : null, ranges: state.ranges, typologySeeds: seeds.length,
   };
 }
 
@@ -237,7 +269,8 @@ async function runEvolution() {
   };
   let m: EvolveResult;
   try {
-    m = await state.worker!.api.evolve(opts, Comlink.proxy(onProgress));
+    const { typologySeeds: _, ...engineOpts } = opts;
+    m = await state.worker!.api.evolve(engineOpts, Comlink.proxy(onProgress));
   } catch (err) {
     $(".pc-progress").textContent = `The run failed: ${(err as Error).message}`;
     btn.disabled = false;
@@ -247,10 +280,18 @@ async function runEvolution() {
   const secs = ((performance.now() - t0) / 1000).toFixed(1);
   state.run = { history: m.history, everyone: m.everyone, frontSize: m.frontSize, opts };
   state.families = m.families.map((f: FamilyLead) => ({ ...f, title: f.name, design: grown(f.genome) }));
+  const w = state.brief?.brief.objective_weights?.value;
+  if (w && Object.values(w).some((x) => x > 0)) {
+    const higher = Object.fromEntries(E.SCORE_KEYS.map((k) => [k, E.SCORES[k][2]])) as Record<E.ScoreKey, boolean>;
+    const order = E.weightedOrder(state.families.map((f) => f.design.scores!), w, higher);
+    state.families = order.map((k) => state.families[k]);
+  }
   state.selected = state.families[0] || null;
   state.showAll = false;
   $(".pc-progress").textContent = `${m.everyone.toLocaleString("en-IN")} designs grown in ${secs} s · `
-    + `${m.frontSize} on the front, in ${state.families.length} families`;
+    + `${m.frontSize} on the front, in ${state.families.length} families`
+    + (opts.typologySeeds ? ` · Generation 0 had ${opts.typologySeeds} typology seeds` : "")
+    + (w ? " · families ordered by the brief's weights" : "");
   drawFamilies();
 }
 

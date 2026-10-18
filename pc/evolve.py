@@ -47,8 +47,8 @@ class Run:
     everyone: list = field(default_factory=list)   # every individual ever made (lineage)
 
 
-def _make(g, ground, site, name, parents=(), locked=None, storm=1.0):
-    d = genome.grow(g, ground, locked)
+def _make(g, ground, site, name, parents=(), locked=None, storm=1.0, ranges=genome.RANGES):
+    d = genome.grow(g, ground, locked, ranges)
     fitness.evaluate(d, ground, site, storm)
     return Individual(name=name, design=d, parents=parents)
 
@@ -125,13 +125,15 @@ def _record(run, gen, storm=1.0):
 
 
 def evolve(site, ground, generations=30, pop=60, seed=1, immigrants=0.1, log=print,
-           locked=None, shock=None, start=None, progress=None):
+           locked=None, shock=None, start=None, progress=None, ranges=genome.RANGES):
     """Breed `generations` of `pop` designs.
 
     locked    use code per cell (genome.use_codes); those cells keep their use
     shock     (generation, storm_factor): from that generation on, the design storm is
               heavier, and the current population is re-judged under it
-    start     genomes to include in Generation 0 (e.g. designs bred by hand)
+    start     genomes to include in Generation 0 (e.g. designs bred by hand, or a brief's
+              typology seeds)
+    ranges    how genes are read (pc.genome.RANGES; a brief may narrow them)
     progress  callback(generation, run) after each generation
     """
     rng = Rng(seed)
@@ -140,7 +142,7 @@ def evolve(site, ground, generations=30, pop=60, seed=1, immigrants=0.1, log=pri
     genomes = [genome.random_genome(rng) for _ in range(pop)]
     for k, g in enumerate(start or []):
         genomes[k % pop] = np.asarray(g)
-    first = [_make(g, ground, site, f"G0.{k + 1:02d}", locked=locked) for k, g in enumerate(genomes)]
+    first = [_make(g, ground, site, f"G0.{k + 1:02d}", locked=locked, ranges=ranges) for k, g in enumerate(genomes)]
     run = Run(site=site, ground=ground, pop=first, everyone=list(first))
     _rank(run.pop)
     _record(run, 0)
@@ -157,11 +159,11 @@ def evolve(site, ground, generations=30, pop=60, seed=1, immigrants=0.1, log=pri
         for k in range(pop):
             name = f"G{gen}.{k + 1:02d}"
             if rng.random() < immigrants:
-                child = _make(genome.random_genome(rng), ground, site, name, ("immigrant",), locked, storm)
+                child = _make(genome.random_genome(rng), ground, site, name, ("immigrant",), locked, storm, ranges)
             else:
                 pa, pb = _pick(run.pop, rng), _pick(run.pop, rng)
                 g = _mutate(_crossover(pa.design.genome, pb.design.genome, rng), rng)
-                child = _make(g, ground, site, name, (pa.name, pb.name), locked, storm)
+                child = _make(g, ground, site, name, (pa.name, pb.name), locked, storm, ranges)
             children.append(child)
         run.everyone += children
 

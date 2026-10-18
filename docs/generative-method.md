@@ -91,6 +91,32 @@ For Permutation City: this is the **second scale**. v1 evolves the *site* (what 
 
 ---
 
+## 4. Fitness as misfit (Alexander)
+
+Christopher Alexander's *Notes on the Synthesis of Form* (1964) describes design as removing
+misfits between a form and its context, rather than adding good qualities. Permutation City's
+scores read that way:
+
+| Score | The misfit it measures | Group |
+|---|---|---|
+| flood storage | rain the design can't hold | water |
+| heat | surface heat the design adds | climate |
+| daylight | floor area left in shadow | climate |
+| embodied carbon | carbon spent per m² built | material |
+| human scale | floor area above 8 storeys, building cells with no open space beside them | scale |
+| floor-area gap | distance from the brief's target (a requirement, not a score) | brief |
+
+Alexander groups requirements by how they interact, so that a change to one group disturbs
+the others as little as possible. The groups above are a first guess. In each run, scores that
+move together across the population are interacting, and showing that correlation matrix
+(Phase 6) checks the grouping against the designs themselves. That is the book's own method.
+
+Alexander later rejected the design-methods movement this book helped start (preface to the
+1971 edition), and argued that good places come from many small steps, each fitted to what is
+already there. Breeding whole designs at once is close to what he argued against. The
+piecemeal growth mode (Phase 9) is the tool's answer, and `docs/alexander.md` sets out how each
+of his works is used.
+
 ## Design decisions this leads to
 
 1. **Genome = attractors + intensities + body plan**, not raw cells. Each attractor gene is (type, location, radius, weight, push or pull).
