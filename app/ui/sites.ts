@@ -1,7 +1,9 @@
 // Where sites come from, and how edited rules travel with them.
 //
-// A site is either precomputed (public/sites/<id>.json, from `pc export`) or built by the
-// layer service (a 24-character key; <service>/results/<key>.json). Edited rules go in the
+// A site is either precomputed (public/sites/<id>.json, from `pc export`) or built for
+// someone who drew it (a 24-character key): by the GitHub workflow behind /api/sites (its
+// result in Vercel Blob), or by a layer service of our own (<service>/results/<key>.json)
+// when VITE_SERVICE_URL is set, as it is in local development. Edited rules go in the
 // URL as their changes from the site's own rules (?site=<id or key>&rules=<base64url JSON>),
 // so a link reproduces the same ground and stays short. A confirmed brief travels the same
 // way (&brief=<base64url JSON>), and is checked and applied again when the link is opened.
@@ -13,17 +15,20 @@ export const SERVICE: string | null = (import.meta.env.VITE_SERVICE_URL as strin
 
 export const isServiceKey = (id: string) => /^[0-9a-f]{24}$/.test(id);
 
-export function siteUrl(id: string): string {
+export async function siteUrl(id: string): Promise<string> {
   if (isServiceKey(id)) {
-    if (!SERVICE) throw new Error("This site was built by the layer service, which isn't set up for this copy of the app.");
-    return `${SERVICE}/results/${id}.json`;
+    if (SERVICE) return `${SERVICE}/results/${id}.json`;
+    const r = await fetch(`${import.meta.env.BASE_URL}api/sites?key=${id}`);
+    const job = await r.json().catch(() => ({}));
+    if (!r.ok || !job.result) throw new Error(job.detail ?? (job.status ? "This site is still being built." : `Couldn't find the site (${r.status}).`));
+    return job.result;
   }
   if (!/^[a-z0-9-]+$/.test(id)) throw new Error(`No site called ${id}`);
   return `${DATA}${id}.json`;
 }
 
 export async function fetchSite(id: string): Promise<E.SiteExport> {
-  const r = await fetch(siteUrl(id));
+  const r = await fetch(await siteUrl(id));
   if (!r.ok) throw new Error(r.status === 404 ? "That site isn't there any more. Draw it again." : `Couldn't load the site (${r.status}).`);
   return r.json();
 }

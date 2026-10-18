@@ -24,11 +24,12 @@ The app in `app/` is a static Vite build plus Vercel functions in `app/api/`. Th
     `npx vercel dev`).
   - `OPENROUTER_MODEL` (optional), the OpenRouter model id for the brief compiler. It
     defaults to Claude Sonnet 5.5.
-  - `VITE_SERVICE_URL` (Phase 2), the layer service's address, e.g.
-    `https://<name>.up.railway.app`. Unlike the two above it is public: Vite builds it into
-    the page, which calls the service directly. Without it, `new.html` says new sites
-    can't be built yet and still opens the ready-made ones. In `npm run dev` it defaults
-    to `http://localhost:8765`. Changing it needs a redeploy.
+  - `BLOB_READ_WRITE_TOKEN` and `GITHUB_DISPATCH_TOKEN`: building drawn sites on GitHub
+    Actions (see `docs/service.md`, "Building on GitHub Actions"). Without them `new.html`
+    says new sites can't be built yet and still opens the ready-made ones.
+  - `VITE_SERVICE_URL` (optional), the address of a self-hosted layer service. If set, the
+    page calls it directly instead of `/api/sites`. It is public (Vite builds it into the
+    page). In `npm run dev` it defaults to `http://localhost:8765`.
 
   The OpenRouter variables are read only inside `app/api/`, never in the client. For local work,
   `npx vercel env pull app/.env.local` copies them down (run from the repo root). `.env*` files are not committed.

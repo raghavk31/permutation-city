@@ -113,3 +113,22 @@ def test_result_names_are_checked(client):
 def test_without_a_release_the_month_stands_in():
     req = pipeline.Request(boundary=pipeline.polygon_from_geojson(SQUARE))
     assert pipeline.cache_key(req, None) == pipeline.cache_key(req, "unpinned-" + time.strftime("%Y-%m"))
+
+
+def test_request_from_json_matches_the_app():
+    req = pipeline.request_from_json({"boundary": SQUARE, "grid": {"type": "quad", "size": 25}, "name": "  x  ",
+                                      "context_m": 300, "sea_levels": {"surge": 3.8}})
+    assert (req.grid_type, req.cell_size, req.context_m, req.name, req.sea_levels) == ("quad", 25.0, 300.0, "x", {"surge": 3.8})
+    with pytest.raises(pipeline.Rejected, match="polygon"):
+        pipeline.request_from_json({"boundary": {"type": "Point", "coordinates": [0, 0]}})
+    with pytest.raises(pipeline.Rejected, match="JSON object"):
+        pipeline.request_from_json("text")
+
+
+def test_actions_check_the_key(monkeypatch):
+    from service import actions
+    monkeypatch.setenv("KEY", "../../etc")
+    with pytest.raises(pipeline.Rejected, match="24 hex"):
+        actions.key()
+    monkeypatch.setenv("KEY", "")
+    assert actions.key() == actions.SMOKE_KEY

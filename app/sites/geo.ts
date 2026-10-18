@@ -1,6 +1,6 @@
 // Polygon area on the sphere (the same formula turf.js uses), for checking a drawn site
 // against the service's limits before sending it.
-import { cellAreaOf } from "../../engine/graph";
+import { cellAreaOf } from "../engine/graph.js";
 
 const R = 6378137;
 const rad = (d: number) => (d * Math.PI) / 180;

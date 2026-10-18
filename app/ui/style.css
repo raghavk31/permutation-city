@@ -83,3 +83,4 @@ body:has(> .pc) { margin: 0; background: var(--paper, #fcfcfb); }
 .pc-card button { font-size: 12px; padding: 2px 9px; }
 .pc-detail { margin-top: 24px; }
 .pc-credits { font-size: 12.5px; }
+.pc-site-warning { border-left: 3px solid var(--pc-build); padding: 6px 12px; background: var(--pc-retained); font-size: 14px; max-width: 70ch; }
