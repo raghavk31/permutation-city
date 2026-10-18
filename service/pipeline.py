@@ -7,7 +7,6 @@ everything that changes it (see `cache_key`).
 
 import hashlib
 import json
-import math
 import shutil
 import time
 from dataclasses import dataclass, field
@@ -19,12 +18,13 @@ from shapely.geometry import mapping, shape
 from shapely.geometry.base import BaseGeometry
 
 from pc import export, fetch, layers, rules
+from pc import grid as cellgrid
 from pc.site import DATA, ROOT, SITES, load, utm_crs
 
-LAYERS_VERSION = 1   # bump when pc/layers.py changes what it computes
+LAYERS_VERSION = 2   # bump when pc/layers.py changes what it computes
 MAX_KM2 = 4.0        # design polygon, before the context margin
 MAX_CELLS = 4500     # the browser engine's budget (about 5 s for a full run)
-GRID_TYPES = {"hex"}  # "quad" arrives with the CellGraph (Phase 3)
+GRID_TYPES = set(cellgrid.GRID_TYPES)
 
 
 class Rejected(ValueError):
@@ -35,7 +35,7 @@ class Rejected(ValueError):
 class Request:
     boundary: BaseGeometry          # degrees
     grid_type: str = "hex"
-    cell_size: float = 20.0         # hex radius, metres
+    cell_size: float = 20.0         # metres: hex centre to corner, quad side
     context_m: float = 250.0
     sea_levels: dict = field(default_factory=dict)
     rules: dict | None = None       # structured rules; None: the template
@@ -68,14 +68,14 @@ def area_km2(poly: BaseGeometry) -> float:
     return float(gpd.GeoSeries([poly], crs=4326).to_crs(utm_crs(poly.bounds)).area.iloc[0]) / 1e6
 
 
-def estimated_cells(km2: float, cell_size: float) -> int:
-    return int(km2 * 1e6 / (1.5 * math.sqrt(3) * cell_size ** 2))
+def estimated_cells(km2: float, cell_size: float, grid_type: str = "hex") -> int:
+    return int(km2 * 1e6 / cellgrid.make(grid_type, cell_size).cell_area)
 
 
 def check(req: Request) -> dict:
     """Refuse what the service can't or won't run; otherwise the size of the job."""
     if req.grid_type not in GRID_TYPES:
-        raise Rejected(f"grid type {req.grid_type!r} isn't available yet; use hex")
+        raise Rejected(f"grid type {req.grid_type!r} isn't available; use {' or '.join(sorted(GRID_TYPES))}")
     if not 10 <= req.cell_size <= 50:
         raise Rejected("cell size must be between 10 and 50 m")
     if not 100 <= req.context_m <= 500:
@@ -87,7 +87,7 @@ def check(req: Request) -> dict:
     if req.rules is not None:
         _check_rules(req.rules)
     km2 = area_km2(req.boundary)
-    cells = estimated_cells(km2, req.cell_size)
+    cells = estimated_cells(km2, req.cell_size, req.grid_type)
     if km2 > MAX_KM2:
         raise Rejected(f"the site is {km2:.1f} km²; the limit is {MAX_KM2:g} km². Draw a smaller polygon.")
     if cells > MAX_CELLS:
@@ -141,7 +141,7 @@ def run(req: Request, key: str, overture_release: str | None, cache: Path, progr
             {"type": "FeatureCollection", "features": [{"type": "Feature", "properties": {},
                                                         "geometry": mapping(req.boundary)}]}), encoding="utf-8")
         cfg = {"name": req.name, "boundary": "boundary.geojson", "context_m": req.context_m,
-               "hex_radius": req.cell_size, "sea_levels": req.sea_levels or None}
+               "grid": {"type": req.grid_type, "size": req.cell_size}, "sea_levels": req.sea_levels or None}
         (folder / "site.yaml").write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
         r = req.rules or yaml.safe_load((ROOT / "rules.template.yaml").read_text(encoding="utf-8"))
         (folder / "rules.yaml").write_text(yaml.safe_dump(r, sort_keys=False), encoding="utf-8")

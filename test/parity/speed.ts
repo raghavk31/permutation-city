@@ -5,7 +5,7 @@ import { evolve, frontFamilies, prepare, stats } from "../../app/engine";
 
 const SITES = join(__dirname, "..", "..", "app", "public", "sites");
 
-for (const id of ["mumbai-docks", "mumbai-ewf", "ahmedabad-wadaj"]) {
+for (const id of ["mumbai-docks", "mumbai-ewf", "ahmedabad-wadaj", "mumbai-docks-quad", "ahmedabad-wadaj-quad"]) {
   const G = prepare(JSON.parse(readFileSync(join(SITES, `${id}.json`), "utf8")));
   const t0 = performance.now();
   const run = evolve(G, { generations: 30, pop: 60, seed: 1, shock: [15, 1.3] });

@@ -8,7 +8,11 @@ site.yaml
     context_m:   context margin around the boundary, metres (default 250)
     bbox:        [west, south, east, north] in degrees. Needed without a boundary; with one,
                  it is worked out from the polygon and the margin.
-    hex_radius:  hex size in metres, centre to corner (default 20)
+    grid:        {type: hex | quad, size: metres} (default hex, 20). Hex size is centre
+                 to corner, quad size is the side. See pc/grid.py.
+    hex_radius:  the older way to give a hex grid's size (read if `grid` is missing)
+    data:        optional: another site's id whose downloads to share (same area, e.g. the
+                 same site on a different grid). Layers are still built per site.
     sea_levels:  optional, coastal sites only: {name: metres above mean sea level}
     design_area: optional GeoJSON (in the site folder) of the ground to design;
                  everything outside it can be retained as context by the rules
@@ -58,7 +62,9 @@ class Site:
     id: str
     name: str
     bbox: tuple
-    hex_radius: float = 20.0
+    grid_type: str = "hex"
+    cell_size: float = 20.0
+    data_id: str | None = None             # share another site's downloads (raw/)
     sea_levels: dict = field(default_factory=dict)
     boundary: Path | None = None
     context_m: float = 250.0
@@ -85,7 +91,7 @@ class Site:
 
     @property
     def raw(self) -> Path:
-        return DATA / self.id / "raw"
+        return DATA / (self.data_id or self.id) / "raw"
 
     @property
     def layers(self) -> Path:
@@ -119,11 +125,14 @@ def load(site_id: str) -> Site:
             raise ValueError(f"sites/{site_id}/site.yaml needs a bbox or a boundary")
         bbox = bbox_around(read_polygon(boundary), context)
     area = cfg.get("design_area")
+    grid = cfg.get("grid") or {"type": "hex", "size": cfg.get("hex_radius", 20)}
     return Site(
         id=site_id,
         name=cfg["name"],
         bbox=tuple(bbox),
-        hex_radius=float(cfg.get("hex_radius", 20)),
+        grid_type=str(grid.get("type", "hex")),
+        cell_size=float(grid.get("size", 20)),
+        data_id=cfg.get("data"),
         sea_levels=cfg.get("sea_levels") or {},
         boundary=boundary,
         context_m=context,

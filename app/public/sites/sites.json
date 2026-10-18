@@ -13,5 +13,15 @@
   "name": "Mumbai Docks (test polygon)",
   "design_ha": 68.7,
   "target_ha": 137.4
+ },
+ "mumbai-docks-quad": {
+  "name": "Mumbai Docks (test polygon, squares)",
+  "design_ha": 70.0,
+  "target_ha": 139.9
+ },
+ "ahmedabad-wadaj-quad": {
+  "name": "Ahmedabad: Gandhi Ashram and Wadaj (squares)",
+  "design_ha": 373.1,
+  "target_ha": 389.0
  }
 }

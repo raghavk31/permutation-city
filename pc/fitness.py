@@ -12,7 +12,7 @@ Five scores (on the Pareto front):
                storm depth from site.yaml (design_storm_mm)
     heat       surface heat index, °C above fully green ground (lower is better)
                paving +5, roofs +4, grass +1, landscape +0.5, water -2, +0.1 per storey;
-               spread to neighbours so parks and water cool their surroundings
+               spread over about 100 m so parks and water cool their surroundings
     carbon     embodied carbon, kgCO2e per m² of floor area (lower is better)
                ~400 for mid-rise reinforced concrete, +2% per storey above 6
                (heavier structure, lifts, cores)
@@ -23,7 +23,10 @@ Five scores (on the Pareto front):
                - share of floor area in buildings of 8 storeys or fewer
                - share of building cells that front a park or water
 
-All values are indicative and comparable between designs, not simulations.
+All values are indicative and comparable between designs on one grid, not simulations.
+Reaches are set in metres, so a score means about the same on hexes and on squares, but
+the neighbour counts differ (6 vs 4), so heat and human scale won't match exactly across
+grids. Compare designs on the same grid.
 
 Ranking (Sem 06's Pareto fronts): a design is on the front if no other design is at least
 as good on all five scores and better on one. Near-identical designs (fewer than 5% of
@@ -33,14 +36,16 @@ cells different) are treated as copies and pushed back, so distinct families sur
 import numpy as np
 
 from pc.genome import Design, Ground, smooth
+from pc.grid import passes
 
 STORAGE_DEPTH = {"water": 1.0, "landscape": 0.10}  # metres of water held
 PLOT_STORAGE = 0.05                                  # unsealed ground in building plots
 HEAT = {"sealed": 5.0, "roof": 4.0, "unsealed": 1.0, "landscape": 0.5, "water": -2.0}
 HEAT_PER_LEVEL = 0.1
+HEAT_REACH_M = 100.0                           # how far a cell's heat spreads (3 hex passes)
 CARBON_BASE, CARBON_FREE_LEVELS, CARBON_PER_LEVEL = 400.0, 6, 0.02
 STOREY_M = 3.2
-DAYLIGHT_ANGLE, DAYLIGHT_RINGS = 25.0, 3       # 3 rings of hexes ≈ 100 m at 20 m hexes
+DAYLIGHT_ANGLE, DAYLIGHT_REACH_M = 25.0, 100.0  # 3 rings of 20 m hexes, 5 of 20 m squares
 DAYLIGHT_TAN = 0.4663076581549986             # tan(25°), fixed so both engines agree
 HUMAN_MAX_LEVELS = 8
 TARGET_TOLERANCE = 0.10
@@ -93,7 +98,7 @@ def evaluate(d: Design, ground: Ground, site, storm_factor: float = 1.0) -> dict
     dt = np.where(b, d.coverage * HEAT["roof"] + ground.min_perm * HEAT["unsealed"]
                   + sealed * HEAT["sealed"] + HEAT_PER_LEVEL * d.levels,
                   np.where(d.use == "water", HEAT["water"], HEAT["landscape"]))
-    heat = float(np.average(smooth(dt, ground.nbr, passes=3), weights=a))
+    heat = float(np.average(smooth(dt, ground.nbr, passes=passes(HEAT_REACH_M, ground.spacing)), weights=a))
 
     # Embodied carbon per m² of floor area.
     per_m2 = CARBON_BASE * (1 + CARBON_PER_LEVEL * np.clip(d.levels - CARBON_FREE_LEVELS, 0, None))
@@ -101,10 +106,10 @@ def evaluate(d: Design, ground: Ground, site, storm_factor: float = 1.0) -> dict
 
     # Daylight: floors below z_min sit under a 25° line from some building within ~100 m.
     h = d.levels * STOREY_M
-    spacing = np.sqrt(3) * site.hex_radius
+    spacing = ground.spacing
     z_min = np.zeros(len(h))
     hmax = h.copy()
-    for k in range(1, DAYLIGHT_RINGS + 1):
+    for k in range(1, passes(DAYLIGHT_REACH_M, spacing) + 1):
         hmax = _dilate_max(hmax, ground.nbr)           # tallest within k rings
         z_min = np.maximum(z_min, hmax - k * spacing * DAYLIGHT_TAN)
     lit_levels = np.clip(d.levels - np.ceil(z_min / STOREY_M), 0, d.levels)

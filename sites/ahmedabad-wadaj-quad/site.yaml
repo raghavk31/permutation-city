@@ -1,0 +1,15 @@
+# Ahmedabad on a square grid with bigger cells: the inland parity site for quad cells
+# (Phase 3). Same box, rules and downloads as ahmedabad-wadaj.
+name: 'Ahmedabad: Gandhi Ashram and Wadaj (squares)'
+data: ahmedabad-wadaj
+bbox:
+- 72.57
+- 23.052
+- 72.592
+- 23.07
+grid: {type: quad, size: 30}
+
+# Fitness settings
+design_storm_mm: 150
+# Sem 06 studio, 2050 scenario: 1,55,676 people, 38,91,900 m2 built up required
+target_floor_area_ha: 389

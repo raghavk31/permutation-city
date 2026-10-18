@@ -1,8 +1,9 @@
 // Genome → design (pc/genome.py). See that file for the body plan and the growth steps.
 import {
   ATTRACTOR_GENES, BUILDING, DEFAULT_RANGES, GLOBAL_GENES, KINDS, LANDSCAPE, LENGTH, N_ATTRACTORS,
-  WATER, type Ranges,
+  WATER, WATER_FIELD_REACH_M, type Ranges,
 } from "./config";
+import { passes } from "./graph";
 import { lerp, norm, roundHalfEven, smooth } from "./num";
 import type { Attractor, Design, Ground, Kind, Rng, Settings, Stats } from "./types";
 
@@ -49,7 +50,7 @@ export function grow(genome: number[], G: Ground, locked: ArrayLike<number> | nu
   const core = norm(field(G, attractors, "core"));
   const greenF = norm(field(G, attractors, "green"));
   const green = greenF.map((v, i) => v + 0.3 * G.trees[i]);
-  const waterF = norm(smooth(field(G, attractors, "water"), G.nbr, 1));
+  const waterF = norm(smooth(field(G, attractors, "water"), G.nbr, G.deg, passes(WATER_FIELD_REACH_M, G.grid.spacing)));
   const water = waterF.map((v, i) => (1 - s.follow_water) * v + s.follow_water * G.siteWater[i]);
 
   const use = new Int8Array(n);

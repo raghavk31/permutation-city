@@ -18,7 +18,7 @@
   // svelte-ignore state_referenced_locally
   const all = Cake.layers(site);
   // A first stack that tells the site's story; the rest are a click away.
-  const FIRST = /^(water|ground|flood_|pool|upstream|trees|built|industrial)/;
+  const FIRST = /^(water|ground|flood_|pool|catchment_ha|trees|built|industrial)/;
   let shown = $state<Record<string, boolean>>(Object.fromEntries(all.map((l) => [l.name, FIRST.test(l.name)])));
   let highlight = $state<number | null>(null);
   let hover = $state<number>(-1);
@@ -88,7 +88,7 @@
 <section class="pcn-cake">
   <div class="pcn-cake-head">
     <h1>{site.meta.name}</h1>
-    <p class="pc-muted">{site.grid.x.length.toLocaleString("en-IN")} cells of {site.meta.hex_radius} m ·
+    <p class="pc-muted">{site.grid.x.length.toLocaleString("en-IN")} cells, {E.gridLabel(E.gridOf(site.meta))} ·
       design ground {fmtHa(designHa)} · <button type="button" class="pcn-link" onclick={onback}>pick another site</button></p>
   </div>
 
