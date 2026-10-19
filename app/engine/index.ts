@@ -24,5 +24,7 @@ export { referencePoints, divisionsFor, nicheSelect } from "./niche.js";
 export { makeRng } from "./rng.js";
 export * from "./brief.js";
 export { evolve, breed, frontFamilies, type Individual, type Run, type HistoryRow, type EvolveOptions, type Search } from "./evolve.js";
-export { mapElites, quality, binOf, DESCRIPTORS, DESCRIPTOR_KEYS, QUALITY_RANGE, type Descriptor, type ArchiveInfo,
-  type EliteOptions } from "./elites.js";
+export { mapElites, quality, binOf, searchOf, DESCRIPTORS, DESCRIPTOR_KEYS, QUALITY_RANGE, type Descriptor,
+  type ArchiveInfo, type EliteOptions, type SearchChoice } from "./elites.js";
+export { measure, network, METRICS, METRIC_KEYS, OBJECTIVE_KEYS, NOT_MEASURED, type Metric, type MetricKey,
+  type Metrics, type Net } from "./metrics/index.js";

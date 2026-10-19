@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from pc import fitness, genome
+from pc import fitness, genome, metrics
 from pc.niche import divisions_for, niche_select, reference_points
 from pc.rng import Rng
 
@@ -52,9 +52,28 @@ class Run:
     everyone: list = field(default_factory=list)   # every individual ever made (lineage)
 
 
-def _make(g, ground, site, name, parents=(), locked=None, storm=1.0, ranges=genome.RANGES):
-    d = genome.grow(g, ground, locked, ranges)
+def _score(d, ground, site, storm=1.0, objectives=()):
+    """The five scores, and any promoted metrics under their own keys."""
     fitness.evaluate(d, ground, site, storm)
+    if objectives:  # rounded, as the scores are, so both engines rank them alike
+        d.scores.update({k: round(v, 6) for k, v in metrics.measure(d, ground, objectives).items()})
+
+
+def objectives_of(objectives=()) -> list:
+    """The objectives of a run: the five scores, then any promoted metrics."""
+    for k in objectives:
+        if k not in metrics.METRICS:
+            raise ValueError(f"unknown metric '{k}'")
+        if metrics.METRICS[k][1] is None:
+            raise ValueError(f"'{k}' has no better end, so it can't be an objective")
+    if len(objectives) > 2:
+        raise ValueError("promote at most two metrics")
+    return fitness.SCORE_OBJECTIVES + [(k, metrics.METRICS[k][1]) for k in objectives]
+
+
+def _make(g, ground, site, name, parents=(), locked=None, storm=1.0, ranges=genome.RANGES, objectives=()):
+    d = genome.grow(g, ground, locked, ranges)
+    _score(d, ground, site, storm, objectives)
     return Individual(name=name, design=d, parents=parents)
 
 
@@ -66,7 +85,7 @@ def _first_genomes(rng: Rng, pop, start):
     return genomes
 
 
-def _niche_survivors(ranked, pop, refs):
+def _niche_survivors(ranked, pop, refs, obj=None):
     """NSGA-III survival: whole fronts while they fit, then niching on the front that
     doesn't. `ranked` is sorted by rank."""
     end = 0
@@ -83,16 +102,16 @@ def _niche_survivors(ranked, pop, refs):
     while nxt < len(ranked) and ranked[nxt].rank == ranked[end].rank:
         nxt += 1
     chosen, last = ranked[:end], ranked[end:nxt]
-    picks = niche_select([i.scores for i in chosen], [i.scores for i in last], pop - end, refs)
+    picks = niche_select([i.scores for i in chosen], [i.scores for i in last], pop - end, refs, obj)
     return chosen + [last[k] for k in picks]
 
 
-def _rank(inds):
+def _rank(inds, obj=None):
     scores = [i.scores for i in inds]
-    ranks = fitness.pareto_ranks(scores)
+    ranks = fitness.pareto_ranks(scores, obj=obj)
     for r in set(ranks):
         idx = np.flatnonzero(ranks == r)
-        crowd = fitness.crowding(scores, idx)
+        crowd = fitness.crowding(scores, idx, obj)
         for k, i in enumerate(idx):
             inds[i].rank, inds[i].crowd = int(r), float(crowd[k])
     # Copies: a design that differs from a better one in fewer than 5% of its cells is
@@ -145,12 +164,12 @@ def breed(a: np.ndarray, b: np.ndarray, rng: Rng, n=6) -> list[np.ndarray]:
     return [_mutate(_crossover(a, b, rng), rng) for _ in range(n)]
 
 
-def _record(run, gen, storm=1.0):
-    """Per generation: how many designs are on brief, and the best of them on each score."""
+def _record(run, gen, storm=1.0, obj=None):
+    """Per generation: how many designs are on brief, and the best of them on each objective."""
     on = [i for i in run.pop if i.scores["gap"] <= fitness.TARGET_TOLERANCE]
     h = {"generation": gen, "on_brief": len(on), "front_size": sum(i.rank == 1 for i in run.pop),
          "storm_factor": storm}
-    for k, (_, _, up) in fitness.SCORES.items():
+    for k, up in obj or fitness.SCORE_OBJECTIVES:
         vals = [i.scores[k] for i in on]
         h[k] = (max(vals) if up else min(vals)) if vals else None
     run.history.append(h)
@@ -159,10 +178,12 @@ def _record(run, gen, storm=1.0):
 
 
 def evolve(site, ground, generations=30, pop=60, seed=1, immigrants=0.1, log=print,
-           locked=None, shock=None, start=None, progress=None, ranges=genome.RANGES, search="nsga2"):
+           locked=None, shock=None, start=None, progress=None, ranges=genome.RANGES, search="nsga2",
+           objectives=()):
     """Breed `generations` of `pop` designs.
 
-    search    "nsga2" (crowding) or "nsga3" (reference directions; pc.niche)
+    search      "nsga2" (crowding) or "nsga3" (reference directions; pc.niche)
+    objectives  up to two form metrics (pc.metrics) promoted to objectives beside the five scores
 
     locked    use code per cell (genome.use_codes); those cells keep their use
     shock     (generation, storm_factor): from that generation on, the design storm is
@@ -176,41 +197,44 @@ def evolve(site, ground, generations=30, pop=60, seed=1, immigrants=0.1, log=pri
         raise ValueError(f"unknown search '{search}' (nsga2 or nsga3; MAP-Elites is pc.elites)")
     rng = Rng(seed)
     storm = 1.0
-    m = len(fitness.SCORES)
+    obj = objectives_of(objectives)
+    m = len(obj)
     refs = reference_points(m, divisions_for(m, pop)) if search == "nsga3" else None
     # Generation 0: the same random genomes `pc grow` makes with this seed (plus any start).
     genomes = _first_genomes(rng, pop, start)
-    first = [_make(g, ground, site, f"G0.{k + 1:02d}", locked=locked, ranges=ranges) for k, g in enumerate(genomes)]
+    first = [_make(g, ground, site, f"G0.{k + 1:02d}", locked=locked, ranges=ranges, objectives=objectives)
+             for k, g in enumerate(genomes)]
     run = Run(site=site, ground=ground, pop=first, everyone=list(first))
-    _rank(run.pop)
-    _record(run, 0)
+    _rank(run.pop, obj)
+    _record(run, 0, obj=obj)
 
     for gen in range(1, generations + 1):
         if shock and gen == shock[0]:
             storm = shock[1]
             for i in run.pop:
-                fitness.evaluate(i.design, ground, site, storm)
-            _rank(run.pop)
+                _score(i.design, ground, site, storm, objectives)
+            _rank(run.pop, obj)
             if log:
                 log(f"  gen {gen:3d}  SHOCK: design storm x{storm:.2f}")
         children = []
         for k in range(pop):
             name = f"G{gen}.{k + 1:02d}"
             if rng.random() < immigrants:
-                child = _make(genome.random_genome(rng), ground, site, name, ("immigrant",), locked, storm, ranges)
+                child = _make(genome.random_genome(rng), ground, site, name, ("immigrant",), locked, storm, ranges,
+                              objectives)
             else:
                 pa, pb = _pick(run.pop, rng), _pick(run.pop, rng)
                 g = _mutate(_crossover(pa.design.genome, pb.design.genome, rng), rng)
-                child = _make(g, ground, site, name, (pa.name, pb.name), locked, storm, ranges)
+                child = _make(g, ground, site, name, (pa.name, pb.name), locked, storm, ranges, objectives)
             children.append(child)
         run.everyone += children
 
         both = run.pop + children
-        _rank(both)
+        _rank(both, obj)
         ranked = sorted(both, key=lambda i: (i.rank, -i.crowd))
-        run.pop = _niche_survivors(ranked, pop, refs) if refs else ranked[:pop]
-        _rank(run.pop)
-        _record(run, gen, storm)
+        run.pop = _niche_survivors(ranked, pop, refs, obj) if refs else ranked[:pop]
+        _rank(run.pop, obj)
+        _record(run, gen, storm, obj)
         if progress:
             progress(gen, run)
         h = run.history[-1]

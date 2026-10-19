@@ -38,7 +38,7 @@ export function briefSchema(ctx: E.BriefContext): Json {
       description: `[low, high] within ${E.DEFAULT_RANGES[k][0]} to ${E.DEFAULT_RANGES[k][1]}`,
     }])), []), "narrow how the site-wide genes are read; leave out genes you don't want to change"),
     typology_priors: cited(ranked("type", E.TYPOLOGIES), "building types to lean towards, with weights"),
-    aesthetic_priorities: cited(ranked("metric", E.AESTHETICS), "form qualities to watch (recorded until the metrics exist)"),
+    aesthetic_priorities: cited(ranked("metric", E.AESTHETICS), "form qualities to watch: the form metrics for these properties are marked on every design"),
     rule_changes: {
       type: "array", description: "changes to the site's constrained rules only",
       items: obj({

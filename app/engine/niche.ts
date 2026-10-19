@@ -4,7 +4,7 @@
 // bit for bit: scores are normalised between the ideal and the worst point of the
 // candidates (no hyperplane intercepts, which need a linear solve), and ties go to the
 // lower index, not a random draw. Distances are compared squared, so there is no sqrt.
-import { asMin } from "./rank.js";
+import { asMin, SCORE_OBJECTIVES, type Objective } from "./rank.js";
 import type { Scores } from "./types.js";
 
 /** Das-Dennis points: every way to split 1 into `p` equal parts over `m` objectives. */
@@ -33,8 +33,9 @@ export function divisionsFor(m: number, pop: number): number {
 
 /** Which of `last` (the split front) survive: `need` indices into it, in the order picked.
  *  `chosen` are the designs already in (whole fronts); they fill the niches first. */
-export function nicheSelect(chosen: Scores[], last: Scores[], need: number, refs: number[][]): number[] {
-  const f = chosen.concat(last).map(asMin), m = refs[0].length, n = f.length, c = chosen.length;
+export function nicheSelect(chosen: Scores[], last: Scores[], need: number, refs: number[][],
+  obj: Objective[] = SCORE_OBJECTIVES): number[] {
+  const f = chosen.concat(last).map((s) => asMin(s, obj)), m = refs[0].length, n = f.length, c = chosen.length;
   const ideal = f[0].slice(), worst = f[0].slice();
   for (const row of f) for (let k = 0; k < m; k++) {
     if (row[k] < ideal[k]) ideal[k] = row[k];

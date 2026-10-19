@@ -97,7 +97,7 @@ What each row measures:
 | | |
 |---|---|
 | Default | **NSGA-II**, unchanged. |
-| NSGA-III | An option now. Phase 6 lets you promote up to two metrics to objectives (up to seven), and then NSGA-III should become the default for runs with more than five objectives, as the brief asks. That switch belongs with the promotion, in Phase 6. |
+| NSGA-III | An option. Since Phase 6, the "auto" search (the default) runs NSGA-III whenever promoted metrics take a run past five objectives, as the brief asks. |
 | MAP-Elites | A mode of its own ("one of every kind"), with an archive grid in Explore. A brief's objective weights set its quality. |
 
 ## Caveats

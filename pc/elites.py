@@ -10,7 +10,7 @@ Python numbers in the browser's order, so a seed gives the same archive in both.
 
 import math
 
-from pc import fitness, genome
+from pc import fitness, genome, metrics
 from pc.evolve import Individual, Run, _crossover, _first_genomes, _make, _mutate, _rank, _record
 from pc.rng import Rng
 
@@ -48,6 +48,11 @@ DESCRIPTORS = {
     "daylight": ("daylight", (0.3, 1.0), _score("daylight")),
     "human": ("human scale", (0.5, 0.9), _score("human")),
 }
+
+# Any form metric can be a trait too (pc.metrics), binned over where most designs fall.
+for _key, (_, _, _fn) in metrics.METRICS.items():
+    DESCRIPTORS[_key] = (_key.replace("_", " "), metrics.RANGES.get(_key, (0.0, 1.0)),
+                         (lambda fn: lambda d, ground: float(fn(metrics.network(d, ground))))(_fn))
 
 # What an elite holds its cell by: designs off the floor-area brief score below zero (the
 # closer the better); on brief, the mean of the five scores, each scaled 0..1 over this

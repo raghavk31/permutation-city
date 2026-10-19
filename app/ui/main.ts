@@ -31,7 +31,7 @@ const state = {
   // A confirmed brief from the link: how genes are read, and whether to seed by typology.
   brief: null as Sites.LinkedBrief | null, ranges: E.DEFAULT_RANGES as E.Ranges, linkRules: null as string | null,
   // What the last run kept, for Explore; designs regrown as they're drawn.
-  explore: { kept: [] as Kept[], archive: null as E.ArchiveInfo | null, view: "matrix" as ExploreView,
+  explore: { kept: [] as Kept[], archive: null as E.ArchiveInfo | null, view: "matrix" as ExploreView, measures: "scores",
     selected: -1, hover: -1, grown: new Map<number, E.Design>(), hit: null as ((x: number, y: number) => number) | null },
 };
 let P = Draw.palette();
@@ -261,12 +261,14 @@ function evolveOptions(): RunOptions {
   const seeds = E.typologySeeds(priors, Math.max(0, Math.floor(pop / 2) - pen.length), seed + 1);
   const start = [...pen, ...seeds];
   const search = select(f, "search").value as RunOptions["search"];
+  const objectives = search === "map-elites" ? []
+    : [...new Set([select(f, "promote1").value, select(f, "promote2").value].filter(Boolean))] as E.MetricKey[];
   const elite = search === "map-elites" ? {
     axes: [select(f, "ax").value, select(f, "ay").value] as [string, string], bins: +select(f, "bins").value,
     weights: state.brief?.brief.objective_weights?.value ?? null,
   } : {};
   return {
-    search, generations: gens, pop, seed, shock, locked: state.locks ? Array.from(state.locks) : null,
+    search, objectives, generations: gens, pop, seed, shock, locked: state.locks ? Array.from(state.locks) : null,
     start: start.length ? start : null, ranges: state.ranges, typologySeeds: seeds.length, ...elite,
   };
 }
@@ -305,7 +307,9 @@ async function runEvolution() {
   state.showAll = false;
   resetExplore(m.kept, m.archive);
   const filled = m.archive ? ` · ${m.kept.length} of ${m.archive.bins ** 2} archive cells filled` : "";
-  $(".pc-progress").textContent = `${m.everyone.toLocaleString("en-IN")} designs grown in ${secs} s${filled} · `
+  const ran = E.searchOf(opts), promoted = opts.objectives?.length
+    ? ` · ${opts.objectives.map((k) => (E.METRICS[k] as E.Metric).label).join(" and ")} promoted, ${5 + opts.objectives.length} objectives` : "";
+  $(".pc-progress").textContent = `${SEARCH_NAMES[ran]}${promoted} · ${m.everyone.toLocaleString("en-IN")} designs grown in ${secs} s${filled} · `
     + `${m.frontSize} on the front, in ${state.families.length} families`
     + (opts.typologySeeds ? ` · Generation 0 had ${opts.typologySeeds} typology seeds` : "")
     + (w ? ` · ${m.archive ? "elites judged and " : ""}families ordered by the brief's weights` : "");
@@ -320,11 +324,16 @@ function drawCharts(rows: E.HistoryRow[], opts: RunOptions) {
       const [label, fmt, up] = E.SCORES[k];
       return [k, `best ${label}${up ? "" : " (lower is better)"}`, fmt];
     }),
+    ...(opts.objectives ?? []).map((k): [keyof E.HistoryRow, string, (v: number) => string] => {
+      const m = E.METRICS[k] as E.Metric;
+      return [k as keyof E.HistoryRow, `best ${m.label} (promoted)`, m.fmt];
+    }),
     ...(rows.some((r) => r.filled !== undefined)
       ? [["filled", "archive cells filled", (v: number) => `${v}`] as [keyof E.HistoryRow, string, (v: number) => string]] : []),
   ];
-  const box = $(".pc-charts");
-  if (box.children.length !== charts.length) {
+  const box = $(".pc-charts"), sig = charts.map(([k]) => k).join(",");
+  if (box.dataset.sig !== sig) {
+    box.dataset.sig = sig;
     box.innerHTML = charts.map(([k, t]) => `<figure><figcaption>${t}</figcaption><canvas data-k="${k}"></canvas></figure>`).join("");
   }
   for (const [k, , fmt] of charts) {
@@ -339,7 +348,7 @@ function drawEvolve() {
   const f = form(".pc-evolve form");
   input(f, "fromPen").disabled = !state.pen.length;
   f.querySelector(".pc-pen-count")!.textContent = String(state.pen.length);
-  if (!state.run) { $(".pc-charts").innerHTML = ""; $(".pc-progress").textContent = ""; }
+  if (!state.run) { $(".pc-charts").innerHTML = ""; $(".pc-charts").dataset.sig = ""; $(".pc-progress").textContent = ""; }
   else drawCharts(state.run.history, state.run.opts);
 }
 
@@ -396,7 +405,36 @@ function drawExplorePlot() {
   grid.hidden = !archive;
   if (archive) { drawArchive(); return; }
   const marks = { selected: x.selected, hover: x.hover };
-  x.hit = x.view === "matrix" ? X.scatterMatrix(canvas, x.kept, P, marks) : X.parallel(canvas, x.kept, P, marks);
+  const promoted = X.metricAxes(state.run?.opts.objectives ?? []);
+  x.hit = x.view === "matrix" ? X.scatterMatrix(canvas, x.kept, P, marks, [...X.SCORE_AXES, ...promoted])
+    : X.parallel(canvas, x.kept, P, marks, measureAxes());
+}
+
+/** The measures Explore compares: the scores (with floor area, storeys and any promoted
+ *  metrics), or one group of form metrics. */
+function measureAxes(): X.Axis[] {
+  const x = state.explore, group = X.GROUPS.find(([name]) => name === x.measures);
+  return group ? X.metricAxes(group[1]) : [...X.AXES, ...X.metricAxes(state.run?.opts.objectives ?? [])];
+}
+
+/** The form metrics of one design, by group, each placed among the designs the run kept
+ *  (`pool`). Properties the brief asks for are marked. */
+function metricsPanel(m: Partial<E.Metrics>, pool: E.Metrics[]): string {
+  const asked = new Set<string>((state.brief?.brief.aesthetic_priorities?.value ?? []).map((p) => p.metric));
+  const rows = X.GROUPS.map(([name, keys]) => `<h4>${name}</h4><dl>` + keys.map((k) => {
+    const def = E.METRICS[k] as E.Metric, v = m[k]!;
+    let bar = "";
+    if (pool.length > 1) {
+      const vs = pool.map((p) => p[k]), lo = Math.min(...vs), hi = Math.max(...vs);
+      let t = hi > lo ? (v - lo) / (hi - lo) : 0.5;
+      if (def.up === false) t = 1 - t;
+      bar = `<span class="pc-bar${def.up === null ? " is-neutral" : ""}"><i style="left:${Math.round(Math.min(Math.max(t, 0), 1) * 100)}%"></i></span>`;
+    }
+    return `<dt title="${def.note}">${def.label}${asked.has(def.property) ? " <em>the brief</em>" : ""}</dt><dd>${def.fmt(v)}${bar}</dd>`;
+  }).join("") + "</dl>").join("");
+  const missing = Object.entries(E.NOT_MEASURED).map(([p, why]) => `${p.replace(/_/g, " ")} (${why})`).join("; ");
+  return rows + `<p class="pc-muted">${pool.length > 1 ? "Each bar places this design among the ones the run kept, the better end "
+    + "to the right (grey: neither end is better). " : ""}Hover a name for what it measures. Not measured: ${missing}.</p>`;
 }
 
 function drawArchive() {
@@ -426,6 +464,7 @@ function drawPick() {
     ? ` · archive column ${k.cell % x.archive.bins + 1}, row ${Math.floor(k.cell / x.archive.bins) + 1} from the bottom` : "";
   box.querySelector("h3")!.textContent = `${k.name}${X.onFront(k) ? " · on the front" : X.onBrief(k) ? "" : " · off the brief"}${where}`;
   box.querySelector(".pc-scores")!.innerHTML = scoreLine(d);
+  box.querySelector(".pc-metrics-body")!.innerHTML = metricsPanel(k.metrics, x.kept.map((e) => e.metrics));
 }
 
 function drawExtremes() {
@@ -433,7 +472,7 @@ function drawExtremes() {
   const btn = (k: number, axis: X.Axis, good: boolean) => `<button type="button" data-k="${k}"${good ? ` class="is-best" title="the better end"` : ""}>`
     + `${axis.fmt(axis.get(x.kept[k]))} · ${x.kept[k].name}</button>`;
   $(".pc-extremes").innerHTML = `<thead><tr><th></th><th>lowest</th><th>highest</th></tr></thead><tbody>`
-    + X.extremes(x.kept).map(({ axis, lo, hi }) => `<tr><th>${axis.label}</th><td>${btn(lo, axis, axis.up === false)}</td>`
+    + X.extremes(x.kept, measureAxes()).map(({ axis, lo, hi }) => `<tr><th>${axis.label}</th><td>${btn(lo, axis, axis.up === false)}</td>`
       + `<td>${btn(hi, axis, axis.up === true)}</td></tr>`).join("") + "</tbody>";
 }
 
@@ -492,6 +531,7 @@ function drawDetail() {
   box.hidden = false;
   box.querySelector("h3")!.textContent = it.title;
   box.querySelector(".pc-scores")!.innerHTML = scoreLine(it.design);
+  box.querySelector(".pc-metrics-body")!.innerHTML = metricsPanel(E.measure(it.design, G()), state.explore.kept.map((e) => e.metrics));
   Draw.plan(box.querySelector<HTMLCanvasElement>(".pc-plan")!, site(), it.design, P,
     { aspect: aspect(), attractors: true, locked: state.locks });
   drawSolid();
@@ -535,7 +575,7 @@ function drawBreedGalleries() {
     state.pen = state.pen.filter((p) => p.name !== it.name); drawBreed(); drawEvolve();
   }]]);
   if (!pen.length) $(".pc-pen").innerHTML = `<p class="pc-muted">Empty. Send families here, or add random designs.</p>`;
-  const kids: Item[] = state.children.map((c) => ({ ...c, title: c.name, design: grown(c.genome) }));
+  const kids: Item[] = state.children.map((c) => ({ ...c, title: c.title ?? c.name, design: grown(c.genome) }));
   $(".pc-children-head").hidden = !kids.length;
   if (kids.length) $(".pc-children-head").textContent = `Children of ${kids[0].parents!.join(" × ")}`;
   gallery($(".pc-children"), kids, [["keep", (it) => toPen(it)], ["view", (it) => choose(it)]]);
@@ -547,10 +587,30 @@ function breed() {
   const b = state.pen.find((p) => p.name === select(f, "b").value);
   if (!a || !b) return;
   state.brood += 1;
-  state.children = E.breed(a.genome, b.genome, rng, 6)
-    .map((g, k) => ({ name: `B${state.brood}.${k + 1}`, genome: g, parents: [a.name, b.name] }));
+  // Biased: breed four times as many and keep the six best on the chosen measure.
+  const bias = BIAS.find((o) => o.key === select(f, "bias").value);
+  let kids = E.breed(a.genome, b.genome, rng, bias ? 24 : 6).map((g) => ({ g, v: 0 }));
+  if (bias) {
+    for (const kid of kids) kid.v = bias.value(grown(kid.g));
+    kids = kids.sort((p, q) => (bias.up ? q.v - p.v : p.v - q.v)).slice(0, 6);
+  }
+  state.children = kids.map(({ g, v }, k) => {
+    const name = `B${state.brood}.${k + 1}`;
+    return { name, genome: g, parents: [a.name, b.name], title: bias ? `${name} · ${bias.label} ${bias.fmt(v)}` : name };
+  });
   drawBreedGalleries();
 }
+
+/** What breeding can be biased by: any score, or any metric with a better end. */
+const BIAS = [
+  ...E.SCORE_KEYS.map((k) => ({ key: `s:${k}`, label: E.SCORES[k][0], up: E.SCORES[k][2], fmt: E.SCORES[k][1],
+    value: (d: E.Design) => d.scores![k] })),
+  ...E.OBJECTIVE_KEYS.map((k) => {
+    const m = E.METRICS[k] as E.Metric;
+    return { key: `m:${k}`, label: m.label, up: m.up!, fmt: m.fmt, value: (d: E.Design) => E.measure(d, G(), [k])[k]! };
+  }),
+];
+const SEARCH_NAMES = { nsga2: "NSGA-II", nsga3: "NSGA-III", "map-elites": "MAP-Elites" } as const;
 
 // --- wiring ---------------------------------------------------------------------------
 
@@ -569,7 +629,21 @@ function wire() {
   select(ev, "ax").innerHTML = traits; select(ev, "ay").innerHTML = traits;
   select(ev, "ax").value = "mean_levels"; select(ev, "ay").value = "open_share";
   select(ev, "search").addEventListener("change", (e) => {
-    $(".pc-elite-opts").hidden = (e.target as HTMLSelectElement).value !== "map-elites";
+    const elites = (e.target as HTMLSelectElement).value === "map-elites";
+    $(".pc-elite-opts").hidden = !elites;
+    $(".pc-promote").hidden = elites;
+  });
+  const promotable = `<option value="">none</option>` + E.OBJECTIVE_KEYS
+    .map((k) => `<option value="${k}">${(E.METRICS[k] as E.Metric).label}</option>`).join("");
+  select(ev, "promote1").innerHTML = promotable; select(ev, "promote2").innerHTML = promotable;
+  select(form(".pc-breed form"), "bias").innerHTML = `<option value="">nothing</option>`
+    + `<optgroup label="scores">${BIAS.filter((o) => o.key.startsWith("s:")).map((o) => `<option value="${o.key}">${o.label}</option>`).join("")}</optgroup>`
+    + `<optgroup label="form metrics">${BIAS.filter((o) => o.key.startsWith("m:")).map((o) => `<option value="${o.key}">${o.label}</option>`).join("")}</optgroup>`;
+  $<HTMLSelectElement>(".pc-measures").innerHTML = `<option value="scores">the five scores</option>`
+    + X.GROUPS.map(([name]) => `<option value="${name}">${name}</option>`).join("");
+  $(".pc-measures").addEventListener("change", (e) => {
+    state.explore.measures = (e.target as HTMLSelectElement).value;
+    drawExplorePlot(); drawExtremes();
   });
   // Explore: switch views, point at designs, pick one.
   $(".pc-explore-tabs").addEventListener("click", (e) => {

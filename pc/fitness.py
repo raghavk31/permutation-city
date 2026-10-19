@@ -133,9 +133,14 @@ def evaluate(d: Design, ground: Ground, site, storm_factor: float = 1.0) -> dict
     return d.scores
 
 
-def _as_min(scores: list[dict]) -> np.ndarray:
-    """All five scores as 'lower is better'."""
-    return np.array([[-s[k] if up else s[k] for k, (_, _, up) in SCORES.items()] for s in scores])
+# What a run optimises: (key in each design's scores, higher is better). The five scores by
+# default; a promoted form metric (pc.metrics) is added to the scores under its own key.
+SCORE_OBJECTIVES = [(k, up) for k, (_, _, up) in SCORES.items()]
+
+
+def _as_min(scores: list[dict], obj=None) -> np.ndarray:
+    """The objectives as 'lower is better'."""
+    return np.array([[-s[k] if up else s[k] for k, up in (obj or SCORE_OBJECTIVES)] for s in scores])
 
 
 def _fronts(f):
@@ -155,23 +160,23 @@ def _fronts(f):
     return rank
 
 
-def pareto_ranks(scores: list[dict], tol=TARGET_TOLERANCE) -> np.ndarray:
+def pareto_ranks(scores: list[dict], tol=TARGET_TOLERANCE, obj=None) -> np.ndarray:
     """Rank 1 = the Pareto front of on-brief designs; then the next fronts; designs off
     the brief come after all on-brief ones, ordered by how close they are."""
     gap = np.array([s["gap"] for s in scores])
     ok = gap <= tol
     rank = np.zeros(len(scores), dtype=int)
     if ok.any():
-        rank[ok] = _fronts(_as_min([s for s, k in zip(scores, ok) if k]))
+        rank[ok] = _fronts(_as_min([s for s, k in zip(scores, ok) if k], obj))
     top = rank.max() if ok.any() else 0
     off = np.flatnonzero(~ok)
     rank[off[np.argsort(gap[off], kind="stable")]] = top + 1 + np.arange(len(off))
     return rank
 
 
-def crowding(scores: list[dict], idx) -> np.ndarray:
+def crowding(scores: list[dict], idx, obj=None) -> np.ndarray:
     """How spread out a design is from its neighbours on the front (NSGA-II)."""
-    f = _as_min(scores)[idx]
+    f = _as_min(scores, obj)[idx]
     n = len(idx)
     dist = np.zeros(n)
     if n <= 2:

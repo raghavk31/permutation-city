@@ -93,6 +93,8 @@ class Ground:
     spacing: float           # metres between neighbouring cell centres (pc.grid)
     bounds: tuple
     origin: tuple = (0.0, 0.0)  # where local (0, 0) sits in map coordinates (see pc.export)
+    graph: CellGraph | None = None  # the cell grid (shape, spacing), for the form metrics
+    roads: list | None = None       # existing major roads in the same frame as xy (pc.metrics)
 
 
 @dataclass
@@ -145,6 +147,7 @@ def prepare(suit: gpd.GeoDataFrame, graph: CellGraph) -> Ground:
         site_water=_norm(smooth(raw_water, nbr, passes=passes(SITE_WATER_REACH_M, graph.spacing))),
         spacing=graph.spacing,
         bounds=(float(c.x.min()), float(c.y.min()), float(c.x.max()), float(c.y.max())),  # cell centres
+        graph=graph,
     )
 
 

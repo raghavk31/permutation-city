@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   applyBrief, validateBrief, typologySeeds, type BriefContext, type RunConfig, type Brief,
-  applyRules, designFromRules, evaluate, evolve, grow, makeRng, mapElites, paretoRanks, prepare, prepareFromRules, randomGenome,
+  applyRules, designFromRules, evaluate, evolve, grow, makeRng, mapElites, measure, paretoRanks, type MetricKey, prepare, prepareFromRules, randomGenome,
   type HistoryRow, type RuleSet, type Scores, type SiteExport,
 } from "../../app/engine";
 
@@ -19,12 +19,12 @@ const TOL: Record<keyof Scores, number> = {
 
 interface Fixture {
   site: string;
-  cases: { genome: number[]; use: number[]; levels: number[]; scores: Scores; rank: number }[];
+  cases: { genome: number[]; use: number[]; levels: number[]; scores: Scores; rank: number; metrics?: Record<string, number> }[];
   rng: { seed: number; random: number[]; normal: number[] };
   evolutions: {
     case: { search?: "nsga2" | "nsga3" | "map-elites"; seed: number; generations: number; pop: number;
       immigrants?: number; shock?: [number, number]; locked?: "every7"; start?: number;
-      axes?: [string, string]; bins?: number; weights?: Partial<Record<keyof Scores, number>> };
+      axes?: [string, string]; bins?: number; weights?: Partial<Record<keyof Scores, number>>; objectives?: MetricKey[] };
     history: HistoryRow[];
     pop: { name: string; rank: number; crowd: number | null; parents: string[]; genome: number[]; scores: Scores;
       cell?: number; quality?: number }[];
@@ -66,6 +66,19 @@ for (const file of readdirSync(FIXTURES).filter((f) => f.endsWith(".json"))) {
       fx.cases.forEach((c, k) => {
         for (const key of Object.keys(TOL) as (keyof Scores)[]) {
           expect(Math.abs(grown[k].s[key] - c.scores[key]), `${key}, case ${k}`).toBeLessThanOrEqual(TOL[key]);
+        }
+      });
+    });
+
+    it("gives the same form metrics", () => {
+      const withMetrics = fx.cases.filter((c) => c.metrics);
+      expect(withMetrics.length).toBeGreaterThan(0);
+      fx.cases.forEach((c, k) => {
+        if (!c.metrics) return;
+        const m = measure(grown[k].d, G);
+        expect(Object.keys(m).sort()).toEqual(Object.keys(c.metrics).sort());
+        for (const [key, v] of Object.entries(c.metrics)) {
+          expect(m[key as MetricKey], `${key}, case ${k}`).toBeCloseTo(v, 9);
         }
       });
     });

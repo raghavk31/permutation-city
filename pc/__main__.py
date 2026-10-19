@@ -6,7 +6,8 @@
     uv run pc rules <site>     re-apply rules.yaml and redraw (fast; after editing rules)
     uv run pc grow <site> [--n 60] [--seed 1]                  generation 0, scored
     uv run pc evolve <site> [--gens 30] [--pop 60] [--seed 1]  breed generations
-        [--search nsga2|nsga3|map-elites] [--axes mean_levels,open_share] [--bins 10]
+        [--search auto|nsga2|nsga3|map-elites] [--axes mean_levels,open_share] [--bins 10]
+        [--objectives dh_enclosure,the_void]   promote up to two form metrics (pc.metrics)
     uv run pc sites            list sites
     uv run pc app              the designer's sandbox (Streamlit, in the browser)
     uv run pc export <site>... [--fixture]   sites for the web app (app/public/sites/)
@@ -158,14 +159,20 @@ def cmd_evolve(a):
     site = load(a.site)
     suit, ground, ranges = _ground(site)
     target = fitness.floor_area_target(site, ground) / 1e4
+    objectives = tuple(k for k in (a.objectives or "").split(",") if k)
+    if a.search == "auto":  # NSGA-III once promoted metrics take the objectives past five
+        a.search = "nsga3" if objectives else "nsga2"
     print(f"{site.name}: Seq{a.seed}, {a.search}, population {a.pop}, {a.gens} generations "
           f"(brief: {target:.0f} ha ±{fitness.TARGET_TOLERANCE:.0%})")
+    if objectives:
+        print(f"  promoted: {', '.join(objectives)} ({5 + len(objectives)} objectives, {a.search})")
     t0 = time.time()
     if a.search == "map-elites":
         run = elites.map_elites(site, ground, generations=a.gens, pop=a.pop, seed=a.seed, ranges=ranges,
                                 axes=tuple(a.axes.split(",")), bins=a.bins)
     else:
-        run = evolve.evolve(site, ground, generations=a.gens, pop=a.pop, seed=a.seed, ranges=ranges, search=a.search)
+        run = evolve.evolve(site, ground, generations=a.gens, pop=a.pop, seed=a.seed, ranges=ranges, search=a.search,
+                            objectives=objectives)
     print(f"  {len(run.everyone):,} designs grown in {time.time() - t0:.0f} s")
 
     tag = "" if a.search == "nsga2" else f"-{a.search}"  # so runs of different searches don't overwrite
@@ -275,7 +282,9 @@ def main():
     ev.add_argument("--pop", type=int, default=60)
     ev.add_argument("--seed", type=int, default=1, help="run number (Seq)")
     ev.add_argument("--show", type=int, default=10, help="families to draw")
-    ev.add_argument("--search", choices=["nsga2", "nsga3", "map-elites"], default="nsga2")
+    ev.add_argument("--search", choices=["auto", "nsga2", "nsga3", "map-elites"], default="auto",
+                    help="auto: NSGA-II, or NSGA-III with promoted metrics")
+    ev.add_argument("--objectives", default="", help="up to two form metrics to optimise too (pc.metrics.OBJECTIVE_KEYS)")
     ev.add_argument("--axes", default="mean_levels,open_share", help="MAP-Elites: two traits (pc.elites.DESCRIPTORS)")
     ev.add_argument("--bins", type=int, default=10, help="MAP-Elites: bins per trait")
     sub.add_parser("sites")

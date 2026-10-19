@@ -36,10 +36,10 @@ def divisions_for(m: int, pop: int) -> int:
     return p
 
 
-def niche_select(chosen: list[dict], last: list[dict], need: int, refs: list[list[float]]) -> list[int]:
+def niche_select(chosen: list[dict], last: list[dict], need: int, refs: list[list[float]], obj=None) -> list[int]:
     """Which of `last` (the split front) survive: `need` indices into it, in the order
     picked. `chosen` are the designs already in (whole fronts); they fill the niches first."""
-    f = [[float(v) for v in row] for row in _as_min(chosen + last)]
+    f = [[float(v) for v in row] for row in _as_min(chosen + last, obj)]
     m, n, c = len(refs[0]), len(f), len(chosen)
     ideal, worst = list(f[0]), list(f[0])
     for row in f:

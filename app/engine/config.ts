@@ -44,3 +44,14 @@ export const DAYLIGHT_REACH_M = 100.0, DAYLIGHT_TAN = 0.4663076581549986; // tan
 export const HUMAN_MAX_LEVELS = 8;
 export const TARGET_TOLERANCE = 0.10;
 export const DUPLICATE = 0.05;
+
+// --- form metrics (app/engine/metrics, pc/metrics; docs/metrics.md) ---------------------
+
+export const STREET_W_M = 12.0;          // assumed width where an existing road runs between two cells
+export const ENCLOSED_MAX_M = 120.0;     // an open run longer than this encloses nothing
+export const DH_BAND = [1.0, 3.0] as const; // street width over building height that feels enclosed
+export const BLOCK_PERIMETER_M = 400.0;  // a walkable block's perimeter
+export const LOW_FRONTAGE_LEVELS = 6;    // storeys you still read as a street face
+export const GREEN_MIN_HA = 0.5, NATURE_WALK_M = 300.0, CATCHMENT_M = 400.0;
+export const ACTIVE_REACH_M = 200.0, NEAR_NODE_M = 100.0, LEGIBLE_M = 300.0, CENTRE_REACH_M = 300.0;
+export const RHYTHM_MIN_RUN = 16;        // cells: shorter runs along a row are too short for a rhythm
