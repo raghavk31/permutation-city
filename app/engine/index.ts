@@ -1,7 +1,8 @@
 // Permutation City: the browser engine.
 //
 // A line-for-line port of pc/rules.py (the McHarg rules), pc/genome.py (growth), pc/fitness.py (scores, Pareto ranks,
-// families) and pc/evolve.py (evolution), reading a site exported by `pc export`.
+// families), pc/evolve.py and pc/niche.py (evolution: NSGA-II or NSGA-III) and pc/elites.py (MAP-Elites), reading
+// a site exported by `pc export`.
 // test/parity checks that it grows and scores designs exactly as Python does.
 //
 // No dependencies. Runs in the browser (main thread or Web Worker) and in Node.
@@ -18,7 +19,10 @@ export {
 } from "./rules.js";
 export { decode, grow, randomGenome, stats } from "./genome.js";
 export { evaluate, floorAreaTarget, SCORES, SCORE_KEYS } from "./fitness.js";
-export { paretoRanks, crowding, difference, families } from "./rank.js";
+export { paretoRanks, crowding, difference, families, asMin } from "./rank.js";
+export { referencePoints, divisionsFor, nicheSelect } from "./niche.js";
 export { makeRng } from "./rng.js";
 export * from "./brief.js";
-export { evolve, breed, frontFamilies, type Individual, type Run, type HistoryRow, type EvolveOptions } from "./evolve.js";
+export { evolve, breed, frontFamilies, type Individual, type Run, type HistoryRow, type EvolveOptions, type Search } from "./evolve.js";
+export { mapElites, quality, binOf, DESCRIPTORS, DESCRIPTOR_KEYS, QUALITY_RANGE, type Descriptor, type ArchiveInfo,
+  type EliteOptions } from "./elites.js";

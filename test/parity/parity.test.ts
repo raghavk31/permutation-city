@@ -1,13 +1,13 @@
 // Does the TypeScript engine apply rules, grow, score, rank and evolve exactly as the
 // Python engine? Fixtures: `uv run pc export <site> --fixture` (the site's rules and an
 // edited set applied in Python, 40 genomes grown and scored, a stream of random numbers,
-// and three whole evolutions).
+// and whole runs of NSGA-II, NSGA-III and MAP-Elites).
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   applyBrief, validateBrief, typologySeeds, type BriefContext, type RunConfig, type Brief,
-  applyRules, designFromRules, evaluate, evolve, grow, makeRng, paretoRanks, prepare, prepareFromRules, randomGenome,
+  applyRules, designFromRules, evaluate, evolve, grow, makeRng, mapElites, paretoRanks, prepare, prepareFromRules, randomGenome,
   type HistoryRow, type RuleSet, type Scores, type SiteExport,
 } from "../../app/engine";
 
@@ -22,10 +22,12 @@ interface Fixture {
   cases: { genome: number[]; use: number[]; levels: number[]; scores: Scores; rank: number }[];
   rng: { seed: number; random: number[]; normal: number[] };
   evolutions: {
-    case: { seed: number; generations: number; pop: number; immigrants?: number; shock?: [number, number];
-      locked?: "every7"; start?: number };
+    case: { search?: "nsga2" | "nsga3" | "map-elites"; seed: number; generations: number; pop: number;
+      immigrants?: number; shock?: [number, number]; locked?: "every7"; start?: number;
+      axes?: [string, string]; bins?: number; weights?: Partial<Record<keyof Scores, number>> };
     history: HistoryRow[];
-    pop: { name: string; rank: number; crowd: number | null; parents: string[]; genome: number[]; scores: Scores }[];
+    pop: { name: string; rank: number; crowd: number | null; parents: string[]; genome: number[]; scores: Scores;
+      cell?: number; quality?: number }[];
   }[];
   rule_cases: {
     name: string; rules: RuleSet; skipped: string[];
@@ -133,7 +135,7 @@ for (const file of readdirSync(FIXTURES).filter((f) => f.endsWith(".json"))) {
 
     for (const ev of fx.evolutions) {
       it(`evolves the same run: ${JSON.stringify(ev.case)}`, () => {
-        const { locked: lockMode, start: nStart, ...opts } = ev.case;
+        const { locked: lockMode, start: nStart, search, ...opts } = ev.case;
         let locked: Int8Array | null = null;
         if (lockMode === "every7") {
           locked = new Int8Array(G.n);
@@ -144,11 +146,13 @@ for (const file of readdirSync(FIXTURES).filter((f) => f.endsWith(".json"))) {
           const r = makeRng(99);
           start = Array.from({ length: nStart }, () => randomGenome(r));
         }
-        const run = evolve(G, { ...opts, locked, start });
+        const run = search === "map-elites" ? mapElites(G, { ...opts, locked, start })
+          : evolve(G, { ...opts, search, locked, start });
         expect(run.history).toEqual(ev.history);
         expect(run.pop.map((i) => ({
           name: i.name, rank: i.rank, crowd: Number.isFinite(i.crowd) ? i.crowd : null, parents: i.parents,
           genome: i.design.genome, scores: i.design.scores,
+          ...(search === "map-elites" ? { cell: i.cell, quality: i.quality } : {}),
         }))).toEqual(ev.pop);
       });
     }

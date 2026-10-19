@@ -6,6 +6,7 @@
     uv run pc rules <site>     re-apply rules.yaml and redraw (fast; after editing rules)
     uv run pc grow <site> [--n 60] [--seed 1]                  generation 0, scored
     uv run pc evolve <site> [--gens 30] [--pop 60] [--seed 1]  breed generations
+        [--search nsga2|nsga3|map-elites] [--axes mean_levels,open_share] [--bins 10]
     uv run pc sites            list sites
     uv run pc app              the designer's sandbox (Streamlit, in the browser)
     uv run pc export <site>... [--fixture]   sites for the web app (app/public/sites/)
@@ -152,18 +153,23 @@ def cmd_grow(a):
 
 def cmd_evolve(a):
     """Breed generations from Generation 0; draw the final families and the progress."""
-    from pc import evolve, fitness, genome
+    from pc import elites, evolve, fitness, genome
 
     site = load(a.site)
     suit, ground, ranges = _ground(site)
     target = fitness.floor_area_target(site, ground) / 1e4
-    print(f"{site.name}: Seq{a.seed}, population {a.pop}, {a.gens} generations "
+    print(f"{site.name}: Seq{a.seed}, {a.search}, population {a.pop}, {a.gens} generations "
           f"(brief: {target:.0f} ha ±{fitness.TARGET_TOLERANCE:.0%})")
     t0 = time.time()
-    run = evolve.evolve(site, ground, generations=a.gens, pop=a.pop, seed=a.seed, ranges=ranges)
+    if a.search == "map-elites":
+        run = elites.map_elites(site, ground, generations=a.gens, pop=a.pop, seed=a.seed, ranges=ranges,
+                                axes=tuple(a.axes.split(",")), bins=a.bins)
+    else:
+        run = evolve.evolve(site, ground, generations=a.gens, pop=a.pop, seed=a.seed, ranges=ranges, search=a.search)
     print(f"  {len(run.everyone):,} designs grown in {time.time() - t0:.0f} s")
 
-    out = site.layers.parent / "runs" / f"seq{a.seed}"
+    tag = "" if a.search == "nsga2" else f"-{a.search}"  # so runs of different searches don't overwrite
+    out = site.layers.parent / "runs" / f"seq{a.seed}{tag}"
     out.mkdir(parents=True, exist_ok=True)
     np.save(out / "final.npy", np.array([i.design.genome for i in run.pop]))
     (out / "history.json").write_text(json.dumps(run.history, indent=1), encoding="utf-8")
@@ -184,22 +190,22 @@ def cmd_evolve(a):
             rows[k]["_extra"] = f"family {letters[n % 26]} ({len(f)})" if k == f[0] else ""
 
     show = reps[:a.show]
-    sheet = site.maps / f"05-seq{a.seed}-gen{a.gens}-families.png"
+    sheet = site.maps / f"05-seq{a.seed}{tag}-gen{a.gens}-families.png"
     maps.generation_sheet(
         site, suit, [genome.to_frame(pop[k].design, ground) for k in show],
         [f"Family {letters[n % 26]} · {labels[k]}" for n, k in enumerate(show)],
         [_note(rows[k], rows[k]["floor_area_ha"]) for k in show], sheet,
         f"{site.name} · Seq{a.seed} · Generation {a.gens} · {len(front)} designs on the front "
         f"in {len(fams)} families")
-    maps.tradeoffs(site, rows, labels, target, site.maps / f"04-seq{a.seed}-gen{a.gens}-tradeoffs.png",
+    maps.tradeoffs(site, rows, labels, target, site.maps / f"04-seq{a.seed}{tag}-gen{a.gens}-tradeoffs.png",
                    f"Seq{a.seed} · Generation {a.gens}", highlight=[labels[k] for k in show])
-    maps.evolution(site, run, target, site.maps / f"06-seq{a.seed}-evolution.png",
+    maps.evolution(site, run, target, site.maps / f"06-seq{a.seed}{tag}-evolution.png",
                    f"Seq{a.seed} · {a.gens} generations of {a.pop}")
 
     print(f"  final front: {len(front)} designs in {len(fams)} families (one shown per family)")
     _table(rows, show, labels)
-    print(f"  sheets: sites/{site.id}/maps/{sheet.name}, 04-seq{a.seed}-gen{a.gens}-tradeoffs.png, "
-          f"06-seq{a.seed}-evolution.png")
+    print(f"  sheets: sites/{site.id}/maps/{sheet.name}, 04-seq{a.seed}{tag}-gen{a.gens}-tradeoffs.png, "
+          f"06-seq{a.seed}{tag}-evolution.png")
 
 
 def cmd_brief(a):
@@ -269,6 +275,9 @@ def main():
     ev.add_argument("--pop", type=int, default=60)
     ev.add_argument("--seed", type=int, default=1, help="run number (Seq)")
     ev.add_argument("--show", type=int, default=10, help="families to draw")
+    ev.add_argument("--search", choices=["nsga2", "nsga3", "map-elites"], default="nsga2")
+    ev.add_argument("--axes", default="mean_levels,open_share", help="MAP-Elites: two traits (pc.elites.DESCRIPTORS)")
+    ev.add_argument("--bins", type=int, default=10, help="MAP-Elites: bins per trait")
     sub.add_parser("sites")
     sub.add_parser("app", help="open the designer's sandbox in the browser")
     ex = sub.add_parser("export", help="export sites for the web app (app/public/sites/)")

@@ -8,7 +8,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "speed": "vite-node ../test/parity/speed.ts",
-    "corpus": "vite-node scripts/write-corpus.ts"
+    "corpus": "vite-node scripts/write-corpus.ts",
+    "compare": "vite-node scripts/compare-search.ts --",
+    "ranges": "vite-node scripts/descriptor-ranges.ts"
   },
   "dependencies": {
     "@vercel/blob": "2.8.0",

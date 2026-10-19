@@ -171,6 +171,35 @@ export function plan(canvas: HTMLCanvasElement, site: SiteExport, d: Design, p: 
   return v;
 }
 
+/** Many small plans of one size (the MAP-Elites archive): the ground around the design and
+ *  the roads are drawn once, then copied under and over each design. */
+export function plans(canvases: HTMLCanvasElement[], site: SiteExport, designs: Design[], p: Palette, aspect: number) {
+  if (!canvases.length) return;
+  const g = site.grid, D = site.design, { corners: shape, r } = shapeOf(site);
+  const first = fitCanvas(canvases[0], aspect), { w, h } = first;
+  const v = view(D.x, D.y, w, h, 6, r * 3);
+  const layer = (draw: (ctx: Ctx) => void) => {
+    const c = document.createElement("canvas");
+    c.width = canvases[0].width; c.height = canvases[0].height;
+    const ctx = c.getContext("2d")!;
+    ctx.setTransform(c.width / w, 0, 0, c.width / w, 0, 0);
+    draw(ctx);
+    return c;
+  };
+  const under = layer((ctx) => {
+    ctx.fillStyle = p.paper; ctx.fillRect(0, 0, w, h);
+    cells(ctx, v, g.x, g.y, g.state.map((s, i) => (g.water[i] || s === 0 ? p.sea : s === 1 ? p.retained : null)), shape);
+  });
+  const over = layer((ctx) => context(ctx, v, site.context, p));
+  const copy = (ctx: Ctx, c: HTMLCanvasElement) => { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(c, 0, 0); ctx.restore(); };
+  canvases.forEach((canvas, k) => {
+    const { ctx } = k ? fitCanvas(canvas, aspect) : first;
+    copy(ctx, under);
+    cells(ctx, v, D.x, D.y, designColours(designs[k], p), shape);
+    copy(ctx, over);
+  });
+}
+
 /** Any per-cell grid layer: values → colours with `colourOf`. */
 export function layer(canvas: HTMLCanvasElement, site: SiteExport, colourOf: (i: number) => Colour, p: Palette,
   { aspect, labels = false }: { aspect?: number; labels?: boolean } = {}): View {

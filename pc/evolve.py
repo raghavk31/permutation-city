@@ -8,7 +8,9 @@ Each generation:
     3. mutation: each gene has a small chance of a nudge (near-Gaussian, kept within 0..1)
     4. immigration: ~10% of children are random newcomers (the workshop's G0.11), so the
        population keeps exploring instead of collapsing onto one genome
-    5. parents and children compete; the best `pop` by rank, then distinctness, survive
+    5. parents and children compete; the best `pop` by rank, then distinctness, survive.
+       With search="nsga3", whole fronts survive while they fit and the front that doesn't
+       is cut by niching on reference directions instead of crowding (pc.niche)
 
 Individuals are named G{generation}.{nn}; each records its parents.
 
@@ -21,6 +23,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from pc import fitness, genome
+from pc.niche import divisions_for, niche_select, reference_points
 from pc.rng import Rng
 
 
@@ -31,6 +34,8 @@ class Individual:
     parents: tuple = ()
     rank: int = 0
     crowd: float = 0.0
+    cell: int = -1        # MAP-Elites: the archive cell it holds
+    quality: float = 0.0  # MAP-Elites: what it holds the cell by
 
     @property
     def scores(self):
@@ -51,6 +56,35 @@ def _make(g, ground, site, name, parents=(), locked=None, storm=1.0, ranges=geno
     d = genome.grow(g, ground, locked, ranges)
     fitness.evaluate(d, ground, site, storm)
     return Individual(name=name, design=d, parents=parents)
+
+
+def _first_genomes(rng: Rng, pop, start):
+    """Generation 0: `pop` random genomes, the first ones replaced by `start`."""
+    genomes = [genome.random_genome(rng) for _ in range(pop)]
+    for k, g in enumerate(start or []):
+        genomes[k % pop] = np.asarray(g)
+    return genomes
+
+
+def _niche_survivors(ranked, pop, refs):
+    """NSGA-III survival: whole fronts while they fit, then niching on the front that
+    doesn't. `ranked` is sorted by rank."""
+    end = 0
+    while end < pop:
+        nxt = end
+        while nxt < len(ranked) and ranked[nxt].rank == ranked[end].rank:
+            nxt += 1
+        if nxt > pop:
+            break
+        end = nxt
+    if end >= pop:
+        return ranked[:pop]
+    nxt = end
+    while nxt < len(ranked) and ranked[nxt].rank == ranked[end].rank:
+        nxt += 1
+    chosen, last = ranked[:end], ranked[end:nxt]
+    picks = niche_select([i.scores for i in chosen], [i.scores for i in last], pop - end, refs)
+    return chosen + [last[k] for k in picks]
 
 
 def _rank(inds):
@@ -125,8 +159,10 @@ def _record(run, gen, storm=1.0):
 
 
 def evolve(site, ground, generations=30, pop=60, seed=1, immigrants=0.1, log=print,
-           locked=None, shock=None, start=None, progress=None, ranges=genome.RANGES):
+           locked=None, shock=None, start=None, progress=None, ranges=genome.RANGES, search="nsga2"):
     """Breed `generations` of `pop` designs.
+
+    search    "nsga2" (crowding) or "nsga3" (reference directions; pc.niche)
 
     locked    use code per cell (genome.use_codes); those cells keep their use
     shock     (generation, storm_factor): from that generation on, the design storm is
@@ -136,12 +172,14 @@ def evolve(site, ground, generations=30, pop=60, seed=1, immigrants=0.1, log=pri
     ranges    how genes are read (pc.genome.RANGES; a brief may narrow them)
     progress  callback(generation, run) after each generation
     """
+    if search not in ("nsga2", "nsga3"):
+        raise ValueError(f"unknown search '{search}' (nsga2 or nsga3; MAP-Elites is pc.elites)")
     rng = Rng(seed)
     storm = 1.0
+    m = len(fitness.SCORES)
+    refs = reference_points(m, divisions_for(m, pop)) if search == "nsga3" else None
     # Generation 0: the same random genomes `pc grow` makes with this seed (plus any start).
-    genomes = [genome.random_genome(rng) for _ in range(pop)]
-    for k, g in enumerate(start or []):
-        genomes[k % pop] = np.asarray(g)
+    genomes = _first_genomes(rng, pop, start)
     first = [_make(g, ground, site, f"G0.{k + 1:02d}", locked=locked, ranges=ranges) for k, g in enumerate(genomes)]
     run = Run(site=site, ground=ground, pop=first, everyone=list(first))
     _rank(run.pop)
@@ -169,7 +207,8 @@ def evolve(site, ground, generations=30, pop=60, seed=1, immigrants=0.1, log=pri
 
         both = run.pop + children
         _rank(both)
-        run.pop = sorted(both, key=lambda i: (i.rank, -i.crowd))[:pop]
+        ranked = sorted(both, key=lambda i: (i.rank, -i.crowd))
+        run.pop = _niche_survivors(ranked, pop, refs) if refs else ranked[:pop]
         _rank(run.pop)
         _record(run, gen, storm)
         if progress:
