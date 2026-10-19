@@ -5,10 +5,37 @@ import { SITE_WATER_REACH_M } from "./config.js";
 import { gridOf, passes } from "./graph.js";
 import { norm, pyRound, smooth } from "./num.js";
 import { CONSTRAINED, OPEN, type RuleResult } from "./rules.js";
-import type { Ground, SiteExport } from "./types.js";
+import { sides } from "./streets.js";
+import type { Ground, GroundSkeleton, SiteExport } from "./types.js";
 
 export function prepare(site: SiteExport): Ground {
-  return fromDesign(site, site.design);
+  const G = fromDesign(site, site.design);
+  if (site.skeleton) G.skeleton = skeletonOn(G, site.skeleton, site.skeleton.sides, site.skeleton.crossings, site.skeleton.road_sides);
+  return G;
+}
+
+/** The skeleton's sides ([cell, direction, ridge, class]) as sides of this ground. `off`:
+ *  ridges a person has switched off (their sides go; the joins stay). */
+function skeletonOn(G: Ground, sk: NonNullable<SiteExport["skeleton"]>, list: [number, number, number, number][],
+  crossings: [number, number][], roads: [number, number][], off: ReadonlySet<number> = new Set()): GroundSkeleton {
+  const sd = sides(G), D = G.deg;
+  const side = (i: number, a: number) => (i >= 0 && i < G.n ? sd.at[i * D + a] : -1);
+  const kept = list.filter(([i, a, r]) => side(i, a) >= 0 && !off.has(r));
+  const ids = kept.map(([i, a]) => side(i, a));
+  return {
+    source: sk.source, note: sk.note,
+    sides: Int32Array.from(ids), level: Int8Array.from(kept, (x) => x[3] ?? 3), ridge: Int32Array.from(kept, (x) => x[2]),
+    crossings: crossings.filter(([i, a]) => side(i, a) >= 0).length, crossingCap: sk.crossing_cap, connected: sk.connected,
+    ridges: sk.ridges, roadSides: Int32Array.from(roads.map(([i, a]) => side(i, a)).filter((s) => s >= 0)),
+  };
+}
+
+/** The ground with some ridges of its skeleton switched off (the landform view). */
+export function withSkeleton(site: SiteExport, G: Ground, off: ReadonlySet<number>): Ground {
+  if (!site.skeleton) return G;
+  const H = { ...G };
+  H.skeleton = skeletonOn(H, site.skeleton, site.skeleton.sides, site.skeleton.crossings, site.skeleton.road_sides, off);
+  return H;
 }
 
 function fromDesign(site: SiteExport, d: SiteExport["design"]): Ground {
@@ -30,6 +57,11 @@ function fromDesign(site: SiteExport, d: SiteExport["design"]): Ground {
     trees: Float64Array.from(d.trees), siteWater: Float64Array.from(d.site_water),
     cellArea: site.meta.cell_area, bounds: [xmin, ymin, xmax, ymax],
     meta: site.meta, roads: site.context.roads, activities: site.context.activities,
+    ...(d.z ? {
+      z: Float64Array.from(d.z), valley: Int8Array.from(d.valley!), vbuf: Uint8Array.from(d.vbuf!),
+      down: Int32Array.from(d.down!), ridge: Float64Array.from(d.ridge!),
+      lst: d.lst ? Float64Array.from(d.lst, (v) => (v === null ? NaN : v)) : null,
+    } : {}),
   };
 }
 
@@ -76,6 +108,13 @@ export function designFromRules(site: SiteExport, res: RuleResult): SiteExport["
 
   const uses = cells.map((c) => res.uses[c]);
   const trees = col("trees");
+  // Format 4: the landform columns, and the cell each drains to as a design index.
+  const landform = L.valley_order && g.down ? {
+    z: cells.map((c) => L.ground[c] ?? 0), valley: cells.map((c) => L.valley_order[c] ?? 0),
+    vbuf: cells.map((c) => ((L.valley_buffer[c] ?? 0) || (L.valley_order[c] ?? 0) >= 1 ? 1 : 0)),
+    down: cells.map((c) => (g.down![c] >= 0 ? pos[g.down![c]] : -1)), ridge: cells.map((c) => L.ridge[c] ?? 0),
+    ...(L.lst ? { lst: cells.map((c) => L.lst[c]) } : {}),
+  } : {};
   return {
     x: cells.map((c) => g.x[c]), y: cells.map((c) => g.y[c]),
     nbr: Array.from(nbr),
@@ -85,10 +124,41 @@ export function designFromRules(site: SiteExport, res: RuleResult): SiteExport["
     min_perm: cells.map((c) => pyRound(res.minPermeable[c], 3)),
     trees: Array.from(trees, (v) => pyRound(v, 3)),
     site_water: Array.from(siteWater, (v) => pyRound(v, 6)),
+    ...landform,
   };
 }
 
-/** The engine's Ground from a rule result (the browser's own `prepare`). */
+/** The engine's Ground from a rule result (the browser's own `prepare`). The skeleton is the
+ *  site's own, mapped onto the new design ground from grid cells: sides whose cells are no
+ *  longer design ground drop out (edited rules don't move the skeleton). */
 export function prepareFromRules(site: SiteExport, res: RuleResult): Ground {
-  return fromDesign(site, designFromRules(site, res));
+  const G = fromDesign(site, designFromRules(site, res));
+  const sk = site.skeleton;
+  if (sk?.grid_sides) {
+    const pos = new Int32Array(res.n).fill(-1);
+    let k = 0;
+    const water = site.grid.layers!.water;
+    for (let c = 0; c < res.n; c++) if (!water[c] && (res.state[c] === CONSTRAINED || res.state[c] === OPEN)) pos[c] = k++;
+    const D = G.deg, gn = site.grid.nbr!;
+    // A grid side [cell, direction] onto the design ground: from the cell if it is design
+    // ground, else from its neighbour that way, looking back.
+    const onto = (c: number, a: number): [number, number] => {
+      if (pos[c] >= 0) return [pos[c], a];
+      const sd = sides(G);
+      for (let q = 0; q < D; q++) {
+        const o = gn[c * D + q];
+        if (o >= 0 && pos[o] >= 0) {
+          const back = (a + D / 2) % D, sid = sd.at[pos[o] * D + back];
+          const dx = G.x[pos[o]] - site.grid.x[c], dy = G.y[pos[o]] - site.grid.y[c];
+          const dirTo = ((Math.floor(Math.atan2(dy, dx) / ((2 * Math.PI) / D) + 0.5) % D) + D) % D;
+          if (dirTo === a && sid >= 0) return [pos[o], back];
+        }
+      }
+      return [-1, 0];
+    };
+    const list = sk.grid_sides.map(([c, a, r, l]): [number, number, number, number] => [...onto(c, a), r, l]);
+    G.skeleton = skeletonOn(G, sk, list, (sk.grid_crossings ?? []).map(([c, a]) => onto(c, a)),
+      (sk.grid_road_sides ?? []).map(([c, a]) => onto(c, a)));
+  }
+  return G;
 }

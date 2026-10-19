@@ -1,8 +1,9 @@
 // Genome → design (pc/genome.py). See that file for the body plan and the growth steps.
 import {
-  ATTRACTOR_GENES, BUILDING, DEFAULT_RANGES, GLOBAL_GENES, KINDS, LANDSCAPE, LENGTH, N_ATTRACTORS,
-  WATER, WATER_FIELD_REACH_M, type Ranges,
+  ATTRACTOR_GENES, BUILDING, DEFAULT_RANGES, GLOBAL_GENES, KINDS, LANDSCAPE, LENGTH, N_ATTRACTORS, PRE_STREET_LENGTH,
+  STREET_FRONT_RISE, STREET_GENE_DEFAULT, WATER, WATER_FIELD_REACH_M, type Ranges,
 } from "./config.js";
+import { sides, streets } from "./streets.js";
 import { passes } from "./graph.js";
 import { lerp, norm, roundHalfEven, smooth } from "./num.js";
 import type { Attractor, Design, Ground, Kind, Rng, Settings, Stats } from "./types.js";
@@ -42,10 +43,21 @@ function field(G: Ground, attractors: Attractor[], kind: Kind): Float64Array {
   return f;
 }
 
+/** A genome at the current length: a pre-street genome (47 numbers) gets the default street
+ *  genes. Says which it was. */
+export function upgrade(genome: number[]): [number[], boolean] {
+  if (genome.length >= LENGTH) return [genome, false];
+  if (genome.length !== PRE_STREET_LENGTH) throw new Error(`a genome has ${LENGTH} numbers (this one has ${genome.length})`);
+  return [[...genome, ...Array(LENGTH - PRE_STREET_LENGTH).fill(STREET_GENE_DEFAULT)], true];
+}
+
 /** Grow a design. `locked` (optional): a use code per cell, 0 = free. */
 export function grow(genome: number[], G: Ground, locked: ArrayLike<number> | null = null,
   ranges: Ranges = DEFAULT_RANGES): Design {
+  const [full, preStreet] = upgrade(genome);
+  genome = full;
   const { attractors, settings: s } = decode(genome, G.bounds, ranges);
+  const st = streets(G, s);
   const n = G.n;
   const core = norm(field(G, attractors, "core"));
   const greenF = norm(field(G, attractors, "green"));
@@ -86,16 +98,43 @@ export function grow(genome: number[], G: Ground, locked: ArrayLike<number> | nu
     use[i] = G.canBuild[i] ? BUILDING : G.canGreen[i] ? LANDSCAPE : WATER;
   }
 
+  // No street between two water cells the genes made (it would be a causeway to nowhere).
+  const sd = sides(G);
+  for (let sid = 0; sid < st.cls.length; sid++) {
+    const j = sd.other[sid];
+    if (st.cls[sid] && st.cls[sid] < 3 && j >= 0 && use[sd.cell[sid]] === WATER && use[j] === WATER) {
+      const take = (st.widths[st.cls[sid]] / 2) * G.grid.edge / G.cellArea;
+      st.share[sd.cell[sid]] = Math.max(st.share[sd.cell[sid]] - take, 0);
+      st.share[j] = Math.max(st.share[j] - take, 0);
+      st.cls[sid] = 0;
+    }
+  }
+  const fronts = new Uint8Array(n);
+  for (let sid = 0; sid < st.cls.length; sid++) {
+    if (!st.cls[sid]) continue;
+    fronts[sd.cell[sid]] = 1;
+    if (sd.other[sid] >= 0) fronts[sd.other[sid]] = 1;
+  }
+
   // Heights: peak < 1 spreads height out, > 1 concentrates it in towers; base lifts all.
+  // Buildings on a street rise a little higher. Coverage gives up what the streets take;
+  // gross floor area is what it would be if they took nothing.
   const levels = new Int32Array(n), coverage = new Float64Array(n), floorArea = new Float64Array(n);
+  let gross = 0;
   for (let i = 0; i < n; i++) {
     if (use[i] !== BUILDING) continue;
-    const rise = s.base + (1 - s.base) * Math.pow(core[i], s.peak);
+    let rise = s.base + (1 - s.base) * Math.pow(core[i], s.peak);
+    if (fronts[i]) rise = Math.min(rise * STREET_FRONT_RISE, 1);
     levels[i] = Math.min(Math.max(roundHalfEven(1 + (G.cap[i] - 1) * s.intensity * rise), 1), G.cap[i]);
-    coverage[i] = Math.min(s.coverage, 1 - G.minPerm[i]);
+    // Coverage applies to the plot the streets leave: s.coverage of (1 - share), within the
+    // permeable minimum.
+    const open = Math.min(s.coverage, 1 - G.minPerm[i]);
+    coverage[i] = Math.max(Math.min(s.coverage * (1 - st.share[i]), 1 - G.minPerm[i] - st.share[i]), 0);
     floorArea[i] = G.cellArea * coverage[i] * levels[i];
+    gross += G.cellArea * open * levels[i];
   }
-  return { genome: Array.from(genome), use, levels, coverage, floorArea, attractors, settings: s, scores: null };
+  return { genome: Array.from(genome), use, levels, coverage, floorArea, attractors, settings: s, scores: null,
+    grossFloorArea: gross, street: st.cls, streetWidths: st.widths, ...(preStreet ? { preStreet } : {}) };
 }
 
 /** Design summary: shares of use, levels (pc.genome.stats). */

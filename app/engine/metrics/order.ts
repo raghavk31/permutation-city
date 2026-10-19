@@ -22,14 +22,14 @@ export function levelsOfScale(net: Net): number {
 
 /** Of the edges of open spaces (three cells or more), the share that buildings define. */
 export function boundaries(net: Net): number {
-  const { G, d, L, patch, patches } = net, D = G.deg;
+  const { G, d, cut, patch, patches } = net, D = G.deg;
   let edges = 0, built = 0;
   patches.forEach((cells, p) => {
     if (cells.length < 3) return;
     for (const i of cells) {
       for (let k = 0; k < D; k++) {
         const j = G.nbr[i * D + k];
-        if (j >= 0 && !L.cut[i * D + k] && patch[j] === p) continue;
+        if (j >= 0 && !cut[i * D + k] && patch[j] === p) continue;
         edges++;
         if (j >= 0 && d.use[j] === BUILDING) built++;
       }
@@ -319,6 +319,7 @@ export function strongCentres(net: Net): number {
 }
 
 /** Contrast and emphasis: of the landmarks (buildings far taller than the rest), the share
- *  within 100 m of a node (a junction or a centre). 0 when there are none. */
+ *  within 100 m of a node (an open cell where three blocks meet, or a centre). 0 when there
+ *  are none. */
 export const landmarkPlacement = (net: Net) =>
   near(net.G, landmarks(net), [...junctions(net), ...net.centres], NEAR_NODE_M);

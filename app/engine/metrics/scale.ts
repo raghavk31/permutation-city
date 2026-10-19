@@ -1,34 +1,34 @@
 // Human scale, and permeability and active edges (pc/metrics/scale.py; docs/metrics.md).
-import {
-  ACTIVE_REACH_M, BLOCK_PERIMETER_M, BUILDING, DH_BAND, ENCLOSED_MAX_M, LOW_FRONTAGE_LEVELS, STOREY_M, STREET_W_M,
-} from "../config.js";
-import { isOpen, junctions, stepTo, walk, type Net } from "./network.js";
+import { BLOCK_PERIMETER_M, BUILDING, DH_BAND, ENCLOSED_MAX_M, LOW_FRONTAGE_LEVELS, STOREY_M, STREET_W_M } from "../config.js";
+import { sides } from "../streets.js";
+import { isOpen, stepTo, type Net } from "./network.js";
 
 /** Calls `f(i, slot, j)` for each frontage link: a building cell's link to a cell inside the
  *  design that isn't building, or that a road crosses. Links off the design are skipped. */
 function frontage(net: Net, f: (i: number, slot: number, j: number) => void) {
-  const { G, d, L } = net, D = G.deg;
+  const { G, d, cut } = net, D = G.deg;
   for (let i = 0; i < G.n; i++) {
     if (d.use[i] !== BUILDING) continue;
     for (let k = 0; k < D; k++) {
       const s = i * D + k, j = G.nbr[s];
-      if (j >= 0 && (L.cut[s] || d.use[j] !== BUILDING)) f(i, s, j);
+      if (j >= 0 && (cut[s] || d.use[j] !== BUILDING)) f(i, s, j);
     }
   }
 }
 
 /** Share of street faces whose width over height (D/H) is between 1 and 3. Width is the
- *  open run straight out from the face to the next building (plus a nominal street where a
- *  road crosses); a run that ends in nothing, or is longer than 120 m, encloses nothing. */
+ *  open run straight out from the face to the next building, plus the street's own width
+ *  where the design has one (a nominal 12 m where only an existing road crosses); a run
+ *  that ends in nothing, or is longer than 120 m, encloses nothing. */
 export function dhEnclosure(net: Net): number {
-  const { G, d, L } = net, spacing = G.grid.spacing;
+  const { G, d, L, cut, wide } = net, spacing = G.grid.spacing;
   let total = 0, good = 0;
   frontage(net, (i, slot, j) => {
     total++;
     const a = L.dir[slot], H = d.levels[i] * STOREY_M;
     let D = 0, s = slot, nxt = j, enclosed = false;
     for (;;) {
-      if (L.cut[s]) D += STREET_W_M;
+      if (cut[s]) D += wide[s] > 0 ? wide[s] : STREET_W_M;
       if (d.use[nxt] === BUILDING) { enclosed = true; break; }
       D += spacing;
       if (D > ENCLOSED_MAX_M) break;
@@ -42,13 +42,13 @@ export function dhEnclosure(net: Net): number {
 
 /** Each block's perimeter in metres: its cells' links to anything outside the block. */
 export function perimeters(net: Net): number[] {
-  const { G, L, block, blocks } = net, D = G.deg;
+  const { G, cut, block, blocks } = net, D = G.deg;
   return blocks.map((cells, b) => {
     let edges = 0;
     for (const i of cells) {
       for (let k = 0; k < D; k++) {
         const j = G.nbr[i * D + k];
-        if (j < 0 || L.cut[i * D + k] || block[j] !== b) edges++;
+        if (j < 0 || cut[i * D + k] || block[j] !== b) edges++;
       }
     }
     return edges * G.grid.edge;
@@ -70,15 +70,11 @@ export function lowFrontage(net: Net): number {
   return total ? low / total : 0;
 }
 
-/** Junctions (open cells meeting three or more blocks) per km² of design ground. */
-export function junctionDensity(net: Net): number {
-  return junctions(net).length / ((net.G.n * net.G.cellArea) / 1e6);
-}
 
 /** How many different spaces each block opens onto (open patches, a road, the edge of the
  *  design), averaged over building cells. */
 export function connections(net: Net): number {
-  const { G, d, L, patch, blocks } = net, D = G.deg;
+  const { G, d, cut, patch, blocks } = net, D = G.deg;
   let all = 0, sum = 0;
   for (const cells of blocks) {
     const spaces: number[] = [];
@@ -87,7 +83,7 @@ export function connections(net: Net): number {
       for (let k = 0; k < D; k++) {
         const j = G.nbr[i * D + k];
         if (j < 0) { edge = 1; continue; }
-        if (L.cut[i * D + k]) road = 1;
+        if (cut[i * D + k]) road = 1;
         else if (isOpen(d.use[j]) && !spaces.includes(patch[j])) spaces.push(patch[j]);
       }
     }
@@ -97,12 +93,22 @@ export function connections(net: Net): number {
   return all ? sum / all : 0;
 }
 
-/** Share of street faces within a 200 m walk of a centre, where ground floors are likely to
- *  be shops and workplaces (buildings carry no programme yet). */
+/** Of the building faces on the design's streets, the share on primary and secondary
+ *  streets: the through routes whose footfall shops and workplaces need. Lanes and cul-de-
+ *  sacs are quieter. (Buildings carry no programme yet.) */
 export function activeFrontage(net: Net): number {
-  if (!net.centres.length) return 0;
-  const dist = walk(net.G, net.centres), reach = ACTIVE_REACH_M / net.G.grid.spacing;
+  const { G, d } = net;
+  if (!d.street) return 0;
+  const sd = sides(G), D = G.deg;
   let total = 0, active = 0;
-  frontage(net, (i) => { total++; if (dist[i] >= 0 && dist[i] <= reach) active++; });
+  for (let i = 0; i < G.n; i++) {
+    if (d.use[i] !== BUILDING) continue;
+    for (let a = 0; a < D; a++) {
+      const sid = sd.at[i * D + a];
+      if (sid < 0 || !d.street[sid]) continue;
+      total++;
+      if (d.street[sid] >= 2) active++;
+    }
+  }
   return total ? active / total : 0;
 }

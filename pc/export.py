@@ -29,14 +29,14 @@ import json
 import geopandas as gpd
 import numpy as np
 
-from pc import elites, evolve, fitness, genome, metrics, rules
+from pc import elites, evolve, fitness, genome, landform, lst, metrics, rules, skeleton
 from pc import grid as cellgrid
 from pc.rng import Rng
 from pc.site import ROOT, Site
 
 SITES_OUT = ROOT / "app" / "public" / "sites"
 FIXTURES = ROOT / "test" / "parity" / "fixtures"
-FORMAT = 3
+FORMAT = 4  # 4: landform columns on the design ground, the street skeleton, LST
 STATE_CODE = {"forbidden": 0, "retained": 1, "constrained": 2, "open": 3}
 NOT_LAYERS = {"geometry", "cell", "row", "col"}
 CREDITS = [
@@ -75,7 +75,27 @@ def _design(ground: genome.Ground, ox: float, oy: float) -> dict:
         "min_perm": _r(ground.min_perm, 3),
         "trees": _r(ground.trees, 3),
         "site_water": _r(ground.site_water, 6),
+        **_landform_columns(ground.cells),
     }
+
+
+def _landform_columns(cells) -> dict:
+    """Per design cell: ground height, valley order, valley channel or buffer, the cell it
+    drains to (design index, -1 if it drains off the design ground or is an outlet), hot-season
+    LST (null where none) and ridge strength. Empty for layers built before format 4."""
+    if cells is None or "valley_order" not in cells:
+        return {}
+    pos = {(int(r), int(c)): k for k, (r, c) in enumerate(zip(cells["row"], cells["col"]))}
+    out = {
+        "z": _r(cells["ground"], 1),
+        "valley": [int(v) for v in cells["valley_order"]],
+        "vbuf": [int(bool(b) or o >= 1) for b, o in zip(cells["valley_buffer"], cells["valley_order"])],
+        "down": [pos.get((int(r), int(c)), -1) for r, c in zip(cells["flow_to_row"], cells["flow_to_col"])],
+        "ridge": _r(cells["ridge"], 2),
+    }
+    if "lst" in cells:
+        out["lst"] = [None if v != v else round(float(v), 1) for v in cells["lst"]]
+    return out
 
 
 def engine_ground(suit: gpd.GeoDataFrame, graph: cellgrid.CellGraph, origin=None) -> tuple[genome.Ground, dict]:
@@ -90,6 +110,7 @@ def engine_ground(suit: gpd.GeoDataFrame, graph: cellgrid.CellGraph, origin=None
     design = _design(g, ox, oy)
     ground = ground_from_export({"design": design, "meta": {"cell_area": round(float(g.area[0]), 3),
                                                             "grid": graph.describe()}})
+    ground.cells = g.cells
     ground.cells, ground.origin = g.cells, (ox, oy)
     return ground, design
 
@@ -121,6 +142,9 @@ def site_ground(site: Site, suit: gpd.GeoDataFrame, origin=None) -> tuple[genome
     ground, design = engine_ground(suit, cellgrid.for_site(site), origin)
     ground.roads = _lines(context(site)["roads"], *ground.origin)
     ground.activities = _activities(site, *ground.origin)
+    ground.skeleton = skeleton.build(site, ground, ground.cells, suit) if "valley_order" in suit else None
+    summary = landform.load(site)
+    ground.relief_class = summary["relief"]["class"] if summary else None
     return ground, design
 
 
@@ -146,6 +170,8 @@ def export(site: Site) -> dict:
     graph = cellgrid.for_site(site)
     ground, design = engine_ground(suit, graph)
     ox, oy = ground.origin
+    skel = skeleton.build(site, ground, ground.cells, suit) if "valley_order" in suit else None
+    lf_summary = landform.load(site)
     lon, lat = gpd.GeoSeries(gpd.points_from_xy([ox], [oy]), crs=site.crs).to_crs(4326).iloc[0].coords[0]
 
     c = suit.centroid
@@ -166,6 +192,14 @@ def export(site: Site) -> dict:
         "memberships": [int(v) for v in suit["memberships"]],
         "layers": layer_table(grid_layers),
     }
+    if "flow_to_row" in suit:  # the cell each drains to, as a grid index (-1: an outlet or off the grid)
+        gpos = {(int(r_), int(c_)): k for k, (r_, c_) in enumerate(zip(suit["row"], suit["col"]))}
+        grid["down"] = [gpos.get((int(r_), int(c_)), -1) for r_, c_ in zip(suit["flow_to_row"], suit["flow_to_col"])]
+        if skel:  # the skeleton on grid cells too, so edited rules in the browser can map it again
+            dpos = [gpos[(int(r_), int(c_))] for r_, c_ in zip(ground.cells["row"], ground.cells["col"])]
+            skel["grid_sides"] = [[dpos[i], a, rid, lv] for i, a, rid, lv in skel["sides"]]
+            skel["grid_crossings"] = [[dpos[i], a] for i, a in skel["crossings"]]
+            skel["grid_road_sides"] = [[dpos[i], a] for i, a in skel["road_sides"]]
 
     ctx = context(site)
     places = ctx["places"]
@@ -180,6 +214,8 @@ def export(site: Site) -> dict:
             "design_ha": round(float(ground.area.sum()) / 1e4, 1),
             "sea_levels": site.sea_levels, "states": list(STATE_CODE),
             "credits": CREDITS,
+            **({"landform": {k: v for k, v in lf_summary.items() if k != "ridges"}} if lf_summary else {}),
+            **({"lst": lst.meta(site)} if lst.meta(site) else {}),
         },
         "grid": grid,
         "rules": rule_table(r),
@@ -192,6 +228,7 @@ def export(site: Site) -> dict:
                        for _, p in places.iterrows()],
             "activities": _activities(site, ox, oy),
         },
+        **({"skeleton": skel} if skel else {}),
     }
     return out
 
@@ -212,6 +249,11 @@ def ground_from_export(data: dict) -> genome.Ground:
         bounds=(xy[:, 0].min(), xy[:, 1].min(), xy[:, 0].max(), xy[:, 1].max()),
         graph=graph, roads=data.get("context", {}).get("roads"),
         activities=data.get("context", {}).get("activities"),
+        z=np.array(d["z"]) if "z" in d else None, valley=np.array(d["valley"]) if "valley" in d else None,
+        vbuf=np.array(d["vbuf"]) if "vbuf" in d else None, down=np.array(d["down"]) if "down" in d else None,
+        lst=np.array([np.nan if v is None else v for v in d["lst"]]) if "lst" in d else None,
+        ridge=np.array(d["ridge"]) if "ridge" in d else None, skeleton=data.get("skeleton"),
+        relief_class=(data.get("meta", {}).get("landform") or {}).get("relief", {}).get("class"),
     )
 
 

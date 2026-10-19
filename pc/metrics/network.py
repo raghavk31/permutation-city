@@ -122,6 +122,10 @@ def is_open(u) -> bool:
 @dataclass
 class Net:
     S: Site
+    ground: object   # the Ground (landform columns, sides)
+    street: list     # per side (pc.streets): the design's street class, or empty
+    cut: list        # per link: a street of the design or an existing road
+    wide: list       # per link: the design's street width there (0: none)
     use: list
     levels: list
     floor_area: list
@@ -136,9 +140,10 @@ class Net:
     sd: float
 
 
-def components(S: Site, member) -> tuple[list, list]:
-    """Connected groups of cells that pass `member`, not across road cuts; numbered in
-    order of their lowest cell, each listed in breadth-first order."""
+def components(S: Site, member, cut=None) -> tuple[list, list]:
+    """Connected groups of cells that pass `member`, not across cut links (road cuts by
+    default); numbered in order of their lowest cell, each listed in breadth-first order."""
+    cut = S.cut if cut is None else cut
     D, label, groups = S.deg, [-1] * S.n, []
     for s in range(S.n):
         if label[s] >= 0 or not member(s):
@@ -150,7 +155,7 @@ def components(S: Site, member) -> tuple[list, list]:
             i = cells[h]
             for k in range(D):
                 j = S.nbr[i * D + k]
-                if j >= 0 and label[j] < 0 and not S.cut[i * D + k] and member(j):
+                if j >= 0 and label[j] < 0 and not cut[i * D + k] and member(j):
                     label[j] = gid
                     cells.append(j)
             h += 1
@@ -236,9 +241,23 @@ def network(design, ground) -> Net:
     S = site_of(ground)
     use = [USE_CODE.get(u, 0) for u in design.use]
     levels = [int(v) for v in design.levels]
-    block, blocks = components(S, lambda i: use[i] == BUILDING)
-    patch, patches = components(S, lambda i: is_open(use[i]))
-    green, greens = components(S, lambda i: use[i] == LANDSCAPE)
+    D = S.deg
+    cut, wide = list(S.cut), [0.0] * (S.n * D)
+    street = list(getattr(design, "street", None) or [])
+    if street and getattr(design, "street_widths", None):
+        from pc.streets import sides
+        sd = sides(ground)
+        for i in range(S.n):
+            for k in range(D):
+                if S.nbr[i * D + k] < 0:
+                    continue
+                c = street[sd.at[i * D + S.dir[i * D + k]]]
+                if c:
+                    cut[i * D + k] = 1
+                    wide[i * D + k] = design.street_widths[c]
+    block, blocks = components(S, lambda i: use[i] == BUILDING, cut)
+    patch, patches = components(S, lambda i: is_open(use[i]), cut)
+    green, greens = components(S, lambda i: use[i] == LANDSCAPE, cut)
     centres = []
     for a in design.attractors:
         if a.kind != "core":
@@ -258,7 +277,7 @@ def network(design, ground) -> Net:
             s1 += levels[i]
             s2 += levels[i] * levels[i]
     mean = s1 / nb if nb else 0
-    net = Net(S=S, use=use, levels=levels, floor_area=[float(v) for v in design.floor_area],
+    net = Net(S=S, ground=ground, street=street, cut=cut, wide=wide, use=use, levels=levels, floor_area=[float(v) for v in design.floor_area],
               block=block, blocks=blocks, patch=patch, patches=patches, green=green, greens=greens,
               centres=centres, mean=mean, sd=math.sqrt(max(s2 / nb - mean * mean, 0)) if nb else 0)
     design._net = net
@@ -274,7 +293,7 @@ def junctions(net: Net) -> list:
         seen = []
         for k in range(S.deg):
             j = S.nbr[i * S.deg + k]
-            if j >= 0 and not S.cut[i * S.deg + k] and net.block[j] >= 0 and net.block[j] not in seen:
+            if j >= 0 and not net.cut[i * S.deg + k] and net.block[j] >= 0 and net.block[j] not in seen:
                 seen.append(net.block[j])
         if len(seen) >= 3:
             out.append(i)

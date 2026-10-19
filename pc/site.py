@@ -72,6 +72,10 @@ class Site:
     design_storm_mm: float = 100.0         # rain in the design storm (fitness: storage)
     target_far: float = 1.5                # floor-area target as FAR over design ground ...
     target_floor_area_ha: float | None = None  # ... or as an absolute area (wins if set)
+    # Landform (pc/landform.py, docs/landform.md)
+    valley_ha: float = 10.0                # upstream area where a valley (drainage line) starts
+    lst_months: tuple = (3, 5)             # hot season for land surface temperature (first, last)
+    lst_years: tuple = (2023, 2025)        # years whose clear hot-season scenes are combined
 
     @property
     def crs(self) -> str:
@@ -140,6 +144,9 @@ def load(site_id: str) -> Site:
         design_storm_mm=float(cfg.get("design_storm_mm", 100)),
         target_far=float(cfg.get("target_far", 1.5)),
         target_floor_area_ha=cfg.get("target_floor_area_ha"),
+        valley_ha=float(cfg.get("valley_ha", 10.0)),
+        lst_months=tuple(cfg.get("lst_months", (3, 5))),
+        lst_years=tuple(cfg.get("lst_years", (2023, 2025))),
     )
 
 

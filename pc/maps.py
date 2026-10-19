@@ -147,9 +147,9 @@ def layers_sheet(site: Site, grid, out):
                 _frame(ax, grid, "2 · Sea flooding", "not a coastal site (no sea_levels in site.yaml)")
         elif key == "rain":
             _sequential(ax, fig, land, "pool", 0, 1, "{:.1f} m")
-            lines = land[land["catchment_ha"] >= 4.1].centroid
+            lines = land[land["valley_order"] >= 1].centroid if "valley_order" in land else land.iloc[:0].centroid
             ax.scatter(lines.x, lines.y, s=1.2, color=INK, linewidths=0)
-            _frame(ax, grid, "3 · Rain", "pooling depth in hollows; dots = drainage lines (4+ ha drains through)")
+            _frame(ax, grid, "3 · Rain", "pooling depth in hollows; dots = valleys (pc/landform.py)")
         elif key == "green":
             veg = land.assign(veg=land["trees"] + land["green"] + land["mangrove"])
             _sequential(ax, fig, veg, "veg", 0, 1, "{:.0%}")

@@ -1,7 +1,8 @@
 // The streets and blocks a design implies (pc/metrics/network.py; R5 in docs/architecture-v2.md).
 //
 // The genome places building, landscape and water, never streets. So they are derived:
-//   blocks    connected building cells; an existing major road between two cells cuts them
+//   blocks    connected building cells; a street of the design (on the side between two
+//             cells, streets.ts) or an existing major road between them cuts them
 //   patches   connected open cells (landscape or water), cut the same way
 //   frontage  a building cell's links to anything that is not the same block
 //   centres   the cells nearest the core attractors (the design's own local centres)
@@ -9,6 +10,7 @@
 //
 // Same arithmetic, in the same order, as the Python file, so both give the same numbers.
 import { BUILDING, LANDSCAPE, WATER } from "../config.js";
+import { sides } from "../streets.js";
 import type { Design, Ground } from "../types.js";
 
 /** Per site: each link's direction (0 = east, counter-clockwise in equal steps) and whether
@@ -79,6 +81,8 @@ export const isOpen = (u: number) => u === LANDSCAPE || u === WATER;
 
 export interface Net {
   G: Ground; d: Design; L: Links;
+  cut: Uint8Array;                          // per link: a street of the design or an existing road
+  wide: Float64Array;                       // per link: the design's street width there (0: none)
   block: Int32Array; blocks: number[][];    // building components
   patch: Int32Array; patches: number[][];   // open components
   green: Int32Array; greens: number[][];    // landscape-only components
@@ -86,9 +90,9 @@ export interface Net {
   mean: number; sd: number;                 // storeys over building cells
 }
 
-/** Connected groups of cells that pass `member`, not across road cuts; numbered in order of
+/** Connected groups of cells that pass `member`, not across cut links; numbered in order of
  *  their lowest cell, each listed in breadth-first order. */
-export function components(G: Ground, L: Links, member: (i: number) => boolean): [Int32Array, number[][]] {
+export function components(G: Ground, cut: ArrayLike<number>, member: (i: number) => boolean): [Int32Array, number[][]] {
   const n = G.n, D = G.deg, label = new Int32Array(n).fill(-1), groups: number[][] = [];
   for (let s = 0; s < n; s++) {
     if (label[s] >= 0 || !member(s)) continue;
@@ -98,7 +102,7 @@ export function components(G: Ground, L: Links, member: (i: number) => boolean):
       const i = cells[h];
       for (let k = 0; k < D; k++) {
         const j = G.nbr[i * D + k];
-        if (j >= 0 && label[j] < 0 && !L.cut[i * D + k] && member(j)) { label[j] = id; cells.push(j); }
+        if (j >= 0 && label[j] < 0 && !cut[i * D + k] && member(j)) { label[j] = id; cells.push(j); }
       }
     }
     groups.push(cells);
@@ -176,10 +180,19 @@ const netCache = new WeakMap<Design, Net>();
 export function network(d: Design, G: Ground): Net {
   const hit = netCache.get(d);
   if (hit && hit.G === G) return hit;
-  const L = links(G);
-  const [block, blocks] = components(G, L, (i) => d.use[i] === BUILDING);
-  const [patch, patches] = components(G, L, (i) => isOpen(d.use[i]));
-  const [green, greens] = components(G, L, (i) => d.use[i] === LANDSCAPE);
+  const L = links(G), D = G.deg;
+  const cut = Uint8Array.from(L.cut), wide = new Float64Array(G.n * D);
+  if (d.street && d.streetWidths) {
+    const sd = sides(G);
+    for (let i = 0; i < G.n; i++) for (let k = 0; k < D; k++) {
+      if (G.nbr[i * D + k] < 0) continue;
+      const c = d.street[sd.at[i * D + L.dir[i * D + k]]];
+      if (c) { cut[i * D + k] = 1; wide[i * D + k] = d.streetWidths[c]; }
+    }
+  }
+  const [block, blocks] = components(G, cut, (i) => d.use[i] === BUILDING);
+  const [patch, patches] = components(G, cut, (i) => isOpen(d.use[i]));
+  const [green, greens] = components(G, cut, (i) => d.use[i] === LANDSCAPE);
   const centres: number[] = [];
   for (const a of d.attractors) {
     if (a.kind !== "core") continue;
@@ -196,7 +209,7 @@ export function network(d: Design, G: Ground): Net {
     nb++; s1 += d.levels[i]; s2 += d.levels[i] * d.levels[i];
   }
   const mean = nb ? s1 / nb : 0;
-  const net: Net = { G, d, L, block, blocks, patch, patches, green, greens, centres, mean,
+  const net: Net = { G, d, L, cut, wide, block, blocks, patch, patches, green, greens, centres, mean,
     sd: nb ? Math.sqrt(Math.max(s2 / nb - mean * mean, 0)) : 0 };
   netCache.set(d, net);
   return net;
@@ -204,13 +217,13 @@ export function network(d: Design, G: Ground): Net {
 
 /** Open cells touching three or more different blocks: where routes between blocks meet. */
 export function junctions(net: Net): number[] {
-  const { G, d, L, block } = net, D = G.deg, out: number[] = [];
+  const { G, d, cut, block } = net, D = G.deg, out: number[] = [];
   for (let i = 0; i < G.n; i++) {
     if (!isOpen(d.use[i])) continue;
     const seen: number[] = [];
     for (let k = 0; k < D; k++) {
       const j = G.nbr[i * D + k];
-      if (j >= 0 && !L.cut[i * D + k] && block[j] >= 0 && !seen.includes(block[j])) seen.push(block[j]);
+      if (j >= 0 && !cut[i * D + k] && block[j] >= 0 && !seen.includes(block[j])) seen.push(block[j]);
     }
     if (seen.length >= 3) out.push(i);
   }

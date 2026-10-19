@@ -11,7 +11,7 @@ const INFO: Record<string, LayerInfo> = {
   water: { label: "water", note: "sea, river, pond, dock", kind: "flag", ramp: "blues" },
   ground: { label: "ground", note: "bare-earth height above sea level (FABDEM)", kind: "metres", ramp: "greys" },
   pool: { label: "rain pooling", note: "water that sits in hollows after rain", kind: "metres", ramp: "blues" },
-  catchment_ha: { label: "drainage lines", note: "the area that drains through this cell", kind: "hectares", ramp: "blues" },
+  catchment_ha: { label: "drainage", note: "the area that drains through this cell (unconditioned ground)", kind: "hectares", ramp: "blues" },
   upstream: { label: "cells upstream", note: "how many cells drain through this one", kind: "count", ramp: "blues" },
   edge_dist: { label: "distance to water", note: "metres to the nearest land-water edge", kind: "metres", ramp: "greys" },
   trees: { label: "trees", note: "tree cover (ESA WorldCover)", kind: "share", ramp: "greens" },

@@ -41,9 +41,16 @@ from pc.grid import CellGraph, passes
 
 N_ATTRACTORS = 8
 ATTRACTOR_GENES = 5
+# The four street genes come last (genome version 2, Phase 6b), so the first 47 numbers of a
+# genome mean what they always did. A 47-number genome is a "pre-street genome": it grows with
+# the default street genes.
 GLOBAL_GENES = ["water_share", "green_share", "follow_water", "coverage", "peak", "intensity",
-                "base"]
+                "base", "street_spacing", "street_orientation", "street_pattern", "street_hierarchy"]
+STREET_GENES = 4
 LENGTH = N_ATTRACTORS * ATTRACTOR_GENES + len(GLOBAL_GENES)
+PRE_STREET_LENGTH = LENGTH - STREET_GENES
+GENOME_VERSION = 2
+STREET_GENE_DEFAULT = 0.5  # what a pre-street genome's street genes are read as
 KINDS = ["core", "green", "water"]
 USES = ["building", "landscape", "water"]
 
@@ -60,10 +67,14 @@ RANGES = {
     "water_share": (0.05, 0.30),
     "green_share": (0.10, 0.45),
     "follow_water": (0.0, 1.0),
-    "coverage": (0.35, 0.80),
+    "coverage": (0.35, 0.90),   # widened in Phase 6b: streets take part of each cell
     "peak": (0.5, 3.0),         # exponent on the core field
     "intensity": (0.25, 1.0),
     "base": (0.0, 0.6),
+    "street_spacing": (70, 180),     # metres between secondary streets
+    "street_orientation": (0, 1),    # 0..1/3 contours, 1/3..2/3 parallel to the valleys, 2/3..1 a bearing
+    "street_pattern": (0, 1),        # 0..1/3 grid, 1/3..2/3 loops, 2/3..1 branching (dead ends)
+    "street_hierarchy": (0, 1),      # narrow to wide secondary streets and lanes
 }
 
 
@@ -96,6 +107,15 @@ class Ground:
     graph: CellGraph | None = None  # the cell grid (shape, spacing), for the form metrics
     roads: list | None = None       # existing major roads in the same frame as xy (pc.metrics)
     activities: dict | None = None  # shops, schools, transit: points in the same frame (pc.metrics)
+    # Landform (pc/landform.py; export format 4): per cell, and the street skeleton (pc/skeleton.py)
+    z: np.ndarray | None = None       # ground height (m)
+    valley: np.ndarray | None = None  # valley order (0: none)
+    vbuf: np.ndarray | None = None    # 1: valley channel or its buffer
+    down: np.ndarray | None = None    # the design cell it drains to (-1: off the design ground)
+    lst: np.ndarray | None = None     # hot-season land surface temperature (°C; NaN: none)
+    ridge: np.ndarray | None = None   # strength of the strongest divide on its edges (ha)
+    skeleton: dict | None = None
+    relief_class: str | None = None   # pronounced, gentle or flat (pc.landform); flat if unknown
 
 
 @dataclass
@@ -104,10 +124,14 @@ class Design:
     use: np.ndarray
     levels: np.ndarray
     coverage: np.ndarray
-    floor_area: np.ndarray
+    floor_area: np.ndarray      # net: after streets
     attractors: list
     settings: dict
     scores: dict = field(default_factory=dict)
+    gross_floor_area: float = 0.0   # m², as if streets took nothing (what streets cost: gross - net)
+    street: list | None = None      # per side (pc.streets): 0 none, 1 lane, 2 secondary, 3 primary
+    street_widths: list | None = None
+    pre_street: bool = False        # grown from a 47-gene genome, with default street genes
 
 
 def _lerp(g, lo, hi):
@@ -185,10 +209,26 @@ def _field(xy, attractors, kind):
     return f
 
 
+def upgrade(genome) -> tuple[np.ndarray, bool]:
+    """A genome at the current length: a pre-street genome (47 numbers) gets the default
+    street genes. Says which it was."""
+    g = np.asarray(genome, dtype=float)
+    if len(g) >= LENGTH:
+        return g, False
+    if len(g) != PRE_STREET_LENGTH:
+        raise ValueError(f"a genome has {LENGTH} numbers (this one has {len(g)})")
+    return np.concatenate([g, np.full(LENGTH - PRE_STREET_LENGTH, STREET_GENE_DEFAULT)]), True
+
+
 def grow(genome: np.ndarray, ground: Ground, locked: np.ndarray | None = None, ranges: dict = RANGES) -> Design:
     """Grow a design. `locked` (optional): a use code per cell (see use_codes; 0 = free).
-    Locked cells keep their use and count towards that use's share."""
+    Locked cells keep their use and count towards that use's share. Streets (pc.streets)
+    come first, on cell edges; they take part of each cell they run beside."""
+    from pc import streets as st_mod
+
+    genome, pre_street = upgrade(genome)
     att, s = decode(genome, ground.bounds, ranges)
+    st = st_mod.streets(ground, s)
     xy = ground.xy
     core = _norm(_field(xy, att, "core"))
     green = _norm(_field(xy, att, "green")) + 0.3 * ground.trees  # keep canopy
@@ -217,13 +257,41 @@ def grow(genome: np.ndarray, ground: Ground, locked: np.ndarray | None = None, r
     left = free & ~ground.can_build
     use[left] = np.where(ground.can_green[left], "landscape", "water")
 
+    # No street between two water cells the genes made (a causeway to nowhere).
+    sd = st_mod.sides(ground)
+    cls, share = st["cls"], st["share"]
+    for sid in range(len(cls)):
+        j = sd.other[sid]
+        if cls[sid] and cls[sid] < 3 and j >= 0 and use[sd.cell[sid]] == "water" and use[j] == "water":
+            take = (st["widths"][cls[sid]] / 2) * sd_edge(ground) / float(ground.area[0])
+            share[sd.cell[sid]] = max(share[sd.cell[sid]] - take, 0)
+            share[j] = max(share[j] - take, 0)
+            cls[sid] = 0
+    fronts = np.zeros(n, dtype=bool)
+    for sid in range(len(cls)):
+        if cls[sid]:
+            fronts[sd.cell[sid]] = True
+            if sd.other[sid] >= 0:
+                fronts[sd.other[sid]] = True
+    share = np.array(share)
+
     # Heights: peak < 1 spreads height out, > 1 concentrates it in towers; base lifts all.
+    # Buildings on a street rise a little higher. Coverage applies to the plot the streets
+    # leave; gross floor area is what it would be if they took nothing.
     rise = s["base"] + (1 - s["base"]) * core ** s["peak"]
+    rise = np.where(fronts, np.minimum(rise * st_mod.STREET_FRONT_RISE, 1), rise)
     is_b = use == "building"
     levels = np.where(is_b, np.clip(np.round(1 + (ground.cap - 1) * s["intensity"] * rise), 1, ground.cap), 0)
-    cov = np.where(is_b, np.minimum(s["coverage"], 1 - ground.min_perm), 0.0)
+    open_cov = np.where(is_b, np.minimum(s["coverage"], 1 - ground.min_perm), 0.0)
+    cov = np.where(is_b, np.maximum(np.minimum(s["coverage"] * (1 - share), (1 - ground.min_perm) - share), 0), 0.0)
+    gross = float(sum(float(a) * float(c) * int(lv) for a, c, lv in zip(ground.area, open_cov, levels)))
     return Design(genome=genome, use=use, levels=levels.astype(int), coverage=cov,
-                  floor_area=ground.area * cov * levels, attractors=att, settings=s)
+                  floor_area=ground.area * cov * levels, attractors=att, settings=s,
+                  gross_floor_area=gross, street=cls, street_widths=st["widths"], pre_street=pre_street)
+
+
+def sd_edge(ground) -> float:
+    return float(ground.graph.edge) if ground.graph is not None else float(np.sqrt(ground.area[0]))
 
 
 def use_codes(d: Design) -> np.ndarray:
@@ -247,6 +315,7 @@ def stats(d: Design, ground: Ground) -> dict:
     b = d.use == "building"
     out = {
         "floor_area_ha": d.floor_area.sum() / 1e4,
+        "gross_floor_area_ha": d.gross_floor_area / 1e4,
         "far": d.floor_area.sum() / total,
         "building": share("building"),
         "landscape": share("landscape"),

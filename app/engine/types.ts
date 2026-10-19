@@ -12,6 +12,7 @@ export interface SiteExport {
     nbr?: number[];         // n × degree over the whole grid, -1 where there is no neighbour
     memberships?: number[]; // bit k: the cell matches rule k
     layers?: LayerTable;    // every layer column as built
+    down?: number[];        // format 4: the grid cell each drains to (-1: an outlet)
   };
   rules?: RuleSet;          // format 2
   design: {
@@ -19,7 +20,10 @@ export interface SiteExport {
     nbr: number[];        // n × degree, -1 where there is no neighbour
     can: number[];        // bits: 1 building, 2 landscape, 4 water
     cap: number[]; min_perm: number[]; trees: number[]; site_water: number[];
+    // format 4 (landform)
+    z?: number[]; valley?: number[]; vbuf?: number[]; down?: number[]; lst?: (number | null)[]; ridge?: number[];
   };
+  skeleton?: SkeletonExport;
   context: {
     roads: [number, number][][];
     rail: [number, number][][];
@@ -77,6 +81,12 @@ export interface SiteMeta {
   design_storm_mm: number; target_far: number; target_floor_area_ha: number | null;
   target_ha: number; design_ha: number;
   sea_levels: Record<string, number>; states: string[]; credits: string[];
+  /** Format 4: the landform summary (pc/landform.py) and the hot-season LST scenes (pc/lst.py). */
+  landform?: { relief: SkeletonExport["relief"]; valley_ha: number; valley_buffer_m: Record<string, number>;
+    buffers_provisional: boolean; mapped_channel_cells: number; valley_cells: number; max_order: number; catchments: number;
+    ridge_min_ha: number; ridge_min_consistency: number };
+  lst?: { source: string; months: number[]; years: number[]; scenes: { id: string; date: string; clear: number }[];
+    median_clear_scenes_per_pixel: number; note: string };
   /** Sites built for someone who drew them: the data used, and anything a person should know. */
   service?: { overture: string | null; layers: number; terrain?: string; warnings?: string[] };
 }
@@ -95,6 +105,35 @@ export interface Ground {
   meta: SiteMeta;
   roads?: [number, number][][];  // existing major roads, same frame as x, y (the metrics' streets)
   activities?: Activities;       // shops, schools, transit points, same frame (semilattice richness)
+  // Landform (export format 4; pc/landform.py): per cell, and the street skeleton
+  z?: Float64Array;              // ground height (m)
+  valley?: Int8Array;            // valley order (0: none)
+  vbuf?: Uint8Array;             // 1: valley channel or its buffer
+  down?: Int32Array;             // the design cell it drains to (-1: off the design ground)
+  lst?: Float64Array | null;     // hot-season land surface temperature (°C; NaN: none)
+  ridge?: Float64Array;          // strength of the strongest divide on its edges (ha)
+  skeleton?: GroundSkeleton;
+}
+
+/** The primary streets on this design ground (sides from streets.ts), and what they came from. */
+export interface GroundSkeleton {
+  source: "landform" | "roads" | "none"; note: string;
+  sides: Int32Array; level: Int8Array; ridge: Int32Array;  // per skeleton side
+  crossings: number; crossingCap: number; connected: boolean;
+  ridges: { id: number; strength_ha: number; consistency: number }[];
+  roadSides: Int32Array;
+}
+
+/** The skeleton as exported (pc/skeleton.py): sides as [cell, direction, ...]. */
+export interface SkeletonExport {
+  source: "landform" | "roads" | "none"; note: string;
+  relief: { class: "pronounced" | "gentle" | "flat"; confidence: "high" | "low"; relief_m?: number;
+    median_slope?: number; source: string; rebuild?: boolean; note?: string };
+  sides: [number, number, number, number][]; crossings: [number, number][]; crossing_cap: number;
+  connected: boolean; ridges: { id: number; strength_ha: number; consistency: number }[];
+  road_sides: [number, number][];
+  grid_sides?: [number, number, number, number][]; grid_crossings?: [number, number][];
+  grid_road_sides?: [number, number][];
 }
 
 export type Kind = "core" | "green" | "water";
@@ -104,6 +143,7 @@ export interface Attractor { x: number; y: number; radius: number; weight: numbe
 export interface Settings {
   water_share: number; green_share: number; follow_water: number; coverage: number;
   peak: number; intensity: number; base: number;
+  street_spacing: number; street_orientation: number; street_pattern: number; street_hierarchy: number;
 }
 
 export interface Scores {
@@ -117,7 +157,11 @@ export interface Design {
   use: Int8Array;          // 0 none, 1 building, 2 landscape, 3 water
   levels: Int32Array;
   coverage: Float64Array;
-  floorArea: Float64Array;
+  floorArea: Float64Array;       // net: after streets
+  grossFloorArea?: number;       // m², as if streets took nothing (what streets cost: gross - net)
+  street?: Int8Array;            // per side (streets.ts): 0 none, 1 lane, 2 secondary, 3 primary
+  streetWidths?: [number, number, number, number];
+  preStreet?: boolean;           // grown from a 47-gene genome, with default street genes
   attractors: Attractor[];
   settings: Settings;
   scores: Scores | null;
