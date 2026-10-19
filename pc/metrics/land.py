@@ -6,6 +6,8 @@ import math
 
 from pc.metrics.network import BUILDING, LANDSCAPE, WATER, Net
 
+RIDGE_MIN_HA = 5.0  # a strong ridge (pc.landform.RIDGE_MIN_HA): streets "on a ridge" run beside one
+
 
 def _sides(net: Net):
     from pc.streets import sides
@@ -119,7 +121,8 @@ def ridge_streets(net: Net) -> float:
     q3 = _quartiles(net)[1] if g.z is not None else 0
     r = g.ridge
     z = g.z
-    return _street_share(net, lambda i, j: (r is not None and (r[i] > 0 or r[j] > 0)) or (z[i] >= q3 and z[j] >= q3))
+    return _street_share(net, lambda i, j: (r is not None and (r[i] >= RIDGE_MIN_HA or r[j] >= RIDGE_MIN_HA))
+                         or (z[i] >= q3 and z[j] >= q3))
 
 
 def low_streets(net: Net) -> float:

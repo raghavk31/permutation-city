@@ -23,8 +23,9 @@ export const AXES: Axis[] = [
  *  Explore's parallel coordinates and extremes). */
 export const GROUPS: [string, MetricKey[]][] = [
   ["human scale", ["dh_enclosure", "block_size", "low_frontage"]],
-  ["permeability", ["junctions", "connections", "active_frontage"]],
+  ["permeability", ["junctions", "connections", "active_frontage", "meshedness", "dead_ends"]],
   ["nature", ["green_walk", "water_walk", "green_cover", "green_view"]],
+  ["water and land", ["valley_free", "ridge_streets", "low_streets", "runoff_path", "heat_fit"]],
   ["harmony and variety", ["height_mix", "use_mix", "type_mix", "coherence"]],
   ["Alexander: structure", ["levels_of_scale", "strong_centres", "boundaries", "positive_space", "the_void", "gradients",
     "roughness"]],

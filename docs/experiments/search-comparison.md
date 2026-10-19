@@ -100,6 +100,56 @@ What each row measures:
 | NSGA-III | An option. Since Phase 6, the "auto" search (the default) runs NSGA-III whenever promoted metrics take a run past five objectives, as the brief asks. |
 | MAP-Elites | A mode of its own ("one of every kind"), with an archive grid in Explore. A brief's objective weights set its quality. |
 
+## Re-run with streets (Phase 6b, 2026-10-20)
+
+The same runs after Phase 6b changed the genome: four street genes, streets on cell edges,
+and the landform skeleton. The seeds give different designs from here on, so these numbers
+replace the ones above for current runs.
+
+**Mumbai Eastern Waterfront** (roads skeleton; flat):
+
+| | nsga2 | nsga3 | map-elites |
+|---|---:|---:|---:|
+| run time (s) | 9.8 ± 0.5 | 9.6 ± 0.4 | 9.6 ± 0.2 |
+| kept, on brief | 60 ± 0 | 60 ± 0 | 29 ± 2 |
+| on the front | 49 ± 10 | 42 ± 10 | 13 ± 1 |
+| families on the front | 24 ± 9 | 22 ± 8 | 11 ± 2 |
+| hypervolume (%) | **18.0 ± 2.0** | 17.9 ± 2.5 | 10.6 ± 0.9 |
+| share of the joint front (%) | **54 ± 10** | 39 ± 11 | 7 ± 3 |
+| cells: storeys × open ground | 13 ± 2 | 13 ± 2 | **29 ± 2** |
+| cells: storage × height variety | 16 ± 3 | 18 ± 4 | **19 ± 2** |
+| genome spread | 0.216 ± 0.020 | 0.210 ± 0.017 | **0.283 ± 0.006** |
+| best heat (°C) | 1.352 ± 0.063 | 1.368 ± 0.032 | **1.210 ± 0.108** |
+| best daylight | **0.888 ± 0.096** | 0.875 ± 0.052 | 0.816 ± 0.033 |
+| best human scale | **0.777 ± 0.012** | 0.772 ± 0.008 | 0.736 ± 0.018 |
+
+**Ahmedabad: Gandhi Ashram and Wadaj** (landform skeleton; gentle):
+
+| | nsga2 | nsga3 | map-elites |
+|---|---:|---:|---:|
+| run time (s) | 19.8 ± 0.8 | 19.4 ± 0.6 | 21.0 ± 1.0 |
+| kept, on brief | 60 ± 0 | 60 ± 0 | 60 ± 5 |
+| on the front | 32 ± 5 | 31 ± 10 | 12 ± 1 |
+| families on the front | 21 ± 4 | 20 ± 7 | 11 ± 1 |
+| hypervolume (%) | **73.6 ± 2.7** | 70.0 ± 5.4 | 53.4 ± 3.9 |
+| share of the joint front (%) | **63 ± 19** | 36 ± 21 | 1 ± 1 |
+| cells: storeys × open ground | 5 ± 1 | 7 ± 1 | **60 ± 5** |
+| cells: storage × height variety | 4 ± 0 | 5 ± 1 | **21 ± 3** |
+| genome spread | 0.176 ± 0.025 | 0.170 ± 0.025 | **0.310 ± 0.006** |
+| best heat (°C) | **0.620 ± 0.022** | 0.668 ± 0.121 | 0.760 ± 0.110 |
+| best human scale | **0.834 ± 0.019** | 0.821 ± 0.015 | 0.768 ± 0.015 |
+
+What changed:
+- **The ranking holds.** NSGA-II stays the default: it is ahead on front quality, with
+  NSGA-III within noise. MAP-Elites still covers the most kinds of design, with the weaker
+  front.
+- **Runs take about twice as long.** Each grow now generates streets: about 2–8 ms against
+  1–2 ms.
+- **Hypervolume falls on both sites** (Mumbai 51.6 → 18.0, Wadaj 81.4 → 73.6 for NSGA-II). Streets add sealed ground (heat) and take plot area,
+  so the same floor area stands taller (daylight), and the floor-area brief is harder to meet.
+  The box the hypervolume is measured in is unchanged, so absolute values aren't comparable
+  with the earlier tables; the ranking within each table is.
+
 ## Caveats
 
 - Five seeds per site. The NSGA-II vs NSGA-III gaps are inside the noise. The gap between

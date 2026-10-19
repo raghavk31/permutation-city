@@ -867,6 +867,105 @@ Unsure about, or left open:
 - **Pattern cards and the corpus** don't cite the metrics yet. A brief can ask for a
   property, but the model only sees the vocabulary, not the definitions.
 
+## Phase 6b log (2026-10-20): landform, heat and streets
+
+On branch `v2-phase6b`, off `v2-phase6`. The last commit before streets is tagged
+`v2-pre-streets`. The method is in `docs/landform.md`.
+
+- **Places re-fetched first (brief section 5).** Overture shops, schools and transit for all
+  five sites, kept at confidence 0.4 or more.
+  - Semilattice richness now walks to real destinations: parks, water, shops (with the
+    design's centres), schools and transit. Roads are no longer a stand-in for transit.
+  - Means over 20 random designs: Mumbai EWF 0.64 to 0.76, Docks 0.81 to 0.72, Wadaj 0.64 to
+    0.66. The spread across designs narrows, since existing destinations don't depend on the
+    design.
+  - Transit is thin in Overture: 12, 5 and 2 points, and no bus stops.
+- **Landform (`pc/landform.py`).** Hydrology on the cells themselves (approved choice):
+  - stream burning of mapped channels (Overture water, from OSM)
+  - priority-flood fill with epsilon
+  - flow to the lowest neighbour (six directions on hexes, four on squares)
+  - valleys from 10 ha upstream (`valley_ha` per site), with Strahler order and provisional
+    buffers
+  - catchments per valley segment
+  - ridges as edges between catchments where neither drains into the other, ranked by the
+    smaller upstream basin and by consistency
+  - relief classes as approved; FABDEM vs Copernicus told apart by file hash
+  - flat sites take valleys from mapped water only, and catchments from the nearest drain
+
+  Results:
+  - **Both Mumbai sites: flat, no mapped drains.** The skeleton comes from the existing
+    roads, labelled "skeleton from existing roads, not landform".
+  - **Wadaj:** gentle (low confidence), 171 valley cells up to order 3 (89 on mapped
+    streams), 22 strong ridges, 0 of 9 allowed crossings used. The square-grid version has
+    13 strong ridges.
+- **LST (`pc/lst.py`).** Landsat 8/9 C2 L2 from Planetary Computer: one SAS token per
+  container (signing every asset hit the rate limit), cloud mask from QA_PIXEL bits 0 to 5,
+  uncertainty cap 5 K. Median of 22, 23 and 54 clear scenes. Its comparison with the heat
+  score is under "Unsure about".
+- **Streets on cell edges, in both engines** (`pc/streets.py`, `app/engine/streets.ts`):
+  - Four genes at the end of the genome (version 2, 51 numbers). A 47-number genome grows as
+    a labelled pre-street genome.
+  - Primary skeleton from `pc/skeleton.py`. On the roads fallback: major roads primary,
+    residential secondary, service and port roads lanes.
+  - Secondary streets and lanes follow level lines of the orientation field: contours, valley
+    distance, or a bearing (the bearing on flat land). Patterns are grid, loops or branching.
+  - No street runs along a valley corridor. Parts are joined by one breadth-first search from
+    the main network, and every block is reachable.
+  - Streets take width ÷ 2 from each side's cell, and coverage applies to the plot left.
+    Gross and net floor area are both reported. Coverage range widened to 0.90.
+  - About 2–8 ms per grow in TS, against 1–2 ms before. Ten generations at Wadaj take 7 s.
+- **Export format 4.**
+  - Per design cell: ground height, valley order, buffer, receiver, LST and ridge.
+  - The skeleton, on design and grid cells, so edited rules map it again; the grid's
+    receivers.
+  - `meta.landform`, `meta.lst`.
+  - The service bumps `LAYERS_VERSION` to 3, fetches LST as an optional step, and warns on
+    Copernicus sites.
+- **Rules.** "Drainage lines" is replaced in every site and in the template by "valleys" and
+  "valley buffer (provisional)".
+- **Metrics:**
+  - Blocks are cut by the design's streets, and D/H uses real street widths.
+  - Junctions are now street corners (T and Y on hexes).
+  - Active frontage is now the share of faces on primary and secondary streets.
+  - New: meshedness and dead-end share (permeability). Also water and land fit: valleys kept
+    open, streets on ridges, streets in low ground, runoff path, and cooling where it's hot
+    (LST).
+  - Walkable blocks and junctions now spread across designs (table in `docs/metrics.md`):
+    e.g. walkable blocks at Mumbai EWF go from 7% (2–14%) to 50% (28–95%).
+- **The page:**
+  - Five new layers: surface heat, flow, valleys, catchments, ridges. A relief line with the
+    LST scenes; a Copernicus warning.
+  - New chapter **03 Landform**: valleys by order, buffers, the skeleton in ink, crossings,
+    ridge switches, the crossing count against the cap, joined or invalid, provisional
+    buffers.
+  - Plans draw streets as smoothed centrelines at their widths. Score lines show net and
+    gross floor area, and pre-street genomes are tagged.
+  - The brief lists the four street genes, each with a lock.
+  - The layer cake (new.html) shows the new columns and the relief label.
+- **Tests:**
+  - parity: 130 tests, now including whole runs with street genes, every metric, and
+    rule-edited grounds with landform columns
+  - `test/ui/streets.test.ts` (11)
+  - `test/python/test_landform.py` (4)
+  - `npm test` 220, `uv run pytest` 57
+
+Unsure about, or left open:
+- **LST against the heat score: your call.** The heat score's own per-cell model, applied
+  to today's land cover, correlates with LST at r = +0.23 (Mumbai EWF), +0.32 (Docks) and
+  −0.10 (Wadaj, where dry-season grass runs hot). My recommendation is that LST sits beside
+  the score, as a layer and the "cooling where it's hot" metric. It shouldn't replace or
+  calibrate the score until the model splits trees from grass and bare ground.
+- **Mumbai's roads skeleton is dense.** All classes, as agreed, give 864 skeleton sides for
+  661 cells at the Docks. Streets take about half the gross floor area there, against 15–35%
+  at Wadaj. Dual carriageways show as braided bands. Keeping only major and residential
+  roads as the skeleton would halve that; say if you want it.
+- **The skeleton doesn't move with edited rules.** It is mapped onto the new design ground,
+  and sides that stop being design ground drop out.
+- **Valley buffers stay provisional** until checked against the DCPR and CGDCR nallah
+  margins in the corpus.
+- **Bengaluru is waiting for FABDEM**, whose tile index still returns 404. Candidates are in
+  the checkpoint report.
+
 ## 8. Decisions (2026-10-16)
 
 The user asked to go with the recommendations:

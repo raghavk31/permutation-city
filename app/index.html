@@ -41,9 +41,15 @@
       <button type="button" data-layer="green">green</button>
       <button type="button" data-layer="built">buildings</button>
       <button type="button" data-layer="industrial">industry</button>
+      <button type="button" data-layer="lst">surface heat</button>
+      <button type="button" data-layer="flow">flow</button>
+      <button type="button" data-layer="valleys">valleys</button>
+      <button type="button" data-layer="catchments">catchments</button>
+      <button type="button" data-layer="ridges">ridges</button>
     </div>
     <canvas class="pc-map"></canvas>
     <p class="pc-note pc-muted"></p>
+    <p class="pc-relief"></p>
     <p class="pc-readout"></p>
   </section>
 
@@ -58,12 +64,29 @@
     <p class="pc-readout"></p>
   </section>
 
+  <section class="pc-ch pc-landform" id="pc-landform">
+    <p class="pc-n">03 · what the land carries</p>
+    <h2>Landform</h2>
+    <p>McHarg's reading: valleys carry water, ridges carry movement. Water's paths are traced over the ground
+      (mapped streams and drains burned in first); where enough land drains through, a valley starts, kept open
+      with a buffer either side. The divides between catchments are ridges; the strong ones become the primary
+      streets, joined to the existing roads, crossing a valley only where they must. On flat land the heights are
+      noise, so valleys come only from mapped water, and with no drains the skeleton comes from the existing roads.
+      Every design's own streets grow inside this skeleton (its street genes: spacing, orientation, pattern, width).</p>
+    <canvas class="pc-map"></canvas>
+    <p class="pc-legend pc-landform-legend"></p>
+    <p class="pc-landform-note"></p>
+    <div class="pc-ridges"></div>
+  </section>
+
   <section class="pc-ch pc-genome" id="pc-genome">
-    <p class="pc-n">03 · one design</p>
+    <p class="pc-n">04 · one design</p>
     <h2>A genome</h2>
-    <p>A design is 47 numbers. Eight attractors, each a position, a reach, a strength and a kind (circles: solid
-      pulls building density, dashed pulls green, dotted pulls water), and seven site-wide genes. Water claims its
-      share first, then green; the rest is building, rising towards the cores.</p>
+    <p>A design is 51 numbers. Eight attractors, each a position, a reach, a strength and a kind (circles: solid
+      pulls building density, dashed pulls green, dotted pulls water), seven site-wide genes, and four for its
+      streets: their spacing, orientation (along the contours, along the valleys or on a bearing), pattern (grid,
+      loops or branching) and width. Streets run on the edges of cells and take part of each cell they pass. Water
+      claims its share first, then green; the rest is building, rising towards the cores.</p>
     <div class="pc-two">
       <canvas class="pc-map"></canvas>
       <div>
@@ -75,7 +98,7 @@
   </section>
 
   <section class="pc-ch pc-evolve" id="pc-evolve">
-    <p class="pc-n">04 · generations</p>
+    <p class="pc-n">05 · generations</p>
     <h2>Evolution</h2>
     <p>Designs within 10% of the floor-area brief always beat those outside it. Among them, a design survives if no
       other is better on every score at once. Parents swap whole attractors, 60/40; a few genes mutate; a tenth of
@@ -118,7 +141,7 @@
   </section>
 
   <section class="pc-ch pc-explore" id="pc-explore">
-    <p class="pc-n">05 · the trade-offs</p>
+    <p class="pc-n">06 · the trade-offs</p>
     <h2>Explore</h2>
     <p>Every design the run kept. Blue designs are on the front (on the brief, and no other kept design beats them on
       every score); grey ones are beaten; hollow ones miss the floor-area brief. Each axis runs from worse to better.
@@ -157,7 +180,7 @@
   </section>
 
   <section class="pc-ch pc-families" id="pc-families">
-    <p class="pc-n">06 · what survived</p>
+    <p class="pc-n">07 · what survived</p>
     <h2>Families</h2>
     <p>The surviving front, grouped into families of similar designs; one of each.</p>
     <div class="pc-gallery"></div>
@@ -184,7 +207,7 @@
   </section>
 
   <section class="pc-ch pc-breed" id="pc-breed">
-    <p class="pc-n">07 · by hand</p>
+    <p class="pc-n">08 · by hand</p>
     <h2>Breeding</h2>
     <p>Pick two parents and breed six children; keep the ones you like and breed again, the way Dawkins bred
       biomorphs. Then start a new evolution from the pen. To favour a score or a form metric, breed 24 and keep the six

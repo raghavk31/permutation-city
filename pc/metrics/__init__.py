@@ -49,7 +49,7 @@ METRICS = {
 }
 OBJECTIVE_KEYS = [k for k, (_, up, _) in METRICS.items() if up is not None]
 # where most designs fall, for MAP-Elites bins (0 to 1 when not listed)
-RANGES = {"junctions": (0.0, 150.0), "connections": (2.0, 10.0), "runoff_path": (0.0, 300.0), "heat_fit": (-2.0, 2.0)}
+RANGES = {"junctions": (0.0, 500.0), "connections": (2.0, 10.0), "runoff_path": (0.0, 300.0), "heat_fit": (-2.0, 2.0)}
 
 
 def measure(design, ground, keys=None) -> dict:

@@ -4,7 +4,7 @@
 // cells' corners. On hexes, three sides meet at a corner, so every junction is a T or a Y,
 // never a crossroads; junction density and meshedness are only comparable between designs
 // on the same kind of grid (as heat is).
-import { BUILDING, LANDSCAPE, WATER } from "../config.js";
+import { BUILDING, LANDSCAPE, RIDGE_MIN_HA, WATER } from "../config.js";
 import { sides } from "../streets.js";
 import type { Net } from "./network.js";
 
@@ -105,12 +105,14 @@ function streetShare(net: Net, on: (i: number, j: number) => boolean): number {
   return all ? hit / all : 0;
 }
 
-/** Share of the streets on ridges or high ground: beside a divide (pc/landform.py), or with
- *  both sides in the top quarter of the ground's height. Ridges carry movement (McHarg). */
+/** Share of the streets on ridges or high ground: beside a strong divide (5 ha or more on its
+ *  smaller side; pc/landform.py), or with both sides in the top quarter of the ground's
+ *  height. Ridges carry movement (McHarg). */
 export function ridgeStreets(net: Net): number {
   const { G } = net;
   const [, q3] = G.z ? heightQuartiles(net) : [0, 0];
-  return streetShare(net, (i, j) => (G.ridge?.[i] ?? 0) > 0 || (G.ridge?.[j] ?? 0) > 0 || (G.z![i] >= q3 && G.z![j] >= q3));
+  return streetShare(net, (i, j) => (G.ridge?.[i] ?? 0) >= RIDGE_MIN_HA || (G.ridge?.[j] ?? 0) >= RIDGE_MIN_HA
+    || (G.z![i] >= q3 && G.z![j] >= q3));
 }
 
 /** Share of the streets in low ground: between two valley cells (a crossing), or with both

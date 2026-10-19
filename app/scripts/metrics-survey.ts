@@ -4,7 +4,7 @@
 import { readFileSync } from "node:fs";
 import * as E from "../engine";
 
-const SITES = ["mumbai-ewf", "mumbai-docks", "ahmedabad-wadaj", "mumbai-docks-quad"];
+const SITES = ["mumbai-ewf", "mumbai-docks", "ahmedabad-wadaj", "ahmedabad-wadaj-quad"];
 const only = process.argv.slice(2).filter((k) => k !== "--") as E.MetricKey[];
 const keys = only.length ? only : E.METRIC_KEYS;
 for (const id of SITES) {

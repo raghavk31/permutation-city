@@ -309,3 +309,46 @@ export function streets(G: Ground, s: Settings): Streets {
   for (let i = 0; i < G.n; i++) share[i] = Math.min(share[i], STREET_SHARE_MAX);
   return { cls, share, widths, crossings };
 }
+
+/** Street centrelines for drawing and export only (metrics use the true sides): the sides of
+ *  each class chained into lines through corners where only that street passes, then
+ *  smoothed so hex zigzags read as streets. Ends stay where they are. */
+export function centrelines(G: Ground, cls: Int8Array): { cls: number; points: [number, number][] }[] {
+  const sd = sides(G), adj = adjacency(sd), used = new Uint8Array(cls.length), out: { cls: number; points: [number, number][] }[] = [];
+  const degOf = (v: number, c: number) => adj[v].filter(([, s]) => cls[s] === c).length;
+  for (let s0 = 0; s0 < cls.length; s0++) {
+    const c = cls[s0];
+    if (!c || used[s0]) continue;
+    used[s0] = 1;
+    const chain = [sd.v0[s0], sd.v1[s0]];
+    for (const dir of [1, -1]) {  // grow from each end while the corner is a pass-through
+      for (;;) {
+        const v = dir === 1 ? chain[chain.length - 1] : chain[0];
+        if (degOf(v, c) !== 2) break;
+        const next = adj[v].find(([, s]) => cls[s] === c && !used[s]);
+        if (!next) break;
+        used[next[1]] = 1;
+        if (dir === 1) chain.push(next[0]); else chain.unshift(next[0]);
+      }
+    }
+    let pts: [number, number][] = chain.map((v) => [sd.vx[v], sd.vy[v]]);
+    // A hex zigzag repeats every side, so first average each point with its neighbours
+    // (1/4, 1/2, 1/4, three times; the ends stay put so streets still meet), then round
+    // the corners (Chaikin, twice).
+    for (let r = 0; r < 3 && pts.length > 2; r++) {
+      pts = pts.map((p, k) => (k === 0 || k === pts.length - 1 ? p
+        : [0.25 * pts[k - 1][0] + 0.5 * p[0] + 0.25 * pts[k + 1][0], 0.25 * pts[k - 1][1] + 0.5 * p[1] + 0.25 * pts[k + 1][1]]));
+    }
+    for (let r = 0; r < 2 && pts.length > 2; r++) {
+      const sm: [number, number][] = [pts[0]];
+      for (let k = 0; k < pts.length - 1; k++) {
+        const [ax, ay] = pts[k], [bx, by] = pts[k + 1];
+        sm.push([0.75 * ax + 0.25 * bx, 0.75 * ay + 0.25 * by], [0.25 * ax + 0.75 * bx, 0.25 * ay + 0.75 * by]);
+      }
+      sm.push(pts[pts.length - 1]);
+      pts = sm;
+    }
+    out.push({ cls: c, points: pts });
+  }
+  return out;
+}

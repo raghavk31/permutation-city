@@ -117,6 +117,34 @@ already there. Breeding whole designs at once is close to what he argued against
 piecemeal growth mode (Phase 9) is the tool's answer, and `docs/alexander.md` sets out how each
 of his works is used.
 
+## 5. Valleys carry water, ridges carry movement (McHarg)
+
+*Design with Nature* reads a site from its water: the valleys drain it and flood, and the
+ridges stay dry and give the long views and the easy routes. Settlement that respects that
+keeps the valleys open and puts movement on the ridges. Phase 6b makes this the frame every
+design grows in (`docs/landform.md`):
+
+- **As rules (fixed per site).** Water's paths are traced over the ground, with mapped streams
+  and drains burned in. Valleys, with a buffer by stream order, are kept for drainage, storage
+  and wetland: no buildings in the channel. The strong divides between catchments become the
+  **primary streets**, joined to the existing roads. They cross a valley only at a counted,
+  costed crossing. On flat land, where heights are noise, the valleys come from mapped water.
+  Where there is none, as at the Mumbai port, the existing roads are the skeleton, and the
+  page says so.
+- **As genes (evolved).** Four street genes grow the finer streets inside that skeleton:
+  - their spacing
+  - their orientation: along the contours, parallel to the valleys, or on a bearing for wind
+    and sun
+  - their pattern: grid, loops, or branching. Dead ends are allowed but read as tree-like,
+    after *A City is Not a Tree*.
+  - their width
+
+  Streets run on cell edges and take part of each cell they pass. Buildings rise a little
+  where they front a street.
+
+The Sem 06 densification work drew its networks by hand over the evolved fields (2b above).
+Here the network is part of the genome, and the landform decides where its spine goes.
+
 ## Design decisions this leads to
 
 1. **Genome = attractors + intensities + body plan**, not raw cells. Each attractor gene is (type, location, radius, weight, push or pull).

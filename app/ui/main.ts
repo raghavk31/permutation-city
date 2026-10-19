@@ -1,5 +1,5 @@
-// Permutation City: the page. Chapters: layers, rules, one genome, evolution, explore,
-// families, breeding. Data: public/sites/<site>.json from `pc export`; engine: app/engine (same as Python).
+// Permutation City: the page. Chapters: layers, rules, landform, one genome, evolution,
+// explore, families, breeding. Data: public/sites/<site>.json from `pc export`; engine: app/engine (same as Python).
 import * as Comlink from "comlink";
 import * as E from "../engine";
 import type { EngineWorker, EvolveResult, FamilyLead, Kept, RunRequest } from "../engine/worker";
@@ -23,7 +23,8 @@ type ExploreView = "matrix" | "parallel" | "archive";
 
 const state = {
   sites: {} as Record<string, { name: string }>, id: null as string | null,
-  site: null as E.SiteExport | null, G: null as E.Ground | null,
+  site: null as E.SiteExport | null, G: null as E.Ground | null, baseG: null as E.Ground | null,
+  skeletonOff: new Set<number>(),  // ridges of the street skeleton switched off (the landform chapter)
   worker: null as { raw: Worker; api: Comlink.Remote<EngineWorker> } | null,
   genome: [] as number[], run: null as RunSummary | null, families: [] as Item[], selected: null as Item | null,
   pen: [] as PenEntry[], children: [] as PenEntry[], brood: 0, locks: null as Int8Array | null, lockNote: [] as string[],
@@ -45,7 +46,11 @@ const fmtHa = (v: number) => `${Math.round(v).toLocaleString("en-IN")} ha`;
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 function scoreLine(d: E.Design) {
   const s = d.scores!, st = E.stats(d, G());
-  return `<b>${fmtHa(st.floor_area_ha)}</b> · ${st.mean_levels.toFixed(1)} storeys avg<br>`
+  const gross = (d.grossFloorArea ?? 0) / 1e4;
+  const streets = gross > 0 ? ` <span class="pc-muted" title="floor area as if streets took nothing: ${fmtHa(gross)}">`
+    + `(streets take ${pct(1 - st.floor_area_ha / gross)} of ${fmtHa(gross)} gross)</span>` : "";
+  return `<b>${fmtHa(st.floor_area_ha)}</b> net${streets} · ${st.mean_levels.toFixed(1)} storeys avg`
+    + `${d.preStreet ? ` · <span class="pc-tag" title="a 47-number genome from before streets: grown with the default street genes">pre-street genome</span>` : ""}<br>`
     + `storage ${pct(s.storage)} · +${s.heat.toFixed(1)}°C · ${Math.round(s.carbon)} kg/m²<br>`
     + `daylight ${pct(s.daylight)} · human scale ${pct(s.human)}`;
 }
@@ -53,6 +58,14 @@ function grown(genome: number[]) {
   const d = E.grow(genome, G(), state.locks, state.ranges);
   E.evaluate(d, G());
   return d;
+}
+/** A design's streets for drawing: centrelines, smoothed (metrics use the true edges). */
+const streetCache = new WeakMap<E.Design, Draw.StreetLines | null>();
+function roadsOf(d: E.Design): Draw.StreetLines | null {
+  if (!streetCache.has(d)) {
+    streetCache.set(d, d.street && d.streetWidths ? { lines: E.centrelines(G(), d.street), widths: d.streetWidths } : null);
+  }
+  return streetCache.get(d)!;
 }
 const aspect = () => Draw.aspectOf(site().design.x, site().design.y);
 const gridAspect = () => Draw.aspectOf(site().grid.x, site().grid.y);
@@ -83,7 +96,7 @@ function startWorker(s: E.SiteExport) {
   state.worker?.raw.terminate();
   const raw = new Worker(new URL("../engine/worker.ts", import.meta.url), { type: "module" });
   const api = Comlink.wrap<EngineWorker>(raw);
-  api.setSite(s);
+  api.setSite(s, [...state.skeletonOff]);
   state.worker = { raw, api };
 }
 
@@ -113,7 +126,9 @@ async function loadSite(id: string, rules: string | null = null, brief: string |
   state.id = id;
   const btn = root.querySelector<HTMLElement>(`.pc-sites [data-site="${id}"]`);
   if (btn && state.sites[id]?.name === "Your site") btn.textContent = site().meta.name;
-  state.G = E.prepare(site());
+  state.baseG = E.prepare(site());
+  state.G = state.baseG;
+  state.skeletonOff = new Set();
   Object.assign(state, { run: null, families: [], selected: null, pen: [], children: [], locks: null, lockNote: [] });
   resetExplore([], null);
   startWorker(site());
@@ -125,7 +140,11 @@ async function loadSite(id: string, rules: string | null = null, brief: string |
     ? "a 20 m hex (centre to corner), the unit of the studio this grew from"
     : `a ${grid.size} m ${grid.type === "hex" ? "hex (centre to corner)" : "square"}, ${Math.round(m.cell_area).toLocaleString("en-IN")} m²`;
   $(".pc-credits").textContent = `Data: ${m.credits.join(" · ")}.`;
-  const warnings = m.service?.warnings ?? [];
+  const warnings = [...(m.service?.warnings ?? [])];
+  if (m.landform?.relief.rebuild) {
+    warnings.push("This site's terrain is the Copernicus surface model, which includes buildings and trees: unsuitable for "
+      + "hydrology in a city. Landform is treated as flat (low confidence); rebuild the site once FABDEM is back.");
+  }
   $(".pc-site-warning").hidden = !warnings.length;
   $(".pc-site-warning").textContent = warnings.join(" ");
   drawBriefLine();
@@ -148,6 +167,7 @@ function drawAll() {
   P = Draw.palette();
   drawLayer();
   drawRules();
+  drawLandform();
   drawGenome();
   drawEvolve();
   drawExplore();
@@ -175,7 +195,25 @@ const LAYERS = {
     value: (g, i) => g.built[i], range: () => [0, 1] },
   industrial: { label: "industry", note: "industrial and rail land: a stand-in for contaminated ground", unit: (v) => (v ? "yes" : "no"),
     value: (g, i) => g.industrial[i], range: () => [0, 1] },
+  lst: { label: "surface heat", note: "hot-season land surface temperature (Landsat 8/9): surface, not air; about 100 m native",
+    unit: (v) => (Number.isFinite(v) ? `${v.toFixed(1)} °C` : "none"), value: (g, i) => col(g, "lst", i),
+    range: (g) => quantiles(layerValues(g, "lst"), 0.02, 0.98) },
+  flow: { label: "flow", note: "area draining through each cell, on the conditioned ground (log scale)",
+    unit: (v) => `${v < 10 ? v.toFixed(1) : Math.round(v)} ha`, value: (g, i) => col(g, "flow_acc_ha", i), range: () => [0.1, 100] },
+  valleys: { label: "valleys", note: "drainage lines and mapped streams, darker by stream order; pale: their buffer (provisional)",
+    unit: (v) => (v > 0 ? `order ${v}` : "none"), value: (g, i) => col(g, "valley_order", i), range: () => [0, 4] },
+  catchments: { label: "catchments", note: "where each cell's water goes: the valley segment or outlet it drains to",
+    unit: (v) => (v >= 0 ? `#${v}` : "none"), value: (g, i) => col(g, "catchment_id", i), range: () => [0, 1] },
+  ridges: { label: "ridges", note: "divides between catchments; darker divides more land (the smaller side, ha)",
+    unit: (v) => (v > 0 ? `${v.toFixed(1)} ha` : "none"), value: (g, i) => col(g, "ridge", i), range: () => [0, 30] },
 } satisfies Record<string, LayerDef>;
+/** A layer column from the site's full layer table (format 2 and later); NaN where missing. */
+function col(g: Grid, name: string, i: number): number {
+  const v = g.layers?.[name]?.[i];
+  return v === null || v === undefined ? NaN : v;
+}
+const layerValues = (g: Grid, name: string) => (g.layers?.[name] ?? []).filter((v): v is number => v !== null && Number.isFinite(v));
+const LAYER_COLUMN: Partial<Record<string, string>> = { lst: "lst", flow: "flow_acc_ha", valleys: "valley_order", catchments: "catchment_id", ridges: "ridge" };
 type LayerKey = keyof typeof LAYERS;
 
 function quantiles(a: number[], q0: number, q1: number): [number, number] {
@@ -184,29 +222,61 @@ function quantiles(a: number[], q0: number, q1: number): [number, number] {
 }
 
 function drawLayer() {
-  const g = site().grid, L: LayerDef = LAYERS[state.layer];
+  const g = site().grid;
+  let L: LayerDef = LAYERS[state.layer];
   const hasSea = Object.keys(site().meta.sea_levels || {}).length > 0;
+  const missing = (k: string) => !!LAYER_COLUMN[k] && !g.layers?.[LAYER_COLUMN[k]!];
+  if (missing(state.layer)) state.layer = "ground";
   $$(".pc-layer-tabs button").forEach((b) => {
     b.setAttribute("aria-pressed", String(b.dataset.layer === state.layer));
-    b.hidden = b.dataset.layer === "flood" && !hasSea;
+    b.hidden = (b.dataset.layer === "flood" && !hasSea) || missing(b.dataset.layer!);
   });
+  L = LAYERS[state.layer];
   const [lo, hi] = L.range(g);
   const colourOf = (i: number) => {
     if (g.water[i]) return P.sea;
     const v = L.value(g, i);
     if (state.layer === "industrial") return v ? P.blues[3] : P.retained;
     if (state.layer === "flood" && v <= 0) return P.retained;
+    if (!Number.isFinite(v)) return P.retained;
+    if (state.layer === "lst") return Draw.ramp(P.oranges, (v - lo) / (hi - lo || 1));
+    if (state.layer === "flow") return Draw.ramp(P.blues, Math.log10(Math.max(v, 0.1) / 0.1) / 3);
+    if (state.layer === "valleys") return v > 0 ? P.blues[Math.min(v, 4)] : col(g, "valley_buffer", i) ? P.blues[0] : P.retained;
+    if (state.layer === "catchments") return v < 0 ? P.retained : CATCHMENT_COLOURS[v % CATCHMENT_COLOURS.length];
+    if (state.layer === "ridges") return v > 0 ? Draw.ramp(P.oranges, Math.min(v / hi, 1)) : P.retained;
     return Draw.ramp(P.blues, (v - lo) / (hi - lo || 1));
   };
   const canvas = $<HTMLCanvasElement>(".pc-layer canvas");
   const v = Draw.layer(canvas, site(), colourOf, P, { aspect: gridAspect(), labels: true });
-  $(".pc-layer .pc-note").textContent = `${L.note}${state.layer === "industrial" ? "" : ` · ${L.unit(lo)} to ${L.unit(hi)}`}`;
+  const plain = ["industrial", "catchments", "valleys"].includes(state.layer);
+  $(".pc-layer .pc-note").textContent = `${L.note}${plain ? "" : ` · ${L.unit(lo)} to ${L.unit(hi)}`}`;
+  $(".pc-relief").innerHTML = reliefLine();
   canvas.onpointermove = (e) => {
     const i = Draw.cellAt(v, g.x, g.y, e.offsetX, e.offsetY, Draw.shapeOf(site()).r);
     $(".pc-layer .pc-readout").textContent = i < 0 ? "" : g.water[i] ? "water"
       : (Object.entries(LAYERS) as [LayerKey, LayerDef][]).filter(([k]) => k !== "flood" || hasSea)
         .map(([, l]) => `${l.label} ${l.unit(l.value(g, i))}`).join(" · ");
   };
+}
+
+const CATCHMENT_COLOURS = ["#cde2fb", "#d8ead0", "#f6dcc8", "#e4d8f0", "#f3ecc2", "#cfe9e6", "#f0d0d8", "#dcdcdc"];
+
+/** What the landform reading says about this site, and how sure it is. */
+function reliefLine(): string {
+  const lf = site().meta.landform, lst = site().meta.lst;
+  if (!lf) return "";
+  const r = lf.relief, src = r.source === "fabdem" ? "FABDEM bare earth" : "the Copernicus surface model (includes buildings)";
+  const parts = [`<b>Landform: ${r.class}</b> (${r.confidence} confidence): ${r.relief_m} m of relief, median slope `
+    + `${((r.median_slope ?? 0) * 100).toFixed(2)}%, from ${src}`];
+  parts.push(lf.valley_cells ? `${lf.valley_cells} valley cells, up to order ${lf.max_order}${lf.mapped_channel_cells ? `, ${lf.mapped_channel_cells} on mapped streams and drains` : ""}`
+    : r.class === "flat" ? "flat: valleys come only from mapped water, and none is mapped here" : "no valleys");
+  if (r.rebuild) parts.push(`<span class="pc-warn">surface model: flat by rule; rebuild once FABDEM is back</span>`);
+  if (lst) {
+    const months = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    parts.push(`surface heat: median of ${lst.scenes.length} clear Landsat scenes, ${months[lst.months[0]]} to `
+      + `${months[lst.months[1]]} ${lst.years[0]} to ${lst.years[1]} (${lst.scenes[0]?.date} to ${lst.scenes[lst.scenes.length - 1]?.date})`);
+  }
+  return parts.join(" · ");
 }
 
 // --- 02 rules -------------------------------------------------------------------------
@@ -229,25 +299,115 @@ function drawRules() {
   };
 }
 
-// --- 03 one genome --------------------------------------------------------------------
+// --- 03 landform ----------------------------------------------------------------------
+
+/** The skeleton's sides as lines for drawing (smoothed), by class. */
+function skeletonLines(): Draw.StreetLines | null {
+  const sk = G().skeleton;
+  if (!sk) return null;
+  const cls = new Int8Array(E.sides(G()).cell.length);
+  sk.sides.forEach((s, k) => { cls[s] = sk.level[k]; });
+  return { lines: E.centrelines(G(), cls), widths: [0, 6, 12, 18] };
+}
+
+function drawLandform() {
+  const g = site().grid, sec = $(".pc-landform"), sk = G().skeleton;
+  sec.hidden = !site().meta.landform;
+  if (sec.hidden) return;
+  const design = (i: number) => !g.water[i] && (g.state[i] === 2 || g.state[i] === 3);
+  const colourOf = (i: number) => {
+    if (g.water[i]) return P.sea;
+    const o = col(g, "valley_order", i);
+    if (o > 0) return P.blues[Math.min(o + 1, 4)];
+    if (col(g, "valley_buffer", i)) return P.blues[0];
+    return design(i) ? P.paper : P.retained;
+  };
+  const canvas = $<HTMLCanvasElement>(".pc-landform canvas");
+  const v = Draw.layer(canvas, site(), colourOf, P, { aspect: gridAspect() });
+  const ctx = canvas.getContext("2d")!;
+  const lines = skeletonLines();
+  if (lines) {
+    // The skeleton in ink, at its widths, so it reads as the frame the designs grow in.
+    ctx.save(); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = P.ink;
+    for (const l of lines.lines) {
+      ctx.beginPath();
+      l.points.forEach(([x, y], k) => (k ? ctx.lineTo(v.px(x), v.py(y)) : ctx.moveTo(v.px(x), v.py(y))));
+      ctx.lineWidth = Math.max(lines.widths[l.cls] * v.s * 0.6, 1.2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+  // Valley crossings: rings at the middle of each crossing side.
+  const sd = E.sides(G()), cross = site().skeleton?.crossings ?? [];
+  ctx.save(); ctx.strokeStyle = P.build; ctx.lineWidth = 2;
+  for (const [i, a] of cross) {
+    const s = i < G().n ? sd.at[i * G().deg + a] : -1;
+    if (s < 0) continue;
+    const x = (sd.vx[sd.v0[s]] + sd.vx[sd.v1[s]]) / 2, y = (sd.vy[sd.v0[s]] + sd.vy[sd.v1[s]]) / 2;
+    ctx.beginPath(); ctx.arc(v.px(x), v.py(y), 5, 0, 2 * Math.PI); ctx.stroke();
+  }
+  ctx.restore();
+  const lf = site().meta.landform!;
+  $(".pc-landform-legend").innerHTML = [
+    [P.blues[3], "valley (darker: higher stream order)"], [P.blues[0], "valley buffer (provisional)"],
+    [P.ink, "primary streets: the skeleton"], [P.paper, "design ground"],
+  ].map(([c, t]) => `<span><i style="background:${c}"></i>${t}</span>`).join("")
+    + (cross.length ? `<span><i style="border:2px solid ${P.build};border-radius:50%"></i>valley crossing</span>` : "");
+  const notes: string[] = [];
+  if (sk) {
+    notes.push(`<b>${sk.note[0].toUpperCase()}${sk.note.slice(1)}.</b>`);
+    if (sk.source === "landform") {
+      notes.push(`${sk.ridges.length - state.skeletonOff.size} of ${sk.ridges.length} strong ridges in use`
+        + ` (${lf.ridge_min_ha} ha or more on the smaller side).`);
+      notes.push(`Valley crossings: ${sk.crossings} of the ${sk.crossingCap} allowed${sk.crossings > sk.crossingCap ? " (over the cap)" : ""}.`);
+    }
+    notes.push(sk.connected ? "Joined to the existing roads." : `<span class="pc-warn">Not joined to the existing roads: the network is invalid.</span>`);
+  } else notes.push("No street skeleton: this site was exported before landform (format 4).");
+  if (lf.buffers_provisional) notes.push("Valley buffers (0, 20 and 40 m each side by stream order) are provisional until checked against the DCPR and CGDCR nallah margins.");
+  if (lf.relief.rebuild) notes.push(`<span class="pc-warn">Terrain from the Copernicus surface model: unsuitable for urban hydrology; flat by rule until FABDEM is back.</span>`);
+  $(".pc-landform-note").innerHTML = notes.join(" ");
+  const box = $(".pc-ridges");
+  const open = (box.querySelector("details") as HTMLDetailsElement | null)?.open ?? false;
+  box.innerHTML = sk?.source === "landform" && site().skeleton ? `<details${open ? " open" : ""}><summary>Switch ridges off `
+    + `(${state.skeletonOff.size} off)</summary><p class="pc-muted">A ridge switched off takes its street out of the skeleton; runs start again.</p>`
+    + `<div class="pc-ridge-list">` + site().skeleton!.ridges.map((r) => `<label class="pc-check"><input type="checkbox" data-ridge="${r.id}" `
+      + `${state.skeletonOff.has(r.id) ? "" : "checked"}> ridge ${r.id}: ${r.strength_ha.toFixed(1)} ha, ${Math.round(r.consistency * 100)}% on headwater</label>`).join("")
+    + "</div></details>" : "";
+}
+
+/** Switch ridges of the skeleton on or off: the ground changes, so runs start again. */
+function setSkeleton(off: Set<number>) {
+  state.skeletonOff = off;
+  state.G = off.size ? E.withSkeleton(site(), state.baseG!, off) : state.baseG!;
+  Object.assign(state, { run: null, families: [], selected: null, children: [] });
+  resetExplore([], null);
+  startWorker(site());
+  drawAll();
+}
+
+// --- 04 one genome --------------------------------------------------------------------
 
 function drawGenome() {
   const d = grown(state.genome);
-  Draw.plan($<HTMLCanvasElement>(".pc-genome canvas"), site(), d, P, { aspect: aspect(), attractors: true });
+  Draw.plan($<HTMLCanvasElement>(".pc-genome canvas"), site(), d, P, { aspect: aspect(), attractors: true, roads: roadsOf(d) });
   const s = d.settings;
+  const orient = s.street_orientation < 1 / 3 ? "along the contours" : s.street_orientation < 2 / 3 ? "along the valleys"
+    : `on a bearing of ${Math.round((s.street_orientation * 3 - 2) * 180)}°`;
+  const pattern = ["a grid", "loops", "branching, with dead ends"][Math.min(Math.floor(s.street_pattern * 3), 2)];
   $(".pc-genome .pc-scores").innerHTML = scoreLine(d)
     + `<br><span class="pc-muted">water ${pct(s.water_share)} · green ${pct(s.green_share)} · follows the site's water ${pct(s.follow_water)} · `
-    + `coverage ${pct(s.coverage)}</span>`;
-  // The 47 numbers, as a strip: attractor slots in 8 groups of 5, then the 7 site-wide genes.
+    + `coverage ${pct(s.coverage)}<br>streets every ${Math.round(s.street_spacing)} m, ${orient}, as ${pattern}; `
+    + `secondary ${d.streetWidths![2].toFixed(1)} m, lanes ${d.streetWidths![1].toFixed(1)} m wide</span>`;
+  // The 51 numbers, as a strip: attractor slots in 8 groups of 5, the 7 site-wide genes, then the 4 street genes.
   $(".pc-genes").innerHTML = state.genome.map((gv, k) => {
     const slot = k < 40 ? Math.floor(k / 5) : -1;
-    const kind = slot >= 0 ? d.attractors[slot].kind : "site";
+    const kind = slot >= 0 ? d.attractors[slot].kind : k >= E.PRE_STREET_LENGTH ? "street" : "site";
     return `<i title="${k < 40 ? `attractor ${slot + 1} (${kind}): ${["x", "y", "reach", "weight", "kind"][k % 5]}` : E.GLOBAL_GENES[k - 40]} = ${gv.toFixed(2)}" `
       + `class="g-${kind}" style="--v:${gv}"></i>`;
   }).join("");
 }
 
-// --- 04 evolution ---------------------------------------------------------------------
+// --- 05 evolution ---------------------------------------------------------------------
 
 function evolveOptions(): RunOptions {
   const f = form(".pc-evolve form");
@@ -352,7 +512,7 @@ function drawEvolve() {
   else drawCharts(state.run.history, state.run.opts);
 }
 
-// --- 05 explore -----------------------------------------------------------------------
+// --- 06 explore -----------------------------------------------------------------------
 
 function resetExplore(kept: Kept[], archive: E.ArchiveInfo | null) {
   const x = state.explore;
@@ -451,7 +611,8 @@ function drawArchive() {
   const a = aspect();
   grid.querySelectorAll<HTMLElement>(".pc-empty").forEach((e) => { e.style.aspectRatio = String(1 / a); });
   const buttons = [...grid.querySelectorAll<HTMLElement>("button[data-k]")];
-  Draw.plans(buttons.map((b) => b.querySelector("canvas")!), site(), buttons.map((b) => keptDesign(+b.dataset.k!)), P, a);
+  const ds = buttons.map((b) => keptDesign(+b.dataset.k!));
+  Draw.plans(buttons.map((b) => b.querySelector("canvas")!), site(), ds, P, a, ds.map(roadsOf));
 }
 
 function drawPick() {
@@ -459,7 +620,7 @@ function drawPick() {
   box.hidden = x.selected < 0;
   if (x.selected < 0) return;
   const d = keptDesign(x.selected), k = x.kept[x.selected];
-  Draw.plan(box.querySelector<HTMLCanvasElement>("canvas")!, site(), d, P, { aspect: aspect() });
+  Draw.plan(box.querySelector<HTMLCanvasElement>("canvas")!, site(), d, P, { aspect: aspect(), roads: roadsOf(d) });
   const where = k.cell !== undefined && x.archive
     ? ` · archive column ${k.cell % x.archive.bins + 1}, row ${Math.floor(k.cell / x.archive.bins) + 1} from the bottom` : "";
   box.querySelector("h3")!.textContent = `${k.name}${X.onFront(k) ? " · on the front" : X.onBrief(k) ? "" : " · off the brief"}${where}`;
@@ -482,7 +643,7 @@ function pickKept(k: number) {
   drawPick();
 }
 
-// --- 06 families ----------------------------------------------------------------------
+// --- 07 families ----------------------------------------------------------------------
 
 type Action = [string, (it: Item) => void];
 function gallery(box: HTMLElement, items: Item[], actions: Action[]) {
@@ -492,7 +653,7 @@ function gallery(box: HTMLElement, items: Item[], actions: Action[]) {
     + `</figcaption></figure>`).join("");
   box.querySelectorAll<HTMLElement>(".pc-card").forEach((card) => {
     const it = items[+card.dataset.k!];
-    Draw.plan(card.querySelector("canvas")!, site(), it.design, P, { aspect: aspect() });
+    Draw.plan(card.querySelector("canvas")!, site(), it.design, P, { aspect: aspect(), roads: roadsOf(it.design) });
     card.addEventListener("click", (e) => {
       const b = (e.target as HTMLElement).closest<HTMLElement>("[data-act]");
       const act = actions.find(([label]) => label === b?.dataset.act);
@@ -533,7 +694,7 @@ function drawDetail() {
   box.querySelector(".pc-scores")!.innerHTML = scoreLine(it.design);
   box.querySelector(".pc-metrics-body")!.innerHTML = metricsPanel(E.measure(it.design, G()), state.explore.kept.map((e) => e.metrics));
   Draw.plan(box.querySelector<HTMLCanvasElement>(".pc-plan")!, site(), it.design, P,
-    { aspect: aspect(), attractors: true, locked: state.locks });
+    { aspect: aspect(), attractors: true, locked: state.locks, roads: roadsOf(it.design) });
   drawSolid();
 }
 
@@ -558,7 +719,7 @@ function toPen(it: Item | PenEntry) {
   drawEvolve();
 }
 
-// --- 07 breeding ----------------------------------------------------------------------
+// --- 08 breeding ----------------------------------------------------------------------
 
 function drawBreed() {
   const f = form(".pc-breed form");
@@ -620,6 +781,13 @@ function wire() {
     if (b) { state.layer = b.dataset.layer as LayerKey; drawLayer(); }
   });
   $(".pc-genome .pc-another").addEventListener("click", () => { state.genome = E.randomGenome(rng); drawGenome(); });
+  $(".pc-ridges").addEventListener("change", (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLInputElement>("[data-ridge]");
+    if (!b) return;
+    const off = new Set(state.skeletonOff), id = +b.dataset.ridge!;
+    if (b.checked) off.delete(id); else off.add(id);
+    setSkeleton(off);
+  });
   const ev = form(".pc-evolve form");
   ev.addEventListener("submit", (e) => { e.preventDefault(); runEvolution(); });
   input(ev, "shock").addEventListener("change", (e) => {

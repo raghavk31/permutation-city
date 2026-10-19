@@ -36,7 +36,7 @@ export const METRICS = {
     note: "street faces on buildings of six storeys or fewer" },
   // Permeability and active edges
   junctions: { label: "junctions", property: "permeability", up: true, fmt: (v) => `${Math.round(v)}/km²`,
-    value: junctionDensity, note: "corners where three streets meet, per km² (T and Y only on hexes)", range: [0, 150] },
+    value: junctionDensity, note: "corners where three streets meet, per km² (T and Y only on hexes)", range: [0, 500] },
   connections: { label: "connections per block", property: "permeability", up: true, fmt: num(1), value: connections,
     note: "different spaces each block opens onto", range: [2, 10] },
   active_frontage: { label: "active frontage", property: "permeability", up: true, fmt: pct, value: activeFrontage,

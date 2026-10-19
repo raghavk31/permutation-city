@@ -3,7 +3,7 @@ import * as Comlink from "comlink";
 import { mapElites, searchOf, type ArchiveInfo, type EliteOptions, type SearchChoice } from "./elites.js";
 import { evolve, frontFamilies, type EvolveOptions, type HistoryRow } from "./evolve.js";
 import { stats } from "./genome.js";
-import { prepare } from "./ground.js";
+import { prepare, withSkeleton } from "./ground.js";
 import { measure, type Metrics } from "./metrics/index.js";
 import type { Ground, Scores, SiteExport } from "./types.js";
 
@@ -25,8 +25,9 @@ export type RunRequest = Omit<EvolveOptions, "progress" | "search"> & Omit<Elite
 };
 
 const api = {
-  setSite(site: SiteExport) {
-    G = prepare(site);
+  /** The site, with any ridges of its street skeleton switched off. */
+  setSite(site: SiteExport, off: number[] = []) {
+    G = off.length ? withSkeleton(site, prepare(site), new Set(off)) : prepare(site);
   },
   evolve({ search: asked, axes, bins, weights, ...options }: RunRequest,
     onProgress?: (gen: number, row: HistoryRow) => void): EvolveResult {
