@@ -118,12 +118,31 @@ Not measured, and why:
 
 | key | what it measures | better | range |
 |---|---|---|---|
-| `semilattice` | Semilattice richness (*A City is Not a Tree*). Four kinds of 400 m walking catchment: parks, water, centres, and existing roads (a stand-in for transit). For each cell, (catchments − 1) / 3, floored at 0; the mean. 0 when each cell reaches one thing, 1 when every cell reaches all four. | higher | 48–77% |
+| `semilattice` | Semilattice richness (*A City is Not a Tree*). Five kinds of 400 m walking catchment: parks, water, shops and food (Overture places, plus the design's own centres), schools, and transit (Overture places). A place outside the design ground starts its walk at its nearest cell, with the straight-line distance already counted. For each cell, (catchments − 1) / 4, floored at 0; the mean. 0 when each cell reaches one thing, 1 when every cell reaches every kind. Sites exported without places use the old stand-in: parks, water, centres and existing roads, (catchments − 1) / 3. | higher | 66–81% |
 | `legibility` | **A placeholder until Phase 8.** Share of cells within 300 m of a landmark or a centre: something to find your way by. | higher | 0–52% |
 
-Shops, schools and transit stops would make the semilattice measure much better. Overture's
-`place` theme has them, and `pc fetch` now asks for it, but the three sites were fetched
-before that. Re-fetching them is the next step (see the Phase 6 log).
+Places are kept when Overture's confidence is 0.4 or more and they aren't marked closed
+(`pc/maps.py`, `PLACE_MIN_CONFIDENCE`). With that filter:
+
+| Site | Shops and food | Schools | Transit |
+|---|---:|---:|---:|
+| mumbai-ewf | 1,608 | 52 | 12 |
+| mumbai-docks | 87 | 9 | 5 |
+| ahmedabad-wadaj | 99 | 22 | 2 |
+
+Transit is thin: Overture has rail stations and a few transit facilities, but no bus stops.
+
+Semilattice richness over 20 random designs, before (roads as a stand-in for transit) and
+after (real destinations, re-fetched 2026-10-19):
+
+| Site | Before: mean (min–max) | After: mean (min–max) |
+|---|---|---|
+| mumbai-ewf | 0.64 (0.48–0.77) | 0.76 (0.66–0.81) |
+| mumbai-docks | 0.81 (0.61–0.95) | 0.72 (0.60–0.74) |
+| ahmedabad-wadaj | 0.64 (0.50–0.74) | 0.66 (0.57–0.71) |
+
+The spread across designs narrows: existing shops and schools don't depend on the design,
+so a design changes only the parks, water and centres it adds.
 
 ## Promoting metrics
 

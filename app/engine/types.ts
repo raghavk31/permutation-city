@@ -25,8 +25,12 @@ export interface SiteExport {
     rail: [number, number][][];
     boundary: [number, number][][];
     places: { name: string; x: number; y: number }[];
+    /** Where activities are today (Overture places): points in local metres. Missing on older exports. */
+    activities?: Activities;
   };
 }
+
+export type Activities = Record<"shops" | "schools" | "transit", [number, number][]>;
 
 /** Layer name → one value per grid cell (yes/no layers as 1/0; null for no value). */
 export type LayerTable = Record<string, (number | null)[]>;
@@ -90,6 +94,7 @@ export interface Ground {
   bounds: [number, number, number, number];
   meta: SiteMeta;
   roads?: [number, number][][];  // existing major roads, same frame as x, y (the metrics' streets)
+  activities?: Activities;       // shops, schools, transit points, same frame (semilattice richness)
 }
 
 export type Kind = "core" | "green" | "water";

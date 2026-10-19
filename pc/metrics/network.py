@@ -47,6 +47,7 @@ class Site:
     dir: list          # each link's direction, 0 = east, counter-clockwise in equal steps
     cut: list          # 1 where an existing road crosses the link
     row_step: float
+    activities: dict | None = None  # shops, schools, transit: points in the same frame
 
 
 def _orient(px, py, qx, qy, rx, ry):
@@ -108,7 +109,8 @@ def site_of(ground) -> Site:
     site = Site(n=n, deg=D, x=x, y=y, nbr=nbr, cap=[int(v) for v in ground.cap],
                 cell_area=float(ground.area[0]), spacing=float(g.spacing), edge=float(g.edge),
                 grid_type=g.type, size=float(g.size), bounds=tuple(float(v) for v in ground.bounds),
-                dir=dirs, cut=cut, row_step=g.size if g.type == "quad" else 1.5 * g.size)
+                dir=dirs, cut=cut, row_step=g.size if g.type == "quad" else 1.5 * g.size,
+                activities=getattr(ground, "activities", None))
     ground._metric_site = site
     return site
 
@@ -173,6 +175,48 @@ def walk(S: Site, sources) -> list:
                 queue.append(j)
         h += 1
     return dist
+
+
+def walk_from(S: Site, starts, limit: int) -> list:
+    """Steps from the nearest start (cell, steps already walked to reach it); -1 beyond
+    `limit` or unreachable. Buckets by step, as app/engine/metrics/network.ts."""
+    D, dist, buckets = S.deg, [-1] * S.n, {}
+    for c, s in starts:
+        if s > limit or (0 <= dist[c] <= s):
+            continue
+        dist[c] = s
+        buckets.setdefault(s, []).append(c)
+    for s in range(limit + 1):
+        for i in buckets.get(s, ()):
+            if dist[i] != s:
+                continue
+            for k in range(D):
+                j = S.nbr[i * D + k]
+                if j >= 0 and s + 1 <= limit and (dist[j] < 0 or dist[j] > s + 1):
+                    dist[j] = s + 1
+                    buckets.setdefault(s + 1, []).append(j)
+    return dist
+
+
+def activity_starts(S: Site, kind: str, reach: float) -> list:
+    """Each point of a kind of activity: its nearest cell and the straight-line distance to it
+    in steps (rounded); points beyond `reach` metres are left out. Cached on the site."""
+    cache = S.__dict__.setdefault("_starts", {})
+    if kind in cache:
+        return cache[kind]
+    out = []
+    for px, py in (S.activities or {}).get(kind, []):
+        best, bd = -1, math.inf
+        for i in range(S.n):
+            dx, dy = S.x[i] - px, S.y[i] - py
+            dd = dx * dx + dy * dy
+            if dd < bd:
+                bd, best = dd, i
+        d = math.sqrt(bd)
+        if best >= 0 and d <= reach:
+            out.append((best, math.floor(d / S.spacing + 0.5)))
+    cache[kind] = out
+    return out
 
 
 def step_to(net: Net, i: int, a: int) -> tuple[int, int]:

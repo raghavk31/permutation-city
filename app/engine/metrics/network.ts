@@ -120,6 +120,50 @@ export function walk(G: Ground, sources: number[]): Int32Array {
   return dist;
 }
 
+/** Steps from the nearest start, where each start is a cell and the steps already walked to
+ *  reach it; -1 beyond `limit` steps or unreachable. Buckets by step (all links are one step). */
+export function walkFrom(G: Ground, starts: [number, number][], limit: number): Int32Array {
+  const D = G.deg, dist = new Int32Array(G.n).fill(-1), buckets: number[][] = [];
+  for (const [c, s] of starts) {
+    if (s > limit || (dist[c] >= 0 && dist[c] <= s)) continue;
+    dist[c] = s;
+    (buckets[s] ??= []).push(c);
+  }
+  for (let s = 0; s <= limit; s++) {
+    for (const i of buckets[s] ?? []) {
+      if (dist[i] !== s) continue;
+      for (let k = 0; k < D; k++) {
+        const j = G.nbr[i * D + k];
+        if (j >= 0 && s + 1 <= limit && (dist[j] < 0 || dist[j] > s + 1)) { dist[j] = s + 1; (buckets[s + 1] ??= []).push(j); }
+      }
+    }
+  }
+  return dist;
+}
+
+/** Where a kind of activity (shops, schools, transit) enters the design ground: each point's
+ *  nearest cell, with the straight-line distance to it in steps (rounded). Points more than
+ *  `reach` metres from every cell are left out. Kept per site. */
+const startCache = new WeakMap<Ground, Map<string, [number, number][]>>();
+export function activityStarts(G: Ground, kind: keyof NonNullable<Ground["activities"]>, reach: number): [number, number][] {
+  let bySite = startCache.get(G);
+  if (!bySite) startCache.set(G, (bySite = new Map()));
+  const hit = bySite.get(kind);
+  if (hit) return hit;
+  const out: [number, number][] = [];
+  for (const [px, py] of G.activities?.[kind] ?? []) {
+    let best = -1, bd = Infinity;
+    for (let i = 0; i < G.n; i++) {
+      const dx = G.x[i] - px, dy = G.y[i] - py, dd = dx * dx + dy * dy;
+      if (dd < bd) { bd = dd; best = i; }
+    }
+    const d = Math.sqrt(bd);
+    if (best >= 0 && d <= reach) out.push([best, Math.floor(d / G.grid.spacing + 0.5)]);
+  }
+  bySite.set(kind, out);
+  return out;
+}
+
 /** The neighbour of `i` in direction `a`, or -1; and the link slot, for the cut. */
 export function stepTo(net: Net, i: number, a: number): [number, number] {
   const D = net.G.deg;

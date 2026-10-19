@@ -29,7 +29,7 @@ function fromDesign(site: SiteExport, d: SiteExport["design"]): Ground {
     cap: Float64Array.from(d.cap), minPerm: Float64Array.from(d.min_perm),
     trees: Float64Array.from(d.trees), siteWater: Float64Array.from(d.site_water),
     cellArea: site.meta.cell_area, bounds: [xmin, ymin, xmax, ymax],
-    meta: site.meta, roads: site.context.roads,
+    meta: site.meta, roads: site.context.roads, activities: site.context.activities,
   };
 }
 

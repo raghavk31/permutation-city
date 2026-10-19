@@ -95,6 +95,7 @@ class Ground:
     origin: tuple = (0.0, 0.0)  # where local (0, 0) sits in map coordinates (see pc.export)
     graph: CellGraph | None = None  # the cell grid (shape, spacing), for the form metrics
     roads: list | None = None       # existing major roads in the same frame as xy (pc.metrics)
+    activities: dict | None = None  # shops, schools, transit: points in the same frame (pc.metrics)
 
 
 @dataclass

@@ -45,6 +45,35 @@ def context(site: Site):
             "boundary": edge}
 
 
+# Where activities are today (Overture places, fetched with the `place` theme), by kind, for
+# semilattice richness (pc.metrics). Places below this confidence are left out: about half
+# of Mumbai's fall below 0.5, and many of those are duplicates or closed.
+PLACE_MIN_CONFIDENCE = 0.4
+SCHOOLS = {"school", "high_school", "elementary_school", "middle_school", "preschool", "private_school",
+           "public_school", "kindergarten", "college_university", "specialty_school", "montessori_school"}
+TRANSIT = {"public_transit_facility_or_service", "rail_facility_or_service", "bus_station", "train_station",
+           "metro_station", "light_rail_and_subway_stations", "ferry_service", "bus_stop"}
+
+
+def activities(site: Site) -> dict:
+    """Shops (and food), schools and transit points, as GeoDataFrames in the site's CRS."""
+    p = site.overture("place")
+    empty = {k: gpd.GeoDataFrame(geometry=[], crs=site.crs) for k in ("shops", "schools", "transit")}
+    if not p.exists():
+        return empty
+    g = gpd.read_parquet(p).to_crs(site.crs)
+    g = g[(g["confidence"].fillna(0) >= PLACE_MIN_CONFIDENCE) & g.geom_type.eq("Point")]
+    if "operating_status" in g:
+        g = g[g["operating_status"].fillna("open").isin(["open"])]
+    hier = [list(t["hierarchy"]) if isinstance(t, dict) and t.get("hierarchy") is not None else [] for t in g["taxonomy"]]
+    top = [h[0] if h else None for h in hier]
+    kind = ["schools" if h and h[0] == "education" and SCHOOLS & set(h)
+            else "transit" if TRANSIT & set(h)
+            else "shops" if t in ("shopping", "food_and_drink") else None for h, t in zip(hier, top)]
+    g = g.assign(kind=kind)
+    return {k: g[g["kind"] == k][["geometry"]] for k in ("shops", "schools", "transit")}
+
+
 def _overlay(ax, ctx, labels=False):
     ctx["rail"].plot(ax=ax, color=INK_2, linewidth=0.5, linestyle=(0, (4, 2)))
     ctx["roads"].plot(ax=ax, color=INK, linewidth=0.6)

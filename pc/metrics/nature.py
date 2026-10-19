@@ -1,9 +1,11 @@
 """Connection to nature, semilattice richness and legibility (app/engine/metrics/nature.ts;
 docs/metrics.md)."""
 
+import math
+
 from pc.metrics.network import (
-    BUILDING, CATCHMENT_M, GREEN_MIN_HA, LANDSCAPE, LEGIBLE_M, NATURE_WALK_M, WATER, Net, is_open, landmarks, near,
-    walk,
+    BUILDING, CATCHMENT_M, GREEN_MIN_HA, LANDSCAPE, LEGIBLE_M, NATURE_WALK_M, WATER, Net, activity_starts, is_open,
+    landmarks, near, walk, walk_from,
 )
 
 
@@ -66,15 +68,22 @@ def green_view(net: Net) -> float:
 
 
 def semilattice(net: Net) -> float:
-    """Share of cells in more than one 400 m catchment (parks, water, centres, roads), weighted."""
+    """Share of cells in more than one 400 m catchment, weighted: parks, water, shops (with
+    the design's centres), schools and transit; without places, parks, water, centres, roads."""
     S, D, steps = net.S, net.S.deg, CATCHMENT_M / net.S.spacing
-    roadside = [i for i in range(S.n) if any(S.cut[i * D + k] for k in range(D))]
-    kinds = [_parks(net), _cells_of(net, WATER), net.centres, roadside]
+    limit = math.floor(steps)
+    kinds = [[(i, 0) for i in _parks(net)], [(i, 0) for i in _cells_of(net, WATER)]]
+    centres = [(i, 0) for i in net.centres]
+    if S.activities is not None:
+        kinds += [activity_starts(S, "shops", CATCHMENT_M) + centres, activity_starts(S, "schools", CATCHMENT_M),
+                  activity_starts(S, "transit", CATCHMENT_M)]
+    else:
+        kinds += [centres, [(i, 0) for i in range(S.n) if any(S.cut[i * D + k] for k in range(D))]]
     count = [0] * S.n
     for src in kinds:
         if not src:
             continue
-        dist = walk(S, src)
+        dist = walk_from(S, src, limit)
         for i in range(S.n):
             if 0 <= dist[i] <= steps:
                 count[i] += 1

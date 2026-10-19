@@ -120,7 +120,15 @@ def site_ground(site: Site, suit: gpd.GeoDataFrame, origin=None) -> tuple[genome
 
     ground, design = engine_ground(suit, cellgrid.for_site(site), origin)
     ground.roads = _lines(context(site)["roads"], *ground.origin)
+    ground.activities = _activities(site, *ground.origin)
     return ground, design
+
+
+def _activities(site: Site, ox: float, oy: float) -> dict:
+    """Shops, schools and transit points in local metres (1 m), for semilattice richness."""
+    from pc.maps import activities
+
+    return {k: [[round(p.x - ox, 1), round(p.y - oy, 1)] for p in g.geometry] for k, g in activities(site).items()}
 
 
 def suitability(site: Site) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, dict]:
@@ -182,6 +190,7 @@ def export(site: Site) -> dict:
             "boundary": _lines(ctx["boundary"].boundary, ox, oy, 1.0) if len(ctx["boundary"]) else [],
             "places": [{"name": p["label"], "x": round(p.geometry.x - ox, 1), "y": round(p.geometry.y - oy, 1)}
                        for _, p in places.iterrows()],
+            "activities": _activities(site, ox, oy),
         },
     }
     return out
@@ -202,6 +211,7 @@ def ground_from_export(data: dict) -> genome.Ground:
         site_water=np.array(d["site_water"]), spacing=graph.spacing,
         bounds=(xy[:, 0].min(), xy[:, 1].min(), xy[:, 0].max(), xy[:, 1].max()),
         graph=graph, roads=data.get("context", {}).get("roads"),
+        activities=data.get("context", {}).get("activities"),
     )
 
 
