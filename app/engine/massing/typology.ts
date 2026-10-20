@@ -9,8 +9,8 @@
 //   8 step        podium storeys (podium and tower), else the second wings' height as a share
 //   9 tower       a tower's plan as a share of the outer rectangle
 //
-// Repairs: a shape that leaves its plot is shrunk (up to SHRINK_STEPS, 10% each), then any
-// column still outside is clipped; storeys over a column's cap are lowered.
+// Repairs: a shape that leaves its plot by more than FIT_OUTSIDE is shrunk (up to SHRINK_STEPS,
+// 10% each), then any column still outside is clipped; storeys over a column's cap are lowered.
 import type { Rng } from "../types.js";
 import { clamp01, jiggle, vecDistance, type MassContext, type Representation } from "./context.js";
 import { repair, type Box, type Massing, type Repair } from "./voxels.js";
@@ -21,6 +21,9 @@ export const DEPTH_M: [number, number] = [9, 18];
 export const NARROW_DEPTH_M: [number, number] = [9, 12];  // assumed; Pattern 107's width is unchecked
 export const MIN_SIDE_M = 6;
 export const SHRINK_STEPS = 8;
+// Plots are unions of cells, with ragged edges: a shape fits once no more than this share of
+// its columns falls outside; those are clipped (and said).
+export const FIT_OUTSIDE = 0.15;
 
 type Rect = [u0: number, v0: number, u1: number, v1: number, levels: number];
 
@@ -114,7 +117,7 @@ export function buildTypology(g: number[], ctx: MassContext): Massing {
       bs = boxesOf(ctx, k, gene, Math.pow(0.9, step));
       let out = 0, foot = new Set<number>();
       for (const b of bs) cover(ctx, b, (q) => { foot.add(q); if (E.plotOf[q] !== k) out++; });
-      if (!out && foot.size * E.res * E.res <= p.maxCover * p.area + 1e-9) break;
+      if (out <= FIT_OUTSIDE * foot.size && foot.size * E.res * E.res <= p.maxCover * p.area + 1e-9) break;
     }
     if (step) pre.push({ kind: "shrink", plot: k, count: Math.min(step, SHRINK_STEPS) });
     // Lower each box to the lowest cap under it.

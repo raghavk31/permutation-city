@@ -168,9 +168,10 @@ export function envelope(d: Design, G: Ground, block: number, setbacks: Setbacks
   const capZ = new Int16Array(N), street = new Uint8Array(N), publicGround = new Uint8Array(N);
   const context = new Float32Array(N), water = new Float32Array(N).fill(WATER_REACH_M);
 
-  // Water cells (designed water, site water, valley channels), for the CPPN input.
-  const wet: number[] = [];
-  for (let i = 0; i < G.n; i++) if (d.use[i] === WATER || G.siteWater[i] > 0 || (G.valley && G.valley[i] > 0)) wet.push(i);
+  // Water, for the CPPN input: the site's water cells (lakes and rivers, mostly off the
+  // design ground), the design's own water, and valley channels.
+  const wet: [number, number][] = [...(G.water ?? [])];
+  for (let i = 0; i < G.n; i++) if (d.use[i] === WATER || (G.valley && G.valley[i] > 0)) wet.push([G.x[i], G.y[i]]);
 
   for (let i = 0; i < G.n; i++) {
     if (G.x[i] + R < ox || G.x[i] - R > ox + nx * res || G.y[i] + R < oy || G.y[i] - R > oy + ny * res) continue;
@@ -179,7 +180,7 @@ export function envelope(d: Design, G: Ground, block: number, setbacks: Setbacks
     const r0 = Math.max(0, Math.floor((G.y[i] - R - oy) / res)), r1 = Math.min(ny - 1, Math.ceil((G.y[i] + R - oy) / res));
     // This cell's sides: street bands (half the street's width) and setback lines.
     let wd = WATER_REACH_M;
-    if (inBlock.has(i)) for (const w of wet) wd = Math.min(wd, Math.hypot(G.x[w] - G.x[i], G.y[w] - G.y[i]));
+    if (inBlock.has(i)) for (const [wx, wy] of wet) wd = Math.min(wd, Math.hypot(wx - G.x[i], wy - G.y[i]));
     const mine = plotOfCell.get(i) ?? -1;
     const side: [number, number, number, number, number, number][] = [];  // ax, ay, bx, by, street half width, setback
     for (let a = 0; a < D; a++) {
@@ -268,6 +269,19 @@ export function envelope(d: Design, G: Ground, block: number, setbacks: Setbacks
     block, cells, plots, ox, oy, nx, ny, nz, res, cellOf, plotOf, inPlot, capZ, street, publicGround, context, water,
     setbacks, target: plots.reduce((s, p) => s + p.target, 0), note,
   };
+}
+
+/** Each plot's buildable columns (cached). */
+const colCache = new WeakMap<Envelope, Int32Array[]>();
+export function plotColumns(E: Envelope): Int32Array[] {
+  let out = colCache.get(E);
+  if (!out) {
+    const lists: number[][] = E.plots.map(() => []);
+    for (let q = 0; q < E.nx * E.ny; q++) if (E.plotOf[q] >= 0) lists[E.plotOf[q]].push(q);
+    out = lists.map((l) => Int32Array.from(l));
+    colCache.set(E, out);
+  }
+  return out;
 }
 
 /** Column centre (m) of column q. */

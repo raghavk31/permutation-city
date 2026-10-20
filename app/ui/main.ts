@@ -1,5 +1,5 @@
 // Permutation City: the page. Chapters: layers, rules, landform, one genome, evolution,
-// explore, families, breeding. Data: public/sites/<site>.json from `pc export`; engine: app/engine (same as Python).
+// explore, families, breeding, massing (a Svelte component, ui/mass). Data: public/sites/<site>.json from `pc export`; engine: app/engine (same as Python).
 import * as Comlink from "comlink";
 import * as E from "../engine";
 import type { EngineWorker, EvolveResult, FamilyLead, Kept, RunRequest } from "../engine/worker";
@@ -130,6 +130,7 @@ async function loadSite(id: string, rules: string | null = null, brief: string |
   state.G = state.baseG;
   state.skeletonOff = new Set();
   Object.assign(state, { run: null, families: [], selected: null, pen: [], children: [], locks: null, lockNote: [] });
+  massing?.closeMassing();
   resetExplore([], null);
   startWorker(site());
   const m = site().meta;
@@ -719,6 +720,31 @@ function toPen(it: Item | PenEntry) {
   drawEvolve();
 }
 
+/** The massing chapter (Svelte, the massing engine, and three.js later still) loads the first
+ *  time a design is sent to it, so the page's first load doesn't carry it. */
+let massing: typeof import("./mass/store.svelte") | null = null;
+async function loadMassing() {
+  if (massing) return massing;
+  const [{ mount }, { default: Massing }, store] = await Promise.all([
+    import("svelte"), import("./mass/Massing.svelte"), import("./mass/store.svelte"),
+  ]);
+  const box = $(".pc-mass");
+  box.replaceChildren();
+  mount(Massing, { target: box });
+  return (massing = store);
+}
+
+/** Send the selected design to the massing chapter, with what it was grown under. */
+async function massSelected() {
+  const it = state.selected!;
+  const { openMassing } = await loadMassing();
+  openMassing({
+    siteId: state.id!, site: site(), G: G(), skeletonOff: [...state.skeletonOff], name: it.name, genome: it.genome,
+    locks: state.locks ? Array.from(state.locks) : null, ranges: state.ranges, brief: state.brief?.brief ?? null,
+  });
+  $("#pc-massing").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 // --- 08 breeding ----------------------------------------------------------------------
 
 function drawBreed() {
@@ -848,6 +874,7 @@ function wire() {
     const b = t.closest<HTMLElement>("[data-lock]");
     if (b) lock(+b.dataset.lock!, b.dataset.label!);
     if (t.closest(".pc-to-pen") && state.selected) toPen(state.selected);
+    if (t.closest(".pc-to-mass") && state.selected) massSelected();
   });
   // Drag the 3D view to turn it.
   const solid = $(".pc-solid");

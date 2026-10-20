@@ -57,6 +57,7 @@ function fromDesign(site: SiteExport, d: SiteExport["design"]): Ground {
     trees: Float64Array.from(d.trees), siteWater: Float64Array.from(d.site_water),
     cellArea: site.meta.cell_area, bounds: [xmin, ymin, xmax, ymax],
     meta: site.meta, roads: site.context.roads, activities: site.context.activities,
+    water: site.grid.x.flatMap((x, i) => (site.grid.water[i] ? [[x, site.grid.y[i]] as [number, number]] : [])),
     ...(d.z ? {
       z: Float64Array.from(d.z), valley: Int8Array.from(d.valley!), vbuf: Uint8Array.from(d.vbuf!),
       down: Int32Array.from(d.down!), ridge: Float64Array.from(d.ridge!),

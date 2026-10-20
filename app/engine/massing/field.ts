@@ -12,6 +12,7 @@
 // is kept for the skin (mesh.ts), which is clamped to the envelope.
 import { STOREY_M } from "../config.js";
 import { jiggle, vecDistance, type MassContext, type Representation } from "./context.js";
+import { plotColumns } from "./envelope.js";
 import { repair, type Massing } from "./voxels.js";
 
 export const BALLS = 6, BALL_GENES = 5;
@@ -29,8 +30,7 @@ export function buildField(g: number[], ctx: MassContext): Massing {
       return { x: p.cx + u * ux - v * uy, y: p.cy + u * uy + v * ux, z: g[o + 2] * p.capLevels * STOREY_M,
         r: RADIUS_M[0] + (RADIUS_M[1] - RADIUS_M[0]) * g[o + 3], s: -0.5 + 1.5 * g[o + 4] };
     });
-    for (let q = 0; q < N; q++) {
-      if (E.plotOf[q] !== k) continue;
+    for (const q of plotColumns(E)[k]) {
       const x = E.ox + ((q % E.nx) + 0.5) * E.res, y = E.oy + (Math.floor(q / E.nx) + 0.5) * E.res;
       for (let z = 0; z < E.capZ[q]; z++) {
         const zm = (z + 0.5) * STOREY_M;

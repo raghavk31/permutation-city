@@ -42,8 +42,8 @@ name and scale, a paraphrase of its intent, how the tool uses it, and what it ma
 | 60 Accessible Green | metric | recorded; a Phase 6 metric (walking distance to a green patch of a minimum size) |
 | 61 Small Public Squares | metric | recorded; a Phase 6 metric on open-space patches |
 | 106 Positive Outdoor Space | metric | recorded; the positive-space metric of Phase 6 |
-| 107 Wings of Light | prior | recorded; building-scale massing in Phase 7 |
-| 159 Light on Two Sides of Every Room | prior | recorded; building-scale massing in Phase 7 |
+| 107 Wings of Light | prior | building-scale massing: wings of 9 to 12 m in the typology grammar, and courtyard, L, U and slab favoured in its first generation (the width is assumed until checked against the book) |
+| 159 Light on Two Sides of Every Room | prior | building-scale massing: as 107; the readout "floor within 6 m of a window wall" shows how much of a plan is shallow (a rule of thumb, not the book's numbers) |
 
 The brief panel lists the active patterns, why each is on (a cited snippet, or assumed),
 and links to each card.

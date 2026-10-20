@@ -140,7 +140,7 @@ Not measured, and why:
 
 | property | why |
 |---|---|
-| echoes | it is about angles and proportions repeated across buildings: building scale, Phase 7 |
+| echoes | it is about angles and proportions repeated across buildings: measured at building scale (see "Building scale" below) |
 | not-separateness | it needs the context's own cells next to the design (its uses and heights), which the design ground doesn't carry; Phase 9's piecemeal growth will |
 | good shape; deep interlock and ambiguity; simplicity and inner calm | no proxy on a cell grid that a jury would accept (R11) |
 
@@ -173,6 +173,22 @@ after (real destinations, re-fetched 2026-10-19):
 
 The spread across designs narrows: existing shops and schools don't depend on the design,
 so a design changes only the parks, water and centres it adds.
+
+### Building scale
+
+Inside one block of one design (chapter 09; `app/engine/massing`), on 2 m columns one storey
+high. Full definitions and sources are in `docs/massing.md`.
+
+| Measure | Kind | Definition in one line |
+|---|---|---|
+| winter sun on the ground | score ↑ | hours of direct sun on open ground near the block, 21 December, solar 08:00–16:00 |
+| hot-season shade on public ground | score ↑ | share of street and landscape points in shade, 15 April, solar 11:00–16:00 |
+| sky view from the street | score ↑ | 1 − mean sin²(horizon) over 16 directions (Oke; Steyn) |
+| frontal area | score ↓ | frontal area density, mean over 8 wind directions (Grimmond and Oke 1999) |
+| floor within 6 m of a window wall | readout | share of floor area within 6 m of an outside wall (rule of thumb) |
+| echoes | readout | 1 − entropy of wall directions (mod 90°): repeated angles (Alexander; Salingaros) |
+| local symmetries | readout | per plot, the better mirror about its own axes, area-weighted |
+| levels of scale | readout | e-fold ladder of floor-plate and open-ground sizes, entropy per rung |
 
 ## Promoting metrics
 

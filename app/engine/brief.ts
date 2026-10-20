@@ -68,9 +68,9 @@ export interface BriefContext {
 export const APPLIES: Record<keyof Omit<Brief, "version" | "summary">, string> = {
   fsi: "the floor-area target", floor_area_ha: "the floor-area target (wins over FSI)",
   height_limit_levels: "the height cap on all design ground", ground_coverage_max: "the coverage gene's upper end",
-  design_storm_mm: "flood storage", setbacks_m: "recorded; used by building-scale massing (Phase 7)",
+  design_storm_mm: "flood storage", setbacks_m: "the plot margins in building-scale massing (chapter 09)",
   programme_mix: "recorded; used by the urban metrics (Phase 6)", objective_weights: "the order of families on the front",
-  gene_ranges: "how genes are read", typology_priors: "optional starting designs; building scale in Phase 7",
+  gene_ranges: "how genes are read", typology_priors: "optional starting designs; the first generation of building-scale massing",
   aesthetic_priorities: "marks these properties in the form metrics on every design", rule_changes: "the site's rules",
   patterns: "see each pattern card", tags: "recorded only (materials and texture are not measured)",
 };

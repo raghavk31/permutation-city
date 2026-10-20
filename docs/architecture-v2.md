@@ -975,6 +975,70 @@ Unsure about, or left open:
   - Design storm 150 mm and FAR 2.0 are assumed (in `site.yaml`).
   - A parity fixture: 156 parity tests now pass. Ten generations of 60 take 7.5 s.
 
+## Phase 7 log (2026-10-20): building-scale massing
+
+On branch `v2-phase7`, off `v2-phase6b`. The method is in `docs/massing.md`.
+
+Choices made at the start (all the recommended options):
+- plots are Phase 6b blocks, those over 0.5 ha split into 0.15–0.5 ha plots
+- the height cap is the rules' max levels; the urban design's floor area is each plot's
+  target
+- one block per run, with its neighbours as context
+- `.3dm` export through rhino3dm, loaded only on export
+
+What was built:
+- **Engine** (`app/engine/massing/`, TS only per D4):
+  - envelopes on a 2 m raster: street bands, setbacks from the brief or defaults, caps,
+    coverage limits, targets
+  - three representations behind one interface: a typology grammar, a metaball voxel
+    field, and a CPPN with NEAT mutation and crossover
+  - repairs said with every result
+  - four scores plus the floor-area gap: winter sun, hot-season shade, sky view, frontal
+    area
+  - NSGA-II in its own worker
+  - readouts: daylit floor, echoes, local symmetries, levels of scale
+  - meshes: exact boxes, or surface nets with Taubin smoothing
+- **Page:** chapter 09 Massing, loaded on first use.
+  - "mass a block" under a design's plan
+  - a block picker, the plots table, editable setbacks
+  - a gallery with height thumbnails
+  - two linked three.js views with a sun study (date, solar time, shadows) and a section
+    (plan cut or cut across)
+  - a table of scores and readouts for A and B
+  - downloads: glTF, OBJ, Rhino .3dm, bench file
+- **Python bench** (`pc/massing_check.py`): rechecks a massing's envelope, suns and scores
+  from a bench file, to the last digit. Nine fixtures, three sites × three representations.
+- **Priors:** Patterns 107 and 159 narrow the typology wings to 9–12 m (assumed). The
+  brief's typology priors weight the first generation; its setbacks set the envelope.
+- **Ground:** gains `water`, the site's water cells. The smoothed `site_water` field is
+  above zero everywhere, so it can't say where water is.
+- **Tests:** `test/ui/massing.test.ts` (29), `test/ui/massing-exports.test.ts` (2: OBJ and
+  `.3dm` read back), `test/python/test_massing_check.py` (13).
+- **Page weight:** first load 41 KB gzipped before this phase, 43 KB after. three.js
+  (737 KB) loads with the first 3D view, rhino3dm (2.7 MB) with the first `.3dm`.
+- **Checked in a headless browser** on Bengaluru (typology, CPPN), Wadaj (field, a plan
+  cut) and Mumbai Docks on squares (typology). Plus phone width (no sideways scroll).
+
+Found and fixed on the way:
+- Skins were open at their base (an off-by-one in the sample loop).
+- Plain Laplacian smoothing shrank small masses by up to a third.
+- Typology shapes had to fit their ragged plots wholly. They now may leave 15% of their
+  columns to clipping.
+- Interior plots snowballed into 4 ha plots.
+- A Svelte state proxy couldn't be posted to the worker.
+
+Unsure about, or left open:
+- **Large blocks are slow.** A 9 ha block (sparse street genes) of 22 plots takes about 40 s
+  for 312 massings; a typical 1–2 ha block takes 8–15 s. The page warns over 3 ha.
+- **Context is the design's own prisms**, not the existing city.
+- **Shade is scarce near the equator in April.** At Bengaluru (13° N) the sun is nearly
+  overhead, so the shade score moves little; a hot-month afternoon window may suit better.
+  It's in `HOT` in `scores.ts`.
+- **Targets can be unreachable.** Urban designs often ask for FAR 4–7 on a block, more than
+  the envelope's setbacks and coverage limit allow. Typology runs can then stay off
+  brief, with a front of one, while CPPN and field runs fill the envelope.
+- **Pattern 107's width is unchecked** against the book.
+
 ## 8. Decisions (2026-10-16)
 
 The user asked to go with the recommendations:

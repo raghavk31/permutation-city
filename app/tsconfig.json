@@ -10,7 +10,7 @@
     "isolatedModules": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "paths": { "vitest": ["./node_modules/vitest"] }
+    "paths": { "vitest": ["./node_modules/vitest"], "rhino3dm": ["./node_modules/rhino3dm"] }
   },
   "include": ["engine", "ui", "api", "brief", "sites", "scripts", "vite.config.ts", "../test"]
 }
