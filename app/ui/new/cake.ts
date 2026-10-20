@@ -11,7 +11,7 @@ const INFO: Record<string, LayerInfo> = {
   water: { label: "water", note: "sea, river, pond, dock", kind: "flag", ramp: "blues" },
   ground: { label: "ground", note: "bare-earth height above sea level (FABDEM)", kind: "metres", ramp: "greys" },
   pool: { label: "rain pooling", note: "water that sits in hollows after rain", kind: "metres", ramp: "blues" },
-  catchment_ha: { label: "drainage lines", note: "the area that drains through this cell", kind: "hectares", ramp: "blues" },
+  catchment_ha: { label: "drainage", note: "the area that drains through this cell (unconditioned ground)", kind: "hectares", ramp: "blues" },
   upstream: { label: "cells upstream", note: "how many cells drain through this one", kind: "count", ramp: "blues" },
   edge_dist: { label: "distance to water", note: "metres to the nearest land-water edge", kind: "metres", ramp: "greys" },
   trees: { label: "trees", note: "tree cover (ESA WorldCover)", kind: "share", ramp: "greens" },
@@ -26,10 +26,17 @@ const INFO: Record<string, LayerInfo> = {
   sea: { label: "sea", note: "water the sea reaches", kind: "flag", ramp: "blues" },
   wl_built: { label: "built-up (WorldCover)", note: "built-up land cover", kind: "share", ramp: "oranges" },
   wl_water: { label: "water (WorldCover)", note: "water land cover", kind: "share", ramp: "blues" },
+  lst: { label: "surface heat", note: "hot-season land surface temperature, °C (Landsat 8/9): surface, not air; about 100 m native", kind: "metres", ramp: "oranges" },
+  flow_acc_ha: { label: "flow", note: "area draining through each cell, on the conditioned ground (mapped drains burned in)", kind: "hectares", ramp: "blues" },
+  valley_order: { label: "valleys", note: "drainage lines and mapped streams, by stream order (pc/landform.py)", kind: "count", ramp: "blues" },
+  valley_buffer: { label: "valley buffer", note: "room either side of a valley, wider for bigger streams: provisional until checked against nallah margins", kind: "flag", ramp: "blues" },
+  catchment_id: { label: "catchments", note: "the valley segment or outlet each cell drains to", kind: "count", ramp: "greys" },
+  ridge: { label: "ridges", note: "divides between catchments: the land the smaller side drains (ha)", kind: "hectares", ramp: "oranges" },
+  mapped_channel: { label: "mapped streams and drains", note: "OSM via Overture: wins where it disagrees with the ground", kind: "flag", ramp: "blues" },
 };
-const ORDER = ["water", "ground", "flood_", "pool", "catchment_ha", "upstream", "edge_dist", "trees", "green", "mangrove", "built",
-  "industrial", "in_design"];
-const HIDDEN = new Set(["sea", "elev", "bare", "wl_built", "wl_water", "upstream"]);
+const ORDER = ["water", "ground", "flood_", "pool", "flow_acc_ha", "mapped_channel", "valley_order", "valley_buffer", "catchment_id",
+  "ridge", "lst", "catchment_ha", "upstream", "edge_dist", "trees", "green", "mangrove", "built", "industrial", "in_design"];
+const HIDDEN = new Set(["sea", "elev", "bare", "wl_built", "wl_water", "upstream", "flow_to_row", "flow_to_col"]);
 
 export interface Layer extends LayerInfo { name: string }
 

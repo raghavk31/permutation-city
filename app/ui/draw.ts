@@ -4,6 +4,8 @@
 import { circumradius, corners, gridOf, type Design, type SiteExport } from "../engine";
 
 export type Palette = ReturnType<typeof palette>;
+/** Street centrelines to draw (engine `centrelines`), and the width of each class in metres. */
+export interface StreetLines { lines: { cls: number; points: [number, number][] }[]; widths: readonly number[] }
 type Colour = string | null;
 export interface View { s: number; px: (x: number) => number; py: (y: number) => number; bounds: number[] }
 type Ctx = CanvasRenderingContext2D;
@@ -144,15 +146,35 @@ export function designColours(d: Design, p: Palette): Colour[] {
 }
 
 /** A design in plan: background (existing water, protected edge, retained city) + design. */
+/** Streets as gaps through the design, their true width (at least a hairline), primary
+ *  streets with a thin centre line. */
+export function streets(ctx: Ctx, v: View, s: StreetLines | null | undefined, p: Palette) {
+  if (!s) return;
+  ctx.save();
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  for (const pass of [0, 1]) {
+    for (const l of s.lines) {
+      if (pass === 1 && l.cls < 3) continue;
+      ctx.beginPath();
+      l.points.forEach(([x, y], k) => (k ? ctx.lineTo(v.px(x), v.py(y)) : ctx.moveTo(v.px(x), v.py(y))));
+      ctx.strokeStyle = pass ? p.ink2 : p.paper;
+      ctx.lineWidth = pass ? 0.6 : Math.max(s.widths[l.cls] * v.s, 0.8);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
 export function plan(canvas: HTMLCanvasElement, site: SiteExport, d: Design, p: Palette,
-  { aspect, attractors = false, labels = false, locked = null }:
-  { aspect?: number; attractors?: boolean; labels?: boolean; locked?: ArrayLike<number> | null } = {}): View {
+  { aspect, attractors = false, labels = false, locked = null, roads = null }:
+  { aspect?: number; attractors?: boolean; labels?: boolean; locked?: ArrayLike<number> | null; roads?: StreetLines | null } = {}): View {
   const g = site.grid, D = site.design, { corners: shape, r } = shapeOf(site);
   const { ctx, w, h } = fitCanvas(canvas, aspect);
   const v = view(D.x, D.y, w, h, 6, r * 3);
   ctx.fillStyle = p.paper; ctx.fillRect(0, 0, w, h);
   cells(ctx, v, g.x, g.y, g.state.map((s, i) => (g.water[i] || s === 0 ? p.sea : s === 1 ? p.retained : null)), shape);
   cells(ctx, v, D.x, D.y, designColours(d, p), shape);
+  streets(ctx, v, roads, p);
   if (locked) {
     ctx.save(); ctx.globalAlpha = 0.5;
     cells(ctx, v, D.x, D.y, Array.from(locked, (c) => (c ? p.ink : null)), shape, 0.35);
@@ -173,7 +195,8 @@ export function plan(canvas: HTMLCanvasElement, site: SiteExport, d: Design, p: 
 
 /** Many small plans of one size (the MAP-Elites archive): the ground around the design and
  *  the roads are drawn once, then copied under and over each design. */
-export function plans(canvases: HTMLCanvasElement[], site: SiteExport, designs: Design[], p: Palette, aspect: number) {
+export function plans(canvases: HTMLCanvasElement[], site: SiteExport, designs: Design[], p: Palette, aspect: number,
+  roads: (StreetLines | null)[] = []) {
   if (!canvases.length) return;
   const g = site.grid, D = site.design, { corners: shape, r } = shapeOf(site);
   const first = fitCanvas(canvases[0], aspect), { w, h } = first;
@@ -196,6 +219,7 @@ export function plans(canvases: HTMLCanvasElement[], site: SiteExport, designs: 
     const { ctx } = k ? fitCanvas(canvas, aspect) : first;
     copy(ctx, under);
     cells(ctx, v, D.x, D.y, designColours(designs[k], p), shape);
+    streets(ctx, v, roads[k], p);
     copy(ctx, over);
   });
 }

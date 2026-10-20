@@ -12,7 +12,8 @@ import {
   balance, boundaries, contrast, gradients, landmarkPlacement, levelsOfScale, localSymmetry, positiveSpace, rhythmBuilt,
   rhythmSkyline, roughness, strongCentres, symmetry, theVoid,
 } from "./order.js";
-import { activeFrontage, blockSize, connections, dhEnclosure, junctionDensity, lowFrontage } from "./scale.js";
+import { deadEnds, heatFit, junctionDensity, lowStreets, meshedness, ridgeStreets, runoffPath, valleyFree } from "./land.js";
+import { activeFrontage, blockSize, connections, dhEnclosure, lowFrontage } from "./scale.js";
 
 /** label, the property it reads (the brief's vocabulary), higher is better (null: neither,
  *  shown but never optimised), format, what it measures. */
@@ -34,12 +35,16 @@ export const METRICS = {
   low_frontage: { label: "low street faces", property: "human_scale", up: true, fmt: pct, value: lowFrontage,
     note: "street faces on buildings of six storeys or fewer" },
   // Permeability and active edges
-  junctions: { label: "junctions", property: "permeability", up: true, fmt: (v) => `${v.toFixed(1)}/km²`,
-    value: junctionDensity, note: "open cells meeting three or more blocks, per km²", range: [0, 4] },
+  junctions: { label: "junctions", property: "permeability", up: true, fmt: (v) => `${Math.round(v)}/km²`,
+    value: junctionDensity, note: "corners where three streets meet, per km² (T and Y only on hexes)", range: [0, 500] },
   connections: { label: "connections per block", property: "permeability", up: true, fmt: num(1), value: connections,
     note: "different spaces each block opens onto", range: [2, 10] },
   active_frontage: { label: "active frontage", property: "permeability", up: true, fmt: pct, value: activeFrontage,
-    note: "street faces within a 200 m walk of a centre" },
+    note: "building faces on primary and secondary streets" },
+  meshedness: { label: "meshedness", property: "permeability", up: true, fmt: pct, value: meshedness,
+    note: "loops the street network has, of those it could (0: a tree)" },
+  dead_ends: { label: "dead ends", property: "permeability", up: false, fmt: pct, value: deadEnds,
+    note: "street ends inside the site, of all junctions and ends" },
   // Connection to nature
   green_walk: { label: "park within 300 m", property: "connection_to_nature", up: true, fmt: pct, value: greenWalk,
     note: "buildings within a 300 m walk of a park of 0.5 ha or more" },
@@ -49,6 +54,18 @@ export const METRICS = {
     note: "landscape share of the design ground" },
   green_view: { label: "green view", property: "connection_to_nature", up: true, fmt: pct, value: greenView,
     note: "open cells within two steps of each building" },
+  // Water and land fit (McHarg: valleys carry water, ridges carry movement)
+  valley_free: { label: "valleys kept open", property: "connection_to_nature", up: true, fmt: pct, value: valleyFree,
+    note: "valley channels and buffers free of buildings" },
+  ridge_streets: { label: "streets on ridges", property: "connection_to_nature", up: true, fmt: pct, value: ridgeStreets,
+    note: "streets beside a divide or on the highest quarter of the ground" },
+  low_streets: { label: "streets in low ground", property: "connection_to_nature", up: false, fmt: pct, value: lowStreets,
+    note: "streets across valleys or on the lowest quarter of the ground" },
+  runoff_path: { label: "runoff path", property: "connection_to_nature", up: false, fmt: (v) => `${Math.round(v)} m`,
+    value: runoffPath, note: "how far rain runs from a building to landscape or water", range: [0, 300] },
+  heat_fit: { label: "cooling where it's hot", property: "connection_to_nature", up: true,
+    fmt: (v) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}°C`, value: heatFit,
+    note: "hot-season surface temperature of the open cells, against the site's mean (Landsat)", range: [-2, 2] },
   // Harmony and variety
   height_mix: { label: "mix of heights", property: "harmony_variety", up: null, fmt: pct, value: heightEntropy,
     note: "entropy of storeys (0 all alike, 1 evenly spread)" },

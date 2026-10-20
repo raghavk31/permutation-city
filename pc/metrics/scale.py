@@ -1,8 +1,8 @@
 """Human scale, and permeability and active edges (app/engine/metrics/scale.ts; docs/metrics.md)."""
 
 from pc.metrics.network import (
-    ACTIVE_REACH_M, BLOCK_PERIMETER_M, BUILDING, DH_BAND, ENCLOSED_MAX_M, LOW_FRONTAGE_LEVELS, STOREY_M,
-    STREET_W_M, Net, is_open, junctions, step_to, walk,
+    BLOCK_PERIMETER_M, BUILDING, DH_BAND, ENCLOSED_MAX_M, LOW_FRONTAGE_LEVELS, STOREY_M, STREET_W_M, Net,
+    is_open, step_to,
 )
 
 
@@ -16,7 +16,7 @@ def _frontage(net: Net):
         for k in range(D):
             s = i * D + k
             j = S.nbr[s]
-            if j >= 0 and (S.cut[s] or net.use[j] != BUILDING):
+            if j >= 0 and (net.cut[s] or net.use[j] != BUILDING):
                 yield i, s, j
 
 
@@ -29,8 +29,8 @@ def dh_enclosure(net: Net) -> float:
         a, H = S.dir[slot], net.levels[i] * STOREY_M
         D, s, nxt, enclosed = 0, slot, j, False
         while True:
-            if S.cut[s]:
-                D += STREET_W_M
+            if net.cut[s]:
+                D += net.wide[s] if net.wide[s] > 0 else STREET_W_M
             if net.use[nxt] == BUILDING:
                 enclosed = True
                 break
@@ -53,7 +53,7 @@ def perimeters(net: Net) -> list:
         for i in cells:
             for k in range(D):
                 j = S.nbr[i * D + k]
-                if j < 0 or S.cut[i * D + k] or net.block[j] != b:
+                if j < 0 or net.cut[i * D + k] or net.block[j] != b:
                     edges += 1
         out.append(edges * S.edge)
     return out
@@ -80,11 +80,6 @@ def low_frontage(net: Net) -> float:
     return low / total if total else 0
 
 
-def junction_density(net: Net) -> float:
-    """Junctions (open cells meeting three or more blocks) per km² of design ground."""
-    return len(junctions(net)) / ((net.S.n * net.S.cell_area) / 1e6)
-
-
 def connections(net: Net) -> float:
     """How many different spaces each block opens onto, averaged over building cells."""
     S, D = net.S, net.S.deg
@@ -97,7 +92,7 @@ def connections(net: Net) -> float:
                 if j < 0:
                     edge = 1
                     continue
-                if S.cut[i * D + k]:
+                if net.cut[i * D + k]:
                     road = 1
                 elif is_open(net.use[j]) and net.patch[j] not in spaces:
                     spaces.append(net.patch[j])
@@ -107,13 +102,21 @@ def connections(net: Net) -> float:
 
 
 def active_frontage(net: Net) -> float:
-    """Share of street faces within a 200 m walk of a centre."""
-    if not net.centres:
+    """Of the building faces on the design's streets, the share on primary and secondary
+    streets (through routes)."""
+    if not net.street:
         return 0
-    dist, reach = walk(net.S, net.centres), ACTIVE_REACH_M / net.S.spacing
+    from pc.streets import sides
+    sd, S = sides(net.ground), net.S
     total = active = 0
-    for i, _, _ in _frontage(net):
-        total += 1
-        if 0 <= dist[i] <= reach:
-            active += 1
+    for i in range(S.n):
+        if net.use[i] != BUILDING:
+            continue
+        for a in range(S.deg):
+            sid = sd.at[i * S.deg + a]
+            if sid < 0 or not net.street[sid]:
+                continue
+            total += 1
+            if net.street[sid] >= 2:
+                active += 1
     return active / total if total else 0

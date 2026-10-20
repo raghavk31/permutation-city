@@ -1,0 +1,90 @@
+# Permutation City: the McHarg rules (template, copied for each new site)
+#
+# What the land allows, cell by cell. Every cell ends up in one state:
+#
+#   forbidden    nature's: water, deep flooding, the water's edge. Never built on.
+#   retained     the existing city kept as it is (context, not design ground).
+#   constrained  buildable, but with limits (heights, permeable ground, uses).
+#   open         the genes decide.
+#
+# Forbidden beats retained, and retained beats constrained. Rules overlap: a cell belongs
+# to every rule it matches, not just one. Their limits combine and the strictest wins.
+# Allowed uses are what all of a cell's rules allow; if they share none, the cell gets
+# what any of them allows and is marked as a conflict on the rules map, for a person to
+# decide.
+#
+# roles say what a cell does for the city (flood_storage, drainage_path, breeze_corridor,
+# canopy, public_edge). A cell in two rules keeps both roles: a rain hollow by the water
+# is flood storage and public edge at once.
+#
+# `when` is a test on the layer columns (see pc/layers.py), written either way:
+#   when: flood_surge_2050 > 1.5
+#   when: {layer: flood_surge_2050, op: ">", value: 1.5}
+# Combine with and / or / not (or all: / any: / not: in the structured form).
+# A rule that names a layer the site doesn't have (sea flooding inland) is skipped.
+# Edit, then run `pc rules <site>` to see the map change.
+
+defaults:
+  max_levels: 15         # 0 to 15 levels
+  min_permeable: 0.2     # share of ground that must stay unsealed
+  uses: [water, wetland, landscape, building, street]
+
+forbidden:
+  - name: water
+    when: water
+
+  - name: deep flooding in 2050
+    when: flood_surge_2050 > 1.5
+    why: more than 1.5 m of water in a 2050 surge; give it back to the sea
+
+  - name: water's edge
+    when: edge_dist < 30
+    why: a continuous public edge and room for wetland
+    roles: [public_edge]
+
+retained:
+  - name: outside the design area
+    when: not in_design and not industrial
+    why: existing city outside the design area is context; industrial land stays designable
+
+constrained:
+  - name: shallow flooding in 2050
+    when: flood_surge_2050 > 0
+    why: floods up to 1.5 m in a 2050 surge
+    roles: [flood_storage]
+    limits: {raised_ground: true, min_permeable: 0.5}
+
+  - name: rain hollows
+    when: pool > 0.2
+    why: rainwater collects here; keep it as storage
+    roles: [flood_storage]
+    limits: {min_permeable: 0.7, uses: [water, wetland, landscape]}
+
+  - name: valleys
+    when: valley_order >= 1   # drainage lines and mapped streams (pc/landform.py)
+    why: water runs here; keep the channel open for drainage, storage and wetland
+    roles: [drainage_path, flood_storage]
+    limits: {min_permeable: 0.8, uses: [water, wetland, landscape]}
+
+  - name: valley buffer (provisional)
+    when: valley_buffer       # 0, 20 or 40 m each side by stream order; to check against DCPR / CGDCR nallah margins
+    why: room either side of the channel, wider for bigger streams
+    roles: [drainage_path]
+    limits: {min_permeable: 0.6, uses: [water, wetland, landscape]}
+
+  - name: breeze edge
+    when: edge_dist < 120
+    why: keep low near the water so the breeze reaches inland
+    roles: [breeze_corridor]
+    limits: {max_levels: 4}
+
+  - name: industrial land
+    when: industrial
+    why: likely contaminated; clean-up comes before building
+    limits: {remediate: true}
+
+  - name: existing trees
+    when: trees >= 0.5
+    why: mature canopy; build around it
+    roles: [canopy]
+    limits: {min_permeable: 0.6, max_levels: 6}

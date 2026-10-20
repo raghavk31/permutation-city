@@ -47,6 +47,7 @@ class Site:
     dir: list          # each link's direction, 0 = east, counter-clockwise in equal steps
     cut: list          # 1 where an existing road crosses the link
     row_step: float
+    activities: dict | None = None  # shops, schools, transit: points in the same frame
 
 
 def _orient(px, py, qx, qy, rx, ry):
@@ -108,7 +109,8 @@ def site_of(ground) -> Site:
     site = Site(n=n, deg=D, x=x, y=y, nbr=nbr, cap=[int(v) for v in ground.cap],
                 cell_area=float(ground.area[0]), spacing=float(g.spacing), edge=float(g.edge),
                 grid_type=g.type, size=float(g.size), bounds=tuple(float(v) for v in ground.bounds),
-                dir=dirs, cut=cut, row_step=g.size if g.type == "quad" else 1.5 * g.size)
+                dir=dirs, cut=cut, row_step=g.size if g.type == "quad" else 1.5 * g.size,
+                activities=getattr(ground, "activities", None))
     ground._metric_site = site
     return site
 
@@ -120,6 +122,10 @@ def is_open(u) -> bool:
 @dataclass
 class Net:
     S: Site
+    ground: object   # the Ground (landform columns, sides)
+    street: list     # per side (pc.streets): the design's street class, or empty
+    cut: list        # per link: a street of the design or an existing road
+    wide: list       # per link: the design's street width there (0: none)
     use: list
     levels: list
     floor_area: list
@@ -134,9 +140,10 @@ class Net:
     sd: float
 
 
-def components(S: Site, member) -> tuple[list, list]:
-    """Connected groups of cells that pass `member`, not across road cuts; numbered in
-    order of their lowest cell, each listed in breadth-first order."""
+def components(S: Site, member, cut=None) -> tuple[list, list]:
+    """Connected groups of cells that pass `member`, not across cut links (road cuts by
+    default); numbered in order of their lowest cell, each listed in breadth-first order."""
+    cut = S.cut if cut is None else cut
     D, label, groups = S.deg, [-1] * S.n, []
     for s in range(S.n):
         if label[s] >= 0 or not member(s):
@@ -148,7 +155,7 @@ def components(S: Site, member) -> tuple[list, list]:
             i = cells[h]
             for k in range(D):
                 j = S.nbr[i * D + k]
-                if j >= 0 and label[j] < 0 and not S.cut[i * D + k] and member(j):
+                if j >= 0 and label[j] < 0 and not cut[i * D + k] and member(j):
                     label[j] = gid
                     cells.append(j)
             h += 1
@@ -175,6 +182,48 @@ def walk(S: Site, sources) -> list:
     return dist
 
 
+def walk_from(S: Site, starts, limit: int) -> list:
+    """Steps from the nearest start (cell, steps already walked to reach it); -1 beyond
+    `limit` or unreachable. Buckets by step, as app/engine/metrics/network.ts."""
+    D, dist, buckets = S.deg, [-1] * S.n, {}
+    for c, s in starts:
+        if s > limit or (0 <= dist[c] <= s):
+            continue
+        dist[c] = s
+        buckets.setdefault(s, []).append(c)
+    for s in range(limit + 1):
+        for i in buckets.get(s, ()):
+            if dist[i] != s:
+                continue
+            for k in range(D):
+                j = S.nbr[i * D + k]
+                if j >= 0 and s + 1 <= limit and (dist[j] < 0 or dist[j] > s + 1):
+                    dist[j] = s + 1
+                    buckets.setdefault(s + 1, []).append(j)
+    return dist
+
+
+def activity_starts(S: Site, kind: str, reach: float) -> list:
+    """Each point of a kind of activity: its nearest cell and the straight-line distance to it
+    in steps (rounded); points beyond `reach` metres are left out. Cached on the site."""
+    cache = S.__dict__.setdefault("_starts", {})
+    if kind in cache:
+        return cache[kind]
+    out = []
+    for px, py in (S.activities or {}).get(kind, []):
+        best, bd = -1, math.inf
+        for i in range(S.n):
+            dx, dy = S.x[i] - px, S.y[i] - py
+            dd = dx * dx + dy * dy
+            if dd < bd:
+                bd, best = dd, i
+        d = math.sqrt(bd)
+        if best >= 0 and d <= reach:
+            out.append((best, math.floor(d / S.spacing + 0.5)))
+    cache[kind] = out
+    return out
+
+
 def step_to(net: Net, i: int, a: int) -> tuple[int, int]:
     """The neighbour of `i` in direction `a`, or -1; and the link slot, for the cut."""
     S = net.S
@@ -192,9 +241,23 @@ def network(design, ground) -> Net:
     S = site_of(ground)
     use = [USE_CODE.get(u, 0) for u in design.use]
     levels = [int(v) for v in design.levels]
-    block, blocks = components(S, lambda i: use[i] == BUILDING)
-    patch, patches = components(S, lambda i: is_open(use[i]))
-    green, greens = components(S, lambda i: use[i] == LANDSCAPE)
+    D = S.deg
+    cut, wide = list(S.cut), [0.0] * (S.n * D)
+    street = list(getattr(design, "street", None) or [])
+    if street and getattr(design, "street_widths", None):
+        from pc.streets import sides
+        sd = sides(ground)
+        for i in range(S.n):
+            for k in range(D):
+                if S.nbr[i * D + k] < 0:
+                    continue
+                c = street[sd.at[i * D + S.dir[i * D + k]]]
+                if c:
+                    cut[i * D + k] = 1
+                    wide[i * D + k] = design.street_widths[c]
+    block, blocks = components(S, lambda i: use[i] == BUILDING, cut)
+    patch, patches = components(S, lambda i: is_open(use[i]), cut)
+    green, greens = components(S, lambda i: use[i] == LANDSCAPE, cut)
     centres = []
     for a in design.attractors:
         if a.kind != "core":
@@ -214,7 +277,7 @@ def network(design, ground) -> Net:
             s1 += levels[i]
             s2 += levels[i] * levels[i]
     mean = s1 / nb if nb else 0
-    net = Net(S=S, use=use, levels=levels, floor_area=[float(v) for v in design.floor_area],
+    net = Net(S=S, ground=ground, street=street, cut=cut, wide=wide, use=use, levels=levels, floor_area=[float(v) for v in design.floor_area],
               block=block, blocks=blocks, patch=patch, patches=patches, green=green, greens=greens,
               centres=centres, mean=mean, sd=math.sqrt(max(s2 / nb - mean * mean, 0)) if nb else 0)
     design._net = net
@@ -230,7 +293,7 @@ def junctions(net: Net) -> list:
         seen = []
         for k in range(S.deg):
             j = S.nbr[i * S.deg + k]
-            if j >= 0 and not S.cut[i * S.deg + k] and net.block[j] >= 0 and net.block[j] not in seen:
+            if j >= 0 and not net.cut[i * S.deg + k] and net.block[j] >= 0 and net.block[j] not in seen:
                 seen.append(net.block[j])
         if len(seen) >= 3:
             out.append(i)

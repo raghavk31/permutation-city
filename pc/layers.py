@@ -15,6 +15,9 @@
                 rules mean the same on any grid and cell size
     industrial  on industrial or rail land (a stand-in for contaminated land)
     in_design   inside the site's design area (everywhere, if none is given)
+    flow_acc_ha, mapped_channel, valley_order, valley_buffer, catchment_id, ridge
+                landform: valleys, catchments and ridges (pc/landform.py)
+    lst         hot-season land surface temperature, °C (pc/lst.py), when fetched
 
 With a boundary polygon (site.yaml), layers are worked out on the polygon plus a context
 margin, then cropped to the polygon.
@@ -31,6 +34,7 @@ from rasterio.features import rasterize
 from rasterio.windows import from_bounds
 
 from pc import grid as cellgrid
+from pc import landform, lst
 from pc.site import Site, read_polygon
 
 
@@ -225,6 +229,9 @@ def build(site: Site) -> gpd.GeoDataFrame:
         grid = step(site, grid)
     grid = add_flood(site, grid, nbrs)
     grid = add_drainage(site, grid, nbrs, graph.degree)
+    grid, summary = landform.analyse(site, grid, nbrs, graph)
+    landform.save(site, summary)
+    grid = lst.add_lst(site, grid)
     return crop_to_boundary(site, grid)
 
 
@@ -241,4 +248,9 @@ def summary(site: Site, grid) -> str:
     lines += [f"  rain pooling (>0.2 m): {ha(land.pool > 0.2):.0f} ha",
               f"  industrial / rail land: {ha(land.industrial):.0f} ha",
               f"  in design area: {ha(land.in_design):.0f} ha"]
+    summary = landform.load(site)
+    if summary:
+        lines.append(landform.describe(summary))
+    if "lst" in land:
+        lines.append(f"  land surface temperature (hot season): {land.lst.min():.1f} to {land.lst.max():.1f} °C")
     return "\n".join(lines)

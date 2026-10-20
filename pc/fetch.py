@@ -3,6 +3,7 @@
     dem.tif        Copernicus GLO-30 surface model (30 m, metres above sea level)
     terrain.tif    FABDEM bare earth (30 m; free for non-commercial research)
     landcover.tif  ESA WorldCover 2021 (10 m)
+    lst.tif        hot-season land surface temperature (Landsat 8/9, Planetary Computer; pc/lst.py)
     overture/      Overture Maps: buildings (Google Open Buildings + OSM + Microsoft),
                    roads and rail, land use, water, place names,
                    places (shops, schools, transit: where activities are today)
@@ -129,8 +130,13 @@ def fetch_overture(site: Site, tries=5, release: str | None = None, on_theme=lam
             raise RuntimeError(f"Overture {theme} failed: {r.stderr[-300:]}")
 
 
+def fetch_lst(site: Site):
+    from pc.lst import fetch_lst as run
+    run(site)
+
+
 STEPS = {"dem": fetch_dem, "terrain": fetch_terrain, "landcover": fetch_landcover,
-         "overture": fetch_overture}
+         "overture": fetch_overture, "lst": fetch_lst}
 
 
 def fetch(site: Site, only=None):

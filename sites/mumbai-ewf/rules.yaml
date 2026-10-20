@@ -50,11 +50,17 @@ constrained:
     roles: [flood_storage]
     limits: {min_permeable: 0.7, uses: [water, wetland, landscape]}
 
-  - name: drainage lines
-    when: catchment_ha >= 4.1   # 4 ha or more drains through (40+ cells of 20 m hexes)
-    why: water flows through here; keep the path open
+  - name: valleys
+    when: valley_order >= 1   # drainage lines and mapped streams (pc/landform.py)
+    why: water runs here; keep the channel open for drainage, storage and wetland
+    roles: [drainage_path, flood_storage]
+    limits: {min_permeable: 0.8, uses: [water, wetland, landscape]}
+
+  - name: valley buffer (provisional)
+    when: valley_buffer       # 0, 20 or 40 m each side by stream order; to check against DCPR / CGDCR nallah margins
+    why: room either side of the channel, wider for bigger streams
     roles: [drainage_path]
-    limits: {min_permeable: 0.5, uses: [water, wetland, landscape, street]}
+    limits: {min_permeable: 0.6, uses: [water, wetland, landscape]}
 
   - name: sea-breeze edge
     when: edge_dist < 120

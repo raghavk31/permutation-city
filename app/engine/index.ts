@@ -12,12 +12,13 @@ export { roundHalfEven, smooth } from "./num.js";
 export {
   cellAreaOf, circumradius, corners, designGraph, gridLabel, gridOf, passes, siteGraph, type CellGraph,
 } from "./graph.js";
-export { prepare, prepareFromRules, designFromRules } from "./ground.js";
+export { prepare, prepareFromRules, designFromRules, withSkeleton } from "./ground.js";
+export { sides, streets, centrelines, LANE, SECONDARY, PRIMARY, type Sides, type Streets } from "./streets.js";
 export {
   applyRules, evaluate as evaluateCondition, layersUsed, MissingLayer, STATES, FORBIDDEN, RETAINED, CONSTRAINED, OPEN,
   type RuleResult,
 } from "./rules.js";
-export { decode, grow, randomGenome, stats } from "./genome.js";
+export { decode, grow, randomGenome, stats, upgrade } from "./genome.js";
 export { evaluate, floorAreaTarget, SCORES, SCORE_KEYS } from "./fitness.js";
 export { paretoRanks, crowding, difference, families, asMin } from "./rank.js";
 export { referencePoints, divisionsFor, nicheSelect } from "./niche.js";

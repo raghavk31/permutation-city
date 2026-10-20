@@ -217,12 +217,23 @@
         <div class="pcn-fields">
           {#each E.RANGE_KEYS as k}
             {@const r = brief.gene_ranges?.value[k]}
+            {@const step = k === "street_spacing" ? 5 : 0.05}
+            {@const street = k.startsWith("street_")}
+            {@const locked = !!r && r[0] === r[1]}
             <div class="pcn-field">
               <label>{label(k)} <span>
-                <input type="number" step="0.05" value={r ? r[0] : ""} placeholder={String(E.DEFAULT_RANGES[k][0])}
-                  onchange={(e) => set(B.setRange(brief!, k, B.numberOf(e.currentTarget.value), r ? r[1] : null))} /> to
-                <input type="number" step="0.05" value={r ? r[1] : ""} placeholder={String(E.DEFAULT_RANGES[k][1])}
-                  onchange={(e) => set(B.setRange(brief!, k, r ? r[0] : null, B.numberOf(e.currentTarget.value)))} /></span></label>
+                <input type="number" {step} value={r ? r[0] : ""} placeholder={String(E.DEFAULT_RANGES[k][0])}
+                  onchange={(e) => { const v = B.numberOf(e.currentTarget.value); set(B.setRange(brief!, k, v, locked ? v : r ? r[1] : null)); }} />
+                {#if !locked} to
+                <input type="number" {step} value={r ? r[1] : ""} placeholder={String(E.DEFAULT_RANGES[k][1])}
+                  onchange={(e) => set(B.setRange(brief!, k, r ? r[0] : null, B.numberOf(e.currentTarget.value)))} />{/if}</span></label>
+              {#if street}
+                <label class="pcn-check"><input type="checkbox" checked={locked}
+                  onchange={(e) => {
+                    const [lo, hi] = E.DEFAULT_RANGES[k], v = r ? r[0] : (lo + hi) / 2;
+                    set(e.currentTarget.checked ? B.setRange(brief!, k, v, v) : B.setRange(brief!, k, null, null));
+                  }} /> lock (leave free to let evolution choose)</label>
+              {/if}
             </div>
           {/each}
           {@render evidence(brief.gene_ranges)}

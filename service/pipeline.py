@@ -22,7 +22,7 @@ from pc import export, fetch, layers, rules
 from pc import grid as cellgrid
 from pc.site import DATA, ROOT, SITES, load, utm_crs
 
-LAYERS_VERSION = 2   # bump when pc/layers.py changes what it computes
+LAYERS_VERSION = 3   # bump when pc/layers.py changes what it computes (3: landform, LST)
 MAX_KM2 = 4.0        # design polygon, before the context margin
 MAX_CELLS = 4500     # the browser engine's budget (about 5 s for a full run)
 GRID_TYPES = set(cellgrid.GRID_TYPES)
@@ -180,7 +180,9 @@ FETCHES = [fetch.fetch_dem, lambda site: fetch.fetch_terrain(site, fallback=True
 FALLBACK_NOTES = {
     "copernicus-surface": "Bare-earth heights (FABDEM) couldn't be downloaded, so ground heights come from the "
                           "Copernicus surface model and include buildings and trees: flooding and rain pooling in "
-                          "built-up areas are underestimated, and building heights read as zero.",
+                          "built-up areas are underestimated, and building heights read as zero. It is unsuitable "
+                          "for urban hydrology, so the landform is treated as flat (low confidence): rebuild this "
+                          "site once FABDEM is back.",
 }
 
 
@@ -190,6 +192,17 @@ def fetch_overture(site, release: str | None, progress=lambda step, detail=None:
         4, f"{THEMES.get(t, t)} ({k + 1} of {len(fetch.OVERTURE_THEMES)})"))
 
 
+def fetch_lst(site) -> list:
+    """Stage 4, after Overture: hot-season surface temperature. Optional: if Planetary Computer
+    can't be reached or no scene is clear, the site builds without it and says so."""
+    try:
+        fetch.fetch_lst(site)
+        return []
+    except Exception as err:  # noqa: BLE001 - any failure here only loses one layer
+        return [f"No land surface temperature for this site ({type(err).__name__}): the surface heat "
+                "layer and the 'cooling where it's hot' metric are missing."]
+
+
 def build_layers(site):
     """Stage 5."""
     grid = layers.build(site)
@@ -197,12 +210,12 @@ def build_layers(site):
     grid.to_file(site.layers / "grid.gpkg", layer="cells", driver="GPKG")
 
 
-def export_site(site, key: str, release: str | None, out: Path, terrain: str = "fabdem") -> Path:
+def export_site(site, key: str, release: str | None, out: Path, terrain: str = "fabdem", notes=()) -> Path:
     """Stage 6: the export, written atomically to `out`. `terrain`: what stage 2 used."""
     data_out = export.export(site)
     data_out["meta"]["id"] = key
     data_out["meta"]["service"] = {"overture": release, "layers": LAYERS_VERSION, "terrain": terrain,
-                                   "warnings": [FALLBACK_NOTES[terrain]] if terrain in FALLBACK_NOTES else []}
+                                   "warnings": ([FALLBACK_NOTES[terrain]] if terrain in FALLBACK_NOTES else []) + list(notes)}
     out.parent.mkdir(parents=True, exist_ok=True)
     tmp = out.with_suffix(".tmp")
     tmp.write_text(json.dumps(data_out, separators=(",", ":")), encoding="utf-8")
@@ -226,9 +239,10 @@ def run(req: Request, key: str, overture_release: str | None, cache: Path, progr
             used[k] = step(site)
         progress(4)
         fetch_overture(site, overture_release, progress)
+        notes = fetch_lst(site)
         progress(5)
         build_layers(site)
         progress(6)
-        return export_site(site, key, overture_release, cache / f"{key}.json", used[1] or "fabdem")
+        return export_site(site, key, overture_release, cache / f"{key}.json", used[1] or "fabdem", notes)
     finally:
         clean(key)

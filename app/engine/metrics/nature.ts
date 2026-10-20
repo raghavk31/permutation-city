@@ -1,6 +1,6 @@
 // Connection to nature, semilattice richness and legibility (pc/metrics/nature.py; docs/metrics.md).
 import { BUILDING, CATCHMENT_M, GREEN_MIN_HA, LANDSCAPE, LEGIBLE_M, NATURE_WALK_M, WATER } from "../config.js";
-import { isOpen, landmarks, near, walk, type Net } from "./network.js";
+import { activityStarts, isOpen, landmarks, near, walk, walkFrom, type Net } from "./network.js";
 
 /** Cells of landscape patches of half a hectare or more. */
 function parks(net: Net): number[] {
@@ -55,20 +55,29 @@ export function greenView(net: Net): number {
   return nb ? sum / nb : 0;
 }
 
-/** Share of design cells that are in more than one 400 m walking catchment, of parks, water,
- *  centres and existing roads (a stand-in for transit), weighted by how many: 0 when each cell
- *  reaches one thing, 1 when every cell reaches all four. */
+/** Share of design cells that are in more than one 400 m walking catchment, weighted by how
+ *  many: 0 when each cell reaches one thing, 1 when every cell reaches every kind. The kinds:
+ *  parks, water, shops (existing ones and the design's own centres), schools and transit,
+ *  from Overture places. On sites exported without places: parks, water, centres and
+ *  existing roads (a stand-in for transit). */
 export function semilattice(net: Net): number {
-  const { G, L } = net, D = G.deg, steps = CATCHMENT_M / G.grid.spacing;
-  const roadside: number[] = [];
-  for (let i = 0; i < G.n; i++) {
-    for (let k = 0; k < D; k++) if (L.cut[i * D + k]) { roadside.push(i); break; }
+  const { G, L } = net, D = G.deg, steps = CATCHMENT_M / G.grid.spacing, limit = Math.floor(steps);
+  const kinds: [number, number][][] = [parks(net), cellsOf(net, WATER)].map((c) => c.map((i): [number, number] => [i, 0]));
+  const centres = net.centres.map((i): [number, number] => [i, 0]);
+  if (G.activities) {
+    kinds.push([...activityStarts(G, "shops", CATCHMENT_M), ...centres], activityStarts(G, "schools", CATCHMENT_M),
+      activityStarts(G, "transit", CATCHMENT_M));
+  } else {
+    const roadside: [number, number][] = [];
+    for (let i = 0; i < G.n; i++) {
+      for (let k = 0; k < D; k++) if (L.cut[i * D + k]) { roadside.push([i, 0]); break; }
+    }
+    kinds.push(centres, roadside);
   }
-  const kinds = [parks(net), cellsOf(net, WATER), net.centres, roadside];
   const count = new Int32Array(G.n);
   for (const src of kinds) {
     if (!src.length) continue;
-    const dist = walk(G, src);
+    const dist = walkFrom(G, src, limit);
     for (let i = 0; i < G.n; i++) if (dist[i] >= 0 && dist[i] <= steps) count[i]++;
   }
   let sum = 0;

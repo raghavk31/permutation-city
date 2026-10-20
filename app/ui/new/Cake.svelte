@@ -92,6 +92,17 @@
     <p class="pc-muted">{site.grid.x.length.toLocaleString("en-IN")} cells, {E.gridLabel(E.gridOf(site.meta))} ·
       design ground {fmtHa(designHa)} · <button type="button" class="pcn-link" onclick={onback}>pick another site</button></p>
     {#each site.meta.service?.warnings ?? [] as w}<p class="pcn-warn" role="note">{w}</p>{/each}
+    {#if site.meta.landform}
+      {@const r = site.meta.landform.relief}
+      <p class="pc-muted"><b>Terrain relief: {r.class}</b> ({r.confidence} confidence; {r.relief_m} m between the 5th and
+        95th percentile of ground height, median slope {((r.median_slope ?? 0) * 100).toFixed(2)}%, from
+        {r.source === "fabdem" ? "FABDEM bare earth" : "the Copernicus surface model"}).
+        {#if r.class === "flat"}On flat land valleys come only from mapped water.{/if}
+        {#if site.skeleton}Street skeleton: {site.skeleton.note}.{/if}
+        Valley buffers are provisional.</p>
+      {#if r.rebuild}<p class="pcn-warn" role="note">The Copernicus surface model includes buildings and trees, so it is
+        unsuitable for hydrology in a city: landform is treated as flat. Rebuild once FABDEM is back.</p>{/if}
+    {/if}
   </div>
 
   <div class="pcn-cake-body">

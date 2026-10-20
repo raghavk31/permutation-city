@@ -34,7 +34,7 @@ def boundaries(net: Net) -> float:
         for i in cells:
             for k in range(D):
                 j = S.nbr[i * D + k]
-                if j >= 0 and not S.cut[i * D + k] and net.patch[j] == p:
+                if j >= 0 and not net.cut[i * D + k] and net.patch[j] == p:
                     continue
                 edges += 1
                 if j >= 0 and net.use[j] == BUILDING:
