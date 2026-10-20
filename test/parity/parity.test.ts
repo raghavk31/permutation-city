@@ -10,6 +10,7 @@ import {
   applyRules, designFromRules, evaluate, evolve, grow, makeRng, mapElites, measure, paretoRanks, type MetricKey, prepare, prepareFromRules, randomGenome,
   type HistoryRow, type RuleSet, type Scores, type SiteExport,
 } from "../../app/engine";
+import { choiceRn, syntaxOf } from "../../app/engine/syntax";
 
 const ROOT = join(__dirname, "..", "..");
 const FIXTURES = join(__dirname, "fixtures");
@@ -17,9 +18,18 @@ const TOL: Record<keyof Scores, number> = {
   storage: 0.0015, heat: 0.015, carbon: 1.5, daylight: 0.0015, human: 0.0015, gap: 0.0015,
 };
 
+/** One design's space syntax, segment by segment (pc/export.py `_syntax_case`). */
+interface SyntaxCase {
+  segments: number; site: number; links: number;
+  local: { radius: number; nain: (number | null)[]; nach: (number | null)[] }[];
+  rn: (number | null)[];
+  choice_rn?: { nach: (number | null)[]; nain: (number | null)[] };
+}
+
 interface Fixture {
   site: string;
-  cases: { genome: number[]; use: number[]; levels: number[]; scores: Scores; rank: number; metrics?: Record<string, number> }[];
+  cases: { genome: number[]; use: number[]; levels: number[]; scores: Scores; rank: number; metrics?: Record<string, number>;
+    syntax?: SyntaxCase }[];
   rng: { seed: number; random: number[]; normal: number[] };
   evolutions: {
     case: { search?: "nsga2" | "nsga3" | "map-elites"; seed: number; generations: number; pop: number;
@@ -75,12 +85,33 @@ for (const file of readdirSync(FIXTURES).filter((f) => f.endsWith(".json"))) {
       expect(withMetrics.length).toBeGreaterThan(0);
       fx.cases.forEach((c, k) => {
         if (!c.metrics) return;
-        const m = measure(grown[k].d, G);
-        expect(Object.keys(m).sort()).toEqual(Object.keys(c.metrics).sort());
+        // Space syntax is in only the first few cases (it takes seconds per design in Python).
+        const m = measure(grown[k].d, G, Object.keys(c.metrics) as MetricKey[]);
         for (const [key, v] of Object.entries(c.metrics)) {
           expect(m[key as MetricKey], `${key}, case ${k}`).toBeCloseTo(v, 9);
         }
       });
+    });
+
+    const sx = fx.cases.find((c) => c.syntax);
+    if (sx) it("builds the same street network and space syntax, segment by segment", () => {
+      const k = fx.cases.indexOf(sx), want = sx.syntax!;
+      const S = syntaxOf(grown[k].d, G);
+      expect([S.N.a.length, S.N.site, S.N.links]).toEqual([want.segments, want.site, want.links]);
+      const near = (got: ArrayLike<number> | null, exp: (number | null)[], what: string) => {
+        expect(got, what).not.toBeNull();
+        exp.forEach((v, s) => {
+          if (v === null) expect(Number.isFinite(got![s]), `${what} ${s}`).toBe(false);
+          else expect(got![s], `${what} ${s}`).toBeCloseTo(v, 9);
+        });
+      };
+      want.local.forEach((w, r) => { near(S.local[r].nain, w.nain, `NAIN R${w.radius}`); near(S.local[r].nach, w.nach, `NACH R${w.radius}`); });
+      near(S.rn.nain, want.rn, "NAIN Rn");
+      if (want.choice_rn) {
+        const c = choiceRn(grown[k].d, G);
+        near(c.nach, want.choice_rn.nach, "NACH Rn");
+        near(c.nain, want.choice_rn.nain, "NAIN Rn (from every segment)");
+      }
     });
 
     it("gives the same Pareto ranks", () => {

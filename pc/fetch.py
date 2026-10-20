@@ -6,7 +6,8 @@
     lst.tif        hot-season land surface temperature (Landsat 8/9, Planetary Computer; pc/lst.py)
     overture/      Overture Maps: buildings (Google Open Buildings + OSM + Microsoft),
                    roads and rail, land use, water, place names,
-                   places (shops, schools, transit: where activities are today)
+                   places (shops, schools, transit: where activities are today),
+                   and streets to SYNTAX_BUFFER_M round the box (space syntax only)
 
 Rasters are read straight from the cloud copies, so only the site's window is downloaded.
 """
@@ -24,6 +25,10 @@ from pc.site import Site
 
 BUFFER = 0.005  # degrees (~500 m) around the box, so edge cells have data
 OVERTURE_THEMES = ["building", "segment", "land_use", "water", "division", "place"]
+# Space syntax needs the street network well past the site, or segments near its edge look
+# less integrated than they are (edge effect). Streets are fetched this far beyond the site's
+# box (which already has its 250 m context margin), so the buffer is at least 1 km.
+SYNTAX_BUFFER_M = 1000.0
 
 
 def _tiles(bbox, step=1):
@@ -130,13 +135,38 @@ def fetch_overture(site: Site, tries=5, release: str | None = None, on_theme=lam
             raise RuntimeError(f"Overture {theme} failed: {r.stderr[-300:]}")
 
 
+def syntax_bbox(site: Site) -> tuple:
+    w, s, e, n = site.bbox
+    dlat = SYNTAX_BUFFER_M / 111_320
+    dlon = dlat / math.cos(math.radians((s + n) / 2))
+    return (w - dlon, s - dlat, e + dlon, n + dlat)
+
+
+def fetch_streets(site: Site, tries=5, release: str | None = None):
+    """Overture road segments over the box plus SYNTAX_BUFFER_M, for space syntax
+    (pc/syntax.py). Kept apart from the site's own `segment` theme, which covers the box."""
+    out = site.raw / "overture" / "segment_syntax.parquet"
+    if out.exists():
+        return
+    out.parent.mkdir(parents=True, exist_ok=True)
+    cli = shutil.which("overturemaps") or str(sys.executable).replace("python", "overturemaps")
+    bbox = ",".join(f"{v:.6f}" for v in syntax_bbox(site))
+    for attempt in range(tries):
+        cmd = [cli, "download", f"--bbox={bbox}", "-f", "geoparquet", "--type=segment", "-o", str(out)]             + (["-r", release] if release else []) + (["--no-stac"] if attempt >= 2 else [])
+        r = subprocess.run(cmd, capture_output=True, text=True)
+        if r.returncode == 0:
+            return
+        time.sleep(5 * (attempt + 1))
+    raise RuntimeError(f"Overture streets for space syntax failed: {r.stderr[-300:]}")
+
+
 def fetch_lst(site: Site):
     from pc.lst import fetch_lst as run
     run(site)
 
 
 STEPS = {"dem": fetch_dem, "terrain": fetch_terrain, "landcover": fetch_landcover,
-         "overture": fetch_overture, "lst": fetch_lst}
+         "overture": fetch_overture, "streets": fetch_streets, "lst": fetch_lst}
 
 
 def fetch(site: Site, only=None):

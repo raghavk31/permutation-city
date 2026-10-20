@@ -56,7 +56,7 @@ def _score(d, ground, site, storm=1.0, objectives=()):
     """The five scores, and any promoted metrics under their own keys."""
     fitness.evaluate(d, ground, site, storm)
     if objectives:  # rounded, as the scores are, so both engines rank them alike
-        d.scores.update({k: round(v, 6) for k, v in metrics.measure(d, ground, objectives).items()})
+        d.scores.update({k: round(v, 6) for k, v in metrics.measure(d, ground, objectives, estimate=True).items()})
 
 
 def objectives_of(objectives=()) -> list:

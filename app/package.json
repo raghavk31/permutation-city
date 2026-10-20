@@ -12,7 +12,9 @@
     "compare": "vite-node scripts/compare-search.ts --",
     "ranges": "vite-node scripts/descriptor-ranges.ts",
     "metrics": "vite-node scripts/metrics-survey.ts",
-    "massing-bench": "vite-node scripts/massing-bench.ts"
+    "massing-bench": "vite-node scripts/massing-bench.ts",
+    "syntax-estimate": "vite-node scripts/syntax-estimate.ts --",
+    "syntax-survey": "vite-node scripts/syntax-survey.ts --"
   },
   "dependencies": {
     "@vercel/blob": "2.8.0",

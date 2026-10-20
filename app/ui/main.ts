@@ -2,7 +2,7 @@
 // explore, families, breeding, massing (a Svelte component, ui/mass). Data: public/sites/<site>.json from `pc export`; engine: app/engine (same as Python).
 import * as Comlink from "comlink";
 import * as E from "../engine";
-import type { EngineWorker, EvolveResult, FamilyLead, Kept, RunRequest } from "../engine/worker";
+import type { EngineWorker, EvolveResult, FamilyLead, Grown, Kept, RunRequest, SyntaxDetail } from "../engine/worker";
 import * as Draw from "./draw";
 import * as X from "./explore";
 import { describe as describeBrief } from "./new/brief";
@@ -32,6 +32,9 @@ const state = {
   // A confirmed brief from the link: how genes are read, and whether to seed by typology.
   brief: null as Sites.LinkedBrief | null, ranges: E.DEFAULT_RANGES as E.Ranges, linkRules: null as string | null,
   // What the last run kept, for Explore; designs regrown as they're drawn.
+  // Space syntax arrives from the worker: the kept designs' readouts after a run, one at a time
+  // (`token` stops an old loop), and the opened design's segments.
+  syntax: { token: 0, read: 0, detail: null as (SyntaxDetail & { name: string }) | null, measure: "nain_rn", choice: null as { nach: Float64Array; mean: number; choice: number } | null },
   explore: { kept: [] as Kept[], archive: null as E.ArchiveInfo | null, view: "matrix" as ExploreView, measures: "scores",
     selected: -1, hover: -1, grown: new Map<number, E.Design>(), hit: null as ((x: number, y: number) => number) | null },
 };
@@ -476,7 +479,29 @@ async function runEvolution() {
     + (w ? ` · ${m.archive ? "elites judged and " : ""}families ordered by the brief's weights` : "");
   drawExplore();
   drawFamilies();
+  readSyntax();
 }
+
+/** Space syntax for the designs a run kept: asked of the worker one design at a time, so the
+ *  opened design's request can slip in between. Explore shows the group once all are read. */
+async function readSyntax() {
+  const sx = state.syntax, token = ++sx.token, kept = state.explore.kept, line = $(".pc-syntax-progress");
+  sx.read = 0;
+  line.hidden = false;
+  for (let k = 0; k < kept.length; k++) {
+    line.textContent = `Reading space syntax for the designs the run kept: ${k} of ${kept.length}.`;
+    let m: Partial<E.Metrics> | null;
+    try { m = await state.worker!.api.syntaxKept(k); } catch { return; }
+    if (token !== sx.token) return;
+    if (m) Object.assign(kept[k].metrics, m);
+    sx.read = k + 1;
+  }
+  line.hidden = true;
+  drawExplore();
+}
+
+/** Are the kept designs' space syntax readouts all in? */
+const syntaxReady = () => state.syntax.read >= state.explore.kept.length;
 
 function drawCharts(rows: E.HistoryRow[], opts: RunOptions) {
   const charts: [keyof E.HistoryRow, string, (v: number) => string][] = [
@@ -565,6 +590,14 @@ function drawExplorePlot() {
   canvas.hidden = archive;
   grid.hidden = !archive;
   if (archive) { drawArchive(); return; }
+  if (syntaxWaiting(true)) {
+    const { ctx, w, h } = Draw.fitCanvas(canvas, 0.5);
+    ctx.fillStyle = P.paper; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = P.muted; ctx.font = "14px system-ui, sans-serif"; ctx.textAlign = "center";
+    ctx.fillText(`Space syntax is still being read (${state.syntax.read} of ${x.kept.length} designs).`, w / 2, h / 2);
+    x.hit = null;
+    return;
+  }
   const marks = { selected: x.selected, hover: x.hover };
   const promoted = X.metricAxes(state.run?.opts.objectives ?? []);
   x.hit = x.view === "matrix" ? X.scatterMatrix(canvas, x.kept, P, marks, [...X.SCORE_AXES, ...promoted])
@@ -580,13 +613,15 @@ function measureAxes(): X.Axis[] {
 
 /** The form metrics of one design, by group, each placed among the designs the run kept
  *  (`pool`). Properties the brief asks for are marked. */
-function metricsPanel(m: Partial<E.Metrics>, pool: E.Metrics[]): string {
+function metricsPanel(m: Partial<E.Metrics>, pool: Partial<E.Metrics>[]): string {
   const asked = new Set<string>((state.brief?.brief.aesthetic_priorities?.value ?? []).map((p) => p.metric));
   const rows = X.GROUPS.map(([name, keys]) => `<h4>${name}</h4><dl>` + keys.map((k) => {
-    const def = E.METRICS[k] as E.Metric, v = m[k]!;
+    const def = E.METRICS[k] as E.Metric, v = m[k];
+    if (v === undefined) return `<dt title="${def.note}">${def.label}</dt><dd class="pc-muted">reading …</dd>`;
     let bar = "";
-    if (pool.length > 1) {
-      const vs = pool.map((p) => p[k]), lo = Math.min(...vs), hi = Math.max(...vs);
+    const vs = pool.map((p) => p[k]).filter((x) => x !== undefined);
+    if (vs.length > 1) {
+      const lo = Math.min(...vs), hi = Math.max(...vs);
       let t = hi > lo ? (v - lo) / (hi - lo) : 0.5;
       if (def.up === false) t = 1 - t;
       bar = `<span class="pc-bar${def.up === null ? " is-neutral" : ""}"><i style="left:${Math.round(Math.min(Math.max(t, 0), 1) * 100)}%"></i></span>`;
@@ -629,8 +664,17 @@ function drawPick() {
   box.querySelector(".pc-metrics-body")!.innerHTML = metricsPanel(k.metrics, x.kept.map((e) => e.metrics));
 }
 
+/** Explore is to show space syntax (the group, or a promoted syntax metric) before every kept
+ *  design has been read. `plot`: for the plot (the scatter matrix shows only the scores). */
+function syntaxWaiting(plot = false): boolean {
+  const x = state.explore, promoted = (state.run?.opts.objectives ?? []).some((k) => E.SYNTAX_KEYS.includes(k));
+  if (syntaxReady()) return false;
+  return promoted || (x.measures === "space syntax" && (!plot || x.view === "parallel"));
+}
+
 function drawExtremes() {
   const x = state.explore;
+  if (syntaxWaiting()) { $(".pc-extremes").innerHTML = ""; return; }
   const btn = (k: number, axis: X.Axis, good: boolean) => `<button type="button" data-k="${k}"${good ? ` class="is-best" title="the better end"` : ""}>`
     + `${axis.fmt(axis.get(x.kept[k]))} · ${x.kept[k].name}</button>`;
   $(".pc-extremes").innerHTML = `<thead><tr><th></th><th>lowest</th><th>highest</th></tr></thead><tbody>`
@@ -689,14 +733,95 @@ function choose(it: Item) {
 
 function drawDetail() {
   const it = state.selected, box = $(".pc-detail");
-  if (!it) { box.hidden = true; return; }
+  if (!it) { box.hidden = true; state.syntax.detail = null; return; }
   box.hidden = false;
   box.querySelector("h3")!.textContent = it.title;
   box.querySelector(".pc-scores")!.innerHTML = scoreLine(it.design);
-  box.querySelector(".pc-metrics-body")!.innerHTML = metricsPanel(E.measure(it.design, G()), state.explore.kept.map((e) => e.metrics));
+  const nonSyntax = E.METRIC_KEYS.filter((k) => !E.SYNTAX_KEYS.includes(k));
+  const metrics = E.measure(it.design, G(), nonSyntax);
+  const pool = state.explore.kept.map((e) => e.metrics);
+  box.querySelector(".pc-metrics-body")!.innerHTML = metricsPanel(metrics, pool);
+  readDetailSyntax(it, metrics, pool);
   Draw.plan(box.querySelector<HTMLCanvasElement>(".pc-plan")!, site(), it.design, P,
     { aspect: aspect(), attractors: true, locked: state.locks, roads: roadsOf(it.design) });
   drawSolid();
+}
+
+// --- space syntax of the opened design ------------------------------------------------
+
+const SYNTAX_MEASURES: [keyof SyntaxDetail["values"] | "nach_rn", string][] = [
+  ["nain_r400", "integration, 400 m (NAIN)"], ["nain_r800", "integration, 800 m (NAIN)"], ["nain_rn", "integration, Rn (NAIN)"],
+  ["nach_r400", "choice, 400 m (NACH)"], ["nach_r800", "choice, 800 m (NACH)"], ["nach_rn", "choice, Rn (NACH; exact, on request)"],
+];
+const grownOfItem = (it: Item): Grown => ({ genome: it.genome, locked: state.locks ? Array.from(state.locks) : null, ranges: state.ranges });
+
+async function readDetailSyntax(it: Item, metrics: Partial<E.Metrics>, pool: Partial<E.Metrics>[]) {
+  const sx = state.syntax;
+  if (sx.detail?.name !== it.name) { sx.detail = null; sx.choice = null; }
+  drawSyntax();
+  if (sx.detail) return;
+  $(".pc-syntax-status").textContent = "reading the network …";
+  let d: SyntaxDetail;
+  try { d = await state.worker!.api.syntaxDetail(grownOfItem(it)); } catch (err) {
+    $(".pc-syntax-status").textContent = `Space syntax failed: ${(err as Error).message}`;
+    return;
+  }
+  if (state.selected !== it) return;
+  sx.detail = { ...d, name: it.name };
+  $(".pc-syntax-status").textContent = "";
+  $(".pc-detail .pc-metrics-body").innerHTML = metricsPanel({ ...metrics, ...d.metrics }, pool);
+  drawSyntax();
+}
+
+async function exactChoice() {
+  const it = state.selected, sx = state.syntax;
+  if (!it || !sx.detail) return;
+  const status = $(".pc-syntax-status"), btn = $<HTMLButtonElement>(".pc-syntax-choice");
+  btn.disabled = true;
+  const t0 = performance.now();
+  try {
+    sx.choice = await state.worker!.api.choiceRn(grownOfItem(it), Comlink.proxy((done: number, of: number) => {
+      status.textContent = `choice from every segment: ${done.toLocaleString("en-IN")} of ${of.toLocaleString("en-IN")}`;
+    }));
+  } catch (err) {
+    status.textContent = `Failed: ${(err as Error).message}`;
+    btn.disabled = false;
+    return;
+  }
+  btn.disabled = false;
+  if (state.selected !== it) return;
+  status.textContent = `exact Rn choice in ${((performance.now() - t0) / 1000).toFixed(0)} s`;
+  sx.measure = "nach_rn";
+  drawSyntax();
+}
+
+function drawSyntax() {
+  const sx = state.syntax, d = sx.detail, it = state.selected;
+  const sel = $<HTMLSelectElement>(".pc-syntax-measure"), body = $(".pc-syntax-body"), legend = $(".pc-syntax-legend");
+  sel.innerHTML = SYNTAX_MEASURES.map(([k, label]) => `<option value="${k}"${k === sx.measure ? " selected" : ""}`
+    + `${k === "nach_rn" && !sx.choice ? " disabled" : ""}>${label}</option>`).join("");
+  const canvas = $<HTMLCanvasElement>(".pc-syntax-map");
+  if (!d || !it) { canvas.hidden = true; body.innerHTML = ""; legend.textContent = ""; return; }
+  canvas.hidden = false;
+  const values = sx.measure === "nach_rn" ? sx.choice?.nach ?? null : d.values[sx.measure as keyof SyntaxDetail["values"]];
+  Draw.syntaxMap(canvas, site(), it.design, P, { aspect: aspect(), site: d.site, buffer: d.buffer, values, core: d.core,
+    landmarks: d.landmarks });
+  legend.innerHTML = `<span>low <i class="pc-ramp"></i> high</span> · thick ink: the integration core (the top 10% of the street`
+    + ` length by Rn integration) · triangles: landmarks (${d.landmarks.length}) · grey: existing streets in the buffer`;
+  const f2 = (v: number) => (Number.isFinite(v) ? v.toFixed(2) : "–"), f0 = (v: number) => (Number.isFinite(v) ? v.toFixed(0) : "–");
+  const m = d.means, pctOf = (v: number) => `${Math.round(v * 100)}%`;
+  body.innerHTML = `<table class="pc-syntax-table"><thead><tr><th></th><th>NAIN</th><th>NACH</th>`
+    + `<th class="pc-muted">mean depth</th><th class="pc-muted">mean choice</th></tr></thead><tbody>`
+    + `<tr><th>400 m</th><td>${f2(m.nain_r400)}</td><td>${f2(m.nach_r400)}</td><td class="pc-muted">${f2(m.depth_r400)}</td><td class="pc-muted">${f0(m.choice_r400)}</td></tr>`
+    + `<tr><th>800 m</th><td>${f2(m.nain_r800)}</td><td>${f2(m.nach_r800)}</td><td class="pc-muted">${f2(m.depth_r800)}</td><td class="pc-muted">${f0(m.choice_r800)}</td></tr>`
+    + `<tr><th>Rn within the 1 km buffer</th><td>${f2(m.nain_rn)}</td><td>${sx.choice ? f2(sx.choice.mean) : "on request"}</td>`
+    + `<td class="pc-muted">${f2(m.depth_rn)}</td><td class="pc-muted">${sx.choice ? f0(sx.choice.choice) : "–"}</td></tr></tbody></table>`
+    + `<p class="pc-muted">Means over the site's streets, weighted by length. NAIN and NACH are normalised (Hillier, Yang and Turner`
+    + ` 2012), so designs with more or fewer streets compare; mean depth (in 90° turns) and mean choice are the raw values.`
+    + ` The network has ${d.segments.toLocaleString("en-IN")} segments, ${d.links} joins between the design and the city.</p>`
+    + `<p><b>Legibility ${pctOf(d.parts.legibility)}</b>, the mean of: intelligibility ${f2(d.parts.intelligibility)}`
+    + ` (400 m against Rn integration; below zero counts as zero) · centres on the core ${pctOf(d.parts.centres)}`
+    + ` · landmarks seen from the core ${pctOf(d.parts.landmarks)}</p>`;
 }
 
 function drawSolid() {
@@ -768,7 +893,7 @@ function drawBreedGalleries() {
   gallery($(".pc-children"), kids, [["keep", (it) => toPen(it)], ["view", (it) => choose(it)]]);
 }
 
-function breed() {
+async function breed() {
   const f = form(".pc-breed form");
   const a = state.pen.find((p) => p.name === select(f, "a").value);
   const b = state.pen.find((p) => p.name === select(f, "b").value);
@@ -778,7 +903,14 @@ function breed() {
   const bias = BIAS.find((o) => o.key === select(f, "bias").value);
   let kids = E.breed(a.genome, b.genome, rng, bias ? 24 : 6).map((g) => ({ g, v: 0 }));
   if (bias) {
-    for (const kid of kids) kid.v = bias.value(grown(kid.g));
+    const key = bias.key.slice(2) as E.MetricKey;
+    if (bias.key.startsWith("m:") && E.SYNTAX_KEYS.includes(key)) {
+      $(".pc-children-head").hidden = false;
+      $(".pc-children-head").textContent = "Breeding: reading space syntax for 24 children …";
+      const ms = await state.worker!.api.measureMany(kids.map((k) => ({ genome: k.g, locked: state.locks ? Array.from(state.locks) : null,
+        ranges: state.ranges })), [key], true);
+      kids.forEach((kid, j) => { kid.v = ms[j][key]!; });
+    } else for (const kid of kids) kid.v = bias.value(grown(kid.g));
     kids = kids.sort((p, q) => (bias.up ? q.v - p.v : p.v - q.v)).slice(0, 6);
   }
   state.children = kids.map(({ g, v }, k) => {
@@ -794,7 +926,7 @@ const BIAS = [
     value: (d: E.Design) => d.scores![k] })),
   ...E.OBJECTIVE_KEYS.map((k) => {
     const m = E.METRICS[k] as E.Metric;
-    return { key: `m:${k}`, label: m.label, up: m.up!, fmt: m.fmt, value: (d: E.Design) => E.measure(d, G(), [k])[k]! };
+    return { key: `m:${k}`, label: m.label, up: m.up!, fmt: m.fmt, value: (d: E.Design) => E.measure(d, G(), [k], true)[k]! };
   }),
 ];
 const SEARCH_NAMES = { nsga2: "NSGA-II", nsga3: "NSGA-III", "map-elites": "MAP-Elites" } as const;
@@ -876,6 +1008,11 @@ function wire() {
     if (t.closest(".pc-to-pen") && state.selected) toPen(state.selected);
     if (t.closest(".pc-to-mass") && state.selected) massSelected();
   });
+  $(".pc-syntax-measure").addEventListener("change", (e) => {
+    state.syntax.measure = (e.target as HTMLSelectElement).value;
+    drawSyntax();
+  });
+  $(".pc-syntax-choice").addEventListener("click", () => exactChoice());
   // Drag the 3D view to turn it.
   const solid = $(".pc-solid");
   let drag: number | null = null;

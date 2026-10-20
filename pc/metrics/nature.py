@@ -1,11 +1,11 @@
-"""Connection to nature, semilattice richness and legibility (app/engine/metrics/nature.ts;
+"""Connection to nature and semilattice richness (app/engine/metrics/nature.ts;
 docs/metrics.md)."""
 
 import math
 
 from pc.metrics.network import (
-    BUILDING, CATCHMENT_M, GREEN_MIN_HA, LANDSCAPE, LEGIBLE_M, NATURE_WALK_M, WATER, Net, activity_starts, is_open,
-    landmarks, near, walk, walk_from,
+    BUILDING, CATCHMENT_M, GREEN_MIN_HA, LANDSCAPE, NATURE_WALK_M, WATER, Net, activity_starts, is_open, walk,
+    walk_from,
 )
 
 
@@ -91,8 +91,3 @@ def semilattice(net: Net) -> float:
     for i in range(S.n):
         total += max(count[i] - 1, 0) / (len(kinds) - 1)
     return total / S.n
-
-
-def legibility(net: Net) -> float:
-    """Placeholder until Phase 8: cells within 300 m of a landmark or a centre."""
-    return near(net.S, list(range(net.S.n)), landmarks(net) + net.centres, LEGIBLE_M)

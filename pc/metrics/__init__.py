@@ -4,7 +4,9 @@ Each is a pure function of a design's network (pc.metrics.network), built once p
 and only when asked for. Wholeness is the list, never one number.
 """
 
-from pc.metrics import harmony, land, nature, order, scale
+import math
+
+from pc.metrics import harmony, land, nature, order, scale, syntax
 from pc.metrics.network import network
 
 # key: (property in the brief's vocabulary, higher is better (None: neither), function)
@@ -45,14 +47,25 @@ METRICS = {
     "roughness": ("roughness", None, order.roughness),
     "the_void": ("the_void", True, order.the_void),
     "semilattice": ("semilattice_richness", True, nature.semilattice),
-    "legibility": ("legibility", True, nature.legibility),
+    # Space syntax (pc/syntax.py)
+    "nain_r400": ("permeability", None, syntax.nain_mean(400.0)),
+    "nain_r800": ("permeability", None, syntax.nain_mean(800.0)),
+    "nain_rn": ("permeability", None, syntax.nain_mean(math.inf)),
+    "nach_r400": ("permeability", None, syntax.nach_mean(400.0)),
+    "nach_r800": ("permeability", None, syntax.nach_mean(800.0)),
+    "intelligibility": ("legibility", True, syntax.intelligibility),
+    "legibility": ("legibility", True, syntax.legibility),
 }
 OBJECTIVE_KEYS = [k for k, (_, up, _) in METRICS.items() if up is not None]
+SYNTAX_KEYS = {"nain_r400", "nain_r800", "nain_rn", "nach_r400", "nach_r800", "intelligibility", "legibility"}
 # where most designs fall, for MAP-Elites bins (0 to 1 when not listed)
-RANGES = {"junctions": (0.0, 500.0), "connections": (2.0, 10.0), "runoff_path": (0.0, 300.0), "heat_fit": (-2.0, 2.0)}
+RANGES = {"junctions": (0.0, 500.0), "connections": (2.0, 10.0), "runoff_path": (0.0, 300.0), "heat_fit": (-2.0, 2.0),
+          "nain_r400": (0.0, 1.5), "nain_r800": (0.0, 1.5), "nain_rn": (0.0, 1.5), "nach_r400": (0.0, 1.5),
+          "nach_r800": (0.0, 1.5), "intelligibility": (-0.2, 1.0)}
 
 
-def measure(design, ground, keys=None) -> dict:
-    """Some or all metrics of a design (as plain floats)."""
+def measure(design, ground, keys=None, estimate=False) -> dict:
+    """Some or all metrics of a design (as plain floats). `estimate`: inside a run, space
+    syntax computes Rn on the condensed network (pc/syntax.py); readouts are exact."""
     net = network(design, ground)
-    return {k: float(METRICS[k][2](net)) for k in (keys or METRICS)}
+    return {k: float(METRICS[k][2](net, estimate) if k in SYNTAX_KEYS else METRICS[k][2](net)) for k in (keys or METRICS)}

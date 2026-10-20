@@ -27,5 +27,5 @@ export * from "./brief.js";
 export { evolve, breed, frontFamilies, type Individual, type Run, type HistoryRow, type EvolveOptions, type Search } from "./evolve.js";
 export { mapElites, quality, binOf, searchOf, DESCRIPTORS, DESCRIPTOR_KEYS, QUALITY_RANGE, type Descriptor,
   type ArchiveInfo, type EliteOptions, type SearchChoice } from "./elites.js";
-export { measure, network, METRICS, METRIC_KEYS, OBJECTIVE_KEYS, NOT_MEASURED, type Metric, type MetricKey,
+export { measure, network, METRICS, METRIC_KEYS, OBJECTIVE_KEYS, NOT_MEASURED, SYNTAX_KEYS, type Metric, type MetricKey,
   type Metrics, type Net } from "./metrics/index.js";
