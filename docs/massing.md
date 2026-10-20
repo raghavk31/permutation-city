@@ -42,9 +42,30 @@ Per plot:
   streets). So massing can move height around inside a plot, but is judged against what
   the city scale asked for.
 
-**Context.** The design's other buildings in the frame stand as prisms: the cell inset by
-√coverage, `levels × 3.2 m` high. The ground the shade and sky scores read is the street
-bands plus landscape cells.
+**Context.**
+- **The design's other buildings** in the frame stand as prisms: the cell inset by
+  √coverage, `levels × 3.2 m` high.
+- **Existing buildings** within 100 m of the design ground stand at their own heights
+  (`existing_buildings` in `pc/export.py`; added 2026-10-20). They cast shade and receive it.
+  - Overture's footprints, off the design ground (one whose middle is on it is left out: the
+    design replaces it).
+  - Heights, in order: Overture's `height`; its `num_floors` × 3.2 m; the median of known
+    heights within 300 m, when at least 5 are known; else 2 storeys. Every building keeps
+    where its height came from, and the page says how many came from each.
+  - Overture rarely knows heights here, so most are estimated. Of the buildings kept:
+
+    | site | kept | height | floors | nearby median | 2 storeys |
+    |---|---:|---:|---:|---:|---:|
+    | mumbai-docks | 289 | 0 | 0 | 0 | 289 |
+    | mumbai-ewf | 616 | 0 | 7 | 82 | 527 |
+    | ahmedabad-wadaj | 112 | 0 | 28 | 52 | 32 |
+    | bengaluru-cascade | 1,051 | 4 | 36 | 602 | 409 |
+
+  - The surface model minus FABDEM bare earth was tested as an estimate and dropped: against
+    the buildings with known floor counts it correlated at r = −0.32 to 0.06 (at 30 m it
+    can't resolve single buildings). Known heights lean tall (tagged apartment blocks), so the
+    nearby median does too.
+- **The ground the shade and sky scores read** is the street bands plus landscape cells.
 
 ## Three representations, one interface
 
@@ -105,22 +126,48 @@ with no floating floors, so a column's top is exact.
 | Score | Better | How |
 |---|---|---|
 | winter sun on the ground | ↑ | hours of direct sun on 21 December, solar 08:00–16:00 every 30 min. Mean over sample points (every other column, so 4 m apart) on open ground within 30 m of the block: plots and public ground, not under buildings |
-| hot-season shade on public ground | ↑ | share of public points (street bands, landscape) in shade on 15 April, solar 11:00–16:00 |
+| hot-season shade on public ground | ↑ | share of public points (street bands, landscape) in shade when people are out in the heat: local time 14:00–17:00, every 30 min, on the 15th of March, April and May |
 | sky view from the street | ↑ | 1 − mean sin²(horizon angle) over 16 directions to 100 m (Oke; Steyn), at the public points |
 | frontal area (wind blocked) | ↓ | frontal area density of the block's massing, projected across 8 wind directions and averaged, over the plots' area (Grimmond and Oke 1999). No prevailing wind is assumed |
+| winter sun taken from neighbours | ↓ | hours of 21 December sun (solar 08:00–16:00) the massing takes from the roofs of existing buildings in the frame: for each roof point (every other column, 0.5 m above the roof), the suns it gets with the block empty minus those it gets with the massing, times 30 min; mean over the roof points. 0 when no existing building is in reach |
 | gap | | \|floor area − target\| ÷ target. Within 10% counts as on brief, as at the urban scale |
 
 How the scores are computed:
-- **Sun** uses Spencer's declination and solar time (12:00 is solar noon at the site). The
-  sun study in the viewer uses the same function.
+- **Sun** uses Spencer's declination and solar time (12:00 is solar noon at the site).
+  Local clock time converts to solar time through the site's longitude, its UTC offset and
+  the equation of time (Spencer). The UTC offset is in the site's export: `utc_offset` in
+  `site.yaml`, else 5.5 h inside India's box (India keeps one zone across 68–97° E, which
+  longitude alone would put at +5), else the nearest hour of longitude. In Bengaluru, 14:00
+  IST is about 13:40 solar time.
 - **Sun blocking** is a column-by-column walk towards the sun (Amanatides and Woo). It
   compares the ray's height where it enters each column with the column's top.
 - **Trade-offs.** Winter sun and sky view pull against hot-season shade; that is the
-  trade-off to explore. At 13° N in mid-April the sun is nearly overhead at noon (87°), so
-  shade on open ground is scarce at Bengaluru whatever is built.
+  trade-off to explore.
+- **Why the afternoon (changed 2026-10-20).** The shade score first read 15 April, solar
+  11:00–16:00. At 13° N the noon sun is then nearly overhead (87°), so the hours round noon,
+  when shadows hardly exist, swamped the afternoon, when shadows are long and people are out
+  in the heat. The score now reads local 14:00–17:00 over three hot-season dates. Across 48
+  bred massings per block (`npm run massing-shade`), on three blocks per site:
+
+  | site, block | shade before: mean, sd | shade now: mean, sd | sd now ÷ before |
+  |---|---|---|---|
+  | Mumbai Docks 60 | 18.0%, 2.7% | 29.7%, 4.4% | 1.6× |
+  | Mumbai Docks 1 | 21.7%, 1.5% | 36.6%, 3.0% | 2.0× |
+  | Mumbai Docks 41 | 13.4%, 1.1% | 23.3%, 2.1% | 1.9× |
+  | Wadaj 44 | 17.6%, 1.2% | 28.0%, 1.6% | 1.3× |
+  | Wadaj 28 | 14.0%, 3.2% | 20.5%, 6.1% | 1.9× |
+  | Wadaj 32 | 17.3%, 2.5% | 24.6%, 4.6% | 1.8× |
+  | Bengaluru 40 | 12.4%, 2.2% | 27.8%, 4.2% | 1.9× |
+  | Bengaluru 2 | 44.0%, 1.0% | 76.2%, 1.0% | 1.0× |
+  | Bengaluru 4 | 34.6%, 1.0% | 64.5%, 1.4% | 1.4× |
+
+  The score now spreads 1.3–2.0 times as much across designs, so it tells them apart. The
+  exception is a Bengaluru block whose shade comes almost wholly from tall existing neighbours.
+  The neighbours score is above zero for 83–100% of massings where existing roofs are in
+  reach (Docks 60, Wadaj 32, Bengaluru 2 and 4), up to 0.86 h of winter sun taken.
 
 **Evolution** (`evolve.ts`):
-- NSGA-II on the four scores, among massings within 10% of the target; the rest are ranked
+- NSGA-II on the five scores, among massings within 10% of the target; the rest are ranked
   by gap, rejected ones last.
 - Binary tournaments, 60% crossover (Sem 06), mutation on every child, 10% immigrants.
 - Defaults: population 24, 12 generations (312 massings).
@@ -160,7 +207,7 @@ How the scores are computed:
 **Downloads** (massing A with its context):
 - **glTF** (binary, y up)
 - **OBJ** (z up, metres, an object per plot)
-- **Rhino .3dm** (metres, layers "massing" and "context", a named mesh per plot). rhino3dm's
+- **Rhino .3dm** (metres, layers "massing", "context" and "existing", a named mesh per plot). rhino3dm's
   2.7 MB WebAssembly loads only when someone asks for a .3dm.
 - **Bench file** (below)
 
@@ -170,7 +217,8 @@ How the scores are computed:
 
 **Controls:**
 - Orbit, zoom and pan.
-- Sun study: four dates (21 December, 21 March, 15 April, 21 June) and solar time 06:00–18:00.
+- Sun study: five dates (21 December; the 15th of March, April and May, the hot-season dates
+  the shade score reads; 21 June) and local time 06:00–19:00, with the UTC offset shown.
   The directional light follows the engine's sun vector and casts shadows.
 - Section: a plan cut at a height, or a cut across the block along the first plot's axis.
 - Two results side by side (A and B), with their cameras linked.
@@ -198,7 +246,7 @@ The check:
 - **envelope:** every voxel on a buildable column, under its cap, with a voxel under it,
   and each plot within its coverage limit
 - **suns:** the vectors match the dates and latitude (within 1e-12)
-- **scores:** sun, shade, sky, wind and gap recomputed with the same arithmetic, in the
+- **scores:** sun, shade, sky, wind, neighbours and gap recomputed with the same arithmetic, in the
   same order. Heights are float32, as in the browser. They must match to the last digit.
 
 The direction vectors travel in the file, so the two languages' `sin` and `cos` never have
@@ -215,8 +263,8 @@ Vitest rebuilds them from their genomes and expects the same voxels and scores. 
 
 - **Proxies, not simulation.** No wind simulation: frontal area is a morphometric proxy.
   No reflected light: sky view stands in for diffuse daylight.
-- **The context is the urban design's own cell prisms**, not the existing city. Retained
-  buildings outside the design ground don't shade.
+- **Most existing heights are estimated** (above). Wrong heights move the shade score and
+  the neighbours score; the page says how many are estimated for the block in view.
 - **Interior plots** are reached through their neighbours. No lane is cut to them.
 - **Echoes** come from wall directions only, not proportions.
 - **Pattern 107's width (12 m) is assumed** until checked against the book.

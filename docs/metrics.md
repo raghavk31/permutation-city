@@ -306,9 +306,10 @@ high. Full definitions and sources are in `docs/massing.md`.
 | Measure | Kind | Definition in one line |
 |---|---|---|
 | winter sun on the ground | score ↑ | hours of direct sun on open ground near the block, 21 December, solar 08:00–16:00 |
-| hot-season shade on public ground | score ↑ | share of street and landscape points in shade, 15 April, solar 11:00–16:00 |
+| hot-season shade on public ground | score ↑ | share of street and landscape points in shade, local 14:00–17:00 on the 15th of March, April and May |
 | sky view from the street | score ↑ | 1 − mean sin²(horizon) over 16 directions (Oke; Steyn) |
 | frontal area | score ↓ | frontal area density, mean over 8 wind directions (Grimmond and Oke 1999) |
+| winter sun taken from neighbours | score ↓ | hours of 21 December sun the massing takes from existing buildings' roofs nearby |
 | floor within 6 m of a window wall | readout | share of floor area within 6 m of an outside wall (rule of thumb) |
 | echoes | readout | 1 − entropy of wall directions (mod 90°): repeated angles (Alexander; Salingaros) |
 | local symmetries | readout | per plot, the better mirror about its own axes, area-weighted |

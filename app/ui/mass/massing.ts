@@ -118,7 +118,25 @@ export function thumb(canvas: HTMLCanvasElement, Env: M.Envelope, m: M.Massing, 
 }
 
 export function look(P: Draw.Palette) {
-  return { mass: P.oranges[1], context: Draw.shade(P.paper, 0.82), ground: P.paper, ink: P.ink, background: P.paper };
+  return { mass: P.oranges[1], context: Draw.shade(P.paper, 0.82), existing: Draw.shade(P.paper, 0.68), ground: P.paper, ink: P.ink,
+    background: P.paper };
+}
+
+/** "UTC+5:30" for a UTC offset in hours. */
+export function utcLabel(h: number): string {
+  const sign = h < 0 ? "−" : "+", a = Math.abs(h), m = Math.round((a % 1) * 60);
+  return `UTC${sign}${Math.floor(a)}${m ? `:${String(m).padStart(2, "0")}` : ""}`;
+}
+
+/** The existing buildings in an envelope's frame, by where their heights came from. */
+export function neighbourLine(Env: M.Envelope, G: E.Ground): string {
+  const B = G.buildings;
+  if (!B || !Env.neighbours.length) return "No existing buildings near this block are mapped.";
+  const counts = B.sources.map(() => 0);
+  for (const k of Env.neighbours) counts[B.src[k]]++;
+  const said = ["from Overture's heights", "from floor counts", "from the median of known buildings within 300 m", "assumed 2 storeys"];
+  const parts = counts.map((n, i) => (n ? `${n} ${said[i] ?? B.sources[i]}` : "")).filter(Boolean);
+  return `${Env.neighbours.length} existing buildings stand round this block (darker grey), casting shade and receiving it: heights ${parts.join(", ")}.`;
 }
 
 /** The worker that breeds buildings: started on first use, restarted to cancel. */

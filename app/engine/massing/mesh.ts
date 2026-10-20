@@ -29,9 +29,34 @@ class Builder {
   done(): Mesh { return { positions: Float32Array.from(this.p), indices: Uint32Array.from(this.i), groups: this.groups }; }
 }
 
-/** A prism: a counter-clockwise outline extruded from z0 to z1 (own vertices per face, so
- *  normals stay flat). */
+/** Triangles of a simple polygon (ear clipping), as index triples into a counter-clockwise ring. */
+export function triangulate(ring: [number, number][]): [number, number, number][] {
+  const idx = ring.map((_, k) => k), out: [number, number, number][] = [];
+  const cross = (a: number, b: number, c: number) =>
+    (ring[b][0] - ring[a][0]) * (ring[c][1] - ring[a][1]) - (ring[b][1] - ring[a][1]) * (ring[c][0] - ring[a][0]);
+  const inside = (p: number, a: number, b: number, c: number) =>
+    cross(a, b, p) >= 0 && cross(b, c, p) >= 0 && cross(c, a, p) >= 0;
+  let guard = 0;
+  while (idx.length > 3 && guard++ < 10000) {
+    let cut = false;
+    for (let k = 0; k < idx.length; k++) {
+      const a = idx[(k + idx.length - 1) % idx.length], b = idx[k], c = idx[(k + 1) % idx.length];
+      if (cross(a, b, c) <= 0) continue;  // a reflex corner is no ear
+      if (idx.some((p) => p !== a && p !== b && p !== c && inside(p, a, b, c))) continue;
+      out.push([a, b, c]); idx.splice(k, 1); cut = true;
+      break;
+    }
+    if (!cut) break;  // a self-touching outline: fan the rest
+  }
+  for (let k = 1; k < idx.length - 1; k++) out.push([idx[0], idx[k], idx[k + 1]]);
+  return out;
+}
+
+/** A prism: an outline extruded from z0 to z1 (own vertices per face, so normals stay flat). */
 function prism(b: Builder, ring: [number, number][], z0: number, z1: number) {
+  let area = 0;
+  for (let k = 0; k < ring.length; k++) { const [ax, ay] = ring[k], [bx, by] = ring[(k + 1) % ring.length]; area += ax * by - bx * ay; }
+  if (area < 0) ring = [...ring].reverse();  // counter-clockwise
   const n = ring.length;
   for (let k = 0; k < n; k++) {
     const [ax, ay] = ring[k], [bx, by] = ring[(k + 1) % n];
@@ -39,7 +64,7 @@ function prism(b: Builder, ring: [number, number][], z0: number, z1: number) {
     b.tri(v0, v1, v2); b.tri(v0, v2, v3);
   }
   const top = ring.map(([x, y]) => b.vertex(x, y, z1)), bot = ring.map(([x, y]) => b.vertex(x, y, z0));
-  for (let k = 1; k < n - 1; k++) { b.tri(top[0], top[k], top[k + 1]); b.tri(bot[0], bot[k + 1], bot[k]); }
+  for (const [i, j, k] of triangulate(ring)) { b.tri(top[i], top[j], top[k]); b.tri(bot[i], bot[k], bot[j]); }
 }
 
 export function boxRing(x: Box): [number, number][] {
@@ -149,5 +174,17 @@ export function contextMesh(E: Envelope, G: Ground, d: Design): Mesh {
     prism(b, shape.map(([dx, dy]) => [G.x[i] + dx * s, G.y[i] + dy * s] as [number, number]), 0, d.levels[i] * STOREY_M);
   }
   b.group("context", 0);
+  return b.done();
+}
+
+/** The existing buildings in the frame (off the design ground), as prisms at their heights. */
+export function existingMesh(E: Envelope, G: Ground): Mesh {
+  const b = new Builder(), B = G.buildings;
+  if (B) for (const k of E.neighbours) {
+    const r = B.rings[k], ring: [number, number][] = [];
+    for (let j = 0; j < r.length; j += 2) ring.push([r[j], r[j + 1]]);
+    prism(b, ring, 0, B.h[k]);
+  }
+  b.group("existing", 0);
   return b.done();
 }

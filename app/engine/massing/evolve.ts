@@ -60,7 +60,7 @@ export function evolveMassing(ctx: MassContext, opts: MassOptions): MassRun {
   let count = 0;
   const make = (genome: unknown, parents: string[], gen: number): MassIndividual => {
     const massing = rep.build(genome, ctx);
-    const scores = massScores(ctx.E, massing.occ, ctx.lat);
+    const scores = massScores(ctx.E, massing.occ, ctx.where);
     count++;
     return { name: `M${gen}.${count}`, genome, parents, massing, scores, floor: floorArea(ctx.E, massing.occ), rank: 0 };
   };

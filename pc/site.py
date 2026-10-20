@@ -76,6 +76,7 @@ class Site:
     valley_ha: float = 10.0                # upstream area where a valley (drainage line) starts
     lst_months: tuple = (3, 5)             # hot season for land surface temperature (first, last)
     lst_years: tuple = (2023, 2025)        # years whose clear hot-season scenes are combined
+    utc_offset: float | None = None        # hours; local clock time for shade and the sun study (None: from the location)
 
     @property
     def crs(self) -> str:
@@ -147,7 +148,18 @@ def load(site_id: str) -> Site:
         valley_ha=float(cfg.get("valley_ha", 10.0)),
         lst_months=tuple(cfg.get("lst_months", (3, 5))),
         lst_years=tuple(cfg.get("lst_years", (2023, 2025))),
+        utc_offset=float(cfg["utc_offset"]) if cfg.get("utc_offset") is not None else None,
     )
+
+
+def utc_offset_of(site: Site, lon: float, lat: float) -> tuple[float, str]:
+    """The site's UTC offset in hours, and where it came from. India keeps one zone (UTC+5:30)
+    across 68-97° E, which longitude alone would put at +5; elsewhere, the nearest hour."""
+    if site.utc_offset is not None:
+        return site.utc_offset, "site.yaml"
+    if 68 <= lon <= 97.5 and 6 <= lat <= 37.5:
+        return 5.5, "India (assumed from the location)"
+    return float(round(lon / 15)), "nearest hour of longitude (assumed)"
 
 
 def set_value(site_id: str, key: str, value) -> None:

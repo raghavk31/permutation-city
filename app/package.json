@@ -14,7 +14,8 @@
     "metrics": "vite-node scripts/metrics-survey.ts",
     "massing-bench": "vite-node scripts/massing-bench.ts",
     "syntax-estimate": "vite-node scripts/syntax-estimate.ts --",
-    "syntax-survey": "vite-node scripts/syntax-survey.ts --"
+    "syntax-survey": "vite-node scripts/syntax-survey.ts --",
+    "massing-shade": "vite-node scripts/massing-shade.ts --"
   },
   "dependencies": {
     "@vercel/blob": "2.8.0",

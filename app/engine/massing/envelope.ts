@@ -7,14 +7,17 @@
 //              less half of each street, less the setbacks), how many storeys (the rules' cap
 //              for the cell), the most it may cover (1 - the rules' min permeable share), and
 //              its floor-area target (what the urban design put on those cells)
-//   context    the design's other buildings near the block, as prisms (levels × STOREY_M), and
-//              the public ground (street bands and landscape) the shade and sky scores read
+//   context    the design's other buildings near the block, as prisms (levels × STOREY_M); the
+//              existing buildings off the design ground, with their heights (Overture, or
+//              estimated, labelled); and the public ground (street bands and landscape) the
+//              shade and sky scores read
 //
 // TS only (decision D4). pc/massing_check.py rechecks the scores from an exported bench file.
 import { BUILDING, LANDSCAPE, STOREY_M, STREET_W_M, WATER } from "../config.js";
 import { corners } from "../graph.js";
 import { links, network } from "../metrics/network.js";
 import { sides } from "../streets.js";
+import { cellAt } from "../syntax.js";
 import type { Design, Ground } from "../types.js";
 
 export const RES_M = 2.0;            // raster column size
@@ -48,7 +51,9 @@ export interface Envelope {
   capZ: Int16Array;       // per column: storeys allowed
   street: Uint8Array;     // per column: 1 in a street band
   publicGround: Uint8Array; // per column: 1 street band or landscape (the shade score's ground)
-  context: Float32Array;  // per column: height of the design's other buildings (m)
+  context: Float32Array;  // per column: height of the design's other buildings and of existing ones (m)
+  existing: Float32Array; // per column: height of existing buildings off the design ground (m; 0: none)
+  neighbours: number[];   // the existing buildings in the frame (indices into Ground.buildings)
   water: Float32Array;    // per column: distance to the nearest water cell (m, capped)
   setbacks: Setbacks;
   target: number;         // m², all plots
@@ -216,6 +221,36 @@ export function envelope(d: Design, G: Ground, block: number, setbacks: Setbacks
     }
   }
 
+  // Existing buildings off the design ground, as prisms on the raster (pc/export.py
+  // `existing_buildings`). One whose middle is on the design ground is left out: the design
+  // replaces it. Columns on the design ground keep what the design puts there.
+  const existing = new Float32Array(N), neighbours: number[] = [], B = G.buildings;
+  if (B) for (let k = 0; k < B.rings.length; k++) {
+    const r = B.rings[k], m = r.length / 2;
+    let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity, mx = 0, my = 0;
+    for (let j = 0; j < m; j++) {
+      const x = r[2 * j], y = r[2 * j + 1];
+      bx0 = Math.min(bx0, x); bx1 = Math.max(bx1, x); by0 = Math.min(by0, y); by1 = Math.max(by1, y); mx += x; my += y;
+    }
+    if (bx1 < ox || bx0 > ox + nx * res || by1 < oy || by0 > oy + ny * res) continue;
+    if (cellAt(G, mx / m, my / m) >= 0) continue;
+    neighbours.push(k);
+    const c0 = Math.max(0, Math.floor((bx0 - ox) / res)), c1 = Math.min(nx - 1, Math.floor((bx1 - ox) / res));
+    const r0 = Math.max(0, Math.floor((by0 - oy) / res)), r1 = Math.min(ny - 1, Math.floor((by1 - oy) / res));
+    for (let rr = r0; rr <= r1; rr++) for (let c = c0; c <= c1; c++) {
+      const q = rr * nx + c;
+      if (cellOf[q] >= 0) continue;
+      const px = ox + (c + 0.5) * res, py = oy + (rr + 0.5) * res;
+      let inside = false;  // ray casting
+      for (let j = 0, i = m - 1; j < m; i = j++) {
+        const xi = r[2 * i], yi = r[2 * i + 1], xj = r[2 * j], yj = r[2 * j + 1];
+        if ((yi > py) !== (yj > py) && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) inside = !inside;
+      }
+      if (inside && B.h[k] > existing[q]) existing[q] = B.h[k];
+    }
+  }
+  for (let q = 0; q < N; q++) if (existing[q] > context[q]) context[q] = existing[q];
+
   const plots: Plot[] = parts.map((cs, id) => {
     // Axis: along the plot's longest street frontage (side directions doubled, so opposite
     // directions add up), else the long axis of its columns.
@@ -266,7 +301,7 @@ export function envelope(d: Design, G: Ground, block: number, setbacks: Setbacks
   if (inner) note.push(`${inner} interior plot${inner > 1 ? "s" : ""} with no street or open frontage`);
   if (plots.some((p) => !p.buildable)) note.push("a plot has no room inside its setbacks");
   return {
-    block, cells, plots, ox, oy, nx, ny, nz, res, cellOf, plotOf, inPlot, capZ, street, publicGround, context, water,
+    block, cells, plots, ox, oy, nx, ny, nz, res, cellOf, plotOf, inPlot, capZ, street, publicGround, context, existing, neighbours, water,
     setbacks, target: plots.reduce((s, p) => s + p.target, 0), note,
   };
 }

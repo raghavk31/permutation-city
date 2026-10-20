@@ -33,7 +33,7 @@ import numpy as np
 from pc import elites, evolve, fitness, genome, landform, lst, metrics, rules, skeleton, syntax
 from pc import grid as cellgrid
 from pc.rng import Rng
-from pc.site import ROOT, Site
+from pc.site import ROOT, Site, utc_offset_of
 
 SITES_OUT = ROOT / "app" / "public" / "sites"
 FIXTURES = ROOT / "test" / "parity" / "fixtures"
@@ -157,6 +157,60 @@ def _activities(site: Site, ox: float, oy: float) -> dict:
     return {k: [[round(p.x - ox, 1), round(p.y - oy, 1)] for p in g.geometry] for k, g in activities(site).items()}
 
 
+NEIGHBOURS_M = 100.0   # existing buildings kept within this of the design ground (building-scale shade)
+NEARBY_M = 300.0       # a building of unknown height takes the median of known ones this close ...
+NEARBY_MIN = 5         # ... when at least this many are known
+DEFAULT_STOREYS = 2    # ... else this many storeys
+HEIGHT_SOURCES = ["height", "floors", "nearby", "default"]
+
+
+def existing_buildings(site: Site, ground) -> dict | None:
+    """Existing buildings near the design ground, for building-scale massing (shade on and from
+    neighbours; app/engine/massing). Footprints (outer rings, 0.5 m simplified, local metres)
+    with a height and where it came from:
+      height   Overture's `height`
+      floors   Overture's `num_floors` × STOREY_M
+      nearby   the median of known heights within NEARBY_M (at least NEARBY_MIN known)
+      default  DEFAULT_STOREYS × STOREY_M
+    Buildings on the design ground are left out: the design replaces them."""
+    from pc import syntax as sx
+    from pc.metrics.network import STOREY_M
+    p = site.overture("building")
+    if not p.exists():
+        return None
+    b = gpd.read_parquet(p).to_crs(site.crs)
+    ox, oy = ground.origin
+    idx = sx.ground_index(ground)
+    reach = NEIGHBOURS_M + float(ground.graph.size)
+    c = b.geometry.centroid
+    cx, cy = (c.x - ox).to_numpy(), (c.y - oy).to_numpy()
+    h = b["height"].to_numpy(float) if "height" in b else np.full(len(b), np.nan)
+    f = b["num_floors"].to_numpy(float) if "num_floors" in b else np.full(len(b), np.nan)
+    known_h = np.where(np.isfinite(h) & (h > 2) & (h < 300), h, np.where(np.isfinite(f) & (f > 0), f * STOREY_M, np.nan))
+    kx, ky, kh = cx[np.isfinite(known_h)], cy[np.isfinite(known_h)], known_h[np.isfinite(known_h)]
+    rings, heights, src = [], [], []
+    for k, geom in enumerate(b.geometry):
+        x, y = float(cx[k]), float(cy[k])
+        if idx.has(x, y) or not idx.near(x, y, reach):
+            continue
+        if np.isfinite(h[k]) and 2 < h[k] < 300:
+            hk, sk = float(h[k]), 0
+        elif np.isfinite(f[k]) and f[k] > 0:
+            hk, sk = float(f[k]) * STOREY_M, 1
+        else:
+            near = kh[(kx - x) ** 2 + (ky - y) ** 2 <= NEARBY_M ** 2]
+            hk, sk = (float(np.median(near)), 2) if len(near) >= NEARBY_MIN else (DEFAULT_STOREYS * STOREY_M, 3)
+        poly = max(getattr(geom, "geoms", [geom]), key=lambda g: g.area).simplify(0.5)
+        pts = [(round(px - ox, 1), round(py - oy, 1)) for px, py in poly.exterior.coords][:-1]
+        if len(pts) < 3:
+            continue
+        rings.append([v for pt in pts for v in pt])
+        heights.append(round(hk, 1))
+        src.append(sk)
+    counts = {name: src.count(i) for i, name in enumerate(HEIGHT_SOURCES)}
+    return {"within_m": NEIGHBOURS_M, "rings": rings, "h": heights, "src": src, "sources": HEIGHT_SOURCES, "counts": counts}
+
+
 def suitability(site: Site) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, dict]:
     """The built layers, and the site's current rules applied to them."""
     grid = gpd.read_file(site.layers / "grid.gpkg", layer="cells")
@@ -235,6 +289,12 @@ def export(site: Site) -> dict:
     sx = syntax.buffer_streets(site, (ox, oy))
     if sx:
         out["syntax"] = sx
+    ground.origin = (ox, oy)
+    nb = existing_buildings(site, ground)
+    if nb:
+        out["context"]["buildings"] = nb
+    off, off_src = utc_offset_of(site, lon, lat)
+    out["meta"]["utc_offset_h"], out["meta"]["utc_offset_source"] = off, off_src
     return out
 
 

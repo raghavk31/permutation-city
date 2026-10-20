@@ -27,7 +27,7 @@ describe("bench fixtures", () => {
       const { E, ctx } = M.prepareBlock(H, b.setup);
       const m = M.REPRESENTATIONS[b.kind as M.RepKind].build(b.massGenome, ctx);
       expect(rle(m.occ)).toEqual(b.occ);
-      expect(M.massScores(E, m.occ, ctx.lat)).toEqual(b.scores);
+      expect(M.massScores(E, m.occ, ctx.where)).toEqual(b.scores);
     });
   }
 });
@@ -189,5 +189,46 @@ describe("meshes and readouts", () => {
     // Boxes laid on plot axes: wall directions repeat.
     expect(r.echoes).toBeGreaterThan(0.3);
     expect(r.far).toBeCloseTo(M.floorArea(E, m.occ) / E.plots.reduce((s, p) => s + p.area, 0), 9);
+  });
+});
+
+describe("time and neighbours", () => {
+  it("turns local clock time into solar time (longitude, UTC offset, equation of time)", () => {
+    // Early November the sun runs about 16 minutes ahead of the clock's mean sun.
+    expect(M.equationOfTime(M.dayOfYear(11, 3)) * 60).toBeCloseTo(16.4, 0);
+    // On the zone's own meridian, only the equation of time is left.
+    const doy = M.dayOfYear(4, 15);
+    expect(M.solarHour(12, 82.5, 5.5, doy) - 12).toBeCloseTo(M.equationOfTime(doy), 12);
+    // Bengaluru (77.6° E, UTC+5:30) is about 20 minutes behind IST's meridian.
+    expect((M.solarHour(12, 77.6, 5.5, doy) - 12 - M.equationOfTime(doy)) * 60).toBeCloseTo(-19.6, 1);
+  });
+  it("triangulates a concave footprint without spilling outside it", () => {
+    const L: [number, number][] = [[0, 0], [30, 0], [30, 10], [10, 10], [10, 30], [0, 30]];
+    const tris = M.triangulate(L);
+    const area = (a: [number, number], b: [number, number], c: [number, number]) => ((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])) / 2;
+    expect(tris.length).toBe(4);
+    expect(tris.reduce((s, [i, j, k]) => s + area(L[i], L[j], L[k]), 0)).toBeCloseTo(500, 9);
+    for (const [i, j, k] of tris) expect(area(L[i], L[j], L[k])).toBeGreaterThan(0);
+  });
+  it("puts existing buildings on the raster off the design ground only, and scores sun taken from them", () => {
+    const site = load("mumbai-docks"), H = prepare(site);
+    const d = grow(randomGenome(makeRng(7)), H, null, DEFAULT_RANGES);
+    // The block with the most existing roofs in its frame.
+    const best = M.blocksOf(d, H).filter((b) => b.ha >= 0.3).map((b) => {
+      const { E, ctx } = M.prepareBlock(H, { genome: d.genome, locks: null, ranges: DEFAULT_RANGES, block: b.id });
+      return { E, ctx, roofs: M.probe(E, ctx.where).roofs.length };
+    }).sort((a, b) => b.roofs - a.roofs)[0];
+    const { E, ctx } = best;
+    expect(best.roofs).toBeGreaterThan(0);
+    for (let q = 0; q < E.nx * E.ny; q++) if (E.existing[q] > 0) {
+      expect(E.cellOf[q]).toBe(-1);
+      expect(E.context[q]).toBeGreaterThanOrEqual(E.existing[q]);
+    }
+    const empty = new Uint8Array(E.nx * E.ny * E.nz);
+    expect(M.massScores(E, empty, ctx.where).neighbours).toBe(0);
+    // Every buildable voxel built: the most the block could take, never negative.
+    const full = new Uint8Array(E.nx * E.ny * E.nz), N = E.nx * E.ny;
+    for (let q = 0; q < N; q++) for (let z = 0; z < E.capZ[q]; z++) if (E.plotOf[q] >= 0) full[z * N + q] = 1;
+    expect(M.massScores(E, full, ctx.where).neighbours).toBeGreaterThanOrEqual(0);
   });
 });

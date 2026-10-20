@@ -1,13 +1,13 @@
-// What a building-scale run shares: the envelope, the site's latitude, the sun each column
+// What a building-scale run shares: the envelope, where the site is (for the sun), the sun each column
 // gets past the context (a CPPN input), and the representations' common interface.
 import type { Rng } from "../types.js";
 import type { Envelope } from "./envelope.js";
-import { probe, blocked } from "./scores.js";
+import { probe, blocked, type Where } from "./scores.js";
 import type { Massing } from "./voxels.js";
 
 export interface MassContext {
   E: Envelope;
-  lat: number;
+  where: Where;
   /** Per column: share of the winter suns not blocked by the context (0..1). */
   exposure: Float32Array;
   /** Pattern priors from the brief (107 Wings of Light, 159 Light on Two Sides): narrow wings. */
@@ -19,15 +19,15 @@ export interface MassContext {
   innov: { conns: Map<string, number>; nodes: Map<number, number>; nextConn: number; nextNode: number };
 }
 
-export function massContext(E: Envelope, lat: number, narrowWings = false, typeWeights: number[] | null = null): MassContext {
-  const P = probe(E, lat), N = E.nx * E.ny, exposure = new Float32Array(N);
+export function massContext(E: Envelope, where: Where, narrowWings = false, typeWeights: number[] | null = null): MassContext {
+  const P = probe(E, where), N = E.nx * E.ny, exposure = new Float32Array(N);
   for (let q = 0; q < N; q++) {
     if (E.plotOf[q] < 0 || !P.winter.length) continue;
     let lit = 0;
     for (const s of P.winter) if (!blocked(E, E.context, P.hmax, q, s.dir)) lit++;
     exposure[q] = lit / P.winter.length;
   }
-  return { E, lat, exposure, narrowWings, typeWeights, innov: { conns: new Map(), nodes: new Map(), nextConn: 0, nextNode: 0 } };
+  return { E, where, exposure, narrowWings, typeWeights, innov: { conns: new Map(), nodes: new Map(), nextConn: 0, nextNode: 0 } };
 }
 
 /** One way of writing a building as genes. The genome schema is fixed within a run. */
