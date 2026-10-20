@@ -132,6 +132,12 @@ body:has(> .pc) { margin: 0; background: var(--paper, #fcfcfb); }
 .pc-mass-plots th, .pc-mass-plots td, .pc-mass-read th, .pc-mass-read td { text-align: left; padding: 2px 14px 2px 0; font-weight: normal; vertical-align: top; }
 .pc-mass-plots thead th, .pc-mass-read thead th { color: var(--pc-muted); font-size: 12.5px; }
 .pc-mass-read th[colspan] { padding-top: 10px; font-size: 12.5px; }
+.pc-mass-neighbours { margin: 6px 0 10px; font-size: 13.5px; }
+.pc-mass-neighbours table { max-height: 18em; overflow-y: auto; display: block; border-collapse: collapse; }
+.pc-mass-neighbours td, .pc-mass-neighbours th { text-align: left; padding: 2px 14px 2px 0; font-weight: normal; }
+.pc-mass-neighbours thead th { color: var(--pc-muted); font-size: 12.5px; position: sticky; top: 0; background: var(--pc-surface); }
+.pc-mass-neighbours input { width: 5.5em; }
+.pc-mass-neighbours tr.is-on td { background: color-mix(in srgb, var(--pc-ink) 8%, transparent); }
 .pc-mass-read td:first-child { padding-right: 24px; }
 .pc-mass-setbacks { border: 1px solid var(--pc-line); border-radius: 6px; padding: 4px 10px 8px; margin: 0; display: flex; flex-wrap: wrap; gap: 4px 12px; }
 .pc-mass-setbacks legend { font-size: 12.5px; color: var(--pc-muted); padding: 0 4px; }

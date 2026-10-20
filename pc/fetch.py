@@ -4,6 +4,7 @@
     terrain.tif    FABDEM bare earth (30 m; free for non-commercial research)
     landcover.tif  ESA WorldCover 2021 (10 m)
     lst.tif        hot-season land surface temperature (Landsat 8/9, Planetary Computer; pc/lst.py)
+    heights.tif    building heights (Google Open Buildings 2.5D Temporal, 2023, 2 m; where covered)
     overture/      Overture Maps: buildings (Google Open Buildings + OSM + Microsoft),
                    roads and rail, land use, water, place names,
                    places (shops, schools, transit: where activities are today),
@@ -165,8 +166,82 @@ def fetch_lst(site: Site):
     run(site)
 
 
+# Google Open Buildings 2.5D Temporal (Sirko et al. 2023; CC BY 4.0 or ODbL 1.0): building
+# height in metres above the ground, from Sentinel-2 at an effective 4 m, yearly 2016-2023,
+# for Africa, South and South-East Asia, Latin America and the Caribbean. Public bucket.
+OB_BUCKET = "open-buildings-temporal-data"
+OB_YEAR = 2023
+OB_RES = 2.0  # metres; the model resolves about 4 m
+
+
+class HeightsUnavailable(RuntimeError):
+    pass
+
+
+def _ob_tiles(epsg: int) -> list:
+    """(url, box) for every Open Buildings temporal tile in one UTM zone, OB_YEAR."""
+    import json
+    import urllib.parse
+    import urllib.request
+
+    from shapely.geometry import box
+
+    api = f"https://storage.googleapis.com/storage/v1/b/{OB_BUCKET}/o"
+    glob = f"v1/manifests/*_EPSG_{epsg}_{OB_YEAR}_06_30.json"
+    q = urllib.parse.urlencode({"prefix": "v1/manifests/", "matchGlob": glob, "fields": "items(name)"})
+    names = [it["name"] for it in json.load(urllib.request.urlopen(f"{api}?{q}", timeout=60)).get("items", [])]
+    tiles = []
+    for name in names:
+        m = json.load(urllib.request.urlopen(f"https://storage.googleapis.com/{OB_BUCKET}/{name}", timeout=120))
+        pre = m["uriPrefix"].replace("gs://", "https://storage.googleapis.com/")
+        for ts in m["tilesets"]:
+            for s in ts["sources"]:
+                a, d = s["affineTransform"], s["dimensions"]
+                x0, y1 = a["translateX"], a["translateY"]
+                tiles.append((pre + s["uris"][0], box(x0, y1 + d["height"] * a["scaleY"], x0 + d["width"] * a["scaleX"], y1)))
+    return tiles
+
+
+def fetch_heights(site: Site):
+    """Open Buildings building heights over the box, at OB_RES, in the site's UTM zone
+    (raw/heights.tif, NaN where there is no reading). Raises HeightsUnavailable outside
+    the dataset's coverage."""
+    import geopandas as gpd
+    import numpy as np
+    from rasterio.transform import from_origin
+    from rasterio.windows import from_bounds
+    from shapely.geometry import box
+
+    epsg = int(site.crs.split(":")[1])
+    x0, y0, x1, y1 = gpd.GeoSeries([box(*site.bbox)], crs=4326).to_crs(site.crs).total_bounds
+    x0, y0 = math.floor(x0 / OB_RES) * OB_RES, math.floor(y0 / OB_RES) * OB_RES
+    x1, y1 = math.ceil(x1 / OB_RES) * OB_RES, math.ceil(y1 / OB_RES) * OB_RES
+    want = box(x0, y0, x1, y1)
+    tiles = [(u, b) for u, b in _ob_tiles(epsg) if b.intersects(want)]
+    if not tiles:
+        raise HeightsUnavailable(f"no Open Buildings {OB_YEAR} tiles cover this site")
+    w, h = int(round((x1 - x0) / OB_RES)), int(round((y1 - y0) / OB_RES))
+    out = np.full((h, w), np.nan, np.float32)
+    for url, b in tiles:
+        ib = b.intersection(want).bounds
+        c0, r0 = int(round((ib[0] - x0) / OB_RES)), int(round((y1 - ib[3]) / OB_RES))
+        ow, oh = int(round((ib[2] - ib[0]) / OB_RES)), int(round((ib[3] - ib[1]) / OB_RES))
+        if ow <= 0 or oh <= 0:
+            continue
+        with rasterio.open("/vsicurl/" + url) as src:
+            v = src.read(2, window=from_bounds(*ib, src.transform), out_shape=(oh, ow)).astype(np.float32)
+        v[v < 0] = np.nan  # nodata is -99
+        out[r0:r0 + oh, c0:c0 + ow] = v[: h - r0, : w - c0]
+    site.heights.parent.mkdir(parents=True, exist_ok=True)
+    meta = {"driver": "GTiff", "dtype": "float32", "count": 1, "width": w, "height": h, "crs": site.crs,
+            "transform": from_origin(x0, y1, OB_RES, OB_RES), "nodata": float("nan"), "compress": "deflate", "predictor": 3}
+    with rasterio.open(site.heights, "w", **meta) as dst:
+        dst.write(out, 1)
+        dst.update_tags(source=f"Google Open Buildings 2.5D Temporal v1, {OB_YEAR}", licence="CC BY 4.0")
+
+
 STEPS = {"dem": fetch_dem, "terrain": fetch_terrain, "landcover": fetch_landcover,
-         "overture": fetch_overture, "streets": fetch_streets, "lst": fetch_lst}
+         "overture": fetch_overture, "streets": fetch_streets, "lst": fetch_lst, "heights": fetch_heights}
 
 
 def fetch(site: Site, only=None):

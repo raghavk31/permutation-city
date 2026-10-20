@@ -177,14 +177,15 @@ export function contextMesh(E: Envelope, G: Ground, d: Design): Mesh {
   return b.done();
 }
 
-/** The existing buildings in the frame (off the design ground), as prisms at their heights. */
+/** The existing buildings in the frame (off the design ground), as prisms at their heights;
+ *  one group per building, "existing <index into Ground.buildings>", for picking. */
 export function existingMesh(E: Envelope, G: Ground): Mesh {
   const b = new Builder(), B = G.buildings;
   if (B) for (const k of E.neighbours) {
-    const r = B.rings[k], ring: [number, number][] = [];
+    const r = B.rings[k], ring: [number, number][] = [], from = b.i.length;
     for (let j = 0; j < r.length; j += 2) ring.push([r[j], r[j + 1]]);
     prism(b, ring, 0, B.h[k]);
+    b.group(`existing ${k}`, from);
   }
-  b.group("existing", 0);
   return b.done();
 }

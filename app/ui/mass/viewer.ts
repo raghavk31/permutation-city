@@ -4,7 +4,8 @@
 // their cameras linked.
 //
 // The site frame is z up (x east, y north); the camera's up is set to z so nothing is
-// rotated, and the sun vector from the engine lights the scene as is.
+// rotated, and the sun vector from the engine lights the scene as is. Clicking an existing
+// building reports it (onPick), so its height can be set.
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { Envelope, Mesh } from "../../engine/massing";
@@ -34,6 +35,9 @@ export class Viewer {
   private partner: Viewer | null = null;
   private syncing = false;
   private frame = 0;
+  private existing: THREE.Mesh | null = null;
+  /** Called with an existing building's index (into Ground.buildings) when it is clicked. */
+  onPick: ((k: number) => void) | null = null;
 
   constructor(readonly canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
@@ -51,6 +55,26 @@ export class Viewer {
     this.sunLight.shadow.bias = -0.0005;
     this.scene.add(this.sky, this.sunLight, this.sunLight.target, this.content);
     new ResizeObserver(() => this.resize()).observe(canvas);
+    // A click (not a drag) on an existing building picks it.
+    let down: [number, number] | null = null;
+    canvas.addEventListener("pointerdown", (e) => { down = [e.clientX, e.clientY]; });
+    canvas.addEventListener("pointerup", (e) => {
+      if (down && Math.hypot(e.clientX - down[0], e.clientY - down[1]) < 4 && e.button === 0) this.pick(e);
+      down = null;
+    });
+  }
+
+  private pick(e: PointerEvent) {
+    const m = this.existing, groups = this.data?.existing.groups;
+    if (!m || !groups?.length || !this.onPick) return;
+    const r = this.canvas.getBoundingClientRect();
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), this.camera);
+    const hit = ray.intersectObjects(this.content.children, false)[0];
+    if (!hit || hit.object !== m || hit.faceIndex == null) return;
+    // The geometry is non-indexed, so face t is the mesh's triangle t.
+    const at = hit.faceIndex * 3, g = groups.find((g) => at >= g.start && at < g.start + g.count);
+    if (g) this.onPick(+g.name.split(" ")[1]);
   }
 
   show(d: SceneData, keepCamera = false) {
@@ -77,6 +101,7 @@ export class Viewer {
     const context = new THREE.Mesh(geometry(d.context, false), mat(look.context));
     const existing = new THREE.Mesh(geometry(d.existing, false), mat(look.existing));
     for (const m of [mass, context, existing]) { m.castShadow = true; m.receiveShadow = true; }
+    this.existing = existing;
     // Edges of the massing, so plan and section read.
     const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geometry(d.mass, false), 30),
       new THREE.LineBasicMaterial({ color: look.ink, transparent: true, opacity: 0.35, clippingPlanes: this.planes }));

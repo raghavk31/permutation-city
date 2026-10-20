@@ -40,10 +40,15 @@
   let pickA = $state(-1), pickB = $state(-1);
   let date = $state(0), hour = $state(15);
   let sectionMode = $state<Section["mode"]>("none"), sectionAt = $state(0.5);
+  // Existing buildings' heights the user has set (index → m), kept per site across designs.
+  let heights = $state<Record<number, number>>({});
+  let heightsSite = "";
+  let picked = $state(-1), neighboursOpen = $state(false);
 
   // A new design: start over, with the brief's setbacks.
   $effect(() => {
     const s = src;
+    if ((s?.siteId ?? "") !== heightsSite) { heights = {}; heightsSite = s?.siteId ?? ""; picked = -1; }
     breeder.cancel();
     running = false; result = null; pickA = pickB = -1; error = "";
     const sb = Mass.setbacksOf(s?.brief ?? null);
@@ -53,10 +58,33 @@
     block = pool.length ? pool[Math.floor(pool.length / 3)].id : blocks[0]?.id ?? -1;
   });
 
-  const key = $derived(src ? `${src.name}|${block}|${setbacks.front},${setbacks.side},${setbacks.rear}` : "");
-  const prepared = $derived(src && block >= 0 ? M.prepareBlock(src.G, Mass.setupOf(src, block, setbacks)) : null);
+  const key = $derived(src ? `${src.name}|${block}|${setbacks.front},${setbacks.side},${setbacks.rear}|${JSON.stringify(heights)}` : "");
+  const prepared = $derived(src && block >= 0 ? M.prepareBlock(src.G, Mass.setupOf(src, block, setbacks, heights)) : null);
   const env = $derived(prepared?.E ?? null);
   const stale = $derived(!!result && resultKey !== key);
+  const lowHeights = $derived(env && prepared ? Mass.heightsLow(env, prepared.G) : false);
+  const lowMark = (s: M.MassScoreKey) => (lowHeights && Mass.HEIGHT_SCORES.includes(s) ? " (low confidence)" : "");
+
+  // --- existing buildings' heights ---------------------------------------------------------
+  const neighbourRows = $derived.by(() => {
+    if (!env || !prepared?.G.buildings) return [];
+    const G = prepared.G, B = G.buildings!;
+    const guessed = (k: number) => (Mass.GUESSED_FROM.includes(Mass.sourceOf(G, k)) ? 0 : 1);
+    return [...env.neighbours].sort((a, b) => guessed(a) - guessed(b) || a - b)
+      .map((k) => ({ k, area: Mass.ringArea(B.rings[k]), h: B.h[k], from: Mass.sourceOf(G, k) }));
+  });
+  function setHeight(k: number, v: number) {
+    const next = { ...heights };
+    if (Number.isFinite(v) && v > 0) next[k] = Math.min(300, v); else delete next[k];
+    heights = next;
+  }
+  function onPick(k: number) {
+    picked = k; neighboursOpen = true;
+    requestAnimationFrame(() => {
+      const input = document.querySelector<HTMLInputElement>(`[data-building="${k}"]`);
+      input?.scrollIntoView({ block: "center" }); input?.focus(); input?.select();
+    });
+  }
 
   const fmtM2 = (v: number) => `${Math.round(v).toLocaleString("en-IN")} m²`;
   const fmtHa = (v: number) => `${v.toFixed(2)} ha`;
@@ -79,7 +107,7 @@
     if (!src || block < 0 || running) return;
     running = true; gen = 0; error = "";
     // Plain values only: a Svelte state proxy can't be posted to a worker.
-    const req: M.MassRequest = { ...Mass.setupOf(src, block, $state.snapshot(setbacks)), kind, population, generations, seed };
+    const req: M.MassRequest = { ...Mass.setupOf(src, block, $state.snapshot(setbacks), $state.snapshot(heights)), kind, population, generations, seed };
     const k = key;
     try {
       const r = await breeder.run(src, req, (g) => (gen = g));
@@ -114,7 +142,7 @@
     if (m && env) Mass.thumb(canvas, env, m, P);
   };
 
-  const scoreLine = (s: M.MassScores) => M.MASS_SCORE_KEYS.map((k) => `${M.MASS_SCORES[k][0]} ${M.MASS_SCORES[k][1](s[k])}`).join(" · ");
+  const scoreLine = (s: M.MassScores) => M.MASS_SCORE_KEYS.map((k) => `${M.MASS_SCORES[k][0]} ${M.MASS_SCORES[k][1](s[k])}${lowMark(k)}`).join(" · ");
 
   // --- 3D -------------------------------------------------------------------------------
   let viewA: Viewer | null = null, viewB: Viewer | null = null;
@@ -129,7 +157,7 @@
     return m!;
   }
   const contextMesh = $derived(env && src && design ? M.contextMesh(env, src.G, design) : null);
-  const existingMesh = $derived(env && src ? M.existingMesh(env, src.G) : null);
+  const existingMesh = $derived(env && prepared ? M.existingMesh(env, prepared.G) : null);
   const ground = $derived(env && src && design ? Mass.groundCanvas(env, src.G, design, P) : null);
 
   const A = $derived(result && pickA >= 0 ? result.kept[pickA] : null);
@@ -150,10 +178,10 @@
     const { Viewer } = await import("./viewer");
     // A canvas Svelte has replaced gets a new viewer, which has shown nothing yet.
     if (which === "A") {
-      if (!viewA || viewA.canvas !== canvas) { viewA?.dispose(); viewA = new Viewer(canvas); shownA = ""; camA = -1; }
+      if (!viewA || viewA.canvas !== canvas) { viewA?.dispose(); viewA = new Viewer(canvas); viewA.onPick = onPick; shownA = ""; camA = -1; }
       return viewA;
     }
-    if (!viewB || viewB.canvas !== canvas) { viewB?.dispose(); viewB = new Viewer(canvas); shownB = ""; camB = -1; }
+    if (!viewB || viewB.canvas !== canvas) { viewB?.dispose(); viewB = new Viewer(canvas); viewB.onPick = onPick; shownB = ""; camB = -1; }
     return viewB;
   }
 
@@ -229,9 +257,32 @@
       {#if blockInfo && env}
         <p><b>Block {block + 1}</b>: {fmtHa(blockInfo.ha)}, {env.plots.length} plot{env.plots.length > 1 ? "s" : ""};
           floor-area target {fmtM2(env.target)} (what the urban design put here).
-          {Mass.neighbourLine(env, src.G)}
+          {Mass.neighbourLine(env, prepared!.G)}
+          {#if lowHeights}<b>Most of their heights are guessed, so the shade and winter-sun-taken scores are low
+            confidence.</b>{/if}
           {#if blockInfo.ha > 3}A large block: a run takes longer, up to a minute.{/if}
           {#if env.note.length}<span class="pc-muted">{env.note.join("; ")}.</span>{/if}</p>
+        {#if neighbourRows.length}
+          <details class="pc-mass-neighbours" bind:open={neighboursOpen}>
+            <summary>existing buildings round this block: check or set their heights</summary>
+            <p class="pc-muted">Guessed heights first. Click a building in the 3D view to find it here. A height you
+              set is used for shade and sky, and its source becomes "set by you"; clear the box to go back.</p>
+            <table>
+              <thead><tr><th>building</th><th>footprint</th><th>height (m)</th><th>from</th></tr></thead>
+              <tbody>
+                {#each neighbourRows as r (r.k)}
+                  <tr class:is-on={r.k === picked}>
+                    <td>{r.k + 1}</td><td>{Math.round(r.area)} m²</td>
+                    <td><input type="number" min="0" max="300" step="0.5" data-building={r.k} value={r.h.toFixed(1)}
+                      aria-label={`height of building ${r.k + 1}, metres`}
+                      onchange={(e) => setHeight(r.k, parseFloat((e.currentTarget as HTMLInputElement).value))}></td>
+                    <td>{Mass.HEIGHT_FROM[r.from] ?? r.from}{#if Mass.GUESSED_FROM.includes(r.from)}<span class="pc-muted">{" (guess)"}</span>{/if}</td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </details>
+        {/if}
         <table class="pc-mass-plots">
           <thead><tr><th>plot</th><th>area</th><th>cap</th><th>most cover</th><th>target</th><th>street front</th></tr></thead>
           <tbody>
@@ -276,7 +327,7 @@
     <p class="pc-muted">
       {result.everyone} massings in {(result.ms / 1000).toFixed(1)} s, written as {KINDS.find((k) => k.kind === result!.kind)!.label}.
       {result.kept.filter((k) => k.rank === 1).length} on the front (within 10% of the floor-area target, then the five scores).
-      {#if stale}<b>The block or setbacks changed since this run: breed again to see them.</b>{/if}
+      {#if stale}<b>The block, setbacks or neighbour heights changed since this run: breed again to see them.</b>{/if}
     </p>
     {#if !stale}
       <div class="pc-gallery pc-mass-gallery">
@@ -339,7 +390,7 @@
           <tbody>
             <tr><th colspan="3" class="pc-muted">scores (bred on)</th></tr>
             {#each M.MASS_SCORE_KEYS as s}
-              <tr><td>{M.MASS_SCORES[s][0]} {M.MASS_SCORES[s][2] ? "↑" : "↓"}</td><td>{M.MASS_SCORES[s][1](A.scores[s])}</td>
+              <tr><td>{M.MASS_SCORES[s][0]} {M.MASS_SCORES[s][2] ? "↑" : "↓"}{lowMark(s)}</td><td>{M.MASS_SCORES[s][1](A.scores[s])}</td>
                 {#if B && readB}<td>{M.MASS_SCORES[s][1](B.scores[s])}</td>{/if}</tr>
             {/each}
             <tr><td>floor area vs target</td><td>{fmtM2(A.floor)}</td>{#if B && readB}<td>{fmtM2(B.floor)}</td>{/if}</tr>

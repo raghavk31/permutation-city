@@ -1149,6 +1149,38 @@ Unsure about, or left open:
 - **The neighbours score is often zero.** Blocks away from the edge of the design ground
   have no existing roof in reach; it matters only on edge blocks.
 
+## Phase 7c log (2026-10-20): neighbour heights
+
+On branch `v2-phase7c`, off `main` after #11 and #12 were merged. Your three follow-ups.
+
+- **Google Open Buildings 2.5D Temporal**, tested the way the surface model was: against
+  Overture buildings with known floors, r = 0.88 (Bengaluru, 577 buildings), 0.84 (Wadaj,
+  1,373), 0.60 (EWF, 30), using the 90th percentile of its heights in the footprint. The
+  nearby median gets 0.62, 0.68 and −0.33; the surface model got −0.32 to 0.06. Licence
+  CC BY 4.0 or ODbL 1.0; credited on the page. It is now the third source, after Overture's
+  height and floor counts. `pc fetch <site> --only heights` reads Google's public bucket (no
+  account); the export fetches it when missing and goes on without it outside coverage.
+- **Defaults fall** from 289 to 101 buildings at Docks, 527 to 83 at EWF, 32 to 14 at Wadaj,
+  409 to 76 at Bengaluru.
+- **Set by you.** The massing view lists the block's existing neighbours (guesses first)
+  with a height box each; clicking a building in 3D finds its row. A typed height becomes
+  source "user", is kept per site across designs, goes to the worker with the run, and marks
+  the run stale until bred again.
+- **Low confidence.** When more than half of a block's neighbours have guessed heights
+  (nearby median or 2 storeys), hot-season shade and winter sun taken are labelled low
+  confidence.
+- Sites re-exported, massing fixtures regenerated (Python check matches). Tests: `npm test`
+  300, `uv run pytest` 76. Checked in the browser on Docks: the label, setting heights, the
+  label clearing, a run, picking in 3D.
+
+Choices I made that you may want otherwise:
+- **"Low confidence" counts the block's neighbours, not the whole site,** and counts the
+  nearby median as a guess as well as the 2-storey default. With Open Buildings in, no site
+  has a majority of defaults any more (Docks is highest at 35%), so a site-wide rule on
+  defaults alone would never fire.
+- **Open Buildings reads low** (3 m on average at Bengaluru and Wadaj, 7 m at EWF). I left
+  it uncorrected rather than fit a bias on a few hundred tagged buildings that lean tall.
+
 ## 8. Decisions (2026-10-16)
 
 The user asked to go with the recommendations:

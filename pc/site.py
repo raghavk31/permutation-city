@@ -115,6 +115,10 @@ class Site:
     def landcover(self) -> Path:  # ESA WorldCover 2021, 10 m
         return self.raw / "landcover.tif"
 
+    @property
+    def heights(self) -> Path:    # Google Open Buildings 2.5D Temporal building heights, 2 m
+        return self.raw / "heights.tif"
+
     def overture(self, theme: str) -> Path:
         return self.raw / "overture" / f"{theme}.parquet"
 
