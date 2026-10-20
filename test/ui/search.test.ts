@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   binOf, DESCRIPTORS, divisionsFor, evolve, mapElites, nicheSelect, prepare, quality, referencePoints,
-  SCORE_KEYS, type Scores, type SiteExport,
+  SCORE_KEYS, type Metrics, type Scores, type SiteExport,
 } from "../../app/engine";
 import type { Kept } from "../../app/engine/worker";
 import * as X from "../../app/ui/explore";
@@ -91,13 +91,13 @@ describe("MAP-Elites", () => {
   });
 
   it("refuses a trait it doesn't know", () => {
-    expect(() => mapElites(G, { generations: 1, pop: 4, axes: ["symmetry", "open_share"] })).toThrow(/symmetry/);
+    expect(() => mapElites(G, { generations: 1, pop: 4, axes: ["elegance", "open_share"] })).toThrow(/elegance/);
   });
 });
 
 describe("Explore (app/ui/explore.ts)", () => {
   const kept = (scores: Partial<Scores>, rank = 1, extra: Partial<Kept> = {}): Kept => ({
-    name: "x", genome: [], parents: [], rank, scores: on(scores), floorArea: 100, levels: 4, ...extra,
+    name: "x", genome: [], parents: [], rank, scores: on(scores), floorArea: 100, levels: 4, metrics: {} as Metrics, ...extra,
   });
 
   it("finds the ends of every measure among the designs on the brief", () => {

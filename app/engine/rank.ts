@@ -3,8 +3,14 @@ import { TARGET_TOLERANCE } from "./config.js";
 import { SCORES, SCORE_KEYS } from "./fitness.js";
 import type { Scores } from "./types.js";
 
-/** All five scores as "lower is better". */
-export const asMin = (s: Scores) => SCORE_KEYS.map((k) => (SCORES[k][2] ? -s[k] : s[k]));
+/** What a run optimises: a key in each design's scores, and whether higher is better. The
+ *  five scores by default; a promoted form metric is added to the scores under its own key. */
+export type Objective = [key: string, higherIsBetter: boolean];
+export const SCORE_OBJECTIVES: Objective[] = SCORE_KEYS.map((k) => [k, SCORES[k][2]]);
+
+/** The objectives as "lower is better". */
+export const asMin = (s: Scores, obj: Objective[] = SCORE_OBJECTIVES) =>
+  obj.map(([k, up]) => { const v = (s as unknown as Record<string, number>)[k]; return up ? -v : v; });
 
 function fronts(f: number[][]): Int32Array {
   const n = f.length, rank = new Int32Array(n);
@@ -27,13 +33,13 @@ function fronts(f: number[][]): Int32Array {
 }
 
 /** Rank 1 = Pareto front of designs on brief; designs off brief come after, by closeness. */
-export function paretoRanks(scores: Scores[], tol = TARGET_TOLERANCE): Int32Array {
+export function paretoRanks(scores: Scores[], tol = TARGET_TOLERANCE, obj: Objective[] = SCORE_OBJECTIVES): Int32Array {
   const n = scores.length, rank = new Int32Array(n);
   const on: number[] = [], off: number[] = [];
   scores.forEach((s, i) => (s.gap <= tol ? on : off).push(i));
   let top = 0;
   if (on.length) {
-    const r = fronts(on.map((i) => asMin(scores[i])));
+    const r = fronts(on.map((i) => asMin(scores[i], obj)));
     on.forEach((i, k) => { rank[i] = r[k]; if (r[k] > top) top = r[k]; });
   }
   off.sort((a, b) => scores[a].gap - scores[b].gap);
@@ -42,11 +48,11 @@ export function paretoRanks(scores: Scores[], tol = TARGET_TOLERANCE): Int32Arra
 }
 
 /** NSGA-II crowding distance within one front (indices `idx`). */
-export function crowding(scores: Scores[], idx: number[]): Float64Array {
+export function crowding(scores: Scores[], idx: number[], obj: Objective[] = SCORE_OBJECTIVES): Float64Array {
   const n = idx.length, dist = new Float64Array(n);
   if (n <= 2) return dist.fill(Infinity);
-  const f = idx.map((i) => asMin(scores[i]));
-  for (let k = 0; k < SCORE_KEYS.length; k++) {
+  const f = idx.map((i) => asMin(scores[i], obj));
+  for (let k = 0; k < obj.length; k++) {
     const order = [...Array(n).keys()].sort((a, b) => f[a][k] - f[b][k]);
     const span = f[order[n - 1]][k] - f[order[0]][k] || 1;
     dist[order[0]] = dist[order[n - 1]] = Infinity;

@@ -1,9 +1,10 @@
 // Runs evolution off the main thread, so the page stays responsive. Called through Comlink.
 import * as Comlink from "comlink";
-import { mapElites, type ArchiveInfo, type EliteOptions } from "./elites.js";
-import { evolve, frontFamilies, type EvolveOptions, type HistoryRow, type Search } from "./evolve.js";
+import { mapElites, searchOf, type ArchiveInfo, type EliteOptions, type SearchChoice } from "./elites.js";
+import { evolve, frontFamilies, type EvolveOptions, type HistoryRow } from "./evolve.js";
 import { stats } from "./genome.js";
 import { prepare } from "./ground.js";
+import { measure, type Metrics } from "./metrics/index.js";
 import type { Ground, Scores, SiteExport } from "./types.js";
 
 let G: Ground | null = null;
@@ -13,23 +14,24 @@ export interface FamilyLead { name: string; size: number; genome: number[]; pare
 export interface Kept {
   name: string; genome: number[]; parents: string[]; rank: number; scores: Scores;
   floorArea: number; levels: number; cell?: number; quality?: number;
+  metrics: Metrics;  // every form metric, for the readouts
 }
 export interface EvolveResult {
   history: HistoryRow[]; everyone: number; frontSize: number; families: FamilyLead[]; kept: Kept[];
   archive: ArchiveInfo | null;
 }
 export type RunRequest = Omit<EvolveOptions, "progress" | "search"> & Omit<EliteOptions, "progress"> & {
-  search?: Search | "map-elites";
+  search?: SearchChoice;
 };
 
 const api = {
   setSite(site: SiteExport) {
     G = prepare(site);
   },
-  evolve({ search = "nsga2", axes, bins, weights, ...options }: RunRequest,
+  evolve({ search: asked, axes, bins, weights, ...options }: RunRequest,
     onProgress?: (gen: number, row: HistoryRow) => void): EvolveResult {
     if (!G) throw new Error("no site loaded");
-    const g = G;
+    const g = G, search = searchOf({ search: asked, objectives: options.objectives });
     const progress = (gen: number, r: { history: HistoryRow[] }) => onProgress?.(gen, r.history[r.history.length - 1]);
     const run = search === "map-elites"
       ? mapElites(g, { ...options, axes, bins, weights, progress })
@@ -47,6 +49,7 @@ const api = {
         return {
           name: i.name, genome: i.design.genome, parents: i.parents, rank: i.rank, scores: i.design.scores!,
           floorArea: st.floor_area_ha, levels: st.mean_levels, cell: i.cell, quality: i.quality,
+          metrics: measure(i.design, g) as Metrics,
         };
       }),
       archive: run.archive,

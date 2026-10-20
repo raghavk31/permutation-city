@@ -1,0 +1,45 @@
+{
+  "about": "Small designs with metric values worked out by hand, read by both engines (test/ui/metrics.test.ts, test/python/test_metrics.py). Rows run from y = 0 upwards; a digit is a building of that many storeys, L landscape, W water. 20 m squares, no roads.",
+  "grid": { "type": "quad", "size": 20 },
+  "cases": [
+    {
+      "name": "stripes: building and landscape in alternate columns",
+      "rows": ["3L3L3L3L3L3L3L3L", "3L3L3L3L3L3L3L3L", "3L3L3L3L3L3L3L3L", "3L3L3L3L3L3L3L3L"],
+      "expect": {
+        "rhythm_built": 1,
+        "green_cover": 0.5,
+        "contrast": 0.5555555555555556,
+        "dh_enclosure": 0.9333333333333333,
+        "block_size": 1,
+        "gradients": 0,
+        "use_mix": 0.6309297535714574
+      },
+      "why": {
+        "rhythm_built": "each 16-cell row alternates 1, 0: all its variation is in the period-2 repeat",
+        "contrast": "60 side-by-side links all differ, 48 up-and-down links never do: 60 / 108",
+        "dh_enclosure": "60 street faces; all face one 20 m open cell then a 9.6 m building (D/H 2.1) except the 4 on the last column, which face the edge: 56 / 60",
+        "block_size": "each block is one column of 4 cells, 10 edges round, 200 m",
+        "gradients": "no neighbouring buildings differ in height",
+        "use_mix": "half building, half landscape: ln 2 / ln 3"
+      }
+    },
+    {
+      "name": "pond: a 2 x 2 pond in a field of four-storey buildings",
+      "rows": ["4444444444444444", "4444444WW4444444", "4444444WW4444444", "4444444444444444"],
+      "expect": {
+        "the_void": 0.0625,
+        "water_walk": 1,
+        "green_cover": 0,
+        "boundaries": 1,
+        "positive_space": 1,
+        "junctions": 0
+      },
+      "why": {
+        "the_void": "the only open space is 4 of 64 cells",
+        "boundaries": "the pond's 8 outer edges all touch buildings",
+        "positive_space": "a 40 m square is its own convex hull",
+        "junctions": "the pond touches one block only"
+      }
+    }
+  ]
+}

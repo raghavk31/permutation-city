@@ -6,9 +6,10 @@
 // generation breeds `pop` children from elites picked at random from the archive.
 import { DEFAULT_RANGES, TARGET_TOLERANCE, BUILDING, LANDSCAPE, WATER } from "./config.js";
 import { childName, crossover, firstGenomes, individual, mutate, rank, record, type EvolveOptions, type Individual,
-  type Run } from "./evolve.js";
+  type Run, type Search } from "./evolve.js";
 import { evaluate, SCORES, SCORE_KEYS } from "./fitness.js";
 import { randomGenome } from "./genome.js";
+import { measure, METRIC_KEYS, METRICS, type Metric } from "./metrics/index.js";
 import { makeRng } from "./rng.js";
 import type { Design, Ground, ScoreKey, Scores } from "./types.js";
 
@@ -48,6 +49,11 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
   daylight: { label: "daylight", range: [0.3, 1.0], value: score("daylight") },
   human: { label: "human scale", range: [0.5, 0.9], value: score("human") },
 };
+// Any form metric can be a trait too (metrics/index.ts), binned over where most designs fall.
+for (const k of METRIC_KEYS) {
+  const m = METRICS[k] as Metric;
+  DESCRIPTORS[k] = { label: m.label, range: m.range ?? [0, 1], value: (d, G) => measure(d, G, [k])[k]! };
+}
 export const DESCRIPTOR_KEYS = Object.keys(DESCRIPTORS);
 
 /** What an elite holds its cell by: designs off the floor-area brief score below zero (the
@@ -79,6 +85,12 @@ export function binOf(v: number, [lo, hi]: [number, number], bins: number): numb
 }
 
 export interface ArchiveInfo { axes: [string, string]; bins: number }
+
+/** A search as people choose it. auto: NSGA-II, or NSGA-III once promoted metrics take the
+ *  objectives past five (the brief's rule; docs/experiments/search-comparison.md). */
+export type SearchChoice = Search | "map-elites" | "auto";
+export const searchOf = (r: { search?: SearchChoice; objectives?: readonly string[] }): Search | "map-elites" =>
+  !r.search || r.search === "auto" ? (r.objectives?.length ? "nsga3" : "nsga2") : r.search;
 
 export interface EliteOptions extends Omit<EvolveOptions, "search"> {
   axes?: [string, string];

@@ -29,7 +29,7 @@ import json
 import geopandas as gpd
 import numpy as np
 
-from pc import elites, evolve, fitness, genome, rules
+from pc import elites, evolve, fitness, genome, metrics, rules
 from pc import grid as cellgrid
 from pc.rng import Rng
 from pc.site import ROOT, Site
@@ -114,8 +114,13 @@ def rule_table(r: dict) -> dict:
 
 
 def site_ground(site: Site, suit: gpd.GeoDataFrame, origin=None) -> tuple[genome.Ground, dict]:
-    """engine_ground on the site's own grid."""
-    return engine_ground(suit, cellgrid.for_site(site), origin)
+    """engine_ground on the site's own grid, with the site's major roads (for the metrics)
+    exported as the browser gets them."""
+    from pc.maps import context
+
+    ground, design = engine_ground(suit, cellgrid.for_site(site), origin)
+    ground.roads = _lines(context(site)["roads"], *ground.origin)
+    return ground, design
 
 
 def suitability(site: Site) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, dict]:
@@ -196,6 +201,7 @@ def ground_from_export(data: dict) -> genome.Ground:
         cap=np.array(d["cap"]), min_perm=np.array(d["min_perm"]), trees=np.array(d["trees"]),
         site_water=np.array(d["site_water"]), spacing=graph.spacing,
         bounds=(xy[:, 0].min(), xy[:, 1].min(), xy[:, 0].max(), xy[:, 1].max()),
+        graph=graph, roads=data.get("context", {}).get("roads"),
     )
 
 
@@ -209,7 +215,7 @@ class _Brief:
 
 # Whole evolutions for the fixture: plain, with a mid-run shock, and with locked cells,
 # start genomes and a different population; then NSGA-III and MAP-Elites runs the same
-# ways. Small, so the fixture stays quick to check.
+# ways, and runs on form metrics. Small, so the fixture stays quick to check.
 EVOLUTIONS = [
     {"seed": 1, "generations": 8, "pop": 30},
     {"seed": 7, "generations": 8, "pop": 30, "shock": [4, 1.4]},
@@ -219,6 +225,12 @@ EVOLUTIONS = [
     {"search": "map-elites", "seed": 2, "generations": 8, "pop": 30},
     {"search": "map-elites", "seed": 4, "generations": 6, "pop": 24, "axes": ["storage", "height_variety"], "bins": 6,
      "shock": [3, 1.4], "start": 2, "weights": {"storage": 2, "daylight": 1}},
+    # Form metrics promoted to objectives (NSGA-III with seven), and as MAP-Elites traits.
+    {"seed": 9, "generations": 5, "pop": 24, "objectives": ["dh_enclosure", "green_view"]},
+    {"search": "nsga3", "seed": 13, "generations": 5, "pop": 24, "objectives": ["semilattice", "positive_space"],
+     "shock": [3, 1.3]},
+    {"search": "map-elites", "seed": 6, "generations": 5, "pop": 20, "axes": ["positive_space", "rhythm_built"],
+     "bins": 5},
 ]
 
 
@@ -316,6 +328,9 @@ def brief_cases(data: dict) -> dict:
     return {"context": ctx, "cases": cases, "seeds": seeds}
 
 
+METRIC_CASES = 12  # of the random genomes, how many carry their form metrics
+
+
 def fixture(data: dict, n=40, seed=7, site: Site | None = None) -> dict:
     """Random genomes with their designs and scores, grown by the Python engine, a few
     whole evolutions, and (with the site) the rules applied to its layers."""
@@ -323,12 +338,13 @@ def fixture(data: dict, n=40, seed=7, site: Site | None = None) -> dict:
     brief = _Brief(data["meta"])
     rng = Rng(seed)
     cases = []
-    for _ in range(n):
+    for k in range(n):
         g = genome.random_genome(rng)
         d = genome.grow(g, ground)
         s = fitness.evaluate(d, ground, brief)
         cases.append({"genome": [float(v) for v in g], "use": genome.use_codes(d).tolist(),
-                      "levels": d.levels.tolist(), "scores": s})
+                      "levels": d.levels.tolist(), "scores": s,
+                      **({"metrics": metrics.measure(d, ground)} if k < METRIC_CASES else {})})
     ranks = fitness.pareto_ranks([c["scores"] for c in cases])
     for c, r in zip(cases, ranks):
         c["rank"] = int(r)

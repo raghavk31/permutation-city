@@ -781,6 +781,92 @@ Unsure about, or left open:
 - **Explore uses the final population only**, not every design grown (1,860). Showing all of
   them would mean sending them back from the worker; say if you want it.
 
+## Phase 6 log (2026-10-19)
+
+Done, on branch `v2-phase6` (stacked on `v2-phase5`). Definitions are in `docs/metrics.md`.
+- **The derived network** (`app/engine/metrics/network.ts`, `pc/metrics/network.py`), as
+  proposed in R5:
+  - blocks: connected building cells, cut where an existing major road crosses a link
+  - open spaces and parks
+  - street faces
+  - centres: the cells nearest the core attractors
+  - junctions and landmarks
+  - walking distance over cell links
+  The design ground now carries the site's roads (`Ground.roads`). Road cuts, link
+  directions, rows and mirror images depend only on the site, so they are cached per site.
+- **30 metrics in five families**, keyed to the brief's `AESTHETICS` vocabulary:
+  - human scale (D/H enclosure, walkable blocks, low street faces)
+  - permeability (junctions, connections per block, active frontage)
+  - nature (park and water within 300 m, landscape cover, green view)
+  - harmony and variety (mixes of heights, uses and types, shown not judged; a proportion
+    palette)
+  - eleven of Alexander's properties: levels of scale, strong centres, boundaries,
+    alternating repetition (an FFT of built/open and of the skyline along the rows),
+    positive space, local symmetries (plus global symmetry and balance as secondary
+    readouts), contrast, landmarks at nodes, gradients, roughness and the void
+  - semilattice richness
+  - a placeholder for legibility
+  Echoes (building scale) and not-separateness are listed as not measured, with the reason;
+  so are the properties with no defensible proxy (R11).
+- **Parity:** the metrics of 12 designs per site match to nine decimal places on all five
+  sites, hex and quad. `test/metrics/cases.json` holds hand-worked designs (stripes, a pond)
+  that both engines check exactly.
+- **Promotion.** `evolve(..., objectives=[...])` takes up to two metrics with a better end,
+  in both engines. A promoted value is stored in the design's scores (rounded to six
+  places, as the scores are) and ranked like a score. Ranking, crowding and NSGA-III niching
+  take an objectives list, which defaults to the five scores, so every earlier fixture is
+  unchanged. Any metric can be a MAP-Elites trait. New fixture runs cover:
+  - NSGA-II with two promoted metrics
+  - NSGA-III with seven objectives and a shock
+  - MAP-Elites over two metrics
+- **"auto" search** (the new default in the page and in `pc evolve`): NSGA-II, or NSGA-III
+  once promoted metrics take a run past five objectives. This closes the brief's rule left
+  open in Phase 5.
+- **The page:**
+  - Chapter 04 has "also optimise" (two metrics), with a best-so-far chart for each.
+  - Explore's pick panel and the Families detail show every metric, by group, each with a
+    bar placing it among the designs the run kept. Properties the brief's aesthetic
+    priorities ask for are marked.
+  - Explore's parallel coordinates and extremes compare the scores or any one group of
+    metrics.
+  - The scatter matrix adds promoted metrics.
+  - Breeding can favour any score or metric: it breeds 24 and keeps the best six.
+  The worker measures every kept design.
+- **CLI:** `pc evolve --objectives a,b`, `--search auto`. MAP-Elites `--axes` takes metric
+  keys.
+- `npm run metrics` surveys the metrics on random designs (spread and time per metric).
+
+Tests: `npm test` 209, `uv run pytest` 53, `tsc` clean. Checked in a headless browser on
+Mumbai EWF:
+- a ten-generation run with two promoted metrics (NSGA-III, seven objectives): 2.4 s, against
+  1.8 s without
+- the metrics panel and the group views
+- biased breeding
+No console errors.
+
+Unsure about, or left open:
+- **Blocks are huge on most designs.** The genome has no streets, so the derived blocks are
+  whatever building cells touch, cut only by existing roads. Walkable blocks (2 to 14%) and
+  junctions (0 to 1.2 per km²) read low almost everywhere. That is honest about the designs,
+  but it means those two metrics barely separate them. A street gene, or a rule that
+  reserves a street every N cells, would fix it, but it changes the genome or the rules;
+  your call.
+- **Semilattice richness uses roads as a stand-in for transit**, and has no shops or
+  schools. Overture's `place` theme is fetched for new sites but not for the three
+  existing ones. Re-fetching them (`pc fetch`) and exporting the places by category would
+  give real activities. It is network work I haven't done.
+- **Some proxies are rough**, and `docs/metrics.md` says so for each:
+  - Active frontage is nearness to a centre.
+  - Green view counts open cells within two steps.
+  - Local symmetries are high on almost every design (70 to 90%), because the attractor
+    fields are smooth.
+  - Gradients is 0% or 100% on designs with few height steps.
+- **The constants are mine:** D/H 1 to 3, 400 m blocks, 6 storeys, 300 m and 400 m walks,
+  12 m nominal street, landmark at mean + 2 sd. They are in `config.ts` and
+  `pc/metrics/network.py`, and each is named in the docs.
+- **Pattern cards and the corpus** don't cite the metrics yet. A brief can ask for a
+  property, but the model only sees the vocabulary, not the definitions.
+
 ## 8. Decisions (2026-10-16)
 
 The user asked to go with the recommendations:

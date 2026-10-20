@@ -89,6 +89,7 @@ export interface Ground {
   cellArea: number;
   bounds: [number, number, number, number];
   meta: SiteMeta;
+  roads?: [number, number][][];  // existing major roads, same frame as x, y (the metrics' streets)
 }
 
 export type Kind = "core" | "green" | "water";

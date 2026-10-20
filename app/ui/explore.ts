@@ -1,7 +1,7 @@
 // Explore: the designs a run kept, as a scatter matrix, parallel coordinates, extremes per
 // measure and (for MAP-Elites) the archive grid. Canvas, no libraries, like draw.ts. Each
 // plot returns a hit test, so the page can pick the design under the pointer.
-import { SCORES, SCORE_KEYS, TARGET_TOLERANCE } from "../engine";
+import { METRICS, SCORES, SCORE_KEYS, TARGET_TOLERANCE, type Metric, type MetricKey } from "../engine";
 import type { Kept } from "../engine/worker";
 import { fitCanvas, type Palette } from "./draw";
 
@@ -19,12 +19,31 @@ export const AXES: Axis[] = [
   { key: "levels", label: "average storeys", get: (d) => d.levels, up: null, fmt: (v) => v.toFixed(1) },
 ];
 
+/** The form metrics in groups small enough to compare at once (the readout panel, and
+ *  Explore's parallel coordinates and extremes). */
+export const GROUPS: [string, MetricKey[]][] = [
+  ["human scale", ["dh_enclosure", "block_size", "low_frontage"]],
+  ["permeability", ["junctions", "connections", "active_frontage"]],
+  ["nature", ["green_walk", "water_walk", "green_cover", "green_view"]],
+  ["harmony and variety", ["height_mix", "use_mix", "type_mix", "coherence"]],
+  ["Alexander: structure", ["levels_of_scale", "strong_centres", "boundaries", "positive_space", "the_void", "gradients",
+    "roughness"]],
+  ["Alexander: pattern", ["rhythm_built", "rhythm_skyline", "local_symmetry", "symmetry", "balance", "contrast", "landmarks"]],
+  ["use and orientation", ["semilattice", "legibility"]],
+];
+
+/** Axes for form metrics, read from each kept design's metrics. */
+export const metricAxes = (keys: readonly MetricKey[]): Axis[] => keys.map((k) => {
+  const m = METRICS[k] as Metric;
+  return { key: k, label: m.label, get: (d: Kept) => d.metrics[k], up: m.up, fmt: m.fmt };
+});
+
 export const onBrief = (d: Kept) => d.scores.gap <= TARGET_TOLERANCE;
 /** On the brief and not beaten on every score by another kept design. */
 export const onFront = (d: Kept) => d.rank === 1 && onBrief(d);
 
 /** For each measure, the designs at either end: among those on the brief when there are any. */
-export function extremes(kept: Kept[], axes = AXES): { axis: Axis; lo: number; hi: number }[] {
+export function extremes(kept: Kept[], axes: Axis[] = AXES): { axis: Axis; lo: number; hi: number }[] {
   const pool = kept.some(onBrief) ? [...kept.keys()].filter((k) => onBrief(kept[k])) : [...kept.keys()];
   if (!pool.length) return [];
   return axes.map((axis) => {
@@ -71,7 +90,7 @@ function ring(ctx: CanvasRenderingContext2D, colour: string, x: number, y: numbe
 
 /** Every pair of the five scores, better towards the top and right. */
 export function scatterMatrix(canvas: HTMLCanvasElement, kept: Kept[], p: Palette, { selected, hover }: Marks,
-  axes = SCORE_AXES): Hit {
+  axes: Axis[] = SCORE_AXES): Hit {
   const n = axes.length, m = n - 1;
   const { ctx, w } = fitCanvas(canvas, 1);
   ctx.fillStyle = p.paper; ctx.fillRect(0, 0, w, w);
@@ -110,7 +129,7 @@ export function scatterMatrix(canvas: HTMLCanvasElement, kept: Kept[], p: Palett
 /** One line per design across every measure; each axis better at the top (or higher, for
  *  floor area and storeys). */
 export function parallel(canvas: HTMLCanvasElement, kept: Kept[], p: Palette, { selected, hover }: Marks,
-  axes = AXES): Hit {
+  axes: Axis[] = AXES): Hit {
   const { ctx, w, h } = fitCanvas(canvas, 0.42);
   ctx.fillStyle = p.paper; ctx.fillRect(0, 0, w, h);
   const L = 48, R = 48, T = 30, B = 26;

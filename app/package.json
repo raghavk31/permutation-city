@@ -10,7 +10,8 @@
     "speed": "vite-node ../test/parity/speed.ts",
     "corpus": "vite-node scripts/write-corpus.ts",
     "compare": "vite-node scripts/compare-search.ts --",
-    "ranges": "vite-node scripts/descriptor-ranges.ts"
+    "ranges": "vite-node scripts/descriptor-ranges.ts",
+    "metrics": "vite-node scripts/metrics-survey.ts"
   },
   "dependencies": {
     "@vercel/blob": "2.8.0",
