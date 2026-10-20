@@ -18,8 +18,9 @@
     { kind: "cppn", label: "CPPN (NEAT)", note: "a small network turns position, water, cap and sun into density; it grows new links and nodes" },
   ];
   const DATES = [
-    { label: "21 December", month: 12, day: 21 }, { label: "21 March", month: 3, day: 21 },
-    { label: "15 April (hot season)", month: 4, day: 15 }, { label: "21 June", month: 6, day: 21 },
+    { label: "21 December", month: 12, day: 21 }, { label: "15 March (hot season)", month: 3, day: 15 },
+    { label: "15 April (hot season)", month: 4, day: 15 }, { label: "15 May (hot season)", month: 5, day: 15 },
+    { label: "21 June", month: 6, day: 21 },
   ];
 
   let P = Draw.palette();
@@ -37,7 +38,7 @@
   let result = $state.raw<MassResult | null>(null);
   let resultKey = $state("");
   let pickA = $state(-1), pickB = $state(-1);
-  let date = $state(0), hour = $state(10);
+  let date = $state(0), hour = $state(15);
   let sectionMode = $state<Section["mode"]>("none"), sectionAt = $state(0.5);
 
   // A new design: start over, with the brief's setbacks.
@@ -128,11 +129,18 @@
     return m!;
   }
   const contextMesh = $derived(env && src && design ? M.contextMesh(env, src.G, design) : null);
+  const existingMesh = $derived(env && src ? M.existingMesh(env, src.G) : null);
   const ground = $derived(env && src && design ? Mass.groundCanvas(env, src.G, design, P) : null);
 
   const A = $derived(result && pickA >= 0 ? result.kept[pickA] : null);
   const B = $derived(result && pickB >= 0 ? result.kept[pickB] : null);
-  const sun = $derived(src ? M.sunAt(src.G.meta.origin[1], M.dayOfYear(DATES[date].month, DATES[date].day), hour) : null);
+  const where = $derived(src ? M.whereOf(src.G.meta) : null);
+  // The slider is local clock time; the sun is placed in solar time.
+  const sun = $derived.by(() => {
+    if (!where) return null;
+    const doy = M.dayOfYear(DATES[date].month, DATES[date].day);
+    return M.sunAt(where.lat, doy, M.solarHour(hour, where.lon, where.utc, doy));
+  });
   const section = $derived<Section>(sectionMode === "plan" ? { mode: "plan", height: sectionAt * (env?.nz ?? 1) * E.STOREY_M }
     : sectionMode === "cut" ? { mode: "cut", at: sectionAt } : { mode: "none" });
 
@@ -158,12 +166,12 @@
       const look = Mass.look(P);
       const va = a ? await ensure("A") : null;
       if (va && a) {
-        if (shownA !== tag(a)) { va.show({ E: e, mass: meshOf(a), context: ctxMesh, ground: g, look }, camA === runId); shownA = tag(a); camA = runId; }
+        if (shownA !== tag(a)) { va.show({ E: e, mass: meshOf(a), context: ctxMesh, existing: existingMesh!, ground: g, look }, camA === runId); shownA = tag(a); camA = runId; }
         va.sun(s ? s.dir : null); va.section(sec);
       }
       const vb = b ? await ensure("B") : null;
       if (vb && b) {
-        if (shownB !== tag(b)) { vb.show({ E: e, mass: meshOf(b), context: ctxMesh, ground: g, look }, camB === runId); shownB = tag(b); camB = runId; }
+        if (shownB !== tag(b)) { vb.show({ E: e, mass: meshOf(b), context: ctxMesh, existing: existingMesh!, ground: g, look }, camB === runId); shownB = tag(b); camB = runId; }
         vb.sun(s ? s.dir : null); vb.section(sec);
       }
       va?.link(b ? vb : null);
@@ -178,6 +186,7 @@
   function parts(k: MassKept): Part[] {
     const out: Part[] = [{ name: k.name, layer: "massing", mesh: meshOf(k) }];
     if (contextMesh) out.push({ name: "context", layer: "context", mesh: contextMesh });
+    if (existingMesh) out.push({ name: "existing", layer: "existing", mesh: existingMesh });
     return out;
   }
   let busy = $state("");
@@ -189,7 +198,7 @@
       else if (fmt === "glb") await downloadGlb(parts(A), fileName(A));
       else if (fmt === "3dm") await downloadRhino(parts(A), fileName(A));
       else {
-        const data = bench(env, massingOf(A)!, prepared.ctx.lat, A.scores, { site: src!.siteId, kind: result!.kind, massGenome: A.genome });
+        const data = bench(env, massingOf(A)!, prepared.ctx.where, A.scores, { site: src!.siteId, kind: result!.kind, massGenome: A.genome });
         const url = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" }));
         const a = document.createElement("a");
         a.href = url; a.download = `${fileName(A)}-bench.json`; a.click();
@@ -220,6 +229,7 @@
       {#if blockInfo && env}
         <p><b>Block {block + 1}</b>: {fmtHa(blockInfo.ha)}, {env.plots.length} plot{env.plots.length > 1 ? "s" : ""};
           floor-area target {fmtM2(env.target)} (what the urban design put here).
+          {Mass.neighbourLine(env, src.G)}
           {#if blockInfo.ha > 3}A large block: a run takes longer, up to a minute.{/if}
           {#if env.note.length}<span class="pc-muted">{env.note.join("; ")}.</span>{/if}</p>
         <table class="pc-mass-plots">
@@ -265,7 +275,7 @@
     <h3>What survived</h3>
     <p class="pc-muted">
       {result.everyone} massings in {(result.ms / 1000).toFixed(1)} s, written as {KINDS.find((k) => k.kind === result!.kind)!.label}.
-      {result.kept.filter((k) => k.rank === 1).length} on the front (within 10% of the floor-area target, then the four scores).
+      {result.kept.filter((k) => k.rank === 1).length} on the front (within 10% of the floor-area target, then the five scores).
       {#if stale}<b>The block or setbacks changed since this run: breed again to see them.</b>{/if}
     </p>
     {#if !stale}
@@ -292,7 +302,7 @@
       <h3>In 3D</h3>
       <form class="pc-controls" onsubmit={(e) => e.preventDefault()}>
         <label>date <select bind:value={date}>{#each DATES as d, k}<option value={k}>{d.label}</option>{/each}</select></label>
-        <label>solar time {fmtHour(hour)} <input type="range" min="6" max="18" step="0.25" bind:value={hour}></label>
+        <label>local time {fmtHour(hour)} ({where ? Mass.utcLabel(where.utc) : ""}) <input type="range" min="6" max="19" step="0.25" bind:value={hour}></label>
         <label>section <select bind:value={sectionMode}>
           <option value="none">none</option><option value="plan">plan cut</option><option value="cut">cut across</option>
         </select></label>

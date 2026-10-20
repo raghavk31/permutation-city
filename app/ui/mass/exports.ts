@@ -5,6 +5,9 @@ import type { Mesh } from "../../engine/massing";
 
 export interface Part { name: string; layer: string; mesh: Mesh }
 
+/** Colours of the layers in glTF and Rhino: the massing, the design's other buildings, existing ones. */
+const LAYER_HEX: Record<string, number> = { massing: 0xeb6834, context: 0xbbbbbb, existing: 0x8a8a8a };
+
 function save(data: BlobPart, name: string, type: string) {
   const url = URL.createObjectURL(new Blob([data], { type }));
   const a = document.createElement("a");
@@ -57,7 +60,7 @@ export async function downloadGlb(parts: Part[], file: string) {
     g.setAttribute("position", new THREE.BufferAttribute(pc.p, 3));
     g.setIndex(new THREE.BufferAttribute(pc.i, 1));
     g.computeVertexNormals();
-    const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: pc.layer === "context" ? 0xbbbbbb : 0xf19a74 }));
+    const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: LAYER_HEX[pc.layer] ?? 0xf19a74 }));
     m.name = `${pc.layer} - ${pc.name}`;
     root.add(m);
   }
@@ -83,7 +86,7 @@ export function rhinoBytes(rhino: any, parts: Part[]): Uint8Array {
   const layers = new Map<string, number>();
   for (const pc of pieces(parts)) {
     if (!layers.has(pc.layer)) {
-      const c = pc.layer === "context" ? { r: 170, g: 170, b: 170 } : { r: 235, g: 104, b: 52 };
+      const hex = LAYER_HEX[pc.layer] ?? 0xeb6834, c = { r: (hex >> 16) & 255, g: (hex >> 8) & 255, b: hex & 255 };
       layers.set(pc.layer, doc.layers().addLayer(pc.layer, c));
     }
     const mesh = new rhino.Mesh();

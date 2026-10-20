@@ -9,8 +9,8 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { Envelope, Mesh } from "../../engine/massing";
 
-export interface Look { mass: string; context: string; ground: string; ink: string; background: string }
-export interface SceneData { E: Envelope; mass: Mesh; context: Mesh; ground: HTMLCanvasElement; look: Look }
+export interface Look { mass: string; context: string; existing: string; ground: string; ink: string; background: string }
+export interface SceneData { E: Envelope; mass: Mesh; context: Mesh; existing: Mesh; ground: HTMLCanvasElement; look: Look }
 export type Section = { mode: "none" } | { mode: "plan"; height: number } | { mode: "cut"; at: number };
 
 function geometry(m: Mesh, smooth: boolean): THREE.BufferGeometry {
@@ -75,11 +75,12 @@ export class Viewer {
     const smooth = !d.mass.groups.some((g) => g.name.startsWith("plot"));
     const mass = new THREE.Mesh(geometry(d.mass, smooth), mat(look.mass));
     const context = new THREE.Mesh(geometry(d.context, false), mat(look.context));
-    for (const m of [mass, context]) { m.castShadow = true; m.receiveShadow = true; }
+    const existing = new THREE.Mesh(geometry(d.existing, false), mat(look.existing));
+    for (const m of [mass, context, existing]) { m.castShadow = true; m.receiveShadow = true; }
     // Edges of the massing, so plan and section read.
     const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geometry(d.mass, false), 30),
       new THREE.LineBasicMaterial({ color: look.ink, transparent: true, opacity: 0.35, clippingPlanes: this.planes }));
-    this.content.add(ground, context, mass, edges);
+    this.content.add(ground, context, existing, mass, edges);
     // Shadows over the whole frame.
     const s = this.sunLight.shadow.camera;
     const half = Math.hypot(w, h) / 2;

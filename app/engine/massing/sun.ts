@@ -1,5 +1,6 @@
-// Where the sun is (docs/massing.md). Solar time, so 12:00 is solar noon at the site; no
-// time zones or equation of time, which a sun study at this grain doesn't need.
+// Where the sun is (docs/massing.md). In solar time (12:00 is solar noon at the site); local
+// clock time converts through the site's longitude, its UTC offset and the equation of time
+// (`solarHour`), so "14:00 to 17:00" means what a person in the street means by it.
 //
 //   declination   Spencer (1971), from the day of the year
 //   altitude      sin(alt) = sin(lat) sin(dec) + cos(lat) cos(dec) cos(hour angle)
@@ -43,6 +44,18 @@ export function sunAt(latDeg: number, doy: number, hour: number): Sun {
   const azimuth = (Math.atan2(e, n) + 2 * Math.PI) % (2 * Math.PI);
   return { altitude, azimuth, dir: [e / len, n / len, u / len] };
 }
+
+/** Equation of time (hours), Spencer's series: how far solar noon runs from mean noon. */
+export function equationOfTime(doy: number): number {
+  const g = (2 * Math.PI * (doy - 1)) / 365;
+  const minutes = 229.18 * (0.000075 + 0.001868 * Math.cos(g) - 0.032077 * Math.sin(g)
+    - 0.014615 * Math.cos(2 * g) - 0.040849 * Math.sin(2 * g));
+  return minutes / 60;
+}
+
+/** Solar hour of a local clock hour, at a longitude (degrees east) and UTC offset (hours). */
+export const solarHour = (clock: number, lonDeg: number, utcOffset: number, doy: number) =>
+  clock + (lonDeg - 15 * utcOffset) / 15 + equationOfTime(doy);
 
 /** Suns every `step` hours from `from` to `to` (solar time), those above `minAlt` degrees. */
 export function sunPath(latDeg: number, doy: number, from: number, to: number, step: number, minAlt = 5): Sun[] {

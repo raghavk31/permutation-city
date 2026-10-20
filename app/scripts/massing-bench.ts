@@ -18,7 +18,7 @@ for (const id of BENCH_SITES) {
     const { E: env, ctx } = M.prepareBlock(G, setup);
     const run = M.evolveMassing(ctx, { kind, population: 12, generations: 3, seed: 5 });
     const best = run.pop[0];
-    const out = bench(env, best.massing, ctx.lat, best.scores, { site: id, setup, kind, massGenome: best.genome });
+    const out = bench(env, best.massing, ctx.where, best.scores, { site: id, setup, kind, massGenome: best.genome });
     const path = `../test/massing/fixtures/${id}-${kind}.json`;
     writeFileSync(path, JSON.stringify(out));
     console.log(path, `${env.plots.length} plots, ${Math.round(best.floor)} m², ${(run.ms / 1000).toFixed(1)} s`);

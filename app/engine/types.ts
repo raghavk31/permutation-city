@@ -33,7 +33,15 @@ export interface SiteExport {
     places: { name: string; x: number; y: number }[];
     /** Where activities are today (Overture places): points in local metres. Missing on older exports. */
     activities?: Activities;
+    /** Existing buildings near the design ground (pc/export.py `existing_buildings`). */
+    buildings?: ExistingBuildings;
   };
+}
+
+/** Existing buildings: outer rings as flat [x0, y0, x1, y1, ...] in local metres, a height in
+ *  metres each, and where the height came from (an index into `sources`). */
+export interface ExistingBuildings {
+  within_m: number; rings: number[][]; h: number[]; src: number[]; sources: string[]; counts: Record<string, number>;
 }
 
 export type Activities = Record<"shops" | "schools" | "transit", [number, number][]>;
@@ -91,6 +99,8 @@ export interface SiteMeta {
     median_clear_scenes_per_pixel: number; note: string };
   /** Sites built for someone who drew them: the data used, and anything a person should know. */
   service?: { overture: string | null; layers: number; terrain?: string; warnings?: string[] };
+  /** Hours from UTC of local clock time (shade hours, the sun study), and where it came from. */
+  utc_offset_h?: number; utc_offset_source?: string;
 }
 
 /** The engine's view of a site's design ground (pc.genome.Ground). */
@@ -107,6 +117,7 @@ export interface Ground {
   meta: SiteMeta;
   roads?: [number, number][][];  // existing major roads, same frame as x, y (the metrics' streets)
   activities?: Activities;       // shops, schools, transit points, same frame (semilattice richness)
+  buildings?: ExistingBuildings; // existing buildings near the design ground, same frame (building-scale shade)
   water?: [number, number][];    // centres of the site's water cells (any grid cell), same frame (building-scale massing)
   syntaxStreets?: number[][];    // existing streets to 1 km round the site, [x0, y0, x1, y1] (space syntax)
   // Landform (export format 4; pc/landform.py): per cell, and the street skeleton

@@ -9,9 +9,10 @@ checks the massing stands inside its envelope. It never grows or breeds a massin
 Checks:
   envelope   every voxel on a buildable column, under the cap, with a voxel under it, and each
              plot within its coverage limit
-  suns       the sun vectors match the dates, solar hours and latitude (Spencer declination)
-  scores     sun, shade, sky, wind and gap recomputed from the voxels, the sample points and
-             the sun vectors in the file: equal to the browser's, to the last digit
+  suns       the sun vectors match the dates, hours and site (Spencer declination; the hot
+             season's local clock hours through the longitude, UTC offset and equation of time)
+  scores     sun, shade, sky, wind, neighbours and gap recomputed from the voxels, the sample
+             points and the sun vectors in the file: equal to the browser's, to the last digit
 Heights are float32, as in the browser (Float32Array), so comparisons see the same numbers.
 """
 from __future__ import annotations
@@ -51,14 +52,39 @@ def sun_dir(lat_deg: float, doy: int, hour: float) -> tuple:
     return math.asin(max(-1, min(1, sin_alt))), (e / ln, n / ln, sin_alt / ln)
 
 
-def sun_path(lat: float, when: dict, min_alt: float = 5) -> list:
-    doy = STARTS[when["month"] - 1] + when["day"]
+def equation_of_time(doy: int) -> float:
+    """Hours, Spencer's series."""
+    g = 2 * math.pi * (doy - 1) / 365
+    minutes = 229.18 * (0.000075 + 0.001868 * math.cos(g) - 0.032077 * math.sin(g)
+                        - 0.014615 * math.cos(2 * g) - 0.040849 * math.sin(2 * g))
+    return minutes / 60
+
+
+def solar_hour(clock, lon, utc, doy) -> float:
+    return clock + (lon - 15 * utc) / 15 + equation_of_time(doy)
+
+
+def _path(lat, doy, start, end, step, min_alt=5) -> list:
     out, k = [], 0
-    while when["from"] + k * when["step"] <= when["to"] + 1e-9:
-        alt, d = sun_dir(lat, doy, when["from"] + k * when["step"])
+    while start + k * step <= end + 1e-9:
+        alt, d = sun_dir(lat, doy, start + k * step)
         if alt >= math.radians(min_alt):
             out.append(d)
         k += 1
+    return out
+
+
+def sun_path(lat: float, when: dict) -> list:
+    """WINTER: one date in solar hours."""
+    return _path(lat, STARTS[when["month"] - 1] + when["day"], when["from"], when["to"], when["step"])
+
+
+def hot_suns(lat, lon, utc, hot: dict) -> list:
+    """HOT: local clock hours on each date, in solar time."""
+    out = []
+    for month, day in hot["dates"]:
+        doy = STARTS[month - 1] + day
+        out += _path(lat, doy, solar_hour(hot["from"], lon, utc, doy), solar_hour(hot["to"], lon, utc, doy), hot["step"])
     return out
 
 
@@ -70,13 +96,14 @@ class Bench:
         self.nx, self.ny, self.nz, self.res = b["nx"], b["ny"], b["nz"], b["res"]
         self.N = self.nx * self.ny
         c = b["constants"]
-        self.storey, self.point_z = c["STOREY_M"], c["POINT_Z"]
+        self.storey, self.point_z, self.roof_z = c["STOREY_M"], c["POINT_Z"], c["ROOF_Z"]
         self.sky_reach = c["SKY_REACH_M"]
         self.plot_of = np.array(unrle(b["plotOf"]), dtype=np.int32)
         self.in_plot = np.array(unrle(b["inPlot"]), dtype=np.int32)
         self.cap_z = np.array(unrle(b["capZ"]), dtype=np.int32)
         self.public = np.array(unrle(b["publicGround"]), dtype=np.uint8)
         self.context = np.array(unrle(b["context"]), dtype=np.float32)
+        self.existing = np.array(unrle(b["existing"]), dtype=np.float32)
         self.occ = np.array(unrle(b["occ"]), dtype=np.uint8).reshape(self.nz, self.N)
 
     def heights(self) -> np.ndarray:
@@ -110,7 +137,7 @@ class Bench:
         return out
 
     # The same walks as scores.ts, in the same order.
-    def blocked(self, h, hmax: float, q: int, d) -> bool:
+    def blocked(self, h, hmax: float, q: int, d, z0=None) -> bool:
         res, nx, ny = self.res, self.nx, self.ny
         c, r = q % nx, q // nx
         x, y = (c + 0.5) * res, (r + 0.5) * res
@@ -133,7 +160,7 @@ class Bench:
                 r += step_r
             if c < 0 or r < 0 or c >= nx or r >= ny:
                 return False
-            z = self.point_z + t * dz
+            z = (self.point_z if z0 is None else z0) + t * dz
             if z >= hmax:
                 return False
             if float(h[r * nx + c]) > z:
@@ -191,12 +218,19 @@ class Bench:
                 if self.blocked(h, b["hmax"], q, d):
                     shaded += 1
             sky += self.sky_view(h, q)
+        taken = 0
+        for q in b["roofs"]:
+            z0 = float(self.existing[q]) + self.roof_z
+            before = sum(1 for d in b["winter"] if not self.blocked(self.context, b["hmax"], q, d, z0))
+            after = sum(1 for d in b["winter"] if not self.blocked(h, b["hmax"], q, d, z0))
+            taken += before - after
         floor = float(self.occ.sum()) * self.res * self.res
         return {
             "sun": lit * winter_step / n_g if n_g else 0,
             "shade": shaded / (n_p * len(b["hot"])) if n_p and b["hot"] else 0,
             "sky": sky / n_p if n_p else 1,
             "wind": self.frontal(),
+            "neighbours": taken * winter_step / len(b["roofs"]) if b["roofs"] else 0,
             "gap": abs(floor - b["target"]) / b["target"] if b["target"] > 0 else 0,
         }
 
@@ -206,8 +240,7 @@ def check(b: dict) -> dict:
     m = Bench(b)
     c = b["constants"]
     sun_problems = []
-    for name, key in (("winter", "WINTER"), ("hot", "HOT")):
-        mine = sun_path(b["lat"], c[key])
+    for name, mine in (("winter", sun_path(b["lat"], c["WINTER"])), ("hot", hot_suns(b["lat"], b["lon"], b["utc"], c["HOT"]))):
         if len(mine) != len(b[name]) or any(abs(u - v) > 1e-12 for p, q in zip(mine, b[name]) for u, v in zip(p, q)):
             sun_problems.append(f"{name} suns differ from the dates and the latitude")
     scores = m.scores()

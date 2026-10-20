@@ -3,8 +3,12 @@
 //
 //   sun       hours of direct sun on the open ground round the block on 21 December (solar
 //             08:00 to 16:00), mean over sample points: higher is better (winter sun)
-//   shade     share of the public ground (street bands, landscape) in shade on 15 April,
-//             solar 11:00 to 16:00: higher is better (the hot season)
+//   shade     share of the public ground (street bands, landscape) in shade when people are
+//             out in the heat: local time 14:00 to 17:00 on the 15th of March, April and May
+//             (HOT): higher is better. At these latitudes the noon sun is nearly overhead, so a
+//             day-long average would hide the afternoon shade that matters
+//   neighbours  hours of 21 December sun the new massing takes from the roofs of existing
+//             buildings nearby (WINTER, as `sun`), mean over their roof points: lower is better
 //   sky       sky view factor on the public ground, 1 - mean sin²(horizon) over 16 directions:
 //             higher is better (daylight in the street, night cooling)
 //   wind      frontal area density of the block's massing, mean over eight wind directions
@@ -15,7 +19,7 @@
 // sun vectors go into the bench file, so pc/massing_check.py recomputes every score.
 import { STOREY_M, TARGET_TOLERANCE } from "../config.js";
 import type { Envelope } from "./envelope.js";
-import { dayOfYear, sunPath, type Sun } from "./sun.js";
+import { dayOfYear, solarHour, sunPath, type Sun } from "./sun.js";
 import { floorArea, heights } from "./voxels.js";
 
 export const SAMPLE_STRIDE = 2;          // every other column: points 4 m apart
@@ -35,9 +39,14 @@ export const WIND_ACROSS: [number, number][] = Array.from({ length: WIND_DIRS },
   return [-Math.sin(a), Math.cos(a)];
 });
 export const WINTER = { month: 12, day: 21, from: 8, to: 16, step: 0.5 };
-export const HOT = { month: 4, day: 15, from: 11, to: 16, step: 0.5 };
+// Local clock time, converted to solar time per date through the site's longitude and UTC offset.
+export const HOT = { dates: [[3, 15], [4, 15], [5, 15]] as [number, number][], from: 14, to: 17, step: 0.5, clock: true };
+export const ROOF_Z = 0.5;               // m above a roof: a neighbour's sample point
 
-export interface MassScores { sun: number; shade: number; sky: number; wind: number; gap: number }
+/** Where a site is, for the sun: latitude and longitude (degrees), UTC offset (hours). */
+export interface Where { lat: number; lon: number; utc: number }
+
+export interface MassScores { sun: number; shade: number; sky: number; wind: number; neighbours: number; gap: number }
 export type MassScoreKey = Exclude<keyof MassScores, "gap">;
 
 /** [label, format, higher is better] as fitness.SCORES. */
@@ -46,23 +55,36 @@ export const MASS_SCORES: Record<MassScoreKey, [string, (v: number) => string, b
   shade: ["hot-season shade on public ground", (v) => `${Math.round(v * 100)}%`, true],
   sky: ["sky view from the street", (v) => v.toFixed(2), true],
   wind: ["frontal area (wind blocked)", (v) => v.toFixed(2), false],
+  neighbours: ["winter sun taken from neighbours", (v) => `${v.toFixed(2)} h`, false],
 };
 export const MASS_SCORE_KEYS = Object.keys(MASS_SCORES) as MassScoreKey[];
 
 export interface Probe {
-  lat: number;
+  where: Where;
   ground: Int32Array;     // columns: the open ground round the block (plots and public)
   public: Int32Array;     // columns: the public ground near the block
+  roofs: Int32Array;      // columns: existing buildings' roofs in the frame
+  roofLit: Int32Array;    // per roof point: winter suns it gets with no massing on the block
   winter: Sun[]; hot: Sun[];
   hmax: number;           // m, the highest a column can be (cap or context)
+}
+
+/** The hot-season suns: HOT's local hours on each of its dates, in solar time. */
+export function hotSuns(w: Where): Sun[] {
+  const out: Sun[] = [];
+  for (const [month, day] of HOT.dates) {
+    const doy = dayOfYear(month, day);
+    out.push(...sunPath(w.lat, doy, solarHour(HOT.from, w.lon, w.utc, doy), solarHour(HOT.to, w.lon, w.utc, doy), HOT.step));
+  }
+  return out;
 }
 
 const probes = new WeakMap<Envelope, Probe>();
 
 /** The sample points and suns for an envelope (cached). */
-export function probe(E: Envelope, lat: number): Probe {
+export function probe(E: Envelope, where: Where): Probe {
   const hit = probes.get(E);
-  if (hit && hit.lat === lat) return hit;
+  if (hit && hit.where.lat === where.lat && hit.where.lon === where.lon && hit.where.utc === where.utc) return hit;
   const N = E.nx * E.ny;
   // Distance (in columns) from the block's plots, by a two-pass chamfer.
   const far = new Float32Array(N).fill(1e9);
@@ -78,29 +100,36 @@ export function probe(E: Envelope, lat: number): Probe {
     if (c < E.nx - 1) pass(q, q + 1, 1);
     if (r < E.ny - 1) { pass(q, q + E.nx, 1); if (c < E.nx - 1) pass(q, q + E.nx + 1, Math.SQRT2); if (c > 0) pass(q, q + E.nx - 1, Math.SQRT2); }
   }
-  const reach = NEAR_M / E.res, ground: number[] = [], pub: number[] = [];
+  const reach = NEAR_M / E.res, ground: number[] = [], pub: number[] = [], roofs: number[] = [];
   let hmax = 0;
   for (let q = 0; q < N; q++) {
     hmax = Math.max(hmax, E.context[q], E.capZ[q] * STOREY_M);
     const r = Math.floor(q / E.nx), c = q % E.nx;
-    if (r % SAMPLE_STRIDE || c % SAMPLE_STRIDE || far[q] > reach || E.context[q] > 0) continue;
+    if (r % SAMPLE_STRIDE || c % SAMPLE_STRIDE) continue;
+    if (E.existing[q] > 0) roofs.push(q);
+    if (far[q] > reach || E.context[q] > 0) continue;
     if (E.inPlot[q] >= 0 || E.publicGround[q]) ground.push(q);
     if (E.publicGround[q]) pub.push(q);
   }
-  const W = WINTER, Hs = HOT;
+  const W = WINTER, winter = sunPath(where.lat, dayOfYear(W.month, W.day), W.from, W.to, W.step);
+  // What each roof gets with no massing on the block (the context alone).
+  const roofLit = Int32Array.from(roofs, (q) => {
+    let lit = 0;
+    for (const s of winter) if (!blocked(E, E.context, hmax, q, s.dir, E.existing[q] + ROOF_Z)) lit++;
+    return lit;
+  });
   const out: Probe = {
-    lat, ground: Int32Array.from(ground), public: Int32Array.from(pub), hmax,
-    winter: sunPath(lat, dayOfYear(W.month, W.day), W.from, W.to, W.step),
-    hot: sunPath(lat, dayOfYear(Hs.month, Hs.day), Hs.from, Hs.to, Hs.step),
+    where, ground: Int32Array.from(ground), public: Int32Array.from(pub), roofs: Int32Array.from(roofs), roofLit, hmax,
+    winter, hot: hotSuns(where),
   };
   probes.set(E, out);
   return out;
 }
 
-/** Does anything block the sun from column q (point POINT_Z up)? A walk over the columns the
- *  ray crosses (Amanatides and Woo), comparing the ray's height where it enters each column
- *  with the column's top. */
-export function blocked(E: Envelope, H: Float32Array, hmax: number, q: number, d: readonly number[]): boolean {
+/** Does anything block the sun from column q, from a point z0 up (POINT_Z: the ground)? A walk
+ *  over the columns the ray crosses (Amanatides and Woo), comparing the ray's height where it
+ *  enters each column with the column's top. */
+export function blocked(E: Envelope, H: Float32Array, hmax: number, q: number, d: readonly number[], z0 = POINT_Z): boolean {
   const res = E.res;
   let c = q % E.nx, r = Math.floor(q / E.nx);
   const x = (c + 0.5) * res, y = (r + 0.5) * res;
@@ -114,7 +143,7 @@ export function blocked(E: Envelope, H: Float32Array, hmax: number, q: number, d
     let t: number;
     if (tx < ty) { t = tx; tx += tdx; c += stepC; } else { t = ty; ty += tdy; r += stepR; }
     if (c < 0 || r < 0 || c >= E.nx || r >= E.ny) return false;
-    const z = POINT_Z + t * dz;
+    const z = z0 + t * dz;
     if (z >= hmax) return false;
     if (H[r * E.nx + c] > z) return true;
   }
@@ -155,8 +184,8 @@ export function frontal(E: Envelope, occ: Uint8Array): number {
 }
 
 /** The scores of a massing. */
-export function massScores(E: Envelope, occ: Uint8Array, lat: number): MassScores {
-  const P = probe(E, lat), H = heights(E, occ), N = E.nx * E.ny;
+export function massScores(E: Envelope, occ: Uint8Array, where: Where): MassScores {
+  const P = probe(E, where), H = heights(E, occ), N = E.nx * E.ny;
   let lit = 0, nG = 0;
   for (const q of P.ground) {
     if (occ[q]) continue;
@@ -170,12 +199,19 @@ export function massScores(E: Envelope, occ: Uint8Array, lat: number): MassScore
     for (const s of P.hot) if (blocked(E, H, P.hmax, q, s.dir)) shaded++;
     sky += skyView(E, H, q);
   }
+  let taken = 0;
+  P.roofs.forEach((q, k) => {
+    let lit = 0;
+    for (const s of P.winter) if (!blocked(E, H, P.hmax, q, s.dir, E.existing[q] + ROOF_Z)) lit++;
+    taken += P.roofLit[k] - lit;
+  });
   const fa = floorArea(E, occ);
   return {
     sun: nG ? (lit * WINTER.step) / nG : 0,
     shade: nP && P.hot.length ? shaded / (nP * P.hot.length) : 0,
     sky: nP ? sky / nP : 1,
     wind: frontal(E, occ),
+    neighbours: P.roofs.length ? (taken * WINTER.step) / P.roofs.length : 0,
     gap: E.target > 0 ? Math.abs(fa - E.target) / E.target : 0,
   };
 }

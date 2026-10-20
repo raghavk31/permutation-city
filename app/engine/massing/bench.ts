@@ -3,10 +3,10 @@
 // scale, it doesn't grow it). Rasters are run-length encoded: [value, count, value, count, …].
 import { STOREY_M } from "../config.js";
 import type { Envelope } from "./envelope.js";
-import { HOT, POINT_Z, probe, SKY_DIRS, SKY_REACH_M, SKY_UNIT, WIND_ACROSS, WIND_DIRS, WINTER, type MassScores } from "./scores.js";
+import { HOT, POINT_Z, probe, ROOF_Z, SKY_DIRS, SKY_REACH_M, SKY_UNIT, WIND_ACROSS, WIND_DIRS, WINTER, type MassScores, type Where } from "./scores.js";
 import { floorArea, type Massing } from "./voxels.js";
 
-export const BENCH_VERSION = 1;
+export const BENCH_VERSION = 2;  // 2: existing buildings and their roofs; shade in local hours over three dates
 
 export function rle(a: ArrayLike<number>): number[] {
   const out: number[] = [];
@@ -25,17 +25,17 @@ export function unrle(r: number[]): number[] {
   return out;
 }
 
-export function bench(E: Envelope, m: Massing, lat: number, scores: MassScores, extra: Record<string, unknown> = {}) {
-  const P = probe(E, lat);
+export function bench(E: Envelope, m: Massing, where: Where, scores: MassScores, extra: Record<string, unknown> = {}) {
+  const P = probe(E, where);
   return {
     version: BENCH_VERSION,
-    constants: { STOREY_M, POINT_Z, SKY_DIRS, SKY_REACH_M, WIND_DIRS, WINTER, HOT },
-    lat, nx: E.nx, ny: E.ny, nz: E.nz, res: E.res, ox: E.ox, oy: E.oy,
+    constants: { STOREY_M, POINT_Z, ROOF_Z, SKY_DIRS, SKY_REACH_M, WIND_DIRS, WINTER, HOT },
+    lat: where.lat, lon: where.lon, utc: where.utc, nx: E.nx, ny: E.ny, nz: E.nz, res: E.res, ox: E.ox, oy: E.oy,
     plots: E.plots.map((p) => ({ area: p.area, maxCover: p.maxCover, target: p.target })),
     target: E.target,
     plotOf: rle(E.plotOf), inPlot: rle(E.inPlot), capZ: rle(E.capZ), publicGround: rle(E.publicGround),
-    context: rle(E.context), occ: rle(m.occ),
-    ground: Array.from(P.ground), public: Array.from(P.public), hmax: P.hmax,
+    context: rle(E.context), existing: rle(E.existing), occ: rle(m.occ),
+    ground: Array.from(P.ground), public: Array.from(P.public), roofs: Array.from(P.roofs), hmax: P.hmax,
     winter: P.winter.map((s) => s.dir), hot: P.hot.map((s) => s.dir), wind: WIND_ACROSS, sky: SKY_UNIT,
     scores, floor: floorArea(E, m.occ), rejected: m.rejected,
     ...extra,

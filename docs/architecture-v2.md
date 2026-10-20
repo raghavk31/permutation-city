@@ -1116,6 +1116,39 @@ Unsure about, or left open:
   compare designs on one site, not sites.
 - **Parallel-coordinate labels overlap** with seven syntax axes (left for Phase 10).
 
+## Phase 7b log (2026-10-20): afternoon shade and existing neighbours
+
+On branch `v2-phase7b`, off `v2-phase8`. The two Phase 7 follow-ups you asked for after
+Phase 8. The method is in `docs/massing.md`.
+
+What was built:
+- **Shade in the hot afternoon.** The shade score read 15 April, solar 11:00–16:00; at 13° N
+  the near-overhead noon sun swamped it. It now reads local 14:00–17:00 on the 15th of March,
+  April and May. Local time goes to solar time through longitude, the site's UTC offset
+  (`utc_offset` in `site.yaml`, else 5.5 h in India) and the equation of time.
+- **Its spread** (`npm run massing-shade`, 48 bred massings on each of three blocks per
+  site): the standard deviation across designs is 1.3–2.0 times what it was on 8 of 9 blocks.
+  The exception (1.0×) is a Bengaluru block shaded almost wholly by tall existing neighbours.
+- **Existing buildings as shade casters.** Overture footprints within 100 m of the design
+  ground, in the export as `existing_buildings`. Heights: Overture's height, else floors ×
+  3.2 m, else the median of known heights within 300 m, else 2 storeys; each keeps its source
+  and the page counts them. Most are estimated (all 289 at Docks are 2 storeys).
+- **A new massing score, winter sun taken from neighbours** (↓): hours of 21 December sun
+  the massing takes from existing roofs. Above zero for 83–100% of massings where existing
+  roofs are in reach, up to 0.86 h.
+- The sun study shows the three hot-season dates and local time with the UTC offset; the
+  viewer and the .3dm export carry an "existing" layer.
+- Sites re-exported; massing bench v2; fixtures regenerated, Python check matches.
+- **Tests:** `npm test` 299, `uv run pytest` 75, `vite build` clean. Checked in the browser
+  on Bengaluru.
+
+Unsure about, or left open:
+- **Heights are mostly guesses.** Overture knows few heights on these sites; the surface
+  model minus FABDEM was tried and dropped (r = −0.32 to 0.06 against known floors). Known
+  heights lean tall, so the nearby median does too.
+- **The neighbours score is often zero.** Blocks away from the edge of the design ground
+  have no existing roof in reach; it matters only on edge blocks.
+
 ## 8. Decisions (2026-10-16)
 
 The user asked to go with the recommendations:
