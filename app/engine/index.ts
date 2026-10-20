@@ -19,7 +19,7 @@ export {
   type RuleResult,
 } from "./rules.js";
 export { decode, grow, randomGenome, stats, upgrade } from "./genome.js";
-export { evaluate, floorAreaTarget, SCORES, SCORE_KEYS } from "./fitness.js";
+export { evaluate, floorAreaTarget, heatField, storageDepth, SCORES, SCORE_KEYS } from "./fitness.js";
 export { paretoRanks, crowding, difference, families, asMin } from "./rank.js";
 export { referencePoints, divisionsFor, nicheSelect } from "./niche.js";
 export { makeRng } from "./rng.js";
@@ -29,3 +29,5 @@ export { mapElites, quality, binOf, searchOf, DESCRIPTORS, DESCRIPTOR_KEYS, QUAL
   type ArchiveInfo, type EliteOptions, type SearchChoice } from "./elites.js";
 export { measure, network, METRICS, METRIC_KEYS, OBJECTIVE_KEYS, NOT_MEASURED, SYNTAX_KEYS, type Metric, type MetricKey,
   type Metrics, type Net } from "./metrics/index.js";
+export * from "./shocks.js";
+export * from "./scenarios.js";
