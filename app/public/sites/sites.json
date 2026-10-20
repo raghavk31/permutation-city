@@ -23,5 +23,10 @@
   "name": "Ahmedabad: Gandhi Ashram and Wadaj (squares)",
   "design_ha": 373.1,
   "target_ha": 389.0
+ },
+ "bengaluru-cascade": {
+  "name": "Bengaluru: Haralur to Saul Kere tank cascade",
+  "design_ha": 295.5,
+  "target_ha": 590.9
  }
 }

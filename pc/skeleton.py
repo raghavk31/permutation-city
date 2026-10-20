@@ -141,6 +141,22 @@ def build(site, ground, cells, grid) -> dict:
     pos = {(int(r), int(c)): k for k, (r, c) in enumerate(zip(cells["row"], cells["col"]))}
     centre = {(int(r), int(c)): (p.x - ground.origin[0], p.y - ground.origin[1])
               for r, c, p in zip(grid["row"], grid["col"], grid.centroid)}
+    rc = list(zip(cells["row"], cells["col"]))
+
+    def centre_of(i: int, far: tuple) -> tuple:
+        """Centre of the cell at `far`, a neighbour of design cell i. Landform runs on the whole
+        box, so on a drawn polygon the neighbour can lie outside the cells kept: place it from
+        rows and columns (pc.grid layouts)."""
+        if far in centre:
+            return centre[far]
+        (r1, c1), (r2, c2) = (int(rc[i][0]), int(rc[i][1])), far
+        if site.grid_type == "quad":
+            dx, dy = (c2 - c1) * site.cell_size, (r2 - r1) * site.cell_size
+        else:
+            w = math.sqrt(3) * site.cell_size
+            dx = (c2 - c1) * w + ((r2 % 2) - (r1 % 2)) * w / 2
+            dy = (r2 - r1) * 1.5 * site.cell_size
+        return S.x[i] + dx, S.y[i] + dy
     vb = [bool(v) for v in (cells["valley_buffer"] | (cells["valley_order"] >= 1))] if "valley_order" in cells else [False] * S.n
     crossing = lambda sid: sd.other[sid] >= 0 and vb[sd.cell[sid]] and vb[sd.other[sid]]
     roads = road_sides(ground, road_lines(site, ground.origin))
@@ -158,7 +174,7 @@ def build(site, ground, cells, grid) -> dict:
                 sid = side_between(sd, p, q, S)
             elif p is not None or q is not None:
                 i, far = (p, (r2, c2)) if p is not None else (q, (r1, c1))
-                sid = sd.at[i * S.deg + direction_to(S, i, *centre[far])]
+                sid = sd.at[i * S.deg + direction_to(S, i, *centre_of(i, far))]
                 sid = sid if sd.other[sid] < 0 else -1
             else:
                 sid = -1

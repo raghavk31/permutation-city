@@ -963,8 +963,17 @@ Unsure about, or left open:
   and sides that stop being design ground drop out.
 - **Valley buffers stay provisional** until checked against the DCPR and CGDCR nallah
   margins in the corpus.
-- **Bengaluru is waiting for FABDEM**, whose tile index still returns 404. Candidates are in
-  the checkpoint report.
+- **Bengaluru (added 2026-10-20, once FABDEM answered again).** `bengaluru-cascade`: a 1 km
+  corridor (3.7 km²) along the Haralur → Kasavanahalli → Kaikondrahalli → Saul Kere tanks,
+  candidate A of four (the only true cascade of small tanks, the most relief, open land left).
+  - FABDEM, gentle (high confidence): relief 31.5 m, median slope 1.15%. 562 valley cells up
+    to order 3 (335 on mapped drains), 41 strong ridges on the design ground, 0 of 10
+    crossings, joined to the roads. Design ground 295 ha in 2,843 cells.
+  - The first landform skeleton on a drawn polygon. Landform runs on the whole box, so ridge
+    edges reached cells the polygon had cut; `pc/skeleton.py` now places those from rows and
+    columns. It crashed the export before.
+  - Design storm 150 mm and FAR 2.0 are assumed (in `site.yaml`).
+  - A parity fixture: 156 parity tests now pass. Ten generations of 60 take 7.5 s.
 
 ## 8. Decisions (2026-10-16)
 

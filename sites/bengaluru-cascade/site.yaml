@@ -1,0 +1,10 @@
+name: 'Bengaluru: Haralur to Saul Kere tank cascade'
+grid:
+  type: hex
+  size: 20.0
+# assumed: a heavy one-day monsoon storm for Bengaluru; check against IMD return periods
+design_storm_mm: 150
+# RMP 2015 residential zones allow FAR 1.75-3.25 by road width; 2.0 is a mid value, assumed
+target_far: 2.0
+boundary: boundary.geojson
+context_m: 250
