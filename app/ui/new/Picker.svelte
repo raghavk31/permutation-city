@@ -1,6 +1,9 @@
 <script lang="ts">
   // Find a place, outline the site, choose the grid, and build its layers.
-  import { Map as MapLibre, NavigationControl } from "maplibre-gl";
+  import { Map as MapLibre, NavigationControl, setWorkerUrl } from "maplibre-gl";
+  // MapLibre looks for its worker next to its own module, which a bundle doesn't have: hand
+  // it the worker bundled with what it imports (in dev the module isn't bundled, which hid this).
+  import mapWorker from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
   import { onDestroy, onMount } from "svelte";
   import { TerraDraw, TerraDrawPolygonMode, TerraDrawSelectMode } from "terra-draw";
   import { TerraDrawMapLibreGLAdapter } from "terra-draw-maplibre-gl-adapter";
@@ -9,6 +12,8 @@
   import { estimatedCells, polygonKm2 } from "../../sites/geo";
   import { search, type Place } from "./search";
   import * as Service from "./service";
+
+  setWorkerUrl(mapWorker);
 
   let { onbuilt }: { onbuilt: (key: string) => void } = $props();
 
