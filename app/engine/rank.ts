@@ -4,7 +4,7 @@ import { SCORES, SCORE_KEYS } from "./fitness.js";
 import type { Scores } from "./types.js";
 
 /** All five scores as "lower is better". */
-const asMin = (s: Scores) => SCORE_KEYS.map((k) => (SCORES[k][2] ? -s[k] : s[k]));
+export const asMin = (s: Scores) => SCORE_KEYS.map((k) => (SCORES[k][2] ? -s[k] : s[k]));
 
 function fronts(f: number[][]): Int32Array {
   const n = f.length, rank = new Int32Array(n);

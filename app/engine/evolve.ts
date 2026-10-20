@@ -1,8 +1,10 @@
-// Evolution, NSGA-II style with the Sem 06 breeding rules (pc/evolve.py).
+// Evolution, NSGA-II style with the Sem 06 breeding rules (pc/evolve.py). With
+// search: "nsga3", survival uses reference directions instead of crowding (niche.ts).
 import { ATTRACTOR_GENES, DEFAULT_RANGES, DUPLICATE, LENGTH, N_ATTRACTORS, TARGET_TOLERANCE, type Ranges } from "./config.js";
 import { evaluate, SCORES, SCORE_KEYS } from "./fitness.js";
 import { grow, randomGenome } from "./genome.js";
 import { makeRng } from "./rng.js";
+import { divisionsFor, nicheSelect, referencePoints } from "./niche.js";
 import { crowding, difference, families, paretoRanks } from "./rank.js";
 import type { Design, Ground, Rng, ScoreKey } from "./types.js";
 
@@ -12,10 +14,13 @@ export interface Individual {
   parents: string[];
   rank: number;
   crowd: number;
+  cell?: number;      // MAP-Elites: the archive cell it holds
+  quality?: number;   // MAP-Elites: what it holds the cell by
 }
 
 export type HistoryRow = {
   generation: number; on_brief: number; front_size: number; storm_factor: number;
+  filled?: number; qd?: number;   // MAP-Elites: archive cells filled, and their summed quality
 } & Record<ScoreKey, number | null>;
 
 export interface Run {
@@ -24,7 +29,10 @@ export interface Run {
   everyone: number;
 }
 
+export type Search = "nsga2" | "nsga3";
+
 export interface EvolveOptions {
+  search?: Search;
   generations?: number;
   pop?: number;
   seed?: number;
@@ -36,7 +44,7 @@ export interface EvolveOptions {
   progress?: ((gen: number, run: Run) => void) | null;
 }
 
-function crossover(a: number[], b: number[], rng: Rng, pA = 0.6): number[] {
+export function crossover(a: number[], b: number[], rng: Rng, pA = 0.6): number[] {
   const child = b.slice();
   const nAtt = N_ATTRACTORS * ATTRACTOR_GENES;
   for (let k = 0; k < N_ATTRACTORS; k++) {
@@ -46,7 +54,7 @@ function crossover(a: number[], b: number[], rng: Rng, pA = 0.6): number[] {
   return child;
 }
 
-function mutate(g: number[], rng: Rng, rate = 2 / LENGTH, sigma = 0.12): number[] {
+export function mutate(g: number[], rng: Rng, rate = 2 / LENGTH, sigma = 0.12): number[] {
   return g.map((v) => (rng.random() < rate ? Math.min(Math.max(v + rng.normal(0, sigma), 0), 1) : v));
 }
 
@@ -55,7 +63,7 @@ export function breed(a: number[], b: number[], rng: Rng, n = 6): number[][] {
   return Array.from({ length: n }, () => mutate(crossover(a, b, rng), rng));
 }
 
-function rank(inds: Individual[]) {
+export function rank(inds: Individual[]) {
   const scores = inds.map((i) => i.design.scores!);
   const r = paretoRanks(scores);
   for (const level of new Set(r)) {
@@ -74,7 +82,7 @@ function rank(inds: Individual[]) {
 
 const better = (a: Individual, b: Individual) => (a.rank < b.rank || (a.rank === b.rank && a.crowd > b.crowd) ? a : b);
 
-function record(run: Run, gen: number, storm: number) {
+export function record(run: Run, gen: number, storm: number) {
   const on = run.pop.filter((i) => i.design.scores!.gap <= TARGET_TOLERANCE);
   const h = { generation: gen, on_brief: on.length, front_size: run.pop.filter((i) => i.rank === 1).length,
     storm_factor: storm } as HistoryRow;
@@ -85,18 +93,49 @@ function record(run: Run, gen: number, storm: number) {
   run.history.push(h);
 }
 
-/** Breed `generations` of `pop` designs (pc.evolve.evolve). */
-export function evolve(G: Ground, { generations = 30, pop = 60, seed = 1, immigrants = 0.1, locked = null,
-  shock = null, start = null, progress = null, ranges = DEFAULT_RANGES }: EvolveOptions = {}): Run {
-  const rng = makeRng(seed);
-  let storm = 1.0;
-  const make = (g: number[], name: string, parents: string[]): Individual => {
-    const design = grow(g, G, locked, ranges);
-    evaluate(design, G, storm);
-    return { name, design, parents, rank: 0, crowd: 0 };
-  };
+/** Grow and score one design. */
+export function individual(G: Ground, g: number[], name: string, parents: string[], locked: ArrayLike<number> | null,
+  ranges: Ranges, storm: number): Individual {
+  const design = grow(g, G, locked, ranges);
+  evaluate(design, G, storm);
+  return { name, design, parents, rank: 0, crowd: 0 };
+}
+
+/** Generation 0: `pop` random genomes, the first ones replaced by `start`. */
+export function firstGenomes(rng: Rng, pop: number, start: number[][] | null): number[][] {
   const genomes = Array.from({ length: pop }, () => randomGenome(rng));
   (start || []).forEach((g, k) => { genomes[k % pop] = g.slice(); });
+  return genomes;
+}
+
+export const childName = (gen: number, k: number) => `G${gen}.${String(k + 1).padStart(2, "0")}`;
+
+/** NSGA-III survival: whole fronts while they fit, then niching on the front that doesn't.
+ *  `sorted` is ordered by rank. */
+function nicheSurvivors(sorted: Individual[], pop: number, refs: number[][]): Individual[] {
+  let end = 0;
+  while (end < pop) {
+    let next = end;
+    while (next < sorted.length && sorted[next].rank === sorted[end].rank) next++;
+    if (next > pop) break;
+    end = next;
+  }
+  if (end >= pop) return sorted.slice(0, pop);
+  let next = end;
+  while (next < sorted.length && sorted[next].rank === sorted[end].rank) next++;
+  const chosen = sorted.slice(0, end), last = sorted.slice(end, next);
+  const picks = nicheSelect(chosen.map((i) => i.design.scores!), last.map((i) => i.design.scores!), pop - end, refs);
+  return chosen.concat(picks.map((k) => last[k]));
+}
+
+/** Breed `generations` of `pop` designs (pc.evolve.evolve). */
+export function evolve(G: Ground, { search = "nsga2", generations = 30, pop = 60, seed = 1, immigrants = 0.1,
+  locked = null, shock = null, start = null, progress = null, ranges = DEFAULT_RANGES }: EvolveOptions = {}): Run {
+  const rng = makeRng(seed);
+  let storm = 1.0;
+  const make = (g: number[], name: string, parents: string[]) => individual(G, g, name, parents, locked, ranges, storm);
+  const refs = search === "nsga3" ? referencePoints(SCORE_KEYS.length, divisionsFor(SCORE_KEYS.length, pop)) : null;
+  const genomes = firstGenomes(rng, pop, start);
   const run: Run = { pop: genomes.map((g, k) => make(g, `G0.${String(k + 1).padStart(2, "0")}`, [])), history: [], everyone: 0 };
   run.everyone = run.pop.length;
   rank(run.pop);
@@ -111,7 +150,7 @@ export function evolve(G: Ground, { generations = 30, pop = 60, seed = 1, immigr
     }
     const children: Individual[] = [];
     for (let k = 0; k < pop; k++) {
-      const name = `G${gen}.${String(k + 1).padStart(2, "0")}`;
+      const name = childName(gen, k);
       if (rng.random() < immigrants) { children.push(make(randomGenome(rng), name, ["immigrant"])); continue; }
       const pick = () => {
         const i = Math.floor(rng.random() * run.pop.length);
@@ -126,7 +165,7 @@ export function evolve(G: Ground, { generations = 30, pop = 60, seed = 1, immigr
     const both = run.pop.concat(children);
     rank(both);
     both.sort((a, b) => a.rank - b.rank || b.crowd - a.crowd);
-    run.pop = both.slice(0, pop);
+    run.pop = refs ? nicheSurvivors(both, pop, refs) : both.slice(0, pop);
     rank(run.pop);
     record(run, gen, storm);
     progress?.(gen, run);

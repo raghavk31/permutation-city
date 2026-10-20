@@ -84,3 +84,23 @@ body:has(> .pc) { margin: 0; background: var(--paper, #fcfcfb); }
 .pc-detail { margin-top: 24px; }
 .pc-credits { font-size: 12.5px; }
 .pc-site-warning { border-left: 3px solid var(--pc-build); padding: 6px 12px; background: var(--pc-retained); font-size: 14px; max-width: 70ch; }
+
+.pc select.pc-wide { max-width: 16em; }
+.pc-explore-body { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; align-items: start; margin-top: 8px; }
+@media (max-width: 760px) { .pc-explore-body { grid-template-columns: 1fr; } }
+.pc-explore-plot { cursor: crosshair; }
+.pc-pick h3 { margin-top: 8px; }
+.pc-archive { display: grid; gap: 3px; font-size: 11px; color: var(--pc-ink-2); }
+.pc-archive canvas, .pc-archive .pc-empty { width: 100%; display: block; border-radius: 2px; }
+.pc-archive .pc-empty { background: var(--pc-retained); }
+.pc-archive button { padding: 0; margin: 0; border-radius: 3px; border: 2px solid transparent; background: none; }
+.pc-archive button.is-on { border-color: var(--pc-build); }
+.pc-archive .pc-ylab { writing-mode: vertical-rl; transform: rotate(180deg); text-align: center; }
+.pc-archive .pc-xlab { text-align: center; }
+.pc-extremes { border-collapse: collapse; font-size: 14px; margin-top: 4px; }
+.pc-extremes th, .pc-extremes td { text-align: left; padding: 3px 14px 3px 0; font-weight: normal; }
+.pc-extremes thead th { color: var(--pc-muted); font-size: 13px; }
+.pc-extremes button { font-size: 13px; padding: 1px 10px; white-space: nowrap; }
+.pc-extremes button.is-best { border-color: var(--pc-green); box-shadow: inset 0 0 0 1px var(--pc-green); }
+@media (max-width: 560px) { .pc-extremes button { font-size: 12px; padding: 1px 6px; } .pc-extremes th, .pc-extremes td { padding-right: 6px; } }
+.pc [hidden] { display: none !important; }

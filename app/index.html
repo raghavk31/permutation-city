@@ -18,7 +18,7 @@
       across generations, scored on flood storage, heat, embodied carbon, daylight and human scale. You play the
       urban designer: lock what you like, breed by hand, and throw a storm at it.</p>
     <dl class="pc-meta">
-      <div><dt>method</dt><dd>McHarg overlay · attractor genomes · NSGA-II evolution</dd></div>
+      <div><dt>method</dt><dd>McHarg overlay · attractor genomes · NSGA-II, NSGA-III and MAP-Elites</dd></div>
       <div><dt>data</dt><dd>Copernicus · FABDEM · ESA WorldCover · Overture Maps</dd></div>
       <div><dt>code</dt><dd><a href="https://github.com/raghavk31/permutation-city">github.com/raghavk31/permutation-city</a></dd></div>
     </dl>
@@ -80,7 +80,21 @@
     <p>Designs within 10% of the floor-area brief always beat those outside it. Among them, a design survives if no
       other is better on every score at once. Parents swap whole attractors, 60/40; a few genes mutate; a tenth of
       each generation are newcomers; near-copies lose their place, so distinct families survive.</p>
+    <p>That is NSGA-II, the default. NSGA-III keeps the same breeding but spreads survivors over fixed directions
+      through the five scores instead of keeping the most distinct. MAP-Elites asks a different question: not the best
+      trade-offs, but the best design of every kind. Pick two traits; it keeps the best design in each cell of a grid
+      over them (tall and open, low and dense, and so on), even where those designs lose on the scores.</p>
     <form class="pc-controls">
+      <label>search <select name="search" class="pc-wide">
+        <option value="nsga2" selected>NSGA-II: trade-offs</option>
+        <option value="nsga3">NSGA-III: reference directions</option>
+        <option value="map-elites">MAP-Elites: one of every kind</option>
+      </select></label>
+      <span class="pc-elite-opts" hidden>
+        <label>across <select name="ax" class="pc-wide"></select></label>
+        <label>and <select name="ay" class="pc-wide"></select></label>
+        <label>bins <select name="bins"><option>6</option><option>8</option><option selected>10</option></select></label>
+      </span>
       <label>generations <select name="gens"><option>10</option><option>20</option><option selected>30</option><option>50</option></select></label>
       <label>population <select name="pop"><option>30</option><option selected>60</option><option>90</option></select></label>
       <label><input type="checkbox" name="shock"> climate shock</label>
@@ -96,8 +110,41 @@
     <div class="pc-charts"></div>
   </section>
 
+  <section class="pc-ch pc-explore" id="pc-explore">
+    <p class="pc-n">05 · the trade-offs</p>
+    <h2>Explore</h2>
+    <p>Every design the run kept. Blue designs are on the front (on the brief, and no other kept design beats them on
+      every score); grey ones are beaten; hollow ones miss the floor-area brief. Each axis runs from worse to better.
+      Point at a design to find it, click to look at it.</p>
+    <div class="pc-layer-tabs pc-explore-tabs" role="group" aria-label="View">
+      <button type="button" data-view="matrix">scatter matrix</button>
+      <button type="button" data-view="parallel">parallel coordinates</button>
+      <button type="button" data-view="archive">archive</button>
+    </div>
+    <p class="pc-explore-empty pc-muted">Run an evolution above; what it kept appears here.</p>
+    <div class="pc-explore-body" hidden>
+      <div>
+        <canvas class="pc-map pc-explore-plot"></canvas>
+        <div class="pc-archive" hidden></div>
+        <p class="pc-readout pc-explore-readout"></p>
+      </div>
+      <aside class="pc-pick">
+        <canvas class="pc-map"></canvas>
+        <h3></h3>
+        <p class="pc-scores"></p>
+        <p class="pc-actions">
+          <button type="button" data-pick="view">view in detail</button>
+          <button type="button" data-pick="pen">to the pen</button>
+        </p>
+      </aside>
+    </div>
+    <h3 class="pc-extremes-head" hidden>The extremes</h3>
+    <p class="pc-muted pc-extremes-head" hidden>The design at each end of every measure, among those on the brief. Outlined in green: the better end.</p>
+    <table class="pc-extremes"></table>
+  </section>
+
   <section class="pc-ch pc-families" id="pc-families">
-    <p class="pc-n">05 · what survived</p>
+    <p class="pc-n">06 · what survived</p>
     <h2>Families</h2>
     <p>The surviving front, grouped into families of similar designs; one of each.</p>
     <div class="pc-gallery"></div>
@@ -123,7 +170,7 @@
   </section>
 
   <section class="pc-ch pc-breed" id="pc-breed">
-    <p class="pc-n">06 · by hand</p>
+    <p class="pc-n">07 · by hand</p>
     <h2>Breeding</h2>
     <p>Pick two parents and breed six children; keep the ones you like and breed again, the way Dawkins bred
       biomorphs. Then start a new evolution from the pen.</p>

@@ -133,7 +133,7 @@ app/engine/
   genome.ts     decode, grow, randomGenome
   fitness.ts    evaluate, floorAreaTarget
   rank.ts       paretoRanks, crowding, families, difference
-  evolve.ts     NSGA-II loop (NSGA-III and MAP-Elites join it in Phase 5)
+  evolve.ts     NSGA-II and NSGA-III (niche.ts); elites.ts is MAP-Elites
   rng.ts        seeded RNG (shared algorithm with Python, see D3)
   metrics/      Phase 6, one file per metric family
   worker.ts     Comlink API
@@ -718,6 +718,68 @@ Unsure about, or left open:
   source states. They're optional and labelled.
 - **The model can set material tags freely** (recorded only); everything else is from the
   fixed vocabulary.
+
+## Phase 5 log (2026-10-19)
+
+Done, on branch `v2-phase5`:
+- **NSGA-III** (`pc/niche.py`, `app/engine/niche.ts`): Das-Dennis reference directions (the
+  fewest divisions that give one per design: 3, 4 and 5 for populations of 30, 60 and 90),
+  and niching on the front that doesn't fit. It is simplified so both engines pick the same
+  designs bit for bit: it normalises between the ideal and worst points (no intercepts) and
+  breaks ties by order. `evolve(..., search="nsga3")`. Everything else (breeding,
+  immigrants, shocks, locks, start genomes) is shared with NSGA-II.
+- **MAP-Elites** (`pc/elites.py`, `app/engine/elites.ts`): an archive over two traits, the
+  best design per cell, with the same budget and breeding as `evolve`. There are nine
+  traits: average storeys, height variety, open ground, landscape, water, and four of the
+  scores. Phase 6 adds its metrics to this list. Quality is the mean of the five scores
+  scaled 0 to 1, below zero when off the brief; a brief's objective weights weight it. A
+  shock re-judges the archive under the heavier storm.
+- **Parity:** four new whole runs per fixture (two NSGA-III, two MAP-Elites with axes, bins,
+  a shock, start genomes and weights) match between Python and TS, including each elite's
+  cell and quality. `test/ui/search.test.ts` checks what the methods promise: reference
+  points, empty niches filled first, bins, quality ordering, and elites that only improve
+  their cell.
+- **CLI:** `uv run pc evolve <site> --search nsga2|nsga3|map-elites [--axes a,b] [--bins n]`.
+  Runs and sheets of other searches are tagged (`seq1-nsga3`), so they don't overwrite the
+  NSGA-II ones.
+- **The page.** Chapter 04 has a search choice and, for MAP-Elites, the two traits and the
+  bins (a linked brief's weights go to MAP-Elites as its quality). A new chapter, **05
+  Explore**, shows every design the run kept:
+  - a scatter matrix of the five scores, better towards the top right
+  - parallel coordinates over the five scores plus floor area and storeys
+  - the archive grid of plan thumbnails, for MAP-Elites
+  - a table of the extremes: the design at each end of every measure, with the better end
+    outlined
+  Point at a design to identify it, and click to pick it: a plan, its scores, "view in
+  detail" (the Families chapter's 3D view and locks) and "to the pen". Families and
+  Breeding are now 06 and 07. The worker returns the kept designs with their scores, and
+  the page regrows the ones it draws, with the run's locks and ranges. Archive thumbnails
+  draw the site and its roads once and reuse them (85 thumbnails: 11 s down to about 1 s
+  in a headless browser).
+- **The comparison** (`docs/experiments/search-comparison.md`, `npm run compare`): five
+  seeds on `mumbai-ewf`, with `ahmedabad-wadaj` as a cross-check.
+  - NSGA-II and NSGA-III are within noise of each other, NSGA-II slightly ahead.
+    Hypervolume at Mumbai: 51.6% NSGA-II, 49.6% NSGA-III.
+  - MAP-Elites reaches about four times the trait cells (39 against 10) and has more
+    distinct genomes, but a weaker front (39.6%).
+  - Run times are the same (about 5 s at Mumbai).
+  - **The default stays NSGA-II.**
+
+Tests: `npm test` 181, `uv run pytest` 49. `tsc` is clean. Checked in a headless browser on
+Mumbai EWF at 1280 and 375 px wide, with no console errors and no sideways scroll.
+
+Unsure about, or left open:
+- **NSGA-III as the default for more than five objectives** waits for Phase 6, where metrics
+  can be promoted to objectives. Today every run has five, so the brief's rule never fires.
+  I'd add the switch with the promotion.
+- **MAP-Elites' traits** are the ones we have now. The brief's examples (symmetry ×
+  density, green connectivity × height variety) need Phase 6's metrics. `DESCRIPTORS` is
+  where they plug in.
+- **The archive's range is fixed per trait**, checked against 1,500 random designs. A brief
+  that pushes designs far outside it (say, 15 storeys) would pile them into the end bins. An
+  adaptive range would fix that, but it is harder to keep identical across engines.
+- **Explore uses the final population only**, not every design grown (1,860). Showing all of
+  them would mean sending them back from the worker; say if you want it.
 
 ## 8. Decisions (2026-10-16)
 

@@ -1,9 +1,10 @@
-// Permutation City: the page. Chapters: layers, rules, one genome, evolution, families,
-// breeding. Data: public/sites/<site>.json from `pc export`; engine: app/engine (same as Python).
+// Permutation City: the page. Chapters: layers, rules, one genome, evolution, explore,
+// families, breeding. Data: public/sites/<site>.json from `pc export`; engine: app/engine (same as Python).
 import * as Comlink from "comlink";
 import * as E from "../engine";
-import type { EngineWorker, EvolveResult, FamilyLead } from "../engine/worker";
+import type { EngineWorker, EvolveResult, FamilyLead, Kept, RunRequest } from "../engine/worker";
 import * as Draw from "./draw";
+import * as X from "./explore";
 import { describe as describeBrief } from "./new/brief";
 import * as Sites from "./sites";
 import "./style.css";
@@ -17,7 +18,8 @@ const $$ = (sel: string) => [...root.querySelectorAll<HTMLElement>(sel)];
 interface Item { name: string; title: string; genome: number[]; design: E.Design; size?: number; parents?: string[] }
 interface PenEntry { name: string; genome: number[]; title?: string; parents?: string[] }
 interface RunSummary { history: E.HistoryRow[]; everyone: number; frontSize: number; opts: RunOptions }
-type RunOptions = Omit<E.EvolveOptions, "progress" | "locked"> & { locked: number[] | null; typologySeeds?: number };
+type RunOptions = Omit<RunRequest, "locked"> & { locked: number[] | null; typologySeeds?: number };
+type ExploreView = "matrix" | "parallel" | "archive";
 
 const state = {
   sites: {} as Record<string, { name: string }>, id: null as string | null,
@@ -28,6 +30,9 @@ const state = {
   bearing: -0.55, layer: "ground" as LayerKey, showAll: false,
   // A confirmed brief from the link: how genes are read, and whether to seed by typology.
   brief: null as Sites.LinkedBrief | null, ranges: E.DEFAULT_RANGES as E.Ranges, linkRules: null as string | null,
+  // What the last run kept, for Explore; designs regrown as they're drawn.
+  explore: { kept: [] as Kept[], archive: null as E.ArchiveInfo | null, view: "matrix" as ExploreView,
+    selected: -1, hover: -1, grown: new Map<number, E.Design>(), hit: null as ((x: number, y: number) => number) | null },
 };
 let P = Draw.palette();
 const rng = E.makeRng(Date.now() % 2 ** 31);
@@ -110,6 +115,7 @@ async function loadSite(id: string, rules: string | null = null, brief: string |
   if (btn && state.sites[id]?.name === "Your site") btn.textContent = site().meta.name;
   state.G = E.prepare(site());
   Object.assign(state, { run: null, families: [], selected: null, pen: [], children: [], locks: null, lockNote: [] });
+  resetExplore([], null);
   startWorker(site());
   const m = site().meta;
   $(".pc-status").textContent = `${m.name} · design ground ${fmtHa(m.design_ha)} · brief ${fmtHa(m.target_ha)} of floor area (±10%) · `
@@ -144,6 +150,7 @@ function drawAll() {
   drawRules();
   drawGenome();
   drawEvolve();
+  drawExplore();
   drawFamilies();
   drawBreed();
 }
@@ -253,9 +260,14 @@ function evolveOptions(): RunOptions {
   // Typology seeds fill up to half of Generation 0 (after any designs from the pen).
   const seeds = E.typologySeeds(priors, Math.max(0, Math.floor(pop / 2) - pen.length), seed + 1);
   const start = [...pen, ...seeds];
+  const search = select(f, "search").value as RunOptions["search"];
+  const elite = search === "map-elites" ? {
+    axes: [select(f, "ax").value, select(f, "ay").value] as [string, string], bins: +select(f, "bins").value,
+    weights: state.brief?.brief.objective_weights?.value ?? null,
+  } : {};
   return {
-    generations: gens, pop, seed, shock, locked: state.locks ? Array.from(state.locks) : null,
-    start: start.length ? start : null, ranges: state.ranges, typologySeeds: seeds.length,
+    search, generations: gens, pop, seed, shock, locked: state.locks ? Array.from(state.locks) : null,
+    start: start.length ? start : null, ranges: state.ranges, typologySeeds: seeds.length, ...elite,
   };
 }
 
@@ -291,10 +303,13 @@ async function runEvolution() {
   }
   state.selected = state.families[0] || null;
   state.showAll = false;
-  $(".pc-progress").textContent = `${m.everyone.toLocaleString("en-IN")} designs grown in ${secs} s · `
+  resetExplore(m.kept, m.archive);
+  const filled = m.archive ? ` · ${m.kept.length} of ${m.archive.bins ** 2} archive cells filled` : "";
+  $(".pc-progress").textContent = `${m.everyone.toLocaleString("en-IN")} designs grown in ${secs} s${filled} · `
     + `${m.frontSize} on the front, in ${state.families.length} families`
     + (opts.typologySeeds ? ` · Generation 0 had ${opts.typologySeeds} typology seeds` : "")
-    + (w ? " · families ordered by the brief's weights" : "");
+    + (w ? ` · ${m.archive ? "elites judged and " : ""}families ordered by the brief's weights` : "");
+  drawExplore();
   drawFamilies();
 }
 
@@ -305,6 +320,8 @@ function drawCharts(rows: E.HistoryRow[], opts: RunOptions) {
       const [label, fmt, up] = E.SCORES[k];
       return [k, `best ${label}${up ? "" : " (lower is better)"}`, fmt];
     }),
+    ...(rows.some((r) => r.filled !== undefined)
+      ? [["filled", "archive cells filled", (v: number) => `${v}`] as [keyof E.HistoryRow, string, (v: number) => string]] : []),
   ];
   const box = $(".pc-charts");
   if (box.children.length !== charts.length) {
@@ -326,7 +343,107 @@ function drawEvolve() {
   else drawCharts(state.run.history, state.run.opts);
 }
 
-// --- 05 families ----------------------------------------------------------------------
+// --- 05 explore -----------------------------------------------------------------------
+
+function resetExplore(kept: Kept[], archive: E.ArchiveInfo | null) {
+  const x = state.explore;
+  Object.assign(x, { kept, archive, selected: -1, hover: -1, hit: null });
+  x.grown.clear();
+  if (archive) x.view = "archive";
+  else if (x.view === "archive") x.view = "matrix";
+  // Start on the design the families chapter leads with.
+  const lead = state.families[0]?.name;
+  x.selected = kept.findIndex((d) => d.name === lead);
+}
+
+/** A kept design, regrown as the run grew it (its locks and gene ranges), with the run's scores. */
+function keptDesign(k: number): E.Design {
+  const x = state.explore;
+  let d = x.grown.get(k);
+  if (!d) {
+    const o = state.run!.opts;
+    d = E.grow(x.kept[k].genome, G(), o.locked ? Int8Array.from(o.locked) : null, o.ranges ?? E.DEFAULT_RANGES);
+    d.scores = x.kept[k].scores;
+    x.grown.set(k, d);
+  }
+  return d;
+}
+
+const keptItem = (k: number): Item => {
+  const d = state.explore.kept[k];
+  return { name: d.name, title: d.name, genome: d.genome, parents: d.parents, design: keptDesign(k) };
+};
+
+function drawExplore() {
+  const x = state.explore, has = x.kept.length > 0;
+  $(".pc-explore-empty").hidden = has;
+  $(".pc-explore-body").hidden = !has;
+  $$(".pc-extremes-head").forEach((e) => { e.hidden = !has; });
+  $$(".pc-explore-tabs button").forEach((b) => {
+    b.setAttribute("aria-pressed", String(b.dataset.view === x.view));
+    b.hidden = b.dataset.view === "archive" && !x.archive;
+  });
+  if (!has) { $(".pc-extremes").innerHTML = ""; return; }
+  drawExplorePlot();
+  drawPick();
+  drawExtremes();
+}
+
+function drawExplorePlot() {
+  const x = state.explore, canvas = $<HTMLCanvasElement>(".pc-explore-plot"), grid = $(".pc-archive");
+  const archive = x.view === "archive" && !!x.archive;
+  canvas.hidden = archive;
+  grid.hidden = !archive;
+  if (archive) { drawArchive(); return; }
+  const marks = { selected: x.selected, hover: x.hover };
+  x.hit = x.view === "matrix" ? X.scatterMatrix(canvas, x.kept, P, marks) : X.parallel(canvas, x.kept, P, marks);
+}
+
+function drawArchive() {
+  const x = state.explore, { axes, bins } = x.archive!, grid = $(".pc-archive");
+  const [ax, ay] = axes.map((k) => E.DESCRIPTORS[k]);
+  const rows = X.archiveRows(x.kept, bins);
+  const fmt = (v: number) => String(+v.toFixed(2));
+  grid.style.gridTemplateColumns = `1.4em repeat(${bins}, 1fr)`;
+  grid.innerHTML = `<span class="pc-ylab" style="grid-row: span ${bins}">${ay.label}: ${fmt(ay.range[0])} to ${fmt(ay.range[1])} →</span>`
+    + rows.flat().map((k) => (k < 0 ? `<span class="pc-empty"></span>`
+      : `<button type="button" data-k="${k}" class="${k === x.selected ? "is-on" : ""}" `
+        + `title="${x.kept[k].name}: quality ${x.kept[k].quality!.toFixed(2)}"><canvas></canvas></button>`)).join("")
+    + `<span></span><span class="pc-xlab" style="grid-column: span ${bins}">${ax.label}: ${fmt(ax.range[0])} to ${fmt(ax.range[1])} →</span>`;
+  const a = aspect();
+  grid.querySelectorAll<HTMLElement>(".pc-empty").forEach((e) => { e.style.aspectRatio = String(1 / a); });
+  const buttons = [...grid.querySelectorAll<HTMLElement>("button[data-k]")];
+  Draw.plans(buttons.map((b) => b.querySelector("canvas")!), site(), buttons.map((b) => keptDesign(+b.dataset.k!)), P, a);
+}
+
+function drawPick() {
+  const x = state.explore, box = $(".pc-pick");
+  box.hidden = x.selected < 0;
+  if (x.selected < 0) return;
+  const d = keptDesign(x.selected), k = x.kept[x.selected];
+  Draw.plan(box.querySelector<HTMLCanvasElement>("canvas")!, site(), d, P, { aspect: aspect() });
+  const where = k.cell !== undefined && x.archive
+    ? ` · archive column ${k.cell % x.archive.bins + 1}, row ${Math.floor(k.cell / x.archive.bins) + 1} from the bottom` : "";
+  box.querySelector("h3")!.textContent = `${k.name}${X.onFront(k) ? " · on the front" : X.onBrief(k) ? "" : " · off the brief"}${where}`;
+  box.querySelector(".pc-scores")!.innerHTML = scoreLine(d);
+}
+
+function drawExtremes() {
+  const x = state.explore;
+  const btn = (k: number, axis: X.Axis, good: boolean) => `<button type="button" data-k="${k}"${good ? ` class="is-best" title="the better end"` : ""}>`
+    + `${axis.fmt(axis.get(x.kept[k]))} · ${x.kept[k].name}</button>`;
+  $(".pc-extremes").innerHTML = `<thead><tr><th></th><th>lowest</th><th>highest</th></tr></thead><tbody>`
+    + X.extremes(x.kept).map(({ axis, lo, hi }) => `<tr><th>${axis.label}</th><td>${btn(lo, axis, axis.up === false)}</td>`
+      + `<td>${btn(hi, axis, axis.up === true)}</td></tr>`).join("") + "</tbody>";
+}
+
+function pickKept(k: number) {
+  state.explore.selected = k;
+  drawExplorePlot();
+  drawPick();
+}
+
+// --- 06 families ----------------------------------------------------------------------
 
 type Action = [string, (it: Item) => void];
 function gallery(box: HTMLElement, items: Item[], actions: Action[]) {
@@ -401,7 +518,7 @@ function toPen(it: Item | PenEntry) {
   drawEvolve();
 }
 
-// --- 06 breeding ----------------------------------------------------------------------
+// --- 07 breeding ----------------------------------------------------------------------
 
 function drawBreed() {
   const f = form(".pc-breed form");
@@ -447,6 +564,41 @@ function wire() {
   ev.addEventListener("submit", (e) => { e.preventDefault(); runEvolution(); });
   input(ev, "shock").addEventListener("change", (e) => {
     $(".pc-shock-opts").hidden = !(e.target as HTMLInputElement).checked;
+  });
+  const traits = E.DESCRIPTOR_KEYS.map((k) => `<option value="${k}">${E.DESCRIPTORS[k].label}</option>`).join("");
+  select(ev, "ax").innerHTML = traits; select(ev, "ay").innerHTML = traits;
+  select(ev, "ax").value = "mean_levels"; select(ev, "ay").value = "open_share";
+  select(ev, "search").addEventListener("change", (e) => {
+    $(".pc-elite-opts").hidden = (e.target as HTMLSelectElement).value !== "map-elites";
+  });
+  // Explore: switch views, point at designs, pick one.
+  $(".pc-explore-tabs").addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLElement>("[data-view]");
+    if (b) { state.explore.view = b.dataset.view as ExploreView; drawExplore(); }
+  });
+  const plot = $(".pc-explore-plot");
+  plot.addEventListener("pointermove", (e) => {
+    const x = state.explore, k = x.hit ? x.hit(e.offsetX, e.offsetY) : -1;
+    if (k === x.hover) return;
+    x.hover = k;
+    const d = x.kept[k];
+    $(".pc-explore-readout").textContent = d ? `${d.name} · ${Math.round(d.floorArea)} ha · ${d.levels.toFixed(1)} storeys · `
+      + E.SCORE_KEYS.map((s) => `${E.SCORES[s][0]} ${E.SCORES[s][1](d.scores[s])}`).join(" · ") : "";
+    drawExplorePlot();
+  });
+  plot.addEventListener("pointerleave", () => { state.explore.hover = -1; $(".pc-explore-readout").textContent = ""; drawExplorePlot(); });
+  plot.addEventListener("click", () => { if (state.explore.hover >= 0) pickKept(state.explore.hover); });
+  for (const sel of [".pc-archive", ".pc-extremes"]) {
+    $(sel).addEventListener("click", (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLElement>("[data-k]");
+      if (b) pickKept(+b.dataset.k!);
+    });
+  }
+  $(".pc-pick").addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLElement>("[data-pick]"), k = state.explore.selected;
+    if (!b || k < 0) return;
+    if (b.dataset.pick === "pen") toPen(keptItem(k));
+    else choose(keptItem(k));
   });
   $(".pc-locks-clear").addEventListener("click", () => { state.locks = null; state.lockNote = []; drawEvolve(); drawDetail(); });
   $(".pc-detail").addEventListener("click", (e) => {

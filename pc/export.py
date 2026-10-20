@@ -29,7 +29,7 @@ import json
 import geopandas as gpd
 import numpy as np
 
-from pc import evolve, fitness, genome, rules
+from pc import elites, evolve, fitness, genome, rules
 from pc import grid as cellgrid
 from pc.rng import Rng
 from pc.site import ROOT, Site
@@ -208,11 +208,17 @@ class _Brief:
 
 
 # Whole evolutions for the fixture: plain, with a mid-run shock, and with locked cells,
-# start genomes and a different population. Small, so the fixture stays quick to check.
+# start genomes and a different population; then NSGA-III and MAP-Elites runs the same
+# ways. Small, so the fixture stays quick to check.
 EVOLUTIONS = [
     {"seed": 1, "generations": 8, "pop": 30},
     {"seed": 7, "generations": 8, "pop": 30, "shock": [4, 1.4]},
     {"seed": 3, "generations": 6, "pop": 24, "immigrants": 0.2, "locked": "every7", "start": 2},
+    {"search": "nsga3", "seed": 5, "generations": 8, "pop": 30},
+    {"search": "nsga3", "seed": 11, "generations": 6, "pop": 24, "shock": [3, 1.5], "locked": "every7"},
+    {"search": "map-elites", "seed": 2, "generations": 8, "pop": 30},
+    {"search": "map-elites", "seed": 4, "generations": 6, "pop": 24, "axes": ["storage", "height_variety"], "bins": 6,
+     "shock": [3, 1.4], "start": 2, "weights": {"storage": 2, "daylight": 1}},
 ]
 
 
@@ -226,15 +232,20 @@ def _evolution(ground, brief, case: dict) -> dict:
     if case.get("start"):
         r = Rng(99)
         start = [genome.random_genome(r) for _ in range(case["start"])]
-    run = evolve.evolve(brief, ground, locked=locked, shock=tuple(case["shock"]) if "shock" in case else None,
-                        start=start, log=None, **opts)
+    shock = tuple(case["shock"]) if "shock" in case else None
+    if opts.get("search") == "map-elites":
+        opts.pop("search")
+        run = elites.map_elites(brief, ground, locked=locked, shock=shock, start=start, log=None, **opts)
+    else:
+        run = evolve.evolve(brief, ground, locked=locked, shock=shock, start=start, log=None, **opts)
     inf = lambda v: None if np.isinf(v) else float(v)  # JSON has no Infinity
+    archive = lambda i: {"cell": i.cell, "quality": i.quality} if case.get("search") == "map-elites" else {}
     return {
         "case": case,
         "history": [{k: (float(v) if isinstance(v, (float, np.floating)) else v) for k, v in h.items()}
                     for h in run.history],
         "pop": [{"name": i.name, "rank": i.rank, "crowd": inf(i.crowd), "parents": list(i.parents),
-                 "genome": [float(v) for v in i.design.genome], "scores": i.scores} for i in run.pop],
+                 "genome": [float(v) for v in i.design.genome], "scores": i.scores, **archive(i)} for i in run.pop],
     }
 
 
