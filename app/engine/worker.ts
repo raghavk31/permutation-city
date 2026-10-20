@@ -4,7 +4,7 @@
 import * as Comlink from "comlink";
 import type { Ranges } from "./config.js";
 import { mapElites, searchOf, type ArchiveInfo, type EliteOptions, type SearchChoice } from "./elites.js";
-import { evolve, frontFamilies, type EvolveOptions, type HistoryRow } from "./evolve.js";
+import { evolve, frontFamilies, type EvolveOptions, type HistoryRow, type LineageNode } from "./evolve.js";
 import { grow, stats } from "./genome.js";
 import { prepare, withSkeleton } from "./ground.js";
 import { measure, METRIC_KEYS, network, SYNTAX_KEYS, type MetricKey, type Metrics } from "./metrics/index.js";
@@ -26,6 +26,8 @@ export interface Kept {
 export interface EvolveResult {
   history: HistoryRow[]; everyone: number; frontSize: number; families: FamilyLead[]; kept: Kept[];
   archive: ArchiveInfo | null;
+  lineage: LineageNode[];
+  genomes: Float64Array;   // every design's genome, LENGTH numbers each, in lineage order
 }
 export type RunRequest = Omit<EvolveOptions, "progress" | "search"> & Omit<EliteOptions, "progress"> & {
   search?: SearchChoice;
@@ -83,7 +85,15 @@ const api = {
         };
       }),
       archive: run.archive,
+      lineage: run.lineage,
+      genomes: Float64Array.from(run.genomes.flat()),
     };
+  },
+  /** The kept designs of a run reloaded from a file, so syntaxKept can read them. */
+  keep(items: Grown[]) {
+    if (!G) throw new Error("no site loaded");
+    const g = G;
+    lastKept = items.map((x) => grownOf(g, x));
   },
   /** Space syntax for the k-th design the last run kept. One design per call, so a request for
    *  the opened design can slip in between (the page asks for them in turn). */

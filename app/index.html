@@ -137,7 +137,29 @@
     </form>
     <p class="pc-locks"></p><button type="button" class="pc-locks-clear" hidden>clear locks</button>
     <p class="pc-progress pc-muted" aria-live="polite"></p>
+    <p class="pc-run-save pc-actions" hidden>
+      <button type="button" class="pc-run-link">copy a link to this run</button>
+      <button type="button" class="pc-run-download">download the run</button>
+      <span class="pc-run-note pc-muted" aria-live="polite"></span>
+    </p>
+    <p class="pc-run-load pc-muted">A link grows the run again from its seed and settings. A downloaded run keeps
+      everything as it is: designs, family tree, the pen, locks.
+      <label class="pc-file">load a saved run <input type="file" accept="application/json,.json"></label>
+      <span class="pc-run-load-note" aria-live="polite"></span></p>
     <div class="pc-charts"></div>
+    <div class="pc-tree" hidden>
+      <h3>Family tree</h3>
+      <p class="pc-muted">Every generation is a row, the first at the top. Lines run from parents to children; the parent
+        that gave more of the genes where the two differ draws the heavier line. A ring marks a child that mutated
+        (heavier for more genes), a square a newcomer, a diamond a design the run started from (the pen or a typology
+        seed). Dark: the designs the run kept; orange: <span class="pc-tree-front">its front</span>. At first only the
+        kept designs and their ancestors are drawn; "+n" at the end of a row counts the designs of that generation that
+        left no surviving descendants. Point at a design to trace its ancestors; click it to open it below.</p>
+      <p class="pc-actions"><label><input type="checkbox" class="pc-tree-all" autocomplete="off"> show every design
+        (<span class="pc-tree-count"></span>)</label></p>
+      <canvas class="pc-tree-canvas" aria-label="family tree of the run"></canvas>
+      <p class="pc-tree-readout pc-muted" aria-live="polite"></p>
+    </div>
   </section>
 
   <section class="pc-ch pc-explore" id="pc-explore">

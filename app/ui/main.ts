@@ -6,8 +6,10 @@ import type { EngineWorker, EvolveResult, FamilyLead, Grown, Kept, RunRequest, S
 import * as Draw from "./draw";
 import * as X from "./explore";
 import { describe as describeBrief } from "./new/brief";
+import * as Runs from "./runs";
 import * as Sites from "./sites";
 import "./style.css";
+import * as Tree from "./tree";
 
 const root = document.querySelector<HTMLElement>("[data-pc]")!;
 const DATA = Sites.DATA; // where sites.json and <site>.json live
@@ -17,7 +19,9 @@ const $$ = (sel: string) => [...root.querySelectorAll<HTMLElement>(sel)];
 /** A design shown in a gallery: a family lead, a design in the pen, or a child. */
 interface Item { name: string; title: string; genome: number[]; design: E.Design; size?: number; parents?: string[] }
 interface PenEntry { name: string; genome: number[]; title?: string; parents?: string[] }
-interface RunSummary { history: E.HistoryRow[]; everyone: number; frontSize: number; opts: RunOptions }
+interface RunSummary { history: E.HistoryRow[]; everyone: number; frontSize: number; opts: RunOptions; seconds: number | null }
+/** Every design a run made: how each came to be, and its genome (LENGTH numbers each). */
+interface Lineage { nodes: E.LineageNode[]; genomes: Float64Array; length: number }
 type RunOptions = Omit<RunRequest, "locked"> & { locked: number[] | null; typologySeeds?: number };
 type ExploreView = "matrix" | "parallel" | "archive";
 
@@ -26,7 +30,8 @@ const state = {
   site: null as E.SiteExport | null, G: null as E.Ground | null, baseG: null as E.Ground | null,
   skeletonOff: new Set<number>(),  // ridges of the street skeleton switched off (the landform chapter)
   worker: null as { raw: Worker; api: Comlink.Remote<EngineWorker> } | null,
-  genome: [] as number[], run: null as RunSummary | null, families: [] as Item[], selected: null as Item | null,
+  genome: [] as number[], run: null as RunSummary | null, lineage: null as Lineage | null,
+  families: [] as Item[], selected: null as Item | null,
   pen: [] as PenEntry[], children: [] as PenEntry[], brood: 0, locks: null as Int8Array | null, lockNote: [] as string[],
   bearing: -0.55, layer: "ground" as LayerKey, showAll: false,
   // A confirmed brief from the link: how genes are read, and whether to seed by typology.
@@ -37,6 +42,9 @@ const state = {
   syntax: { token: 0, read: 0, detail: null as (SyntaxDetail & { name: string }) | null, measure: "nain_rn", choice: null as { nach: Float64Array; mean: number; choice: number } | null },
   explore: { kept: [] as Kept[], archive: null as E.ArchiveInfo | null, view: "matrix" as ExploreView, measures: "scores",
     selected: -1, hover: -1, grown: new Map<number, E.Design>(), hit: null as ((x: number, y: number) => number) | null },
+  // The family tree: its layout (made again when the run or "show every design" changes).
+  tree: { all: false, layout: null as Tree.TreeLayout | null, of: null as Lineage | null, hover: -1, selected: -1,
+    hit: null as ((x: number, y: number) => number) | null },
 };
 let P = Draw.palette();
 const rng = E.makeRng(Date.now() % 2 ** 31);
@@ -89,10 +97,14 @@ async function loadSites() {
     .map(([id, s]) => `<button type="button" data-site="${id}">${s.name}</button>`).join("");
   bar.addEventListener("click", (e) => {
     const b = (e.target as HTMLElement).closest<HTMLElement>("[data-site]");
-    if (b) loadSite(b.dataset.site!);
+    if (!b) return;
+    // A link's run and rules belong to its site: picking another leaves them behind.
+    history.replaceState(null, "", `?site=${b.dataset.site}${location.hash}`);
+    loadSite(b.dataset.site!);
   });
   await loadSite(linked ? linked.id : Object.keys(state.sites)[0], linked?.rules ?? null, linked?.brief ?? null);
   if (linked && location.hash) document.querySelector(location.hash)?.scrollIntoView();
+  if (linked && state.id === linked.id) await runFromLink();
 }
 
 function startWorker(s: E.SiteExport) {
@@ -132,7 +144,7 @@ async function loadSite(id: string, rules: string | null = null, brief: string |
   state.baseG = E.prepare(site());
   state.G = state.baseG;
   state.skeletonOff = new Set();
-  Object.assign(state, { run: null, families: [], selected: null, pen: [], children: [], locks: null, lockNote: [] });
+  Object.assign(state, { run: null, lineage: null, families: [], selected: null, pen: [], children: [], locks: null, lockNote: [] });
   massing?.closeMassing();
   resetExplore([], null);
   startWorker(site());
@@ -174,6 +186,7 @@ function drawAll() {
   drawLandform();
   drawGenome();
   drawEvolve();
+  drawTree();
   drawExplore();
   drawFamilies();
   drawBreed();
@@ -383,7 +396,7 @@ function drawLandform() {
 function setSkeleton(off: Set<number>) {
   state.skeletonOff = off;
   state.G = off.size ? E.withSkeleton(site(), state.baseG!, off) : state.baseG!;
-  Object.assign(state, { run: null, families: [], selected: null, children: [] });
+  Object.assign(state, { run: null, lineage: null, families: [], selected: null, children: [] });
   resetExplore([], null);
   startWorker(site());
   drawAll();
@@ -413,12 +426,13 @@ function drawGenome() {
 
 // --- 05 evolution ---------------------------------------------------------------------
 
-function evolveOptions(): RunOptions {
+/** The run the form describes. `seed`: a link's, else a new one. */
+function evolveOptions(seed = Math.floor(rng.random() * 1e9)): RunOptions {
   const f = form(".pc-evolve form");
   const gens = +select(f, "gens").value;
   const shock: [number, number] | null = input(f, "shock").checked
     ? [Math.min(+input(f, "shockAt").value, gens), +input(f, "shockX").value] : null;
-  const pop = +select(f, "pop").value, seed = Math.floor(rng.random() * 1e9);
+  const pop = +select(f, "pop").value;
   const pen = input(f, "fromPen").checked ? state.pen.map((p) => p.genome) : [];
   const priors = state.brief?.seeds ? state.brief.brief.typology_priors?.value ?? [] : [];
   // Typology seeds fill up to half of Generation 0 (after any designs from the pen).
@@ -437,8 +451,65 @@ function evolveOptions(): RunOptions {
   };
 }
 
-async function runEvolution() {
-  const opts = evolveOptions();
+/** The form set to a run's settings (from a link or a file). A value the form doesn't offer
+ *  (a population of 45, say) is added to it. */
+function applySettings(s: Runs.RunSettings, fromPen = false) {
+  const f = form(".pc-evolve form");
+  const pick = (name: string, v: string) => {
+    const el = select(f, name);
+    if (![...el.options].some((o) => o.value === v)) el.add(new Option(v, v));
+    el.value = v;
+  };
+  pick("search", s.search);
+  select(f, "search").dispatchEvent(new Event("change"));
+  pick("gens", String(s.gens));
+  pick("pop", String(s.pop));
+  select(f, "promote1").value = s.objectives[0] ?? "";
+  select(f, "promote2").value = s.objectives[1] ?? "";
+  if (s.axes) { select(f, "ax").value = s.axes[0]; select(f, "ay").value = s.axes[1]; }
+  if (s.bins) pick("bins", String(s.bins));
+  input(f, "shock").checked = !!s.shock;
+  $(".pc-shock-opts").hidden = !s.shock;
+  if (s.shock) { input(f, "shockAt").value = String(s.shock[0]); input(f, "shockX").value = String(s.shock[1]); }
+  input(f, "fromPen").checked = fromPen && state.pen.length > 0;
+}
+
+/** The settings a run was made with (what a link carries). */
+function settingsOf(o: RunOptions): Runs.RunSettings {
+  return {
+    search: (o.search ?? "auto") as Runs.SearchSetting, gens: o.generations ?? 30, pop: o.pop ?? 60, seed: o.seed ?? 1,
+    objectives: (o.objectives ?? []) as string[], axes: o.axes ?? null, bins: o.bins ?? null, shock: o.shock ?? null,
+  };
+}
+
+/** The page's link for a run: site, rules and brief, then the run's settings. */
+function runQuery(o: RunOptions): URLSearchParams {
+  const q = new URLSearchParams({ site: state.id! });
+  if (state.linkRules) q.set("rules", state.linkRules);
+  if (state.brief) q.set("brief", Sites.encodeBrief(state.brief));
+  const fromPen = (o.start?.length ?? 0) - (o.typologySeeds ?? 0);
+  return Runs.writeLink(q, {
+    settings: settingsOf(o), off: [...state.skeletonOff].sort((a, b) => a - b), locks: o.locked ? Int8Array.from(o.locked) : null,
+    pen: Math.max(0, fromPen), genomeVersion: E.GENOME_VERSION, build: Runs.BUILD,
+  });
+}
+
+/** One line on what a run did. */
+function runLine(opts: RunOptions, m: { everyone: number; frontSize: number; kept: Kept[]; archive: E.ArchiveInfo | null },
+  seconds: number | null, prefix = ""): string {
+  const w = state.brief?.brief.objective_weights?.value;
+  const filled = m.archive ? ` · ${m.kept.length} of ${m.archive.bins ** 2} archive cells filled` : "";
+  const ran = E.searchOf(opts), promoted = opts.objectives?.length
+    ? ` · ${opts.objectives.map((k) => (E.METRICS[k] as E.Metric).label).join(" and ")} promoted, ${5 + opts.objectives.length} objectives` : "";
+  return `${prefix}${SEARCH_NAMES[ran]}${promoted} · ${m.everyone.toLocaleString("en-IN")} designs grown`
+    + `${seconds !== null ? ` in ${seconds.toFixed(1)} s` : ""}${filled} · `
+    + `${m.frontSize} on the front, in ${state.families.length} families`
+    + (opts.typologySeeds ? ` · Generation 0 had ${opts.typologySeeds} typology seeds` : "")
+    + (w ? ` · ${m.archive ? "elites judged and " : ""}families ordered by the brief's weights` : "");
+}
+
+async function runEvolution(seed?: number, note = "") {
+  const opts = evolveOptions(seed);
   const btn = $<HTMLButtonElement>(".pc-evolve button[type=submit]");
   btn.disabled = true;
   const rows: E.HistoryRow[] = [];
@@ -458,8 +529,9 @@ async function runEvolution() {
     return;
   }
   btn.disabled = false;
-  const secs = ((performance.now() - t0) / 1000).toFixed(1);
-  state.run = { history: m.history, everyone: m.everyone, frontSize: m.frontSize, opts };
+  const secs = (performance.now() - t0) / 1000;
+  state.run = { history: m.history, everyone: m.everyone, frontSize: m.frontSize, opts, seconds: secs };
+  state.lineage = { nodes: m.lineage, genomes: m.genomes, length: E.LENGTH };
   state.families = m.families.map((f: FamilyLead) => ({ ...f, title: f.name, design: grown(f.genome) }));
   const w = state.brief?.brief.objective_weights?.value;
   if (w && Object.values(w).some((x) => x > 0)) {
@@ -470,16 +542,190 @@ async function runEvolution() {
   state.selected = state.families[0] || null;
   state.showAll = false;
   resetExplore(m.kept, m.archive);
-  const filled = m.archive ? ` · ${m.kept.length} of ${m.archive.bins ** 2} archive cells filled` : "";
-  const ran = E.searchOf(opts), promoted = opts.objectives?.length
-    ? ` · ${opts.objectives.map((k) => (E.METRICS[k] as E.Metric).label).join(" and ")} promoted, ${5 + opts.objectives.length} objectives` : "";
-  $(".pc-progress").textContent = `${SEARCH_NAMES[ran]}${promoted} · ${m.everyone.toLocaleString("en-IN")} designs grown in ${secs} s${filled} · `
-    + `${m.frontSize} on the front, in ${state.families.length} families`
-    + (opts.typologySeeds ? ` · Generation 0 had ${opts.typologySeeds} typology seeds` : "")
-    + (w ? ` · ${m.archive ? "elites judged and " : ""}families ordered by the brief's weights` : "");
+  $(".pc-progress").textContent = runLine(opts, m, secs) + (note ? ` · ${note}` : "");
+  // The address now names this run, so it can be shared or opened again.
+  history.replaceState(null, "", `?${runQuery(opts)}${location.hash}`);
+  drawSaveBar();
+  drawTree();
   drawExplore();
   drawFamilies();
   readSyntax();
+}
+
+// --- saving and reloading runs (ui/runs.ts) -------------------------------------------
+
+function drawSaveBar() {
+  $(".pc-run-save").hidden = !state.run;
+  $(".pc-run-note").textContent = "";
+}
+
+async function copyRunLink() {
+  if (!state.run) return;
+  const url = `${location.origin}${location.pathname}?${runQuery(state.run.opts)}#pc-evolve`;
+  const fromPen = state.run.opts.start?.length ? (state.run.opts.start.length - (state.run.opts.typologySeeds ?? 0)) : 0;
+  try {
+    await navigator.clipboard.writeText(url);
+    $(".pc-run-note").textContent = "Link copied: it grows this run again."
+      + (fromPen ? ` It can't carry the ${fromPen} designs from the pen this run started from; download the run for those.` : "");
+  } catch {
+    $(".pc-run-note").textContent = url;
+  }
+}
+
+function savedRun(): Runs.SavedRun {
+  const r = state.run, L = state.lineage;
+  const pen = (p: PenEntry): Runs.PenEntry => ({ name: p.name, genome: p.genome, title: p.title, parents: p.parents });
+  return {
+    format: Runs.RUN_FORMAT, version: Runs.RUN_VERSION, build: Runs.BUILD, genomeVersion: E.GENOME_VERSION, saved: new Date().toISOString(),
+    site: { id: state.id!, name: site().meta.name, rules: state.linkRules, brief: state.brief ? Sites.encodeBrief(state.brief) : null },
+    off: [...state.skeletonOff].sort((a, b) => a - b), locks: state.locks ? Runs.encodeLocks(state.locks) : null, lockNote: state.lockNote,
+    pen: state.pen.map(pen), children: state.children.map(pen), brood: state.brood,
+    settings: r ? settingsOf(r.opts) : null, start: r?.opts.start ?? null, typologySeeds: r?.opts.typologySeeds ?? 0, ranges: r?.opts.ranges ?? null,
+    result: r && L ? {
+      history: r.history, everyone: r.everyone, frontSize: r.frontSize, seconds: r.seconds,
+      families: state.families.map((f) => ({ name: f.name, size: f.size ?? 1, genome: f.genome, parents: f.parents ?? [] })),
+      kept: state.explore.kept, archive: state.explore.archive,
+      lineage: L.nodes, genomes: Runs.f64ToBase64(L.genomes), genomeLength: L.length,
+    } : null,
+    selected: state.selected?.name ?? null,
+    heights: massing?.mass.heights[state.id!] ?? null,
+  };
+}
+
+function downloadRun() {
+  const blob = new Blob([JSON.stringify(savedRun())], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${state.id}-${state.run ? `seed${state.run.opts.seed}` : "state"}-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+/** A saved file, shown as it was: its site, rules, brief, skeleton and locks, the run's
+ *  result and lineage, the pen and the children. Nothing is run again. */
+async function loadRun(file: File) {
+  const note = $(".pc-run-load-note");
+  let s: Runs.SavedRun;
+  try { s = Runs.readSaved(await file.text()); } catch (err) { note.textContent = (err as Error).message; return; }
+  note.textContent = "loading …";
+  if (!state.sites[s.site.id]) {
+    state.sites = { [s.site.id]: { name: s.site.name }, ...state.sites };
+    $(".pc-sites").insertAdjacentHTML("afterbegin", `<button type="button" data-site="${s.site.id}">${s.site.name}</button>`);
+  }
+  await loadSite(s.site.id, s.site.rules, s.site.brief);
+  if (state.id !== s.site.id) { note.textContent = "The file's site couldn't be loaded."; return; }
+  if (s.off.length) setSkeleton(new Set(s.off));
+  try {
+    state.locks = s.locks ? Runs.decodeLocks(s.locks, G().n) : null;
+  } catch (err) { note.textContent = (err as Error).message; return; }
+  state.lockNote = s.lockNote;
+  state.pen = s.pen; state.children = s.children; state.brood = s.brood;
+  if (s.ranges) state.ranges = s.ranges;
+  if (s.settings) applySettings(s.settings, false);
+  if (s.heights && Object.keys(s.heights).length) {
+    const store = await import("./mass/store.svelte");
+    store.setHeights(state.id!, s.heights);
+  }
+  const notes = Runs.versionNotes(s.genomeVersion, s.build);
+  const r = s.result;
+  if (r && s.settings) {
+    const st = s.settings;
+    const opts: RunOptions = {
+      search: st.search, objectives: st.objectives as E.MetricKey[], generations: st.gens, pop: st.pop, seed: st.seed, shock: st.shock,
+      locked: state.locks ? Array.from(state.locks) : null, start: s.start, ranges: state.ranges, typologySeeds: s.typologySeeds,
+      ...(st.search === "map-elites" ? { axes: st.axes ?? undefined, bins: st.bins ?? undefined,
+        weights: state.brief?.brief.objective_weights?.value ?? null } : {}),
+    };
+    state.run = { history: r.history, everyone: r.everyone, frontSize: r.frontSize, opts, seconds: r.seconds };
+    state.lineage = { nodes: r.lineage, genomes: Runs.base64ToF64(r.genomes), length: r.genomeLength };
+    state.families = r.families.map((f) => ({ ...f, title: f.name, design: grown(f.genome) }));
+    resetExplore(r.kept, r.archive);
+    const pens = [...state.families, ...state.pen.map((p) => ({ ...p, title: p.name, design: grown(p.genome) }))];
+    state.selected = pens.find((it) => it.name === s.selected) ?? state.families[0] ?? null;
+    $(".pc-progress").textContent = runLine(opts, { ...r, kept: r.kept, archive: r.archive }, r.seconds, `From ${file.name} (saved ${s.saved.slice(0, 10)}): `);
+    history.replaceState(null, "", `?${runQuery(opts)}#pc-evolve`);
+    // Space syntax readouts saved with the run are kept; any missing are read again.
+    const all = r.kept.every((k) => E.SYNTAX_KEYS.every((key) => key in k.metrics));
+    state.syntax.token++;
+    if (all) state.syntax.read = r.kept.length;
+    else {
+      await state.worker!.api.keep(r.kept.map((k) => ({ genome: k.genome, locked: opts.locked, ranges: opts.ranges ?? E.DEFAULT_RANGES })));
+      readSyntax();
+    }
+  }
+  drawAll();
+  drawSaveBar();
+  note.textContent = [r ? "Loaded." : "Loaded (no run in the file).", ...notes].join(" ");
+}
+
+// --- the family tree (ui/tree.ts) ------------------------------------------------------
+
+function treeLayout(): Tree.TreeLayout | null {
+  const t = state.tree, L = state.lineage;
+  if (!L) { t.layout = null; t.of = null; return null; }
+  if (t.of !== L || !t.layout || (t.layout.placed.length === L.nodes.length) !== t.all) {
+    const kept = new Set(state.explore.kept.map((k) => k.name));
+    const front = new Set(state.explore.kept.filter((k) => state.explore.archive || k.rank === 1).map((k) => k.name));
+    t.layout = Tree.layoutTree(L.nodes, kept, front, t.all);
+    if (t.of !== L) t.selected = -1;
+    t.of = L; t.hover = -1;
+    $(".pc-tree-readout").textContent = "";
+  }
+  return t.layout;
+}
+
+function drawTree() {
+  const box = $(".pc-tree"), L = state.lineage, layout = treeLayout();
+  box.hidden = !L || !layout;
+  if (!L || !layout) return;
+  $(".pc-tree-count").textContent = `${L.nodes.length.toLocaleString("en-IN")}; ${layout.placed.length.toLocaleString("en-IN")} shown`;
+  $(".pc-tree-front").textContent = state.explore.archive ? "the archive's elites" : "its front";
+  $<HTMLInputElement>(".pc-tree-all").checked = state.tree.all;
+  state.tree.hit = Tree.drawTree($<HTMLCanvasElement>(".pc-tree-canvas"), layout, L.nodes, P, {
+    selected: state.tree.selected, hover: state.tree.hover, shock: state.run?.opts.shock?.[0] ?? null,
+  });
+}
+
+const treeScores = (s: number[]) => {
+  const [storage, heat, carbon, daylight, human, gap] = s;
+  return `storage ${pct(storage)} · +${heat.toFixed(1)}°C · ${Math.round(carbon)} kg/m² · daylight ${pct(daylight)} · human scale ${pct(human)}`
+    + ` · floor area ${gap <= E.TARGET_TOLERANCE ? "on brief" : `${pct(gap)} off the brief`}`;
+};
+
+/** Open a design from the tree, grown as the run grew it. */
+function openTreeNode(i: number) {
+  const L = state.lineage, layout = state.tree.layout, o = state.run?.opts;
+  if (!L || !layout || !o) return;
+  const p = layout.placed[i], n = L.nodes[p.k];
+  const genome = Runs.lineageGenome(L.genomes, L.length, p.k);
+  const design = E.grow(genome, G(), o.locked ? Int8Array.from(o.locked) : null, o.ranges ?? E.DEFAULT_RANGES);
+  E.evaluate(design, G());
+  state.tree.selected = i;
+  drawTree();
+  choose({ name: n.name, title: `${n.name} · from the family tree, Generation ${n.gen}`, genome, design,
+    parents: n.how === "bred" ? n.parents : [] });
+}
+
+/** A run from the link (?seed=…): its settings, skeleton and locks set, then grown again. */
+async function runFromLink() {
+  let link: Runs.RunLink | null;
+  try { link = Runs.readLink(new URLSearchParams(location.search), G().n); } catch (err) {
+    $(".pc-progress").textContent = (err as Error).message;
+    return;
+  }
+  if (!link) return;
+  if (link.off.length) setSkeleton(new Set(link.off));
+  if (link.locks) { state.locks = link.locks; state.lockNote = ["cells locked in the link"]; }
+  applySettings(link.settings);
+  drawEvolve();
+  const notes = Runs.versionNotes(link.genomeVersion, link.build);
+  if (link.pen) {
+    notes.push(`This run started from ${link.pen} designs in the pen, which a link can't carry, so it was grown without them`
+      + " and won't match. The run's file keeps them.");
+  }
+  $(".pc-progress").textContent = "Growing the run from the link …";
+  document.querySelector("#pc-evolve")?.scrollIntoView();
+  await runEvolution(link.settings.seed, notes.join(" "));
 }
 
 /** Space syntax for the designs a run kept: asked of the worker one design at a time, so the
@@ -529,6 +775,7 @@ function drawCharts(rows: E.HistoryRow[], opts: RunOptions) {
 }
 
 function drawEvolve() {
+  $(".pc-run-save").hidden = !state.run;
   $(".pc-locks").textContent = state.locks ? `Locked: ${state.lockNote.join("; ")}.` : "";
   $(".pc-locks-clear").hidden = !state.locks;
   const f = form(".pc-evolve form");
@@ -948,6 +1195,25 @@ function wire() {
   });
   const ev = form(".pc-evolve form");
   ev.addEventListener("submit", (e) => { e.preventDefault(); runEvolution(); });
+  $(".pc-tree-all").addEventListener("change", (e) => { state.tree.all = (e.target as HTMLInputElement).checked; state.tree.selected = -1; drawTree(); });
+  const treeCanvas = $(".pc-tree-canvas");
+  treeCanvas.addEventListener("pointermove", (e) => {
+    const t = state.tree, i = t.hit ? t.hit(e.offsetX, e.offsetY) : -1;
+    if (i === t.hover) return;
+    t.hover = i;
+    const L = state.lineage, p = i >= 0 ? t.layout!.placed[i] : null;
+    $(".pc-tree-readout").textContent = p && L ? Tree.describeNode(L.nodes[p.k], p.role, treeScores(L.nodes[p.k].scores)) : "";
+    treeCanvas.style.cursor = i >= 0 ? "pointer" : "";
+    drawTree();
+  });
+  treeCanvas.addEventListener("pointerleave", () => { state.tree.hover = -1; drawTree(); });
+  treeCanvas.addEventListener("click", () => { if (state.tree.hover >= 0) openTreeNode(state.tree.hover); });
+  $(".pc-run-link").addEventListener("click", () => copyRunLink());
+  $(".pc-run-download").addEventListener("click", () => downloadRun());
+  $<HTMLInputElement>(".pc-run-load input").addEventListener("change", (e) => {
+    const el = e.target as HTMLInputElement, file = el.files?.[0];
+    if (file) loadRun(file).finally(() => { el.value = ""; });
+  });
   input(ev, "shock").addEventListener("change", (e) => {
     $(".pc-shock-opts").hidden = !(e.target as HTMLInputElement).checked;
   });
