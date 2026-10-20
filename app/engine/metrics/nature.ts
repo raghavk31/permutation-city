@@ -1,6 +1,6 @@
-// Connection to nature, semilattice richness and legibility (pc/metrics/nature.py; docs/metrics.md).
-import { BUILDING, CATCHMENT_M, GREEN_MIN_HA, LANDSCAPE, LEGIBLE_M, NATURE_WALK_M, WATER } from "../config.js";
-import { activityStarts, isOpen, landmarks, near, walk, walkFrom, type Net } from "./network.js";
+// Connection to nature and semilattice richness (pc/metrics/nature.py; docs/metrics.md).
+import { BUILDING, CATCHMENT_M, GREEN_MIN_HA, LANDSCAPE, NATURE_WALK_M, WATER } from "../config.js";
+import { activityStarts, isOpen, walk, walkFrom, type Net } from "./network.js";
 
 /** Cells of landscape patches of half a hectare or more. */
 function parks(net: Net): number[] {
@@ -87,5 +87,3 @@ export function semilattice(net: Net): number {
 
 /** A placeholder until Phase 8: the share of design cells within 300 m of a landmark or a
  *  centre, something to find your way by. */
-export const legibility = (net: Net) =>
-  near(net.G, [...Array(net.G.n).keys()], [...landmarks(net), ...net.centres], LEGIBLE_M);

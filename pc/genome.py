@@ -115,6 +115,7 @@ class Ground:
     lst: np.ndarray | None = None     # hot-season land surface temperature (°C; NaN: none)
     ridge: np.ndarray | None = None   # strength of the strongest divide on its edges (ha)
     skeleton: dict | None = None
+    syntax_streets: list | None = None  # existing streets to 1 km round the site, [x0, y0, x1, y1] (pc.syntax)
     relief_class: str | None = None   # pronounced, gentle or flat (pc.landform); flat if unknown
 
 

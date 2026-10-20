@@ -52,7 +52,7 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
 // Any form metric can be a trait too (metrics/index.ts), binned over where most designs fall.
 for (const k of METRIC_KEYS) {
   const m = METRICS[k] as Metric;
-  DESCRIPTORS[k] = { label: m.label, range: m.range ?? [0, 1], value: (d, G) => measure(d, G, [k])[k]! };
+  DESCRIPTORS[k] = { label: m.label, range: m.range ?? [0, 1], value: (d, G) => measure(d, G, [k], true)[k]! };
 }
 export const DESCRIPTOR_KEYS = Object.keys(DESCRIPTORS);
 

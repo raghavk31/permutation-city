@@ -142,3 +142,12 @@ body:has(> .pc) { margin: 0; background: var(--paper, #fcfcfb); }
 .pc-mass-views figure { margin: 0; }
 .pc-mass-views figcaption { font-size: 13px; color: var(--pc-ink-2); margin-top: 4px; }
 .pc-mass-3d { width: 100%; height: min(62vh, 520px); display: block; border: 1px solid var(--pc-line); border-radius: 6px; touch-action: none; }
+
+/* Space syntax (the design detail) */
+.pc-syntax { margin-top: 10px; font-size: 13px; }
+.pc-syntax summary { cursor: pointer; font-size: 14px; }
+.pc-syntax-table { border-collapse: collapse; margin: 6px 0; font-size: 13px; }
+.pc-syntax-table th, .pc-syntax-table td { text-align: left; padding: 2px 12px 2px 0; font-weight: normal; }
+.pc-syntax-table thead th { color: var(--pc-muted); }
+.pc-ramp { display: inline-block; width: 72px; height: 8px; border-radius: 2px; vertical-align: 0;
+  background: linear-gradient(90deg, #2b4c7e, #4f86c6, #9fc7e0, #f4c27a, #e2703a, #a3271f); }

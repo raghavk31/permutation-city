@@ -2,11 +2,12 @@
 //
 // Each is a pure function of a design's network (network.ts), built once per design and
 // only when asked for: the readout panel, or a metric promoted to an objective or a
-// MAP-Elites trait. Wholeness is the list, never one number.
+// MAP-Elites trait. Wholeness is the list, never one number. Inside a run (`estimate`), space
+// syntax computes Rn integration on the condensed network; what the page shows is exact.
 import type { Aesthetic } from "../brief.js";
 import type { Design, Ground } from "../types.js";
 import { coherence, heightEntropy, typeEntropy, useEntropy } from "./harmony.js";
-import { greenCover, greenView, greenWalk, legibility, semilattice, waterWalk } from "./nature.js";
+import { greenCover, greenView, greenWalk, semilattice, waterWalk } from "./nature.js";
 import { network, type Net } from "./network.js";
 import {
   balance, boundaries, contrast, gradients, landmarkPlacement, levelsOfScale, localSymmetry, positiveSpace, rhythmBuilt,
@@ -14,12 +15,14 @@ import {
 } from "./order.js";
 import { deadEnds, heatFit, junctionDensity, lowStreets, meshedness, ridgeStreets, runoffPath, valleyFree } from "./land.js";
 import { activeFrontage, blockSize, connections, dhEnclosure, lowFrontage } from "./scale.js";
+import { intelligibility, legibility, nachMean, nainMean } from "./syntax.js";
 
 /** label, the property it reads (the brief's vocabulary), higher is better (null: neither,
  *  shown but never optimised), format, what it measures. */
 export interface Metric {
   label: string; property: Aesthetic; up: boolean | null; fmt: (v: number) => string; note: string;
-  value: (net: Net) => number;
+  /** `estimate`: inside a run, space syntax computes Rn on the condensed network (syntax.ts). */
+  value: (net: Net, estimate?: boolean) => number;
   range?: [number, number];  // where most designs fall, for MAP-Elites bins (default 0 to 1)
 }
 
@@ -106,12 +109,28 @@ export const METRICS = {
     note: "the largest open space, as a share of the ground" },
   semilattice: { label: "semilattice richness", property: "semilattice_richness", up: true, fmt: pct,
     value: semilattice, note: "cells in more than one 400 m catchment (parks, water, centres, roads)" },
-  legibility: { label: "legibility (placeholder)", property: "legibility", up: true, fmt: pct, value: legibility,
-    note: "cells within 300 m of a landmark or centre; Phase 8 replaces it" },
+  // Space syntax (angular segment analysis on the design's streets inside the existing
+  // streets to 1 km round the site; syntax.ts)
+  nain_r400: { label: "integration, 400 m (NAIN)", property: "permeability", up: null, fmt: num(2), value: nainMean(400),
+    note: "normalised angular integration within 400 m, mean over the site's streets by length", range: [0, 1.5] },
+  nain_r800: { label: "integration, 800 m (NAIN)", property: "permeability", up: null, fmt: num(2), value: nainMean(800),
+    note: "normalised angular integration within 800 m", range: [0, 1.5] },
+  nain_rn: { label: "integration, Rn (NAIN)", property: "permeability", up: null, fmt: num(2), value: nainMean(Infinity),
+    note: "normalised angular integration, Rn within the 1 km buffer", range: [0, 1.5] },
+  nach_r400: { label: "choice, 400 m (NACH)", property: "permeability", up: null, fmt: num(2), value: nachMean(400),
+    note: "normalised angular choice within 400 m", range: [0, 1.5] },
+  nach_r800: { label: "choice, 800 m (NACH)", property: "permeability", up: null, fmt: num(2), value: nachMean(800),
+    note: "normalised angular choice within 800 m", range: [0, 1.5] },
+  intelligibility: { label: "intelligibility", property: "legibility", up: true, fmt: num(2), value: intelligibility,
+    note: "correlation of 400 m and Rn integration over the site's streets", range: [-0.2, 1] },
+  legibility: { label: "legibility", property: "legibility", up: true, fmt: pct, value: legibility,
+    note: "intelligibility, centres on the integration core, and landmarks seen from it, averaged" },
 } satisfies Record<string, Metric>;
 
 export type MetricKey = keyof typeof METRICS;
 export const METRIC_KEYS = Object.keys(METRICS) as MetricKey[];
+/** The space syntax metrics: seconds per design, so the page asks the worker for them. */
+export const SYNTAX_KEYS: MetricKey[] = ["nain_r400", "nain_r800", "nain_rn", "nach_r400", "nach_r800", "intelligibility", "legibility"];
 /** Metrics with a better end: the ones that can become objectives. */
 export const OBJECTIVE_KEYS = METRIC_KEYS.filter((k) => (METRICS[k] as Metric).up !== null);
 /** Properties with no proxy here, and why (docs/metrics.md). */
@@ -123,9 +142,9 @@ export const NOT_MEASURED: Partial<Record<Aesthetic, string>> = {
 export type Metrics = Record<MetricKey, number>;
 
 /** Some or all metrics of a design. */
-export function measure(d: Design, G: Ground, keys: readonly MetricKey[] = METRIC_KEYS): Partial<Metrics> {
+export function measure(d: Design, G: Ground, keys: readonly MetricKey[] = METRIC_KEYS, estimate = false): Partial<Metrics> {
   const net = network(d, G), out: Partial<Metrics> = {};
-  for (const k of keys) out[k] = (METRICS[k] as Metric).value(net);
+  for (const k of keys) out[k] = (METRICS[k] as Metric).value(net, estimate);
   return out;
 }
 

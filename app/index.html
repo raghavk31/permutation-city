@@ -157,6 +157,7 @@
       <label class="pc-muted">compare <select class="pc-measures pc-wide"></select></label>
     </div>
     <p class="pc-explore-empty pc-muted">Run an evolution above; what it kept appears here.</p>
+    <p class="pc-muted pc-syntax-progress" role="status" hidden></p>
     <div class="pc-explore-body" hidden>
       <div>
         <canvas class="pc-map pc-explore-plot"></canvas>
@@ -202,6 +203,16 @@
           </p>
           <p class="pc-muted">Locked cells keep their use in the next run; evolution works around them.</p>
           <details class="pc-metrics"><summary>form metrics</summary><div class="pc-metrics-body"></div></details>
+          <details class="pc-syntax"><summary>space syntax</summary>
+            <p class="pc-muted">The design's streets inside the existing streets to 1 km round the site, analysed by angle
+              (segment analysis). Only the site's streets are shown in colour.</p>
+            <p class="pc-controls"><label>show <select class="pc-syntax-measure"></select></label></p>
+            <canvas class="pc-map pc-syntax-map"></canvas>
+            <p class="pc-legend pc-syntax-legend"></p>
+            <div class="pc-syntax-body"></div>
+            <p class="pc-actions"><button type="button" class="pc-syntax-choice">exact choice, Rn</button>
+              <span class="pc-muted pc-syntax-status"></span></p>
+          </details>
         </div>
       </div>
     </div>

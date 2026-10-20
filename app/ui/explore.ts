@@ -30,7 +30,8 @@ export const GROUPS: [string, MetricKey[]][] = [
   ["Alexander: structure", ["levels_of_scale", "strong_centres", "boundaries", "positive_space", "the_void", "gradients",
     "roughness"]],
   ["Alexander: pattern", ["rhythm_built", "rhythm_skyline", "local_symmetry", "symmetry", "balance", "contrast", "landmarks"]],
-  ["use and orientation", ["semilattice", "legibility"]],
+  ["use and orientation", ["semilattice"]],
+  ["space syntax", ["nain_r400", "nain_r800", "nain_rn", "nach_r400", "nach_r800", "intelligibility", "legibility"]],
 ];
 
 /** Axes for form metrics, read from each kept design's metrics. */

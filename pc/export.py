@@ -15,6 +15,7 @@ One JSON file per site, in local metres around an origin (lon, lat), with:
     design    the design ground the engine grows on: positions, neighbours, what each cell
               allows, height caps, permeable minimums, trees, the site's own water score
     context   major roads and rail (polylines), place names
+    syntax    existing streets to 1 km round the site, as segments (space syntax; pc/syntax.py)
 
 The browser engine (app/engine/) reads `design` exactly as pc.genome.Ground holds it;
 `ground_from_export` rebuilds that Ground in Python so both engines can be compared on
@@ -29,7 +30,7 @@ import json
 import geopandas as gpd
 import numpy as np
 
-from pc import elites, evolve, fitness, genome, landform, lst, metrics, rules, skeleton
+from pc import elites, evolve, fitness, genome, landform, lst, metrics, rules, skeleton, syntax
 from pc import grid as cellgrid
 from pc.rng import Rng
 from pc.site import ROOT, Site
@@ -143,6 +144,7 @@ def site_ground(site: Site, suit: gpd.GeoDataFrame, origin=None) -> tuple[genome
     ground.roads = _lines(context(site)["roads"], *ground.origin)
     ground.activities = _activities(site, *ground.origin)
     ground.skeleton = skeleton.build(site, ground, ground.cells, suit) if "valley_order" in suit else None
+    ground.syntax_streets = (syntax.buffer_streets(site, ground.origin) or {}).get("segments")
     summary = landform.load(site)
     ground.relief_class = summary["relief"]["class"] if summary else None
     return ground, design
@@ -230,6 +232,9 @@ def export(site: Site) -> dict:
         },
         **({"skeleton": skel} if skel else {}),
     }
+    sx = syntax.buffer_streets(site, (ox, oy))
+    if sx:
+        out["syntax"] = sx
     return out
 
 
@@ -253,6 +258,7 @@ def ground_from_export(data: dict) -> genome.Ground:
         vbuf=np.array(d["vbuf"]) if "vbuf" in d else None, down=np.array(d["down"]) if "down" in d else None,
         lst=np.array([np.nan if v is None else v for v in d["lst"]]) if "lst" in d else None,
         ridge=np.array(d["ridge"]) if "ridge" in d else None, skeleton=data.get("skeleton"),
+        syntax_streets=(data.get("syntax") or {}).get("segments"),
         relief_class=(data.get("meta", {}).get("landform") or {}).get("relief", {}).get("class"),
     )
 
@@ -381,6 +387,26 @@ def brief_cases(data: dict) -> dict:
 
 
 METRIC_CASES = 12  # of the random genomes, how many carry their form metrics
+SYNTAX_CASES = 2   # ... of those, how many include space syntax (seconds each in Python)
+# On the smallest network only: exact Rn choice, and a run with legibility promoted.
+SYNTAX_FULL_SITE = "mumbai-docks"
+SYNTAX_EVOLUTION = {"seed": 21, "generations": 3, "pop": 12, "objectives": ["legibility"]}
+
+
+def _syntax_case(d, ground, choice: bool) -> dict:
+    """Space syntax of one design, segment by segment (pc/syntax.py)."""
+    from pc import syntax as sx
+    net = metrics.network(d, ground)
+    S = sx.syntax_of(net)
+    N = S["N"]
+    inf = lambda vs: [None if v is None or not np.isfinite(v) else float(v) for v in vs]
+    out = {"segments": len(N.a), "site": N.site, "links": N.links,
+           "local": [{"radius": m["radius"], "nain": inf(m["nain"]), "nach": inf(m["nach"])} for m in S["local"]],
+           "rn": inf(S["rn"]["nain"])}
+    if choice:
+        c = sx.choice_rn(net)
+        out["choice_rn"] = {"nach": inf(c["nach"]), "nain": inf(c["nain"])}
+    return out
 
 
 def fixture(data: dict, n=40, seed=7, site: Site | None = None) -> dict:
@@ -394,16 +420,19 @@ def fixture(data: dict, n=40, seed=7, site: Site | None = None) -> dict:
         g = genome.random_genome(rng)
         d = genome.grow(g, ground)
         s = fitness.evaluate(d, ground, brief)
+        keys = [m for m in metrics.METRICS if k < SYNTAX_CASES or m not in metrics.SYNTAX_KEYS]
         cases.append({"genome": [float(v) for v in g], "use": genome.use_codes(d).tolist(),
                       "levels": d.levels.tolist(), "scores": s,
-                      **({"metrics": metrics.measure(d, ground)} if k < METRIC_CASES else {})})
+                      **({"metrics": metrics.measure(d, ground, keys)} if k < METRIC_CASES else {}),
+                      **({"syntax": _syntax_case(d, ground, data["meta"]["id"] == SYNTAX_FULL_SITE)} if k == 0 else {})})
     ranks = fitness.pareto_ranks([c["scores"] for c in cases])
     for c, r in zip(cases, ranks):
         c["rank"] = int(r)
     r = Rng(12345)
     stream = {"seed": 12345, "random": [r.random() for _ in range(200)], "normal": [r.normal(0, 0.12) for _ in range(50)]}
     return {"site": data["meta"]["id"], "cases": cases, "rng": stream,
-            "evolutions": [_evolution(ground, brief, c) for c in EVOLUTIONS],
+            "evolutions": [_evolution(ground, brief, c) for c in EVOLUTIONS
+                           + ([SYNTAX_EVOLUTION] if data["meta"]["id"] == SYNTAX_FULL_SITE else [])],
             "rule_cases": rule_cases(site) if site else [],
             "briefs": brief_cases(data)}
 

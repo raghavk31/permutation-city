@@ -1039,6 +1039,83 @@ Unsure about, or left open:
   brief, with a front of one, while CPPN and field runs fill the envelope.
 - **Pattern 107's width is unchecked** against the book.
 
+## Phase 8 log (2026-10-20): space syntax and legibility
+
+On branch `v2-phase8`, off `main` after PRs #6–#9 were merged. The method is in
+`docs/metrics.md`, "Space syntax".
+
+Choices at the start (yours):
+- radii 400 m, 800 m and Rn
+- existing streets fetched to a 1 km buffer for space syntax only; computed on the full
+  network, reported on site segments; the global measure labelled "Rn within the 1 km buffer"
+- NAIN and NACH (Hillier, Yang and Turner 2012) as the measures, raw values secondary
+- legibility a readout, promotable, with intelligibility in it and shown on its own; landmarks
+  from the Phase 6 outliers
+
+Then, once the costs were measured:
+- exact Rn choice only for the opened design (10–35 s)
+- a promoted legibility estimated during the run, with every value shown exact
+
+What was built:
+- **Data.** `pc fetch <site> --only streets` downloads Overture roads to 1 km beyond each
+  site's box. The export carries them as simplified segments (`syntax` in the site file):
+  3,300–12,500 segments per site.
+- **The network** (`app/engine/syntax.ts`, `pc/syntax.py`):
+  - The design's streets are rebuilt as **strokes**. Read straight off cell edges, hex streets
+    are chains of 60° turns: before strokes, the median bend on hex sites was exactly 60°, and
+    the straightest way through a junction was under 20° at 0–26% of junctions.
+  - With strokes, the straightest way through is under 20° at 78–88% of junctions, hex and
+    square alike.
+  - Then the buffer, with streets over the design ground dropped, and links where the city's
+    streets dangle at the edge.
+- **The analysis:**
+  - least-angle paths with integer turn costs (so both engines count the same ties), ties by
+    length, metric radii
+  - Brandes choice
+  - Rn integration by a bucket queue, 3 times faster than the heap, identical results
+- **Metrics:** NAIN at 400 m, 800 m and Rn; NACH at 400 m and 800 m; intelligibility (R400
+  against Rn NAIN); legibility (intelligibility, centres on the integration core, landmarks
+  seen from it). The Phase 6 placeholder is gone.
+- **The run's estimate:** Rn integration on a condensed network (the buffer reduced to its
+  gateways, once per ground).
+  - Legibility r = 0.78–0.96 against exact; intelligibility r = 0.96–0.99.
+  - About 0.15–0.5 s per design.
+  - The 128-segment sample first chosen gave r = 0.67–0.80 and was dropped.
+- **Both engines, exact parity:** every site's fixture checks one design segment by segment,
+  and Docks also checks exact Rn choice and a run with legibility promoted. Python takes
+  10–15 s per design.
+- **The page:**
+  - Space syntax readouts for the kept designs arrive from the worker after a run, one design
+    at a time, with a progress line.
+  - Explore has a "space syntax" group, which waits until every design is read.
+  - The opened design has a space syntax panel:
+    - a map coloured by any of the five measures, the integration core in ink, landmarks as
+      triangles, the buffer in grey
+    - NAIN and NACH by radius, with mean depth and mean choice beside them
+    - legibility's three parts
+    - a button for exact Rn choice (5 s on Docks)
+  - Breeding can be biased by a syntax metric (the worker estimates it).
+- **Tests:** `npm test` 296 (19 new), `uv run pytest` 75 (5 new). Checked in a headless
+  browser on Mumbai Docks: a run, the readouts, Explore, the panel, exact Rn choice, and a
+  10-generation run with legibility promoted (NSGA-III, six objectives, 330 designs in 46 s).
+
+Also found in the smoke test after merging: the site picker's map had been blank on the live
+site since Phase 2 (MapLibre's worker wasn't bundled). Fixed in PR #10, left for you to merge.
+
+Unsure about, or left open:
+- **A promoted legibility costs time.** About 5–8 minutes more per 1,860-design run with the
+  estimate; an exact mode (integration without choice) would add 10–21 minutes. The estimate
+  is weakest where a design's few centres and landmarks sit near the edge of the core (Docks,
+  r = 0.78).
+- **Landmark visibility is strict.** Any building of a few storeys close to the viewer blocks
+  the sightline (cells are treated as solid, ignoring coverage and the street between). On
+  some designs a cluster of landmarks next to the core counts as unseen.
+- **The buffer is Overture's roads without footpaths.** Indian cities' lanes and footpaths are
+  patchy in Overture, so the city round each site is coarser than it is.
+- **Rn is the 1 km buffer, not the city.** Global values depend on where the fetch stops; they
+  compare designs on one site, not sites.
+- **Parallel-coordinate labels overlap** with seven syntax axes (left for Phase 10).
+
 ## 8. Decisions (2026-10-16)
 
 The user asked to go with the recommendations:

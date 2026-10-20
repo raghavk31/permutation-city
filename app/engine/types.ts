@@ -24,6 +24,8 @@ export interface SiteExport {
     z?: number[]; valley?: number[]; vbuf?: number[]; down?: number[]; lst?: (number | null)[]; ridge?: number[];
   };
   skeleton?: SkeletonExport;
+  /** Existing streets to 1 km round the site, as segments (pc/syntax.py). */
+  syntax?: { buffer_m: number; simplify_m: number; segments: number[][] };
   context: {
     roads: [number, number][][];
     rail: [number, number][][];
@@ -106,6 +108,7 @@ export interface Ground {
   roads?: [number, number][][];  // existing major roads, same frame as x, y (the metrics' streets)
   activities?: Activities;       // shops, schools, transit points, same frame (semilattice richness)
   water?: [number, number][];    // centres of the site's water cells (any grid cell), same frame (building-scale massing)
+  syntaxStreets?: number[][];    // existing streets to 1 km round the site, [x0, y0, x1, y1] (space syntax)
   // Landform (export format 4; pc/landform.py): per cell, and the street skeleton
   z?: Float64Array;              // ground height (m)
   valley?: Int8Array;            // valley order (0: none)

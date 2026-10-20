@@ -335,3 +335,49 @@ export function sparkline(canvas: HTMLCanvasElement, values: (number | null)[], 
   ctx.fillStyle = p.muted; ctx.font = "10px system-ui, sans-serif";
   ctx.fillText("gen 0", L, h - 3); ctx.textAlign = "right"; ctx.fillText(`gen ${values.length - 1}`, w - R, h - 3);
 }
+
+/** Low to high for space syntax maps: blue to red, as space syntax maps are read, without
+ *  green (so red-green colour blindness still reads the order). */
+export const SYNTAX_RAMP = ["#2b4c7e", "#4f86c6", "#9fc7e0", "#f4c27a", "#e2703a", "#a3271f"];
+
+/** A design's streets coloured by a space syntax measure (values per site segment; null: none
+ *  yet), over the design faintly, with the buffer's streets in grey, the integration core
+ *  underlined in ink and landmarks as triangles. Colours run from the 5th to the 95th
+ *  percentile, so a few extreme segments don't wash out the rest. */
+export function syntaxMap(canvas: HTMLCanvasElement, site: SiteExport, d: Design, p: Palette,
+  o: { aspect: number; site: Float64Array; buffer: Float64Array; values: ArrayLike<number> | null; core: number[]; landmarks: number[] }): View {
+  const D = site.design, { corners: shape, r } = shapeOf(site);
+  const { ctx, w, h } = fitCanvas(canvas, o.aspect);
+  const v = view(D.x, D.y, w, h, 6, r * 3);
+  ctx.fillStyle = p.paper; ctx.fillRect(0, 0, w, h);
+  ctx.save(); ctx.globalAlpha = 0.22;
+  cells(ctx, v, D.x, D.y, designColours(d, p), shape);
+  ctx.restore();
+  const seg = (a: Float64Array, s: number) => {
+    ctx.beginPath();
+    ctx.moveTo(v.px(a[4 * s]), v.py(a[4 * s + 1])); ctx.lineTo(v.px(a[4 * s + 2]), v.py(a[4 * s + 3]));
+    ctx.stroke();
+  };
+  ctx.lineCap = "round";
+  ctx.strokeStyle = p.muted; ctx.lineWidth = 0.6;
+  for (let s = 0; s < o.buffer.length / 4; s++) seg(o.buffer, s);
+  ctx.strokeStyle = p.ink; ctx.lineWidth = 5;
+  for (const s of o.core) seg(o.site, s);
+  const n = o.site.length / 4, vals = o.values;
+  const fin: number[] = [];
+  if (vals) for (let s = 0; s < n; s++) if (Number.isFinite(vals[s])) fin.push(vals[s]);
+  fin.sort((a, b) => a - b);
+  const lo = fin.length ? fin[Math.floor(fin.length * 0.05)] : 0, hi = fin.length ? fin[Math.min(fin.length - 1, Math.floor(fin.length * 0.95))] : 1;
+  const order = [...Array(n).keys()].sort((a, b) => (vals ? (vals[a] || 0) - (vals[b] || 0) : 0));
+  ctx.lineWidth = 2.2;
+  for (const s of order) {
+    ctx.strokeStyle = vals && Number.isFinite(vals[s]) ? ramp(SYNTAX_RAMP, hi > lo ? (vals[s] - lo) / (hi - lo) : 0.5) : p.ink2;
+    seg(o.site, s);
+  }
+  ctx.fillStyle = p.ink;
+  for (const i of o.landmarks) {
+    const x = v.px(D.x[i]), y = v.py(D.y[i]);
+    ctx.beginPath(); ctx.moveTo(x, y - 6); ctx.lineTo(x + 5, y + 4); ctx.lineTo(x - 5, y + 4); ctx.closePath(); ctx.fill();
+  }
+  return v;
+}

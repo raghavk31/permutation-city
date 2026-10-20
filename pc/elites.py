@@ -50,9 +50,9 @@ DESCRIPTORS = {
 }
 
 # Any form metric can be a trait too (pc.metrics), binned over where most designs fall.
-for _key, (_, _, _fn) in metrics.METRICS.items():
+for _key in metrics.METRICS:  # a run's view: space syntax estimated (pc.metrics.measure)
     DESCRIPTORS[_key] = (_key.replace("_", " "), metrics.RANGES.get(_key, (0.0, 1.0)),
-                         (lambda fn: lambda d, ground: float(fn(metrics.network(d, ground))))(_fn))
+                         (lambda k: lambda d, ground: metrics.measure(d, ground, [k], estimate=True)[k])(_key))
 
 # What an elite holds its cell by: designs off the floor-area brief score below zero (the
 # closer the better); on brief, the mean of the five scores, each scaled 0..1 over this

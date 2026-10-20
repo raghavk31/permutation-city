@@ -101,7 +101,7 @@ export function record(run: Run, gen: number, storm: number, obj: Objective[] = 
  *  to 6 places, as the scores are rounded, so both engines rank them alike). */
 export function score(design: Design, G: Ground, storm: number, objectives: readonly MetricKey[] = []) {
   evaluate(design, G, storm);
-  const m = objectives.length ? measure(design, G, objectives) : {};
+  const m = objectives.length ? measure(design, G, objectives, true) : {};  // estimate: see metrics/index.ts
   for (const k of objectives) (design.scores as unknown as Record<string, number>)[k] = roundTo(m[k]!, 6);
 }
 

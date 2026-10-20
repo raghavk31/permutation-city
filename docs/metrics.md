@@ -32,8 +32,7 @@ derived from each design (`network.ts`):
 | landmark | a building at least two standard deviations and two storeys above the mean height |
 | walk | steps over cell links (streets and roads can be crossed on foot), times the cell spacing |
 
-The street graph (sides, joined at cell corners) is built so Phase 8's space syntax can run
-on it directly.
+The street graph (sides, joined at cell corners) is what space syntax (below) builds its strokes from.
 
 **Compare by grid type.** On hexes three sides meet at every corner, so every junction is a
 T or a Y; squares give crossroads. Junction density and meshedness differ by grid type for
@@ -149,7 +148,6 @@ Not measured, and why:
 | key | what it measures | better | range |
 |---|---|---|---|
 | `semilattice` | Semilattice richness (*A City is Not a Tree*). Five kinds of 400 m walking catchment: parks, water, shops and food (Overture places, plus the design's own centres), schools, and transit (Overture places). A place outside the design ground starts its walk at its nearest cell, with the straight-line distance already counted. For each cell, (catchments − 1) / 4, floored at 0; the mean. 0 when each cell reaches one thing, 1 when every cell reaches every kind. Sites exported without places use the old stand-in: parks, water, centres and existing roads, (catchments − 1) / 3. | higher | 66–81% |
-| `legibility` | **A placeholder until Phase 8.** Share of cells within 300 m of a landmark or a centre: something to find your way by. | higher | 0–52% |
 
 Places are kept when Overture's confidence is 0.4 or more and they aren't marked closed
 (`pc/maps.py`, `PLACE_MIN_CONFIDENCE`). With that filter:
@@ -173,6 +171,132 @@ after (real destinations, re-fetched 2026-10-19):
 
 The spread across designs narrows: existing shops and schools don't depend on the design,
 so a design changes only the parks, water and centres it adds.
+
+### Space syntax
+
+Angular segment analysis (Turner 2001, 2007; Hillier and Iida 2005) of each design's streets
+inside the existing street network round the site. Code: `app/engine/syntax.ts` and
+`app/engine/metrics/syntax.ts`, line for line in `pc/syntax.py` and `pc/metrics/syntax.py`. The
+parity fixtures check them segment by segment.
+
+**The network.**
+- **The design's streets**, rebuilt as strokes (natural streets; Jiang and Claramunt 2004).
+  Streets run on cell edges, so on hexes they zigzag 30° either way of their line and meet in
+  Y-shaped junctions; read as they are, a straight street would be a chain of 60° turns. So:
+  1. Street sides are chained between junctions.
+  2. At each junction, the pieces that carry on most nearly straight are paired (directions
+     read over 30 m, deflection at most 45°) and joined into strokes.
+  3. Each stroke is straightened as a whole (Douglas-Peucker, 0.75 × cell size, so 15 m on
+     20 m cells).
+  4. Each junction moves onto the straightened strokes through it.
+  On the bench designs, the straightest way through a junction is under 20° at 78–88% of
+  junctions, against 0–26% before (most on hexes were exactly 60°).
+- **Existing major roads over the design ground**, on sites whose skeleton is landform. On a
+  roads skeleton the design's primary streets already follow them.
+- **The existing streets to 1 km round the site** (Overture roads, not footpaths):
+  - Fetched to 1 km beyond the site's box, which already has its 250 m margin (`pc fetch
+    <site> --only streets`).
+  - Simplified at 3 m and cut into straight segments.
+  - Those whose middle lies on the design ground are dropped, since the design replaces them.
+  - The buffer is what keeps segments near the edge from looking less integrated than they
+    are (edge effect).
+- **Links:** a buffer street left dangling at the design ground's edge joins the nearest site
+  vertex within 40 m.
+
+Buffer sizes, after simplifying:
+
+| site | buffer segments |
+|---|---:|
+| mumbai-docks | 3,300 |
+| mumbai-ewf | 5,400 |
+| ahmedabad-wadaj | 8,000 |
+| bengaluru-cascade | 12,500 |
+
+**The analysis.** Everything is computed on the whole network; only the site's segments are
+reported.
+- **Turns:** the turn between two segments, in units of 90°, quantised to 1/256 so both
+  engines count the same ties.
+- **Paths:** least-angle, ties broken by the shorter, since a straight run costs no angle.
+- **Radius:** a segment is reached when the metric length of its path, from the origin's
+  middle to its own, is within the radius. Radii are 400 m, 800 m and **Rn within the 1 km
+  buffer** (no radius: the whole network as fetched, not the whole city).
+- **Choice:** least-angle paths between pairs of segments that pass through a segment, ties
+  shared (Brandes 2001).
+  - At a radius, every segment whose middle is within the radius of a site segment is an
+    origin.
+  - At Rn, every segment of the network. That takes 10–35 s per design in the browser, so it
+    is computed for the opened design on request.
+
+| key | what it measures | better | typical |
+|---|---|---|---|
+| `nain_r400`, `nain_r800`, `nain_rn` | Normalised angular integration, NAIN = NC^1.2 / (TD + 2), where NC is the segments reached and TD their total angular depth (Hillier, Yang and Turner 2012). Mean over the site's segments, weighted by length. Normalised, so designs with more or fewer streets compare. | neither | table below |
+| `nach_r400`, `nach_r800` | Normalised angular choice, NACH = log(CH + 1) / log(TD + 3) (Hillier, Yang and Turner 2012). CH counts each pair once. Mean, weighted by length. | neither | table below |
+| `intelligibility` | Pearson r between R400 and Rn integration (NAIN) over the site's segments: how far what is near tells you about the whole (Hillier 1996, with local integration in place of connectivity). | higher | table below |
+| `legibility` | The mean of three parts, each 0 to 1. (1) Intelligibility, with below zero counted as zero. (2) Centres on the integration core: of the design's centres (the cells nearest its core attractors), the share within 100 m of the core. (3) Landmarks seen from the core: of the landmarks (below), the share that someone standing on the core can see within 300 m. | higher | table below |
+
+Mean (range) over 12 random designs per site (`npm run syntax-survey`):
+
+| site | NAIN 400 m | NAIN 800 m | NAIN Rn | NACH 400 m | NACH 800 m | intelligibility | legibility |
+|---|---|---|---|---|---|---|---|
+| mumbai-docks | 0.76 (0.74–0.81) | 0.56 (0.53–0.61) | 0.45 (0.40–0.48) | 0.78 (0.75–0.81) | 0.77 (0.74–0.81) | 0.35 (0.18–0.53) | 0.34 (0.06–0.74) |
+| mumbai-ewf | 0.77 (0.73–0.81) | 0.57 (0.54–0.63) | 0.39 (0.35–0.43) | 0.78 (0.75–0.82) | 0.78 (0.74–0.82) | 0.43 (0.26–0.53) | 0.41 (0.15–0.78) |
+| ahmedabad-wadaj | 1.07 (0.88–1.14) | 0.80 (0.63–0.87) | 0.50 (0.32–0.56) | 0.71 (0.67–0.76) | 0.81 (0.78–0.83) | 0.49 (0.44–0.55) | 0.28 (0.16–0.45) |
+| ahmedabad-wadaj-quad | 1.05 (0.92–1.23) | 0.78 (0.68–0.94) | 0.48 (0.38–0.56) | 0.70 (0.63–0.79) | 0.82 (0.75–0.86) | 0.56 (0.46–0.62) | 0.29 (0.15–0.54) |
+| bengaluru-cascade | 0.80 (0.73–0.84) | 0.57 (0.53–0.61) | 0.45 (0.39–0.50) | 0.70 (0.64–0.74) | 0.71 (0.65–0.74) | 0.45 (0.35–0.60) | 0.20 (0.12–0.39) |
+
+The landmark part varies widely: on 12 designs per site it ran from 0 to 100% (Docks), 0 to
+80% (Wadaj) and 0 to 75% (Bengaluru), and was 0 with landmarks present on 2 to 5 of 12. A
+sightline from street level is blocked by any building of a few storeys close to the viewer,
+so a landmark is mostly seen down a street, across open ground, or from far enough away.
+
+- **NAIN and NACH are neither better nor worse,** so they are readouts, not objectives. The
+  raw values (mean depth, in 90° turns, and mean choice) are shown beside them in the design's
+  space syntax panel, as secondary readouts.
+- **The integration core:** the site's segments in order of Rn NAIN, until they hold 10% of
+  the site's street length.
+- **Landmarks:** Phase 6's contrast and emphasis outliers (`landmarks` in
+  `metrics/network.ts`): building cells whose storeys are at least two standard deviations
+  and two storeys above the mean of the design's building cells.
+- **Seeing a landmark** (`sees`):
+  - Viewpoints sit at the middle of every 20 m stretch of each core segment.
+  - From each, a sightline runs from the eye (1.6 m) to the top of the landmark (storeys ×
+    3.2 m), checked every half cell spacing.
+  - A building cell on the way whose top rises above the line blocks it.
+  - Off the design ground nothing blocks: the context's heights aren't modelled.
+- **No landmarks or no centres:** that part is 0. A design with nothing that stands out is
+  harder to find your way in (Lynch 1960).
+
+**Inside a run.** When `legibility` or `intelligibility` is promoted to an objective (or used
+as a MAP-Elites trait, or to bias breeding), it is estimated, and everything the page shows is
+exact. The estimate:
+- reads integration only (no choice) at 400 m and 800 m, exactly
+- computes Rn integration on a **condensed network**
+
+The condensed network: outside the design ground nothing changes from design to design. So
+the buffer is reduced, once per ground, to its gateways (the buffer streets the design's
+streets join). Each gateway keeps its least-angle cost, through the buffer alone, to every
+buffer segment and to every other gateway. Per design, the graph is the site's segments, the
+links and the gateways, with gateways joined pairwise at their buffer costs (pairs another
+gateway undercuts are pruned, which changes no distance). Each gateway stands for the buffer
+segments nearest to it.
+
+It is exact but for that assignment: from some origins a buffer segment is cheaper to reach
+through another gateway. A 128-segment sample of origins, the first plan, was tested and
+dropped. Its legibility correlated with the exact value at only r = 0.67–0.80.
+
+Against the exact values, 20 random designs per site (`npm run syntax-estimate`):
+
+| site | legibility r | mean error | exact range | intelligibility r | mean error | exact s / design | estimate s / design |
+|---|---|---|---|---|---|---|---|
+| mumbai-docks | 0.775 | 0.064 | 0.06–0.74 | 0.992 | 0.012 | 0.42 | 0.14 |
+| ahmedabad-wadaj | 0.957 | 0.025 | 0.15–0.53 | 0.961 | 0.032 | 1.42 | 0.53 |
+| bengaluru-cascade | 0.857 | 0.028 | 0.12–0.52 | 0.988 | 0.036 | 1.01 | 0.23 |
+
+- **Intelligibility** is estimated closely.
+- **Legibility** less so. Its other two parts depend on which segments make the top 10%, and
+  they move in steps (a design has two to four centres and a few landmarks).
+- **Cost:** a promoted 30 × 60 run grows 1,860 designs, so the estimate adds about 5–8
+  minutes. An exact run mode (integration without choice) would add 10–21 minutes.
 
 ### Building scale
 
