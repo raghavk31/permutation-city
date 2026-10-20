@@ -162,3 +162,8 @@ body:has(> .pc) { margin: 0; background: var(--paper, #fcfcfb); }
 .pc-file input { font-size: 13px; max-width: 16em; }
 .pc-tree canvas { width: 100%; display: block; touch-action: pan-y; }
 .pc-tree-readout { min-height: 2.6em; font-size: 13.5px; }
+.pc-shock-lines { font-size: 14px; margin: 6px 0; padding-left: 1.2em; }
+.pc-shock-table { border-collapse: collapse; font-size: 13.5px; margin: 6px 0 10px; }
+.pc-shock-table td, .pc-shock-table th { text-align: left; padding: 2px 14px 2px 0; font-weight: normal; }
+.pc-shock-table thead th { color: var(--pc-muted); font-size: 12.5px; }
+.pc-shock-table tr.is-changed td { font-weight: 600; }

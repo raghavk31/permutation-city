@@ -1229,7 +1229,38 @@ On branch `v2-phase9`, off `v2-phase7c` (PR #13).
   a minimum gap.
 - Tests: `npm test` 310 (10 new: links, files, lineage, layout), `uv run pytest` 76.
 
+### Step 3: shock tests (`app/engine/shocks.ts`, `docs/shocks.md`)
+
+- **A "shock test" section in the opened design's panel:** choose sea level, extreme rain or
+  heatwave; pick a sourced preset or type a value. It shows a map of what failed, a few lines,
+  and the scores before and after (changed rows in bold).
+- **Sea:** the site's connected bathtub at any level, on the whole grid. It matches the
+  site's flood layers exactly at their levels (tested). Flooded storage is lost; buildings
+  lose the storeys under water above a 0.45 m plinth.
+  - Presets: the site's levels, the surge plus IPCC AR6 rise at Apollo Bandar (read from
+    the NASA tool's data: SSP2-4.5 2050 and 2100, SSP5-8.5 median and high end), and the
+    Maritime Board's reported worst stacks.
+- **Rain:** a storm routed downhill through storage, standing in the site's hollows. Ponds
+  and tanks that spill, water over 15 cm and buildings over the plinth fail; storage is
+  scored against the storm.
+  - Presets: 10- to 100-year one-day rain I computed from IMD's 0.25° gridded rainfall,
+    1951–2024 (GEV by L-moments; `pc/imd_rain.py`), and the 944 mm Santacruz day near Mumbai.
+- **Heatwave:** today's LST, with today's land cover swapped for the design's through the
+  heat model, plus IMD's heat-wave rise (+4.5 °C) or severe heat-wave rise (+6.5 °C).
+  Public ground (landscape and streets) above today's hottest tenth is overheated.
+- **Survey** (`npm run shock-survey`, in `docs/shocks.md`):
+  - Sea flooding is the terrain's (identical across designs); designs differ in floor lost.
+  - Rain separates designs by their ponds.
+  - Heat separates them most.
+  - No design ever has buildings over the plinth in rain: the rules keep building out of
+    hollows deeper than 45 cm.
+- Tests: `npm test` 319 (9 new).
+
 Unsure about, or left open:
+- **The IMD grid reads below rain gauges** (492 mm in the Docks cell on 26 July 2005 against
+  944 mm at Santacruz). The levels are areal; the gauge day is a preset of its own.
+- **Heatwave on surface temperature:** IMD's rises are air temperatures, added to LST.
+- **Designs can't raise ground,** so the sea shock can't reward a design for it.
 - **Opening a link runs it.** A run with legibility promoted takes minutes, and it starts as
   soon as the page loads. A "grow this run" button would be gentler; say if you want one.
 - **Reloading the page reruns the run.** The address always names the last run.

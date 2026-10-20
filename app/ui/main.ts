@@ -992,6 +992,7 @@ function drawDetail() {
   Draw.plan(box.querySelector<HTMLCanvasElement>(".pc-plan")!, site(), it.design, P,
     { aspect: aspect(), attractors: true, locked: state.locks, roads: roadsOf(it.design) });
   drawSolid();
+  drawShock();
 }
 
 // --- space syntax of the opened design ------------------------------------------------
@@ -1069,6 +1070,78 @@ function drawSyntax() {
     + `<p><b>Legibility ${pctOf(d.parts.legibility)}</b>, the mean of: intelligibility ${f2(d.parts.intelligibility)}`
     + ` (400 m against Rn integration; below zero counts as zero) · centres on the core ${pctOf(d.parts.centres)}`
     + ` · landmarks seen from the core ${pctOf(d.parts.landmarks)}</p>`;
+}
+
+// --- shock tests on the opened design (engine/shocks.ts) -------------------------------
+
+type ShockKind = "sea" | "rain" | "heat";
+const shockSites = new WeakMap<E.Ground, E.ShockSite>();
+const shockSiteOf = () => {
+  let s = shockSites.get(G());
+  if (!s) { s = E.shockSite(site(), G()); shockSites.set(G(), s); }
+  return s;
+};
+const SHOCK_UNITS: Record<ShockKind, string> = { sea: "sea level, m above mean sea level", rain: "storm, mm in a day", heat: "rise, °C" };
+
+function shockPresets(kind: ShockKind): E.Preset[] {
+  return kind === "sea" ? E.seaPresets(site().meta) : kind === "rain" ? E.rainPresets(site().meta) : E.HEAT_PRESETS;
+}
+
+/** Set the shock form for a kind: its presets, the default preset, its unit. */
+function setShockKind(kind: ShockKind) {
+  const f = form(".pc-shock-form"), ps = shockPresets(kind);
+  select(f, "kind").value = kind;
+  select(f, "preset").innerHTML = ps.map((p, k) => `<option value="${k}">${p.label}</option>`).join("") + `<option value="">typed</option>`;
+  const start = kind === "sea" ? Math.max(0, ps.findIndex((p) => /2050, SSP2-4.5/.test(p.label))) : kind === "rain" ? Math.max(0, ps.findIndex((p) => /^100-year/.test(p.label))) : 1;
+  select(f, "preset").value = ps.length ? String(Math.min(start, ps.length - 1)) : "";
+  input(f, "value").value = ps.length ? String(ps[Math.min(start, ps.length - 1)].value) : kind === "rain" ? String(site().meta.design_storm_mm) : "4";
+  $(".pc-shock-unit").textContent = SHOCK_UNITS[kind];
+}
+
+function drawShock() {
+  const box = $<HTMLDetailsElement>(".pc-shock"), it = state.selected;
+  if (!box.open || !it) return;
+  const f = form(".pc-shock-form"), S = shockSiteOf();
+  const seaOpt = select(f, "kind").querySelector<HTMLOptionElement>("option[value=sea]")!;
+  seaOpt.disabled = !S.coastal;
+  seaOpt.textContent = S.coastal ? "sea level" : "sea level (not a coastal site)";
+  let kind = select(f, "kind").value as ShockKind;
+  if (kind === "sea" && !S.coastal) { setShockKind("rain"); kind = "rain"; }
+  const v = +input(f, "value").value, ps = shockPresets(kind), p = ps[+select(f, "preset").value];
+  $(".pc-shock-source").textContent = p && select(f, "preset").value !== "" && p.value === v ? `Source: ${p.source}.` : "A typed value.";
+  const d = it.design;
+  if (!d.scores) E.evaluate(d, G());
+  const r: E.ShockResult & { share?: [number, number] } = kind === "sea" ? E.seaShock(d, G(), S, v)
+    : kind === "rain" ? E.rainShock(d, G(), S, v) : E.heatShock(d, G(), S, v);
+  // The map: the design washed pale, failures over it.
+  const canvas = $<HTMLCanvasElement>(".pc-shock-map");
+  const view = Draw.plan(canvas, site(), d, P, { aspect: aspect(), roads: roadsOf(d) });
+  const ctx = canvas.getContext("2d")!, { corners: shape } = Draw.shapeOf(site());
+  ctx.save(); ctx.globalAlpha = 0.65; ctx.fillStyle = P.paper; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.restore();
+  const ramp = kind === "heat" ? P.oranges : P.blues;
+  const col = Array.from(r.fail, (f) => (f === 2 ? ramp[4] : f === 1 ? ramp[2] : null));
+  Draw.cells(ctx, view, Array.from(G().x), Array.from(G().y), col, shape, 0.95);
+  const legends: Record<ShockKind, [string, string]> = {
+    sea: ["flooded ground", "buildings with water above the plinth (45 cm)"],
+    rain: ["ponds and tanks that filled and spilled, or water standing over 15 cm", "buildings with water above the plinth"],
+    heat: ["cells beside an overheated street", "overheated landscape"],
+  };
+  $(".pc-shock-legend").innerHTML = `<span><i style="background:${ramp[2]}"></i>${legends[kind][0]}</span>`
+    + `<span><i style="background:${ramp[4]}"></i>${legends[kind][1]}</span>`;
+  $(".pc-shock-lines").innerHTML = r.lines.map((l) => `<li>${l}</li>`).join("");
+  // Before and after, on the scores.
+  const rows: [string, (s: E.ShockScores) => string][] = [
+    ...E.SCORE_KEYS.map((k): [string, (s: E.ShockScores) => string] => [E.SCORES[k][0], (s) => E.SCORES[k][1](s.scores[k])]),
+    ["floor area (net)", (s) => fmtHa(s.floorHa)],
+    ["off the floor-area brief by", (s) => pct(s.scores.gap)],
+  ];
+  if (r.share) rows.push(["public ground overheated", () => ""]);
+  $(".pc-shock-table").innerHTML = `<thead><tr><th></th><th>before</th><th>after</th></tr></thead><tbody>`
+    + rows.map(([label, fmt], k) => {
+      let b = fmt(r.before), a = fmt(r.after);
+      if (r.share && k === rows.length - 1) { b = pct(r.share[0]); a = pct(r.share[1]); }
+      return `<tr${a !== b ? ` class="is-changed"` : ""}><td>${label}</td><td>${b}</td><td>${a}</td></tr>`;
+    }).join("") + "</tbody>";
 }
 
 function drawSolid() {
@@ -1279,6 +1352,19 @@ function wire() {
     drawSyntax();
   });
   $(".pc-syntax-choice").addEventListener("click", () => exactChoice());
+  const shockForm = form(".pc-shock-form");
+  $(".pc-shock").addEventListener("toggle", () => {
+    if (!select(shockForm, "preset").options.length) setShockKind(shockSiteOf().coastal ? "sea" : "rain");
+    drawShock();
+  });
+  select(shockForm, "kind").addEventListener("change", (e) => { setShockKind((e.target as HTMLSelectElement).value as ShockKind); drawShock(); });
+  select(shockForm, "preset").addEventListener("change", (e) => {
+    const k = (e.target as HTMLSelectElement).value, p = shockPresets(select(shockForm, "kind").value as ShockKind)[+k];
+    if (k !== "" && p) input(shockForm, "value").value = String(p.value);
+    drawShock();
+  });
+  input(shockForm, "value").addEventListener("input", () => { select(shockForm, "preset").value = ""; drawShock(); });
+  shockForm.addEventListener("submit", (e) => e.preventDefault());
   // Drag the 3D view to turn it.
   const solid = $(".pc-solid");
   let drag: number | null = null;

@@ -235,6 +235,22 @@
             <p class="pc-actions"><button type="button" class="pc-syntax-choice">exact choice, Rn</button>
               <span class="pc-muted pc-syntax-status"></span></p>
           </details>
+          <details class="pc-shock"><summary>shock test</summary>
+            <p class="pc-muted">Throw a higher sea, a rarer storm or a heatwave at this design and see what fails and
+              where. Each preset names its source; any value can be typed.</p>
+            <form class="pc-controls pc-shock-form">
+              <label>shock <select name="kind">
+                <option value="sea">sea level</option><option value="rain">extreme rain</option><option value="heat">heatwave</option>
+              </select></label>
+              <label>preset <select name="preset" class="pc-wide"></select></label>
+              <label><span class="pc-shock-unit"></span> <input type="number" name="value" step="0.1"></label>
+            </form>
+            <p class="pc-muted pc-shock-source"></p>
+            <canvas class="pc-map pc-shock-map"></canvas>
+            <p class="pc-legend pc-shock-legend"></p>
+            <ul class="pc-shock-lines"></ul>
+            <table class="pc-shock-table"></table>
+          </details>
         </div>
       </div>
     </div>
