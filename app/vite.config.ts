@@ -1,4 +1,5 @@
 import { svelte } from "@sveltejs/vite-plugin-svelte";
+import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { Plugin } from "vite";
@@ -32,8 +33,16 @@ const devApi: Plugin = {
   },
 };
 
+// The build a saved run names (ui/runs.ts): Vercel's commit, else the local one.
+function build(): string {
+  const sha = process.env.VERCEL_GIT_COMMIT_SHA;
+  if (sha) return sha.slice(0, 7);
+  try { return execSync("git rev-parse --short=7 HEAD", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim(); } catch { return "dev"; }
+}
+
 export default defineConfig({
   plugins: [svelte(), devApi],
+  define: { "import.meta.env.VITE_BUILD": JSON.stringify(build()) },
   worker: { format: "es" },
   build: {
     target: "es2022",

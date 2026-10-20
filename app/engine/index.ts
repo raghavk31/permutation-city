@@ -24,7 +24,7 @@ export { paretoRanks, crowding, difference, families, asMin } from "./rank.js";
 export { referencePoints, divisionsFor, nicheSelect } from "./niche.js";
 export { makeRng } from "./rng.js";
 export * from "./brief.js";
-export { evolve, breed, frontFamilies, type Individual, type Run, type HistoryRow, type EvolveOptions, type Search } from "./evolve.js";
+export { evolve, breed, frontFamilies, type Individual, type Run, type HistoryRow, type EvolveOptions, type Search, type LineageNode } from "./evolve.js";
 export { mapElites, quality, binOf, searchOf, DESCRIPTORS, DESCRIPTOR_KEYS, QUALITY_RANGE, type Descriptor,
   type ArchiveInfo, type EliteOptions, type SearchChoice } from "./elites.js";
 export { measure, network, METRICS, METRIC_KEYS, OBJECTIVE_KEYS, NOT_MEASURED, SYNTAX_KEYS, type Metric, type MetricKey,

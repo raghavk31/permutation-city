@@ -1181,6 +1181,63 @@ Choices I made that you may want otherwise:
 - **Open Buildings reads low** (3 m on average at Bengaluru and Wadaj, 7 m at EWF). I left
   it uncorrected rather than fit a bias on a few hundred tagged buildings that lean tall.
 
+## Phase 9 log (2026-10-21): runs you can keep, and their family trees
+
+On branch `v2-phase9`, off `v2-phase7c` (PR #13).
+
+### Step 1: save and reload runs (`app/ui/runs.ts`)
+
+- **The link.** After every run the address names it:
+  `?site=…[&rules=…][&brief=…]&seed=…&gens=…&pop=…&search=…[&obj=…][&ax=…&ay=…&bins=…][&shock=15x1.3][&off=…][&locks=…][&pen=n]&gv=2&b=<build>`.
+  - Opening it loads the site with its rules and brief, switches the same ridges off, locks
+    the same cells, sets the form and runs again. The engine is deterministic, so the same
+    designs come back: checked on Docks (330 designs, with a promoted metric and a shock) and
+    Bengaluru (1,860, with a shock); families, front and sizes matched.
+  - Locks are run-length encoded ("<use><count in base 36>"), so a link stays short.
+  - A link can't carry designs from the pen. When a run started from them, it says how many
+    (`pen=`), and opening it warns that the run won't match.
+  - `gv` is the genome version, `b` the build (Vercel's commit, or the local one). Either one
+    differing from this page puts a note under the run.
+  - Unknown metrics, traits or searches are refused with a sentence, not guessed.
+- **The file** (download the run / load a saved run) holds the full state:
+  - the site, rules, brief, skeleton, locks with their notes
+  - the settings and the run's start genomes (pen and typology seeds)
+  - the result (history, families, kept designs with their metrics and space syntax, the
+    archive) and the lineage, with every design's genome packed as Float64 base64
+  - the pen, the hand-bred children, the opened design, and heights set on existing buildings
+  - Loading shows the run as it was, without running it again (311 KB for a 330-design run).
+  - Old genome versions load: 47-number genomes grow with the default street genes and carry
+    the "pre-street genome" label, and the file's genome version is named.
+- **Engine:** `evolve` and `mapElites` record a lineage: each design's parents, how it came
+  (random, start, newcomer, bred), the share of genes from each parent, genes mutated, and
+  its scores when made. Recording never touches the random stream (parity unchanged).
+
+### Step 2: the family tree (`app/ui/tree.ts`)
+
+- In the Evolution chapter, under the charts.
+  - One row per generation, top to bottom. Lines run parent to child, heavier from the parent
+    that gave more of the differing genes.
+  - Ring: mutated (heavier for more genes). Square: newcomer. Diamond: a starting design.
+  - Dark: kept; orange: the front, or the archive's elites under MAP-Elites. The shock's
+    generation is shaded.
+  - Pointing at a design traces its ancestry in ink and describes it; clicking opens it in
+    the detail panel, grown as the run grew it.
+- **At 1,800+ designs.** By default only the kept designs and their ancestors are drawn
+  (284 of 1,860 on a Bengaluru run); each row ends with "+n" dead ends. "Show every design"
+  draws all 1,860. A redraw takes about 20 ms either way.
+- **Layout:** barycentre ordering (down, up, down), each design near its parents' mean with
+  a minimum gap.
+- Tests: `npm test` 310 (10 new: links, files, lineage, layout), `uv run pytest` 76.
+
+Unsure about, or left open:
+- **Opening a link runs it.** A run with legibility promoted takes minutes, and it starts as
+  soon as the page loads. A "grow this run" button would be gentler; say if you want one.
+- **Reloading the page reruns the run.** The address always names the last run.
+- **The full tree is dense.** At 60 designs a row it is a lattice; tracing one design's
+  ancestry works, reading the whole doesn't. Ancestries are wide: a front design after 30
+  generations descends from most of Generation 0.
+- **Under MAP-Elites the archive is the whole kept set,** so every kept design is orange.
+
 ## 8. Decisions (2026-10-16)
 
 The user asked to go with the recommendations:

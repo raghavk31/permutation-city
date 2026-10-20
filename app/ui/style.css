@@ -157,3 +157,8 @@ body:has(> .pc) { margin: 0; background: var(--paper, #fcfcfb); }
 .pc-syntax-table thead th { color: var(--pc-muted); }
 .pc-ramp { display: inline-block; width: 72px; height: 8px; border-radius: 2px; vertical-align: 0;
   background: linear-gradient(90deg, #2b4c7e, #4f86c6, #9fc7e0, #f4c27a, #e2703a, #a3271f); }
+.pc-run-load { font-size: 13.5px; }
+.pc-file { display: inline-flex; gap: 6px; align-items: center; margin-left: 6px; color: var(--pc-ink); }
+.pc-file input { font-size: 13px; max-width: 16em; }
+.pc-tree canvas { width: 100%; display: block; touch-action: pan-y; }
+.pc-tree-readout { min-height: 2.6em; font-size: 13.5px; }

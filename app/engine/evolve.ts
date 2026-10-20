@@ -26,10 +26,43 @@ export type HistoryRow = {
   filled?: number; qd?: number;   // MAP-Elites: archive cells filled, and their summed quality
 } & Record<ScoreKey, number | null>;
 
+/** How a design came to be, for the family tree. `fromA`: share of the genes where its
+ *  parents differ that came from the first parent; `mutated`: genes the mutation changed.
+ *  `scores`: the five scores and the gap to the brief when it was made (4 places). */
+export interface LineageNode {
+  name: string; gen: number; parents: string[];
+  how: "first" | "start" | "immigrant" | "bred";
+  fromA?: number; mutated?: number;
+  scores: number[];
+}
+
 export interface Run {
   pop: Individual[];
   history: HistoryRow[];
   everyone: number;
+  lineage: LineageNode[];
+  genomes: number[][];   // every design's genome, in lineage order
+}
+
+const LINEAGE_SCORES = ["storage", "heat", "carbon", "daylight", "human", "gap"] as const;
+
+/** Note a design in the run's lineage. Recording never touches the random stream. */
+export function note(run: Run, ind: Individual, gen: number, how: LineageNode["how"], cross?: { a: number[]; b: number[]; x: number[] }) {
+  const s = ind.design.scores!, node: LineageNode = {
+    name: ind.name, gen, parents: ind.parents, how, scores: LINEAGE_SCORES.map((k) => roundTo(s[k], 4)),
+  };
+  if (cross) {
+    const { a, b, x } = cross, y = ind.design.genome;
+    let differ = 0, fromA = 0, mutated = 0;
+    for (let g = 0; g < x.length; g++) {
+      if (a[g] !== b[g]) { differ++; if (x[g] === a[g]) fromA++; }
+      if (x[g] !== y[g]) mutated++;
+    }
+    node.fromA = differ ? roundTo(fromA / differ, 3) : 0.5;
+    node.mutated = mutated;
+  }
+  run.lineage.push(node);
+  run.genomes.push(ind.design.genome);
 }
 
 export type Search = "nsga2" | "nsga3";
@@ -160,8 +193,10 @@ export function evolve(G: Ground, { search = "nsga2", objectives = [], generatio
   const make = (g: number[], name: string, parents: string[]) =>
     individual(G, g, name, parents, locked, ranges, storm, objectives);
   const refs = search === "nsga3" ? referencePoints(m, divisionsFor(m, pop)) : null;
-  const genomes = firstGenomes(rng, pop, start);
-  const run: Run = { pop: genomes.map((g, k) => make(g, `G0.${String(k + 1).padStart(2, "0")}`, [])), history: [], everyone: 0 };
+  const genomes = firstGenomes(rng, pop, start), nStart = Math.min(start?.length ?? 0, pop);
+  const run: Run = { pop: genomes.map((g, k) => make(g, `G0.${String(k + 1).padStart(2, "0")}`, [])), history: [], everyone: 0,
+    lineage: [], genomes: [] };
+  run.pop.forEach((i, k) => note(run, i, 0, k < nStart ? "start" : "first"));
   run.everyone = run.pop.length;
   rank(run.pop, obj);
   record(run, 0, storm, obj);
@@ -176,7 +211,11 @@ export function evolve(G: Ground, { search = "nsga2", objectives = [], generatio
     const children: Individual[] = [];
     for (let k = 0; k < pop; k++) {
       const name = childName(gen, k);
-      if (rng.random() < immigrants) { children.push(make(randomGenome(rng), name, ["immigrant"])); continue; }
+      if (rng.random() < immigrants) {
+        const c = make(randomGenome(rng), name, ["immigrant"]);
+        children.push(c); note(run, c, gen, "immigrant");
+        continue;
+      }
       const pick = () => {
         const i = Math.floor(rng.random() * run.pop.length);
         let j = Math.floor(rng.random() * (run.pop.length - 1));
@@ -184,7 +223,9 @@ export function evolve(G: Ground, { search = "nsga2", objectives = [], generatio
         return better(run.pop[i], run.pop[j]);
       };
       const pa = pick(), pb = pick();
-      children.push(make(mutate(crossover(pa.design.genome, pb.design.genome, rng), rng), name, [pa.name, pb.name]));
+      const x = crossover(pa.design.genome, pb.design.genome, rng);
+      const c = make(mutate(x, rng), name, [pa.name, pb.name]);
+      children.push(c); note(run, c, gen, "bred", { a: pa.design.genome, b: pb.design.genome, x });
     }
     run.everyone += children.length;
     const both = run.pop.concat(children);
