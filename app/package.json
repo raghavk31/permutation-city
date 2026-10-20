@@ -11,19 +11,23 @@
     "corpus": "vite-node scripts/write-corpus.ts",
     "compare": "vite-node scripts/compare-search.ts --",
     "ranges": "vite-node scripts/descriptor-ranges.ts",
-    "metrics": "vite-node scripts/metrics-survey.ts"
+    "metrics": "vite-node scripts/metrics-survey.ts",
+    "massing-bench": "vite-node scripts/massing-bench.ts"
   },
   "dependencies": {
     "@vercel/blob": "2.8.0",
     "comlink": "^4.4.2",
     "maplibre-gl": "6.11.2",
     "pdfjs-dist": "6.3.289",
+    "rhino3dm": "8.35.0",
     "terra-draw": "1.35.0",
-    "terra-draw-maplibre-gl-adapter": "1.4.1"
+    "terra-draw-maplibre-gl-adapter": "1.4.1",
+    "three": "0.186.1"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "7.3.1",
     "@types/node": "^26.6.5",
+    "@types/three": "0.186.0",
     "svelte": "5.57.1",
     "typescript": "^7.0.2",
     "vite": "^8.3.4",

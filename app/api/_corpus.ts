@@ -181,7 +181,7 @@ export const CORPUS: Snippet[] = [
   "source": "Christopher Alexander, Sara Ishikawa, Murray Silverstein et al., A Pattern Language (Oxford University Press, 1977). Paraphrased; no text from the book.",
   "place": "any",
   "kind": "pattern",
-  "text": "Intent (paraphrased): buildings should be made of long, narrow wings so every room gets daylight, instead of deep floor plates with dark interiors. The book gives a maximum wing width; to be checked against the book.\nUse in Permutation City: a prior for building-scale massing in Phase 7 (narrow wings in the courtyard, L, U and slab typologies). It cannot apply on the 20 m site grid, so the brief records it and may favour courtyard, L and U typologies. Numbers unchecked."
+  "text": "Intent (paraphrased): buildings should be made of long, narrow wings so every room gets daylight, instead of deep floor plates with dark interiors. The book gives a maximum wing width; to be checked against the book.\nUse in Permutation City: a prior for building-scale massing (narrow wings, 9 to 12 m until checked, in the courtyard, L, U and slab typologies). It cannot apply on the 20 m site grid, so the brief records it and may favour courtyard, L and U typologies. Numbers unchecked."
  },
  {
   "id": "pattern-159#1",
@@ -191,7 +191,7 @@ export const CORPUS: Snippet[] = [
   "source": "Christopher Alexander, Sara Ishikawa, Murray Silverstein et al., A Pattern Language (Oxford University Press, 1977). Paraphrased; no text from the book.",
   "place": "any",
   "kind": "pattern",
-  "text": "Intent (paraphrased): rooms lit from two sides are calmer and more pleasant to be in than rooms lit from one, so plans should be shallow enough that most rooms have windows on two sides.\nUse in Permutation City: a prior for Phase 7 massing (shallow plans, dual-aspect wings). On the site grid it is recorded only, and may favour slab and L typologies over deep blocks."
+  "text": "Intent (paraphrased): rooms lit from two sides are calmer and more pleasant to be in than rooms lit from one, so plans should be shallow enough that most rooms have windows on two sides.\nUse in Permutation City: a prior for building-scale massing (shallow plans, dual-aspect wings: the typology grammar keeps wings at 9 to 12 m, assumed until checked against the book). On the site grid it is recorded only, and may favour slab and L typologies over deep blocks."
  },
  {
   "id": "ahmedabad-cgdcr-common-plot#1",

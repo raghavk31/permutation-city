@@ -125,3 +125,20 @@ body:has(> .pc) { margin: 0; background: var(--paper, #fcfcfb); }
 .pc-ridges summary { cursor: pointer; font-size: 14px; }
 .pc-ridge-list { display: flex; flex-wrap: wrap; gap: 4px 16px; }
 .pc-check { display: inline-flex; gap: 6px; align-items: center; }
+
+/* 09 Massing (ui/mass) */
+.pc-mass-plan { cursor: pointer; }
+.pc-mass-plots, .pc-mass-read { border-collapse: collapse; font-size: 13.5px; margin: 6px 0 10px; }
+.pc-mass-plots th, .pc-mass-plots td, .pc-mass-read th, .pc-mass-read td { text-align: left; padding: 2px 14px 2px 0; font-weight: normal; vertical-align: top; }
+.pc-mass-plots thead th, .pc-mass-read thead th { color: var(--pc-muted); font-size: 12.5px; }
+.pc-mass-read th[colspan] { padding-top: 10px; font-size: 12.5px; }
+.pc-mass-read td:first-child { padding-right: 24px; }
+.pc-mass-setbacks { border: 1px solid var(--pc-line); border-radius: 6px; padding: 4px 10px 8px; margin: 0; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.pc-mass-setbacks legend { font-size: 12.5px; color: var(--pc-muted); padding: 0 4px; }
+.pc-mass-setbacks input { width: 4.5em; }
+.pc-mass-views { display: grid; grid-template-columns: 1fr; gap: 16px; }
+.pc-mass-views.pc-mass-two { grid-template-columns: 1fr 1fr; }
+@media (max-width: 760px) { .pc-mass-views.pc-mass-two { grid-template-columns: 1fr; } }
+.pc-mass-views figure { margin: 0; }
+.pc-mass-views figcaption { font-size: 13px; color: var(--pc-ink-2); margin-top: 4px; }
+.pc-mass-3d { width: 100%; height: min(62vh, 520px); display: block; border: 1px solid var(--pc-line); border-radius: 6px; touch-action: none; }

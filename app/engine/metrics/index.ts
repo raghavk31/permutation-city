@@ -116,7 +116,7 @@ export const METRIC_KEYS = Object.keys(METRICS) as MetricKey[];
 export const OBJECTIVE_KEYS = METRIC_KEYS.filter((k) => (METRICS[k] as Metric).up !== null);
 /** Properties with no proxy here, and why (docs/metrics.md). */
 export const NOT_MEASURED: Partial<Record<Aesthetic, string>> = {
-  echoes: "building scale (Phase 7)",
+  echoes: "measured at building scale (chapter 09: wall directions)",
   not_separateness: "needs the context's own cells next to the design; Phase 9",
 };
 
