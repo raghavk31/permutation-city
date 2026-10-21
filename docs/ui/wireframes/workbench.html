@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Workbench Wireframes</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a 1440 × 900 workbench frame (scrolls sideways inside its own box on small screens),
+   a state bar above it, the step's notes below it. Low fidelity: greys, real labels, one accent
+   for the selection only. Dashed boxes marked B are Milestone B. */
+:root {
+  --paper: #fafaf8; --panel: #f3f2ee; --fill: #e6e4de; --fill-2: #d6d3cb; --line: #dedbd3;
+  --ink: #1c1b18; --ink-2: #57544d; --muted: #8c887f; --accent: #f26b1d;
+  --water: #c9d6e3; --green: #d3e2dc; --build: #ddd2bf; --build-2: #c3b49c;
+  --text: "Inter Tight", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #1b1a18; --panel: #232220; --fill: #2f2e2b; --fill-2: #3d3b37; --line: #3a3834;
+  --ink: #f1efe9; --ink-2: #c3c0b7; --muted: #9a968c; --accent: #ff7a2e;
+  --water: #34404c; --green: #2f3d38; --build: #4a4337; --build-2: #5e5444; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --paper: #1b1a18; --panel: #232220; --fill: #2f2e2b; --fill-2: #3d3b37; --line: #3a3834;
+  --ink: #f1efe9; --ink-2: #c3c0b7; --muted: #9a968c; --accent: #ff7a2e;
+  --water: #34404c; --green: #2f3d38; --build: #4a4337; --build-2: #5e5444; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 14px/1.45 var(--text);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 48px; }
+a { color: inherit; text-underline-offset: 3px; }
+h1 { font-size: 24px; font-weight: 500; margin: 0 0 4px; text-wrap: balance; }
+.lede { color: var(--ink-2); max-width: 70ch; margin: 0 0 16px; }
+.mono { font-family: var(--mono); font-size: 11px; letter-spacing: .02em; color: var(--muted); }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* The state bar: which step and which state the frame shows. */
+.states { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; margin: 0 0 12px; }
+.states .group { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.states .group > span { font-size: 12px; color: var(--muted); margin-right: 4px; }
+.chip { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+/* The frame. */
+.scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; }
+.wb { width: 1440px; height: 900px; display: grid; grid-template-rows: 48px 1fr 140px; background: var(--paper); }
+.wb.no-tray { grid-template-rows: 48px 1fr 0; }
+.top { display: flex; align-items: center; gap: 16px; padding: 0 16px; border-bottom: 1px solid var(--line); }
+.top .name { font-weight: 500; }
+.top .site { color: var(--ink-2); }
+.top .status { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.pill { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--fill); color: var(--ink-2); }
+.btn { border: 1px solid var(--line); border-radius: 6px; background: var(--paper); padding: 4px 10px; font-size: 12px; cursor: default; }
+.btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.btn.ghost { border-color: transparent; }
+.body { display: grid; grid-template-columns: 280px 1fr 340px; min-height: 0; }
+.rail { border-right: 1px solid var(--line); overflow: auto; background: var(--panel); }
+.steps { list-style: none; margin: 0; padding: 8px; display: grid; gap: 2px; }
+.steps li > button { width: 100%; display: flex; gap: 10px; align-items: center; text-align: left; border: 0; background: transparent; padding: 8px; border-radius: 6px; cursor: pointer; }
+.steps li > button:hover { background: var(--fill); }
+.steps .tick { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--muted); display: grid; place-items: center; font-size: 10px; flex: none; }
+.steps .done .tick { background: var(--ink-2); border-color: var(--ink-2); color: var(--paper); }
+.steps .now > button { background: var(--paper); box-shadow: inset 0 0 0 1px var(--line); font-weight: 500; }
+.panel { padding: 4px 16px 16px 16px; display: grid; gap: 12px; align-content: start; }
+.panel h3 { margin: 6px 0 0; font-size: 12px; font-weight: 500; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
+.field { display: grid; gap: 4px; }
+.field label { font-size: 12px; color: var(--ink-2); }
+.input { height: 30px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); display: flex; align-items: center; padding: 0 8px; color: var(--muted); font-size: 13px; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.slider { height: 4px; border-radius: 2px; background: var(--fill-2); position: relative; flex: 1; min-width: 60px; }
+.slider i { position: absolute; top: -5px; width: 14px; height: 14px; border-radius: 50%; background: var(--ink-2); left: var(--at, 40%); }
+.toggle { width: 28px; height: 16px; border-radius: 8px; background: var(--fill-2); position: relative; flex: none; }
+.toggle.on { background: var(--ink-2); }
+.toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--paper); }
+.toggle.on::after { left: 14px; }
+.sentence { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; background: var(--paper); font-size: 13px; display: grid; gap: 6px; }
+.sentence .hl { border-bottom: 1px dashed var(--ink-2); }
+.card { border: 1px solid var(--line); border-radius: 6px; background: var(--paper); padding: 8px; display: grid; gap: 6px; }
+.card.on { box-shadow: 0 0 0 2px var(--accent); border-color: transparent; }
+.thumb { aspect-ratio: 4 / 3; border-radius: 4px; background: var(--fill); overflow: hidden; }
+.thumb svg { width: 100%; height: 100%; display: block; }
+.b { border: 1.5px dashed var(--muted); border-radius: 6px; padding: 6px 8px; color: var(--muted); font-size: 12px; display: flex; gap: 6px; align-items: baseline; }
+.b::before { content: "B"; font-family: var(--mono); font-size: 11px; border: 1px solid var(--muted); border-radius: 3px; padding: 0 4px; }
+.cite { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+
+.centre { position: relative; min-width: 0; background: var(--paper); display: grid; }
+.centre .view { position: relative; overflow: hidden; }
+.centre .view > svg.mapsvg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.over { position: absolute; display: flex; gap: 6px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--paper); }
+.seg span { padding: 4px 10px; font-size: 12px; }
+.seg span.on { background: var(--ink); color: var(--paper); }
+.legend { background: color-mix(in srgb, var(--paper) 92%, transparent); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; display: grid; gap: 4px; font-size: 12px; }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: 6px; vertical-align: -2px; }
+.scalebar { font-family: var(--mono); font-size: 10px; color: var(--ink-2); display: grid; gap: 2px; }
+.scalebar b { display: block; width: 100px; height: 4px; border: 1px solid var(--ink-2); border-top: 0; }
+.north { width: 28px; height: 28px; border: 1px solid var(--line); border-radius: 50%; display: grid; place-items: center; font-size: 11px; background: var(--paper); }
+.readout { background: var(--paper); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; font-size: 12px; display: grid; grid-template-columns: auto auto; gap: 2px 14px; }
+.readout span:nth-child(odd) { color: var(--muted); }
+.strip { display: flex; gap: 6px; }
+.strip .thumb { width: 96px; }
+.progress { height: 6px; border-radius: 3px; background: var(--fill); overflow: hidden; }
+.progress b { display: block; height: 100%; width: 46%; background: var(--ink-2); }
+
+.insp { border-left: 1px solid var(--line); overflow: auto; padding: 14px 16px; display: grid; gap: 14px; align-content: start; }
+.insp .title { display: grid; gap: 2px; }
+.insp .title b { font-size: 16px; font-weight: 500; }
+.bars { display: grid; gap: 6px; }
+.bar { display: grid; grid-template-columns: 96px 1fr 56px; gap: 8px; align-items: center; font-size: 12px; }
+.bar .track { height: 8px; background: var(--fill); border-radius: 4px; position: relative; }
+.bar .track i { position: absolute; top: -3px; width: 3px; height: 14px; background: var(--ink); left: var(--v); border-radius: 1px; }
+.bar .track::after { content: ""; position: absolute; right: -1px; top: -2px; height: 12px; border-right: 2px solid var(--muted); }
+.bar .num { font-variant-numeric: tabular-nums; text-align: right; color: var(--ink-2); }
+details.grp { border-top: 1px solid var(--line); padding-top: 6px; }
+details.grp summary { cursor: pointer; font-size: 13px; }
+.genes { display: grid; gap: 4px; font-size: 12px; }
+.genes div { display: flex; justify-content: space-between; gap: 8px; }
+.lock { font-family: var(--mono); font-size: 10px; border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; color: var(--muted); }
+.actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.empty { border: 1px dashed var(--line); border-radius: 6px; padding: 16px; color: var(--ink-2); display: grid; gap: 6px; font-size: 13px; }
+
+.tray { border-top: 1px solid var(--line); background: var(--panel); display: grid; grid-template-columns: 1fr 420px; gap: 16px; padding: 10px 16px; overflow: hidden; }
+.tray .pen { display: flex; gap: 8px; align-items: stretch; overflow: hidden; }
+.tray .pen .card { width: 112px; padding: 4px; gap: 2px; font-size: 11px; line-height: 1.25; }
+.tray .pen .card .thumb { aspect-ratio: 16 / 9; }
+.tray .gen { display: grid; gap: 8px; align-content: center; }
+
+.notes { margin-top: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.notes section { min-width: 0; }
+.notes h2 { font-size: 14px; font-weight: 500; margin: 0 0 6px; }
+.notes ul { margin: 0; padding-left: 18px; color: var(--ink-2); display: grid; gap: 4px; }
+@media (prefers-reduced-motion: no-preference) { .progress b { transition: width .2s; } }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- A schematic site: context roads and footprints, water, design ground, blocks, parks, streets. -->
+    <symbol id="site" viewBox="0 0 800 560">
+      <rect width="800" height="560" fill="var(--paper)"/>
+      <g fill="var(--fill)" stroke="var(--line)" stroke-width="1">
+        <rect x="30" y="40" width="40" height="26"/><rect x="80" y="60" width="30" height="40"/><rect x="40" y="120" width="56" height="30"/>
+        <rect x="34" y="200" width="44" height="44"/><rect x="90" y="260" width="30" height="50"/><rect x="40" y="340" width="60" height="30"/>
+        <rect x="70" y="420" width="40" height="40"/><rect x="30" y="480" width="70" height="30"/>
+      </g>
+      <g fill="none" stroke="var(--fill-2)" stroke-width="3"><path d="M0 180 C 200 170, 260 220, 330 230"/><path d="M140 0 L 190 560"/></g>
+      <path d="M690 0 C 640 120, 700 260, 640 380 C 610 450, 660 520, 650 560 L 800 560 L 800 0 Z" fill="var(--water)"/>
+      <path d="M200 60 L 620 40 C 650 160, 600 300, 620 520 L 230 520 C 210 400, 190 200, 200 60 Z" fill="var(--paper)" stroke="var(--ink)" stroke-width="1.5"/>
+      <g fill="var(--build)"><path d="M230 80 C 300 70, 360 80, 380 120 C 390 170, 300 190, 240 170 C 220 140, 220 100, 230 80 Z"/>
+        <path d="M410 70 C 480 60, 560 70, 580 110 C 590 170, 500 190, 430 170 Z"/>
+        <path d="M240 330 C 320 310, 380 330, 380 380 C 370 450, 280 470, 250 440 Z"/></g>
+      <g fill="var(--build-2)"><path d="M420 330 C 500 320, 570 340, 580 400 C 580 470, 480 490, 430 460 Z"/><path d="M260 210 C 300 200, 340 210, 340 240 C 330 270, 280 280, 260 260 Z"/></g>
+      <path d="M380 200 C 450 190, 540 210, 560 260 C 560 300, 470 310, 410 290 C 380 260, 370 230, 380 200 Z" fill="var(--green)"/>
+      <ellipse cx="500" cy="240" rx="40" ry="22" fill="var(--water)"/>
+      <g fill="none" stroke="var(--paper)" stroke-width="7" stroke-linecap="round"><path d="M210 190 C 330 195, 470 180, 615 185"/><path d="M220 305 C 340 300, 500 315, 612 310"/><path d="M400 50 C 395 200, 405 350, 400 520"/></g>
+      <g fill="none" stroke="var(--paper)" stroke-width="3" stroke-linecap="round"><path d="M300 60 L 305 190"/><path d="M500 50 L 505 185"/><path d="M310 310 L 300 520"/><path d="M520 315 L 515 520"/></g>
+    </symbol>
+  </defs>
+</svg>
+
+<h1>Workbench</h1>
+<p class="lede">Low-fidelity wireframes for review before A3 is built (brief section 10). The frame is 1440 × 900, the size the layout is designed for; it scrolls sideways on a small screen. Pick a step to see its controls, centre view and notes. Dashed boxes marked B are cut to Milestone B in the approved plan.</p>
+<p class="mono"><a href="index.html">all wireframes</a> · <a href="story.html">story page</a></p>
+
+<div class="states" role="group" aria-label="What the frame shows">
+  <div class="group" id="g-insp"><span>inspector</span>
+    <button class="chip" data-insp="selected" aria-pressed="true">a design selected</button>
+    <button class="chip" data-insp="empty" aria-pressed="false">empty</button></div>
+  <div class="group" id="g-run"><span>evolve</span>
+    <button class="chip" data-run="idle" aria-pressed="false">ready</button>
+    <button class="chip" data-run="running" aria-pressed="true">running</button></div>
+  <div class="group" id="g-explore"><span>explore</span>
+    <button class="chip" data-ex="tradeoffs" aria-pressed="true">trade-offs</button>
+    <button class="chip" data-ex="compare" aria-pressed="false">compare two</button>
+    <button class="chip" data-ex="archive" aria-pressed="false">archive</button></div>
+</div>
+
+<div class="scroll">
+  <div class="wb" id="wb">
+    <header class="top">
+      <span class="name">Permutation City</span>
+      <span class="site">Mumbai Eastern Waterfront · 169 ha</span>
+      <span class="btn ghost" title="undo (Ctrl+Z)">↶ undo</span><span class="btn ghost" title="redo (Ctrl+Shift+Z)">↷ redo</span>
+      <div class="status"><span class="pill" id="runpill">run 3 · 1,860 designs · 43 on the front</span>
+        <span class="btn">save run</span><span class="btn">copy link</span><span class="btn ghost" title="shortcuts">?</span></div>
+    </header>
+    <div class="body">
+      <nav class="rail" aria-label="Steps">
+        <ol class="steps" id="steps"></ol>
+        <div class="panel" id="panel"></div>
+      </nav>
+      <main class="centre" id="centre"></main>
+      <aside class="insp" id="insp"></aside>
+    </div>
+    <footer class="tray" id="tray">
+      <div>
+        <div class="mono" style="margin-bottom:6px">the pen · 4 designs, kept across steps · drag to reorder, click to open</div>
+        <div class="pen">
+          <div class="card on"><div class="thumb"><svg><use href="#site"/></svg></div>Design 3 · storage</div>
+          <div class="card"><div class="thumb"><svg><use href="#site"/></svg></div>Design 1 · human scale</div>
+          <div class="card"><div class="thumb"><svg><use href="#site"/></svg></div>B1.4 · bred</div>
+          <div class="card"><div class="thumb"><svg><use href="#site"/></svg></div>Design 5 · carbon</div>
+          <div class="empty" style="width:150px;padding:8px;font-size:12px">Keep a design (P) to add it here.</div>
+        </div>
+      </div>
+      <div class="gen">
+        <div class="row"><span class="mono">generation</span><div class="slider" style="--at:100%"><i></i></div><span class="mono">30 / 30</span></div>
+        <div class="row"><span class="mono" style="max-width:420px">Scrub to see the front at any generation; the map and charts follow. Shown when a run exists.</span></div>
+      </div>
+    </footer>
+  </div>
+</div>
+
+<div class="notes" id="notes"></div>
+
+<script>
+const STEPS = ["Site", "Layers", "Rules", "Landform", "Brief", "Evolve", "Explore", "Massing"];
+const state = { step: "Explore", insp: "selected", run: "running", ex: "tradeoffs" };
+
+const map = (extra = "") => `<div class="view"><svg class="mapsvg" preserveAspectRatio="xMidYMid slice"><use href="#site"/></svg>${extra}</div>`;
+const viewToggle = (on = "2D") => `<div class="over" style="top:12px;left:12px"><span class="seg">${["2D", "3D", "split"].map((s) => `<span class="${s === on ? "on" : ""}">${s}</span>`).join("")}</span><span class="btn">fit to site</span></div>`;
+const mapFurniture = (legend) => `${viewToggle()}<div class="over" style="top:12px;right:12px"><span class="north">N</span></div>
+  <div class="over" style="left:12px;bottom:12px"><div class="scalebar">200 m<b></b></div></div>
+  <div class="over" style="right:12px;bottom:12px"><div class="legend">${legend}</div></div>`;
+const L = (c, t) => `<span><i style="background:var(--${c})"></i>${t}</span>`;
+const designLegend = L("build", "buildings, lighter is lower") + L("green", "proposed green") + L("water", "water and storage") + `<span class="mono">only what is on the map is listed</span>`;
+
+const PANELS = {
+  Site: {
+    left: `<h3>Find a place</h3><div class="input">Search a neighbourhood, street or landmark</div>
+      <div class="card" style="gap:2px;font-size:12px"><span>Mazgaon, Mumbai</span><span>Byculla East, Mumbai</span><span>Mazagaon Dock</span></div>
+      <div class="row"><span class="btn primary">draw the site</span><span class="btn">satellite</span></div>
+      <div class="mono">area 169 ha · 1,623 cells of 20 m · cap 4,000 cells</div>
+      <h3>Or start from a prepared site</h3>
+      ${["Mumbai Eastern Waterfront · flat · high confidence", "Ahmedabad Wadaj · gentle · low confidence", "Bengaluru tank cascade · gentle · high", "Guwahati Bharalu · to come"].map((t, k) => `<div class="card${k === 0 ? " on" : ""}" style="grid-template-columns:72px 1fr;align-items:center"><div class="thumb"><svg><use href="#site"/></svg></div><span style="font-size:12px">${t}</span></div>`).join("")}
+      <span class="btn">load an example run</span>`,
+    centre: map(`${viewToggle()}<div class="over" style="top:56px;left:12px"><div class="readout"><span>vertices</span><span>7 · drag a handle to move it</span><span>undo</span><span>Ctrl+Z, one vertex at a time</span></div></div>
+      <div class="over" style="left:50%;top:12px;transform:translateX(-50%)"><span class="pill">Over the cap: 4,820 cells. Draw a smaller site or use 25 m cells.</span></div>`),
+    notes: ["Search suggests as you type (Photon).", "Polygon tool with vertex handles; area and cell count update live; a warning when the site goes over the cell cap.", "Prepared sites as cards: a small image, relief class, data confidence.", "\"Load an example run\" opens Explore with a saved run, so someone can look without running anything."],
+  },
+  Layers: {
+    left: `<h3>Layers</h3>${[["ground", "Bare-earth height (FABDEM, 2022)", 1], ["sea flooding", "Depth in a 2050 monsoon surge", 0], ["rain", "Where rain pools in hollows", 0], ["green", "Tree and plant cover (ESA WorldCover 2021)", 1], ["buildings", "Footprints (Overture, 2025)", 1], ["surface heat", "Hot-season surface temperature (Landsat, 2023-25)", 0], ["valleys", "Drainage lines and streams", 0]].map(([n, d, on]) => `<div class="card" style="gap:4px"><div class="row" style="justify-content:space-between"><b style="font-weight:500">${n}</b><span class="toggle${on ? " on" : ""}"></span></div><span style="font-size:12px;color:var(--ink-2)">${d}</span><div class="row"><span class="mono">opacity</span><div class="slider" style="--at:70%"><i></i></div></div></div>`).join("")}
+      <div class="b">the layer stack building up on first visit</div>`,
+    centre: map(`${mapFurniture(L("fill-2", "ground, darker is higher") + L("green", "green cover") + L("fill", "buildings"))}
+      <div class="over" style="top:56px;left:12px"><div class="readout"><span>ground</span><span>4.2 m</span><span>green</span><span>18%</span><span>buildings</span><span>62%</span><span>surface heat</span><span>44.1 °C</span><span>flooding</span><span>none</span></div></div>`),
+    notes: ["Each layer: toggle, opacity, one line; source and date on hover.", "Hover the map: every layer's value at that point, in one small readout.", "The layer cake's own colours follow the tokens (elevation, water, green, heat)."],
+  },
+  Rules: {
+    left: `<h3>What the land allows</h3>
+      <div class="sentence">No building where the sea floods more than <span class="hl">0.5 m</span> in a <span class="hl">2050 surge</span>.<div class="row"><div class="slider" style="--at:25%"><i></i></div><span class="mono">0.5 m</span></div></div>
+      <div class="sentence">Keep <span class="hl">20 m</span> clear each side of a valley.<div class="row"><div class="slider" style="--at:40%"><i></i></div><span class="mono">20 m</span></div></div>
+      <div class="sentence">At most <span class="hl">15 storeys</span> within <span class="hl">200 m</span> of the docks.</div>
+      <div class="sentence">At least <span class="hl">40%</span> of the ground permeable where rain pools.</div>
+      <span class="btn">add a rule</span>
+      <div class="b">before and after toggle when a rule changes</div>`,
+    centre: map(`${mapFurniture(`<span><i style="background:repeating-linear-gradient(-45deg,#b9675b 0 1px,transparent 1px 4px)"></i>forbidden · 27 ha</span><span><i style="background:var(--fill)"></i>retained · 203 ha</span><span><i style="border:1px solid var(--ink-2);background:transparent"></i>constrained · 165 ha</span><span><i style="background:var(--panel);border:1px solid var(--ink-2)"></i>open · 3 ha</span>`)}`),
+    notes: ["Rules as plain sentences, each value editable with a slider or menu; the map reruns live.", "Areas per class in the legend.", "Clicking a rule outlines the land it decides, in the accent."],
+  },
+  Landform: {
+    left: `<h3>Landform</h3><div class="card" style="font-size:12px">Flat · high confidence · 3.2 m of relief · FABDEM<br><span style="color:var(--ink-2)">Flat land: the skeleton comes from the existing roads, not from ridges.</span></div>
+      <h3>Ridge streets</h3>${["ridge 1 · 12.4 ha", "ridge 2 · 8.1 ha", "ridge 3 · 5.6 ha"].map((r, k) => `<div class="row" style="justify-content:space-between;font-size:13px"><span>${r}</span><span class="toggle${k < 2 ? " on" : ""}"></span></div>`).join("")}
+      <div class="row" style="justify-content:space-between;font-size:13px"><span>valley crossings</span><span class="mono">3 of 4 allowed</span></div>
+      <div class="b">drag a crossing to move it</div>`,
+    centre: map(`${mapFurniture(L("water", "valleys and buffers") + `<span><i style="background:var(--ink)"></i>skeleton streets</span><span><i style="border:2px solid var(--ink);border-radius:50%;background:transparent"></i>crossing</span>`)}`),
+    notes: ["Valleys, ridges, crossings and the skeleton, with relief class and confidence always shown.", "Ridge streets switch on and off; runs start again."],
+  },
+  Brief: {
+    left: `<h3>The brief</h3>${[["floor area", "337 ha", "CGDCR 2017 table 6.2"], ["height cap", "15 storeys", "assumed"], ["setbacks", "3 / 0 / 3 m", "assumed"], ["programme", "60% homes, 25% work, 15% civic", "uploaded brief, p. 4"]].map(([k, v, c]) => `<div class="field"><label>${k}</label><div class="input" style="color:var(--ink)">${v}</div><span class="cite">${c}</span></div>`).join("")}
+      <h3>Patterns</h3><div class="row">${["21 Four-story limit", "60 Accessible green", "106 Positive outdoor space", "107 Wings of light"].map((p, k) => `<span class="chip" aria-pressed="${k !== 0}">${p}</span>`).join("")}</div>
+      <div class="row"><span class="btn primary">confirm and lock the brief</span></div>`,
+    centre: map(`${mapFurniture(designLegend)}<div class="over" style="top:56px;left:12px"><div class="readout"><span>brief</span><span>draft · not locked</span><span>sources</span><span>3 cited, 2 assumed</span></div></div>`),
+    notes: ["Each value with its source or \"assumed\", editable.", "Patterns as chips; hover shows the card.", "Confirm freezes the brief with a visible lock; a run records which brief it used."],
+  },
+  Evolve: {
+    left: () => `<h3>Run</h3>
+      <div class="field"><label>how to search</label><div class="input" style="color:var(--ink)">best trade-offs</div><span class="cite">tooltip: NSGA-II; "most kinds of design" is MAP-Elites</span></div>
+      <div class="field"><label>also aim for</label><div class="input">nothing extra</div></div>
+      <div class="row"><div class="field" style="flex:1"><label>generations</label><div class="input" style="color:var(--ink)">30</div></div><div class="field" style="flex:1"><label>designs per generation</label><div class="input" style="color:var(--ink)">60</div></div></div>
+      <div class="row"><span class="toggle"></span><span style="font-size:13px">start from the pen (4)</span></div>
+      <div class="row"><span class="toggle"></span><span style="font-size:13px">grow in steps: 2025, 2035, 2050</span></div>
+      <div class="row">${state.run === "running" ? `<span class="btn">cancel</span>` : `<span class="btn primary">run</span>`}</div>`,
+    centre: () => state.run === "running" ? `<div style="display:grid;grid-template-rows:auto 1fr;min-height:0">
+        <div style="padding:12px;border-bottom:1px solid var(--line);display:grid;gap:8px"><div class="row" style="justify-content:space-between"><span style="font-size:13px">Generation 14 of 30 · about 5 s left</span><span class="btn">cancel</span></div><div class="progress"><b></b></div>
+        <div class="strip">${Array.from({ length: 6 }, () => `<div class="thumb"><svg><use href="#site"/></svg></div>`).join("")}<span class="mono" style="align-self:center">the best so far, updating each generation</span></div></div>${map(mapFurniture(designLegend))}</div>`
+      : map(`${mapFurniture(designLegend)}<div class="over" style="top:56px;left:12px"><div class="readout"><span>last run</span><span>1,860 designs in 9.4 s</span><span>front</span><span>43 designs, 17 families</span></div></div>`),
+    notes: ["A compact form with plain labels; NSGA-II, NSGA-III and MAP-Elites live in tooltips.", "While running: the best designs as a live strip, a progress bar with time left, cancel. The rest of the workbench stays usable.", "Runs happen in a worker pool; the page never blocks."],
+  },
+  Explore: {
+    left: `<h3>Representatives</h3><span class="mono">the 6 most distinct of 17 families</span>
+      ${[["Design 1 · most human in scale", "21 like it"], ["Design 2 · most daylight", "9 like it"], ["Design 3 · most flood storage", "7 like it"], ["Design 4 · balanced", "3 like it"]].map(([t, n], k) => `<div class="card${k === 2 ? " on" : ""}" style="grid-template-columns:76px 1fr;align-items:center"><div class="thumb"><svg><use href="#site"/></svg></div><div style="display:grid;gap:3px;font-size:12px"><b style="font-weight:500">${t}</b><svg width="54" height="16" aria-label="score glyph">${[10, 4, 14, 8, 12].map((h, i) => `<rect x="${i * 11}" y="${16 - h}" width="8" height="${h}" rx="1" fill="var(--ink-2)"/>`).join("")}</svg><span class="mono">${n}</span></div></div>`).join("")}
+      <span class="btn">show all 17 families</span>
+      <h3>Jump to the best on</h3><div class="row">${["storage", "heat", "carbon", "daylight", "human scale", "any metric…"].map((s) => `<span class="chip" aria-pressed="false">${s}</span>`).join("")}</div>`,
+    centre: () => {
+      if (state.ex === "compare") return `<div style="display:grid;grid-template-rows:1fr auto;min-height:0">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);min-height:0">${["Design 3 · most flood storage", "Design 1 · most human in scale"].map((t) => `<div style="position:relative;background:var(--paper);overflow:hidden"><svg class="mapsvg" style="position:absolute;inset:0;width:100%;height:100%" preserveAspectRatio="xMidYMid slice"><use href="#site"/></svg><div class="over" style="top:10px;left:10px"><span class="pill">${t}</span></div></div>`).join("")}</div>
+        <div style="padding:12px;border-top:1px solid var(--line);display:grid;grid-template-columns:1fr 1fr;gap:16px"><div class="bars">${[["storage", "+38%"], ["heat", "+0.3 °C"], ["carbon", "-4 kg/m²"], ["daylight", "-12%"], ["human scale", "-21%"]].map(([k, d]) => `<div class="bar"><span>${k}</span><div class="track"><i style="--v:${50 + (d.startsWith("+") ? 20 : -15)}%"></i></div><span class="num">${d}</span></div>`).join("")}</div>
+        <div class="b">difference map: where the two designs' uses differ</div></div></div>`;
+      if (state.ex === "archive") return `<div style="display:grid;grid-template-columns:1fr 1fr;min-height:0"><div style="padding:16px;display:grid;grid-template-columns:20px 1fr;gap:6px;align-content:start"><span class="mono" style="writing-mode:vertical-rl;transform:rotate(180deg);text-align:center">more open ground →</span><div style="display:grid;grid-template-columns:repeat(8,1fr);gap:3px">${Array.from({ length: 64 }, (_, i) => `<div class="thumb" style="${(i * 7) % 5 === 0 ? "background:transparent;border:1px dashed var(--line)" : ""}${i === 27 ? ";box-shadow:0 0 0 2px var(--accent)" : ""}"></div>`).join("")}</div><span></span><span class="mono" style="text-align:center">taller on average →</span></div>${map(mapFurniture(designLegend))}</div>`;
+      return `<div style="display:grid;grid-template-columns:1fr 1fr;min-height:0"><div style="padding:16px;display:grid;gap:10px;align-content:start;border-right:1px solid var(--line)">
+        <div class="row"><span class="seg"><span class="on">scatter matrix</span><span>parallel</span></span><span class="mono">colour by</span><span class="btn">on the front</span></div>
+        <svg viewBox="0 0 400 400" style="width:100%;max-width:440px" aria-label="scatter matrix sketch">${[0, 1, 2, 3].flatMap((r) => [0, 1, 2, 3].filter((c) => c <= r).map((c) => `<rect x="${10 + c * 98}" y="${10 + r * 98}" width="90" height="90" fill="none" stroke="var(--line)"/>${Array.from({ length: 14 }, (_, k) => `<circle cx="${18 + c * 98 + ((k * 37 + r * 11) % 74)}" cy="${18 + r * 98 + ((k * 53 + c * 7) % 74)}" r="2.6" fill="var(--${k % 3 ? "ink" : "muted"})"/>`).join("")}<circle cx="${18 + c * 98 + 50}" cy="${18 + r * 98 + 20}" r="6" fill="none" stroke="var(--accent)" stroke-width="2"/>`)).join("")}<text x="400" y="398" text-anchor="end" font-size="10" fill="var(--muted)" font-family="IBM Plex Mono">more storage →</text></svg>
+        <span class="mono">brush an axis to filter the map and the list · hover a point to light it on the map</span></div>${map(mapFurniture(designLegend))}</div>`;
+    },
+    notes: ["Trade-offs and the design side by side; hovering a point lights the design on the map and the reverse; selecting anywhere selects everywhere (the accent ring).", "Representatives first (5-7, by clustering), each with a one-line reason and a score glyph; show all behind a button.", "Compare: synced cameras and score differences as bars. The difference map is B.", "Archive: MAP-Elites as a grid of thumbnails, axes in plain words."],
+  },
+  Massing: {
+    left: `<h3>Block 129 · 0.94 ha · 3 plots</h3><span class="mono">click another block on the plan to switch</span>
+      <div class="field"><label>written as</label><div class="seg"><span class="on">typologies</span><span>voxel field</span><span>network</span></div></div>
+      <div class="b">typology → found form slider (B2)</div>
+      <div class="row"><span class="btn primary">breed buildings</span><span class="mono">24 × 12 · about 10 s</span></div>
+      <h3>Sun</h3><div class="row"><span class="input" style="flex:1;color:var(--ink)">15 March</span></div><div class="row"><div class="slider" style="--at:62%"><i></i></div><span class="mono">16:00</span></div>
+      <h3>Section</h3><div class="seg"><span class="on">none</span><span>plan cut</span><span>across</span></div>
+      <h3>Export</h3><div class="row"><span class="btn">glTF · 1.2 MB</span><span class="btn">OBJ · 2.1 MB</span><span class="btn">Rhino · 0.9 MB</span></div>`,
+    centre: () => `<div class="view"><svg class="mapsvg" preserveAspectRatio="xMidYMid slice" viewBox="0 0 800 560"><rect width="800" height="560" fill="var(--panel)"/>${Array.from({ length: 16 }, (_, k) => `<path d="M${80 + (k % 4) * 170} ${80 + Math.floor(k / 4) * 110} l60 -30 l60 30 l0 ${k === 5 || k === 6 ? 120 : 40} l-60 30 l-60 -30 z" fill="var(--${k === 5 || k === 6 ? "build-2" : "fill"})" stroke="var(--line)"/>`).join("")}</svg>
+      <div class="over" style="top:12px;left:12px"><span class="seg"><span>2D</span><span class="on">3D</span><span>split</span></span><span class="seg"><span class="on">aerial</span><span>street</span><span>plan</span></span><span class="btn">presentation</span></div>
+      <div class="over" style="right:12px;bottom:12px"><div class="legend">${L("build-2", "the bred massing")}${L("fill", "existing buildings")}<span class="mono">shadows: 15 March, 16:00 IST</span></div></div></div>`,
+    notes: ["Pick a block on the plan; the 3D view frames it.", "Representation picker; sun date and time with live shadows; section cut; exports with file sizes.", "Camera presets: aerial, street, plan; presentation mode hides the UI."],
+  },
+};
+
+const INSP = () => state.insp === "empty"
+  ? `<div class="empty"><b style="font-weight:500">Nothing selected</b>Click a design on the map, a chart, the pen or a list. Its scores, form, genes and lineage show here.</div>`
+  : `<div class="title"><b>Design 3 · most flood storage</b><span class="mono">G28.24 · family C · generation 28 · <span style="text-decoration:underline">rename</span></span></div>
+    <div class="bars">${[["flood storage", "71%", 82], ["heat", "+2.8 °C", 20], ["carbon", "400 kg/m²", 95], ["daylight", "84%", 75], ["human scale", "68%", 60]].map(([k, v, p]) => `<div class="bar"><span>${k}</span><div class="track"><i style="--v:${p}%"></i></div><span class="num">${v}</span></div>`).join("")}<span class="mono">each bar spans the run's worst to best; the tick at the right is the best end</span></div>
+    <div class="card" style="font-size:12px;grid-template-columns:1fr auto"><span>floor area, net of streets</span><b style="font-weight:500">342 ha</b><span>against the brief</span><span>+1.5%</span><span>gross</span><span>506 ha</span></div>
+    ${["human scale", "permeability", "nature", "legibility", "Alexander's properties"].map((g) => `<details class="grp"><summary>${g}</summary></details>`).join("")}
+    <details class="grp" open><summary>genes, in plain words</summary><div class="genes">${[["water share", "24%"], ["green share", "37%"], ["streets every", "90 m"], ["streets follow", "the valleys"], ["street pattern", "branching"]].map(([k, v]) => `<div><span>${k} · ${v}</span><span class="lock">lock</span></div>`).join("")}</div></details>
+    <details class="grp"><summary>lineage · bred from G27.12 × G26.40</summary></details>
+    <div class="actions"><span class="btn primary">keep in pen</span><span class="btn">breed with…</span><span class="btn">shock test</span><span class="btn">mass a block</span><span class="btn">export</span></div>`;
+
+const NOTES_ALL = ["Top bar: project, site, run status, save and share, undo and redo.", "Left rail 280 px: the steps with their state; the open step shows its controls only.", "Right inspector 340 px; bottom tray 140 px for the pen and the generation slider.", "At narrower widths, panels collapse in this order: tray, inspector, then the rail to icons. Minimum 1280 px; on a phone, a note and a link to the story.", "Shortcuts: Ctrl+Z / Ctrl+Shift+Z, J and K for next and previous design, P keeps it in the pen, 2 and 3 for 2D and 3D, ? for the list."];
+
+function render() {
+  const done = STEPS.indexOf(state.step);
+  document.getElementById("steps").innerHTML = STEPS.map((s, k) => `<li class="${k < done ? "done" : ""}${s === state.step ? " now" : ""}"><button data-step="${s}" aria-current="${s === state.step ? "step" : "false"}"><span class="tick">${k < done ? "✓" : ""}</span>${s}</button></li>`).join("");
+  const P = PANELS[state.step], val = (x) => (typeof x === "function" ? x() : x);
+  document.getElementById("panel").innerHTML = val(P.left);
+  document.getElementById("centre").innerHTML = val(P.centre);
+  document.getElementById("insp").innerHTML = INSP();
+  document.getElementById("runpill").textContent = state.run === "running" && state.step === "Evolve" ? "running · generation 14 of 30" : "run 3 · 1,860 designs · 43 on the front";
+  document.getElementById("notes").innerHTML = `<section><h2>${state.step}</h2><ul>${P.notes.map((n) => `<li>${n}</li>`).join("")}</ul></section><section><h2>Every step</h2><ul>${NOTES_ALL.map((n) => `<li>${n}</li>`).join("")}</ul></section>`;
+  for (const [attr, key] of [["insp", "insp"], ["run", "run"], ["ex", "ex"]]) {
+    document.querySelectorAll(`[data-${attr}]`).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset[attr] === state[key])));
+  }
+  try { localStorage.setItem("wb-step", state.step); } catch (e) {}
+}
+document.addEventListener("click", (e) => {
+  const t = e.target.closest("[data-step],[data-insp],[data-run],[data-ex]");
+  if (!t) return;
+  if (t.dataset.step) state.step = t.dataset.step;
+  if (t.dataset.insp) state.insp = t.dataset.insp;
+  if (t.dataset.run) { state.run = t.dataset.run; state.step = "Evolve"; }
+  if (t.dataset.ex) { state.ex = t.dataset.ex; state.step = "Explore"; }
+  render();
+});
+try { const s = localStorage.getItem("wb-step"); if (s && STEPS.includes(s)) state.step = s; } catch (e) {}
+const h = location.hash.slice(1); if (STEPS.map((s) => s.toLowerCase()).includes(h)) state.step = STEPS.find((s) => s.toLowerCase() === h);
+render();
+</script>
+</body>
+</html>
