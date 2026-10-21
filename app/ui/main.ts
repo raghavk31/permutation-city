@@ -563,14 +563,14 @@ async function runEvolution(seed?: number, note = "") {
   const t0 = performance.now();
   const onProgress = (gen: number, row: E.HistoryRow) => {
     rows.push(row);
-    $(".pc-progress").textContent = `generation ${gen} of ${opts.generations}`;
+    $(".pc-progress").textContent = `generation ${gen} of ${opts.generations} · ${((performance.now() - t0) / 1000).toFixed(0)} s`;
     drawCharts(rows, opts);
   };
   let step = -1;
   const onIncrement = (k: number, gen: number, row: E.HistoryRow) => {
     if (k !== step) { step = k; rows.length = 0; }
     rows.push(row);
-    $(".pc-progress").textContent = `the ${E.YEARS[k]} increment: generation ${gen} of ${opts.generations}`;
+    $(".pc-progress").textContent = `the ${E.YEARS[k]} increment: generation ${gen} of ${opts.generations} · ${((performance.now() - t0) / 1000).toFixed(0)} s`;
     drawCharts(rows, opts);
   };
   let m: EvolveResult | PiecemealResult;
