@@ -3,8 +3,24 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import * as E from "../../app/engine";
+import { BUILDING } from "../../app/engine/config";
+import { familyOf } from "../../app/engine/plan/field";
+import { area, obb, type Line } from "../../app/engine/plan/geom";
 
 const load = (id: string) => E.prepare(JSON.parse(readFileSync(join(__dirname, "..", "..", "app", "public", "sites", `${id}.json`), "utf8")));
+
+/** A ring's sharpest corner in degrees (edges under half a metre skipped). */
+function minAngle(r: Line): number {
+  let m = 180;
+  for (let k = 0; k < r.length; k++) {
+    const a = r[(k - 1 + r.length) % r.length], b = r[k], c = r[(k + 1) % r.length];
+    const ux = a[0] - b[0], uy = a[1] - b[1], vx = c[0] - b[0], vy = c[1] - b[1];
+    const lu = Math.hypot(ux, uy), lv = Math.hypot(vx, vy);
+    if (lu < 0.5 || lv < 0.5) continue;
+    m = Math.min(m, Math.acos(Math.max(-1, Math.min(1, (ux * vx + uy * vy) / lu / lv))) * 180 / Math.PI);
+  }
+  return m;
+}
 
 describe.each(["mumbai-docks", "mumbai-ewf", "ahmedabad-wadaj", "bengaluru-cascade"])("version 3 on %s", (id) => {
   const G = load(id), rng = E.makeRng(101);
@@ -24,6 +40,23 @@ describe.each(["mumbai-docks", "mumbai-ewf", "ahmedabad-wadaj", "bengaluru-casca
     const again = E.grow(designs[0].genome, G);
     expect(again.plan!.streets.length).toBe(designs[0].plan!.streets.length);
     expect(Array.from(again.levels)).toEqual(Array.from(designs[0].levels));
+  });
+  it("cuts building plots without many slivers, wedges or spikes", () => {
+    let n = 0, thin = 0, wedge = 0, sharp = 0;
+    for (const d of designs) {
+      const fam = familyOf((d.settings as E.SettingsV3).pattern);
+      for (const p of d.plan!.plots) {
+        if (p.use !== BUILDING) continue;
+        const b = obb(p.ring), fill = Math.abs(area(p.ring)) / (4 * b.hl * b.hw);
+        n++;
+        if (2 * b.hw < 0.6 * fam.frontage[0]) thin++;
+        if (fill < 0.6) wedge++;
+        if (minAngle(p.ring) < 30) sharp++;
+      }
+    }
+    expect(thin / n).toBeLessThan(0.03);
+    expect(wedge / n).toBeLessThan(0.15);
+    expect(sharp / n).toBeLessThan(0.08);
   });
   it("rasterises onto the grid: streets take part of cells, scores are finite", () => {
     for (const d of designs) {

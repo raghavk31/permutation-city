@@ -206,6 +206,18 @@ listed on the design.
 2. Repeat until each part is within the family's plot width and depth.
 3. Reject a split that leaves a part with no street frontage, and try the other axis.
 4. Stop splitting a part when neither split is valid.
+5. Shape (added in A2, after a survey found 20-40% of building-plot area in slivers and
+   wedges):
+   - A part is cut along its main street: the longest street edge, averaged only with street
+     edges within 25° of it. Averaging every street edge cut corner parts on the diagonal.
+   - Each split is tried at the middle, then 15% to either side. The first whose parts all
+     fill at least 0.6 of their box and are at least 0.6 of the family's least frontage wide
+     is taken. A part more than 3 full plots in size takes the best split anyway; a smaller
+     one stays whole.
+   - Block corners under 30° get a 4 m corner splay before splitting.
+   - Result on 10 designs a site: thin plots under 1% (was up to 14%), wedges 2-8% (was
+     19-41%), corners under 30° 1-5% (was 12-25%). What is left is mostly small triangular
+     blocks too small to split. A test in `test/ui/plan.test.ts` holds these.
 
 This follows Vanegas et al. 2012, "Procedural generation of parcels in urban modeling"
 (Eurographics), the method CityEngine uses.
