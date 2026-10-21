@@ -16,7 +16,7 @@ import type { Design, Ground, ScoreKey, Scores } from "./types.js";
 /** A trait a design can be placed by: label, the range the bins cover (values outside go
  *  in the end bins), and how to read it. Ranges checked against 1,500 random designs on
  *  three sites (`npm run ranges`; docs/experiments/search-comparison.md). */
-export interface Descriptor { label: string; range: [number, number]; value: (d: Design, G: Ground) => number }
+export interface Descriptor { label: string; range: [number, number]; value: (d: Design, G: Ground) => number; v3?: true }
 
 function count(d: Design, ...codes: number[]) {
   let c = 0;
@@ -49,6 +49,44 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
   daylight: { label: "daylight", range: [0.3, 1.0], value: score("daylight") },
   human: { label: "human scale", range: [0.5, 0.9], value: score("human") },
 };
+// Version 3 traits: read from the design's vector plan (0 for a design without one; the page
+// offers them only for version 3 runs).
+const planOf = (d: Design) => d.plan ?? null;
+const lineLength = (l: number[][]) => { let s = 0; for (let k = 1; k < l.length; k++) s += Math.hypot(l[k][0] - l[k - 1][0], l[k][1] - l[k - 1][1]); return s; };
+const median = (xs: number[]) => { if (!xs.length) return 0; const s = [...xs].sort((a, b) => a - b); return s[s.length >> 1]; };
+/** Street orientation order (Boeing 2019, "Urban spatial order", Applied Network Science 4):
+ *  the length-weighted entropy H of street bearings in 36 bins of 10°, both directions of
+ *  each segment counted, as φ = 1 − ((H − H_g) / (H_max − H_g))², where H_max = ln 36 (every
+ *  bearing equally) and H_g = ln 4 (a perfect grid). 1: one grid; 0: no order. */
+function orientationOrder(d: Design): number {
+  const p = planOf(d);
+  if (!p) return 0;
+  const bins = new Float64Array(36);
+  for (const st of p.streets) for (let k = 1; k < st.pts.length; k++) {
+    const [a, b] = [st.pts[k - 1], st.pts[k]], l = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (l < 1e-6) continue;
+    const brg = ((Math.atan2(b[0] - a[0], b[1] - a[1]) * 180) / Math.PI + 360) % 360;
+    bins[Math.floor(brg / 10) % 36] += l; bins[Math.floor(((brg + 180) % 360) / 10) % 36] += l;
+  }
+  const tot = bins.reduce((s, v) => s + v, 0);
+  if (!tot) return 0;
+  let h = 0;
+  for (const v of bins) if (v > 0) h -= (v / tot) * Math.log(v / tot);
+  const hMax = Math.log(36), hG = Math.log(4);
+  return 1 - ((h - hG) / (hMax - hG)) ** 2;
+}
+const V3_TRAITS: Record<string, Descriptor> = {
+  street_density: { label: "street density (km per km²)", range: [16, 34], v3: true,
+    value: (d, G) => { const p = planOf(d); return p ? p.streets.reduce((s, st) => s + lineLength(st.pts), 0) / (G.n * G.cellArea / 1000) : 0; } },
+  block_perimeter: { label: "block size (median perimeter, m)", range: [230, 420], v3: true,
+    value: (d) => median((planOf(d)?.blocks ?? []).map((b) => lineLength([...b, b[0]]))) },
+  plot_frontage: { label: "plot frontage (median, m)", range: [10, 30], v3: true,
+    value: (d) => median((planOf(d)?.plots ?? []).filter((p) => p.use === BUILDING).map((p) => p.frontage)) },
+  pattern: { label: "street pattern family", range: [0, 1], v3: true,
+    value: (d) => (planOf(d) ? (d.settings as { pattern?: number }).pattern ?? 0 : 0) },
+  orientation_order: { label: "orientation order (Boeing 2019)", range: [0, 0.45], v3: true, value: orientationOrder },
+};
+Object.assign(DESCRIPTORS, V3_TRAITS);
 // Any form metric can be a trait too (metrics/index.ts), binned over where most designs fall.
 for (const k of METRIC_KEYS) {
   const m = METRICS[k] as Metric;

@@ -468,7 +468,7 @@ function evolveOptions(seed = Math.floor(rng.random() * 1e9)): RunOptions {
   const pop = +select(f, "pop").value;
   if (select(f, "growth").value === "piecemeal") {
     return { search: "nsga3", objectives: [], generations: gens, pop, seed, shock: null, locked: null, start: null, ranges: state.ranges,
-      growth: "piecemeal", scenario: select(f, "scenario").value as E.Scenario, version: 2 };
+      growth: "piecemeal", scenario: select(f, "scenario").value as E.Scenario, version: state.version };
   }
   // Designs in the pen of another genome version can't join this run (they can't be bred together).
   const pen = input(f, "fromPen").checked ? state.pen.map((p) => p.genome).filter((g) => g.length === E.lengthOf(state.version)) : [];
@@ -577,7 +577,7 @@ async function runEvolution(seed?: number, note = "") {
   try {
     if (opts.growth === "piecemeal") {
       m = await state.worker!.api.piecemeal({ generations: opts.generations ?? 15, pop: opts.pop ?? 40, seed: opts.seed ?? 1,
-        scenario: opts.scenario ?? "ssp245", ranges: opts.ranges ?? E.DEFAULT_RANGES }, Comlink.proxy(onIncrement));
+        scenario: opts.scenario ?? "ssp245", ranges: opts.ranges ?? E.DEFAULT_RANGES, version: opts.version ?? 2 }, Comlink.proxy(onIncrement));
     } else {
       const { typologySeeds: _, growth: _g, scenario: _s, ...engineOpts } = opts;
       m = await state.worker!.api.evolve(engineOpts, Comlink.proxy(onProgress));
@@ -1447,7 +1447,10 @@ function wire() {
   input(ev, "shock").addEventListener("change", (e) => {
     $(".pc-shock-opts").hidden = !(e.target as HTMLInputElement).checked;
   });
-  const traits = E.DESCRIPTOR_KEYS.map((k) => `<option value="${k}">${E.DESCRIPTORS[k].label}</option>`).join("");
+  const option = (k: string) => `<option value="${k}">${E.DESCRIPTORS[k].label}</option>`;
+  // COPY: the group of traits read from a version 3 street plan.
+  const traits = E.DESCRIPTOR_KEYS.filter((k) => !E.DESCRIPTORS[k].v3).map(option).join("")
+    + `<optgroup label="street plan (version 3 runs)">${E.DESCRIPTOR_KEYS.filter((k) => E.DESCRIPTORS[k].v3).map(option).join("")}</optgroup>`;
   select(ev, "ax").innerHTML = traits; select(ev, "ay").innerHTML = traits;
   select(ev, "ax").value = "mean_levels"; select(ev, "ay").value = "open_share";
   select(ev, "growth").addEventListener("change", (e) => {

@@ -8,7 +8,7 @@
 import { BUILDING, type Family } from "../config.js";
 import type { Design, Ground } from "../types.js";
 import { area, centroid, dist, obb, offsetRing, splitFlagged, type FlaggedRing, type Line, type Pt } from "./geom.js";
-import { locator } from "./ground.js";
+import { locator, type Locator } from "./ground.js";
 import type { Edge, Face } from "./network.js";
 import type { Rng } from "../types.js";
 
@@ -124,15 +124,7 @@ export function plots(G: Ground, d: Design, faces: Face[], edges: Edge[], widthO
       if (!done) out.push(classify(r.pts, bi, frontage(r)));
     }
     function classify(r: Line, block: number, front: number): Plot {
-      // The use most of the plot stands on: its centre and points just inside its corners.
-      const c = centroid(r), votes = new Map<number, number>();
-      for (const p of [c, ...r.map((q): Pt => [q[0] + (c[0] - q[0]) * 0.25, q[1] + (c[1] - q[1]) * 0.25])]) {
-        const cell = loc.cell(p), u = cell >= 0 ? d.use[cell] : 0;
-        votes.set(u, (votes.get(u) ?? 0) + 1);
-      }
-      let use = 0, best = -1;
-      for (const [u, n] of votes) if (n > best || (n === best && u === BUILDING)) { best = n; use = u; }
-      return { ring: r, block, use, frontage: front };
+      return { ring: r, block, use: plotUse(loc, d.use, r), frontage: front };
     }
   });
   return out;
@@ -153,6 +145,19 @@ function splay(r: FlaggedRing): FlaggedRing {
     pts.push([b[0] + (c[0] - b[0]) * t / lc, b[1] + (c[1] - b[1]) * t / lc]); flag.push(r.flag[k]);
   }
   return { pts, flag };
+}
+
+/** The use most of a plot stands on: its centre and points just inside its corners (ties go
+ *  to building). */
+export function plotUse(loc: Locator, use: ArrayLike<number>, r: Line): number {
+  const c = centroid(r), votes = new Map<number, number>();
+  for (const p of [c, ...r.map((q): Pt => [q[0] + (c[0] - q[0]) * 0.25, q[1] + (c[1] - q[1]) * 0.25])]) {
+    const cell = loc.cell(p), u = cell >= 0 ? use[cell] : 0;
+    votes.set(u, (votes.get(u) ?? 0) + 1);
+  }
+  let out = 0, best = -1;
+  for (const [u, n] of votes) if (n > best || (n === best && u === BUILDING)) { best = n; out = u; }
+  return out;
 }
 
 const lengthOf = (l: Line) => { let s = 0; for (let k = 1; k < l.length; k++) s += dist(l[k - 1], l[k]); return s; };

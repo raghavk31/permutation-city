@@ -68,6 +68,21 @@ describe.each(["mumbai-docks", "mumbai-ewf", "ahmedabad-wadaj", "bengaluru-casca
   });
 });
 
+describe("version 3 traits (MAP-Elites)", () => {
+  const G = load("mumbai-docks");
+  const withStreets = (streets: { pts: number[][] }[]) => ({ plan: { streets, blocks: [], plots: [] } }) as unknown as E.Design;
+  it("reads a grid as ordered and scattered bearings as not", () => {
+    const grid = [{ pts: [[0, 0], [100, 0]] }, { pts: [[0, 0], [0, 100]] }];
+    expect(E.DESCRIPTORS.orientation_order.value(withStreets(grid), G)).toBeCloseTo(1, 6);
+    const fan = Array.from({ length: 18 }, (_, k) => ({ pts: [[0, 0], [Math.sin(k * Math.PI / 18 + 0.01) * 50, Math.cos(k * Math.PI / 18 + 0.01) * 50]] }));
+    expect(E.DESCRIPTORS.orientation_order.value(withStreets(fan), G)).toBeLessThan(0.01);
+  });
+  it("reads 0 for a design without a plan", () => {
+    const d = E.grow(E.randomGenome(E.makeRng(2)), G);
+    for (const k of E.DESCRIPTOR_KEYS.filter((k) => E.DESCRIPTORS[k].v3)) expect(E.DESCRIPTORS[k].value(d, G)).toBe(0);
+  });
+});
+
 describe("genome versions", () => {
   it("reads versions by length and grows versions 1 and 2 as before", () => {
     expect(E.versionOf(new Array(E.LENGTH_V3).fill(0.5))).toBe(3);

@@ -46,6 +46,36 @@ describe("growing in increments", () => {
   });
 });
 
+describe("growing in increments, version 3", () => {
+  const rng = E.makeRng(5), [g1, g2, g3] = [0, 1, 2].map(() => E.randomGenome(rng, 3));
+  const f0 = E.emptyFabric(G);
+  const d1 = E.growIncrement(g1, G, f0, total * 0.4, false, E.DEFAULT_RANGES, 0.4), f1 = E.buildFabric(f0, d1);
+  const d2 = E.growIncrement(g2, G, f1, total * 0.7, false, E.DEFAULT_RANGES, 0.7), f2 = E.buildFabric(f1, d2);
+  const d3 = E.growIncrement(g3, G, f2, total, true, E.DEFAULT_RANGES, 1);
+  it("lays the streets, blocks and plots out once, in the first increment's frame", () => {
+    expect(f1.frame).not.toBeNull();
+    expect(f1.streets).toBeNull();
+    for (const d of [d2, d3]) {
+      expect(d.plan!.streets).toEqual(d1.plan!.streets);
+      expect(d.plan!.blocks).toEqual(d1.plan!.blocks);
+      expect(d.plan!.plots.map((p) => p.ring)).toEqual(d1.plan!.plots.map((p) => p.ring));
+      expect(Array.from(d.street!)).toEqual(Array.from(d1.street!));
+    }
+  });
+  it("keeps what earlier increments built, and fills the plots with each increment's own uses", () => {
+    for (let i = 0; i < G.n; i++) if (f1.built[i]) {
+      expect(d2.use[i]).toBe(f1.use[i]);
+      expect(d2.floorArea[i]).toBe(f1.floorArea[i]);
+    }
+    expect(d3.genome).toEqual(g3);
+    expect(d3.plan!.plots.map((p) => p.use)).not.toEqual(d1.plan!.plots.map((p) => p.use));
+  });
+  it("replays the same fabric from the built genomes", () => {
+    const fs = E.replayFabric(G, [g1, g2, g3]);
+    expect(Array.from(E.growLast(g3, G, fs[2]).use)).toEqual(Array.from(d3.use));
+  });
+});
+
 describe("conditions and wholeness", () => {
   it("raises the sea, the storm and the heat with the year", () => {
     const a = E.conditionsFor(docks.meta, 2025), b = E.conditionsFor(docks.meta, 2050), c = E.conditionsFor(docks.meta, 2050, "ssp585");

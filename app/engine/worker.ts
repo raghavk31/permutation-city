@@ -39,7 +39,7 @@ export type RunRequest = Omit<EvolveOptions, "progress" | "search"> & Omit<Elite
   search?: SearchChoice;
 };
 /** Piecemeal growth as the page asks for it: the size of each increment, a seed, a scenario. */
-export interface PiecemealRequest { generations: number; pop: number; seed: number; scenario: Scenario; ranges: Ranges }
+export interface PiecemealRequest { generations: number; pop: number; seed: number; scenario: Scenario; ranges: Ranges; version?: 2 | 3 }
 /** One increment, for the page: its year and conditions, and the design it built. */
 export interface IncrementSummary {
   year: number; conditions: Conditions; target: number; share: number; everyone: number; seconds: number;
@@ -131,7 +131,7 @@ const api = {
     if (!G) throw new Error("no site loaded");
     const g = G, S = shockSite(siteNow!, g);
     const r = piecemeal(g, S, { generations: o.generations, pop: o.pop, seed: o.seed, scenario: o.scenario, ranges: o.ranges,
-      progress: onProgress ? (k, gen, row) => onProgress(k, gen, row) : null });
+      version: o.version ?? 2, progress: onProgress ? (k, gen, row) => onProgress(k, gen, row) : null });
     const last = r.increments[r.increments.length - 1];
     lastKept = last.pop.map((i) => i.design);
     const run = { pop: last.pop, history: last.history, everyone: last.everyone, lineage: last.lineage, genomes: last.genomes };

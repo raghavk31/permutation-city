@@ -10,18 +10,23 @@
 //   6  plots by oriented-bounding-box splits (plots.ts)
 //   7  rasterised: street share per cell, streets on cell sides, the plot under each cell
 //      (raster.ts); heights from the core field as before, one height per plot
-import { BUILDING, DEFAULT_RANGES, PRIMARY_W_M, SECONDARY_W_M, STREET_FRONT_RISE, STREET_SHARE_MAX, type Ranges } from "../config.js";
+//
+// Steps 2-7 are the design's frame. Grown with another design's frame (piecemeal growth: the
+// streets are laid out once, by the first increment), a design only claims its uses, which
+// reclassify the frame's plots, and takes its heights.
+import { BUILDING, DEFAULT_RANGES, type Family, PRIMARY_W_M, SECONDARY_W_M, STREET_FRONT_RISE, STREET_SHARE_MAX, type Ranges } from "../config.js";
 import { claimUses, decodeV3 } from "../genome.js";
 import { roundHalfEven } from "../num.js";
 import { makeRng } from "../rng.js";
 import { sides } from "../streets.js";
-import type { Design, Ground, VectorPlan } from "../types.js";
+import type { Design, Ground, SettingsV3, VectorPlan } from "../types.js";
 import { familyOf, infill } from "./field.js";
 import { simplify, type Line, type Pt } from "./geom.js";
-import { skeletonLines } from "./ground.js";
-import { applyBlockRepairs, blockRepairs, faces, foldOntoSkeleton, node, outlineLines, repair, type Edge, type Flag, type Repair } from "./network.js";
-import { plots as splitPlots } from "./plots.js";
-import { rasterise } from "./raster.js";
+import { locator, skeletonLines } from "./ground.js";
+import { applyBlockRepairs, blockRepairs, type Edge, type Face, faces, type Flag, foldOntoSkeleton, node, outlineLines, repair,
+  type Repair } from "./network.js";
+import { type Plot, plotUse, plots as splitPlots } from "./plots.js";
+import { type Raster, rasterise } from "./raster.js";
 import { route } from "./route.js";
 
 /** Milliseconds per stage, summed over designs, when profiling (scripts/plan-profile.ts). */
@@ -36,12 +41,82 @@ function seedOf(genome: number[]): number {
   return h % 2147483647 || 1;
 }
 
-export function growV3(genome: number[], G: Ground, locked: ArrayLike<number> | null = null, ranges: Ranges = DEFAULT_RANGES): Design {
+/** A design's streets, blocks and plots, and their raster: what a design grown in another's
+ *  frame doesn't lay out again. */
+export interface Frame {
+  fam: Family; widthOf: (cls: number) => number;
+  vx: number[]; vy: number[]; edges: Edge[]; fs: Face[]; ps: Plot[]; ras: Raster;
+  repairs: Repair[]; flags: Flag[]; dests: VectorPlan["destinations"];
+}
+/** Frames beside their designs, not on them, so a design posted between threads stays small. */
+const frames = new WeakMap<Design, Frame>();
+export const frameOf = (d: Design): Frame | null => frames.get(d) ?? null;
+
+export function growV3(genome: number[], G: Ground, locked: ArrayLike<number> | null = null, ranges: Ranges = DEFAULT_RANGES,
+  given: Frame | null = null): Design {
   const { attractors, settings: s } = decodeV3(genome, G.bounds, ranges);
-  const n = G.n, seed = seedOf(genome), rng = makeRng(seed);
+  const n = G.n;
   let t = performance.now();
   const { use, core } = claimUses(G, attractors, s, locked);
   t = tick("claims", t);
+  let frame: Frame;
+  if (given) {
+    // The frame's plots take this design's uses.
+    const loc = locator(G);
+    frame = { ...given, ps: given.ps.map((p) => ({ ...p, use: plotUse(loc, use, p.ring) })) };
+  } else frame = layout(genome, G, use, attractors, s);
+  const { fam, widthOf, edges, fs, ps, ras } = frame;
+
+  const share = Float64Array.from(ras.share, (v) => Math.min(v, STREET_SHARE_MAX));
+  const sd = sides(G), fronts = new Uint8Array(n);
+  for (let sid = 0; sid < ras.sides.length; sid++) {
+    if (!ras.sides[sid]) continue;
+    fronts[sd.cell[sid]] = 1;
+    if (sd.other[sid] >= 0) fronts[sd.other[sid]] = 1;
+  }
+  const levels = new Int32Array(n), coverage = new Float64Array(n), floorArea = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    if (use[i] !== BUILDING) continue;
+    let rise = s.base + (1 - s.base) * Math.pow(core[i], s.peak);
+    if (fronts[i]) rise = Math.min(rise * STREET_FRONT_RISE, 1);
+    levels[i] = Math.min(Math.max(roundHalfEven(1 + (G.cap[i] - 1) * s.intensity * rise), 1), G.cap[i]);
+  }
+  // One height per plot: the mean of its building cells (within each cell's cap).
+  const sum = new Float64Array(ps.length), cnt = new Int32Array(ps.length);
+  for (let i = 0; i < n; i++) if (use[i] === BUILDING && ras.plotOf[i] >= 0) { sum[ras.plotOf[i]] += levels[i]; cnt[ras.plotOf[i]]++; }
+  const plotLevels = Array.from(sum, (v, k) => (cnt[k] ? roundHalfEven(v / cnt[k]) : 0));
+  let gross = 0;
+  for (let i = 0; i < n; i++) {
+    if (use[i] !== BUILDING) continue;
+    const k = ras.plotOf[i];
+    if (k >= 0 && plotLevels[k] > 0) levels[i] = Math.min(Math.max(plotLevels[k], 1), G.cap[i]);
+    const open = Math.min(s.coverage, 1 - G.minPerm[i]);
+    coverage[i] = Math.max(Math.min(s.coverage * (1 - share[i]), 1 - G.minPerm[i] - share[i]), 0);
+    floorArea[i] = G.cellArea * coverage[i] * levels[i];
+    gross += G.cellArea * open * levels[i];
+  }
+  t = tick("heights", t);
+
+  const plan: VectorPlan = {
+    family: fam.name,
+    streets: edges.filter((e) => e.cls > 0).map((e) => ({ pts: e.pts, cls: e.cls, w: widthOf(e.cls) })),
+    vx: frame.vx, vy: frame.vy, edges: edges.map((e) => ({ u: e.u, v: e.v, cls: e.cls })),
+    blocks: fs.map((f) => f.ring),
+    plots: ps.map((p, k) => ({ ring: p.ring, block: p.block, use: p.use, levels: plotLevels[k], frontage: p.frontage })),
+    repairs: frame.repairs, flags: frame.flags,
+    destinations: frame.dests,
+  };
+  const widths: [number, number, number, number] = [0, widthOf(1), widthOf(2), widthOf(3)];
+  const d: Design = { genome: Array.from(genome), use, levels, coverage, floorArea, attractors, settings: s, scores: null,
+    grossFloorArea: gross, street: ras.sides, streetWidths: widths, plan };
+  frames.set(d, frame);
+  return d;
+}
+
+/** Steps 2-7: the streets, blocks and plots a genome lays out, and their raster. */
+function layout(genome: number[], G: Ground, use: Int8Array, attractors: Design["attractors"], s: SettingsV3): Frame {
+  const n = G.n, seed = seedOf(genome), rng = makeRng(seed);
+  let t = performance.now();
   const fam = familyOf(s.pattern);
   const widthOf = (cls: number) => (cls >= 3 ? PRIMARY_W_M : cls === 2 ? SECONDARY_W_M : cls === 1 ? fam.local_w : 0);
   const centres: Pt[] = attractors.filter((a) => a.kind === "core").map((a) => [a.x, a.y]);
@@ -89,46 +164,7 @@ export function growV3(genome: number[], G: Ground, locked: ArrayLike<number> | 
 
   // 7. Onto the grid.
   const ras = rasterise(G, edges, widthOf, ps);
-  t = tick("raster", t);
-  const share = Float64Array.from(ras.share, (v) => Math.min(v, STREET_SHARE_MAX));
-  const sd = sides(G), fronts = new Uint8Array(n);
-  for (let sid = 0; sid < ras.sides.length; sid++) {
-    if (!ras.sides[sid]) continue;
-    fronts[sd.cell[sid]] = 1;
-    if (sd.other[sid] >= 0) fronts[sd.other[sid]] = 1;
-  }
-  const levels = new Int32Array(n), coverage = new Float64Array(n), floorArea = new Float64Array(n);
-  for (let i = 0; i < n; i++) {
-    if (use[i] !== BUILDING) continue;
-    let rise = s.base + (1 - s.base) * Math.pow(core[i], s.peak);
-    if (fronts[i]) rise = Math.min(rise * STREET_FRONT_RISE, 1);
-    levels[i] = Math.min(Math.max(roundHalfEven(1 + (G.cap[i] - 1) * s.intensity * rise), 1), G.cap[i]);
-  }
-  // One height per plot: the mean of its building cells (within each cell's cap).
-  const sum = new Float64Array(ps.length), cnt = new Int32Array(ps.length);
-  for (let i = 0; i < n; i++) if (use[i] === BUILDING && ras.plotOf[i] >= 0) { sum[ras.plotOf[i]] += levels[i]; cnt[ras.plotOf[i]]++; }
-  const plotLevels = Array.from(sum, (v, k) => (cnt[k] ? roundHalfEven(v / cnt[k]) : 0));
-  let gross = 0;
-  for (let i = 0; i < n; i++) {
-    if (use[i] !== BUILDING) continue;
-    const k = ras.plotOf[i];
-    if (k >= 0 && plotLevels[k] > 0) levels[i] = Math.min(Math.max(plotLevels[k], 1), G.cap[i]);
-    const open = Math.min(s.coverage, 1 - G.minPerm[i]);
-    coverage[i] = Math.max(Math.min(s.coverage * (1 - share[i]), 1 - G.minPerm[i] - share[i]), 0);
-    floorArea[i] = G.cellArea * coverage[i] * levels[i];
-    gross += G.cellArea * open * levels[i];
-  }
-
-  const plan: VectorPlan = {
-    family: fam.name,
-    streets: edges.filter((e) => e.cls > 0).map((e) => ({ pts: e.pts, cls: e.cls, w: widthOf(e.cls) })),
-    vx: net.vx, vy: net.vy, edges: edges.map((e) => ({ u: e.u, v: e.v, cls: e.cls })),
-    blocks: fs.map((f) => f.ring),
-    plots: ps.map((p, k) => ({ ring: p.ring, block: p.block, use: p.use, levels: plotLevels[k], frontage: p.frontage })),
-    repairs, flags,
-    destinations: r.dests.map((x) => ({ kind: x.kind, at: x.at })),
-  };
-  const widths: [number, number, number, number] = [0, widthOf(1), widthOf(2), widthOf(3)];
-  return { genome: Array.from(genome), use, levels, coverage, floorArea, attractors, settings: s, scores: null,
-    grossFloorArea: gross, street: ras.sides, streetWidths: widths, plan };
+  tick("raster", t);
+  return { fam, widthOf, vx: net.vx, vy: net.vy, edges, fs, ps, ras, repairs, flags,
+    dests: r.dests.map((x) => ({ kind: x.kind, at: x.at })) };
 }

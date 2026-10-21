@@ -3,7 +3,7 @@ import {
   ATTRACTOR_GENES, BUILDING, DEFAULT_RANGES, GENES_V3, GLOBAL_GENES, KINDS, LANDSCAPE, LENGTH, LENGTH_V3, N_ATTRACTORS,
   PRE_STREET_LENGTH, RANGES_V3, STREET_FRONT_RISE, STREET_GENE_DEFAULT, WATER, WATER_FIELD_REACH_M, type Ranges,
 } from "./config.js";
-import { growV3 } from "./plan/grow.js";
+import { type Frame, growV3 } from "./plan/grow.js";
 import { sides, streets } from "./streets.js";
 import { passes } from "./graph.js";
 import { lerp, norm, roundHalfEven, smooth } from "./num.js";
@@ -112,10 +112,11 @@ export function claimUses(G: Ground, attractors: Attractor[], s: Pick<Settings, 
 }
 
 /** Grow a design. `locked` (optional): a use code per cell, 0 = free. A version 3 genome
- *  (LENGTH_V3 numbers) grows a vector plan (plan/grow.ts); versions 1 and 2 grow as before. */
+ *  (LENGTH_V3 numbers) grows a vector plan (plan/grow.ts), in `frame`'s streets and plots when
+ *  given; versions 1 and 2 grow as before. */
 export function grow(genome: number[], G: Ground, locked: ArrayLike<number> | null = null,
-  ranges: Ranges = DEFAULT_RANGES): Design {
-  if (genome.length === LENGTH_V3) return growV3(genome, G, locked, ranges);
+  ranges: Ranges = DEFAULT_RANGES, frame: Frame | null = null): Design {
+  if (genome.length === LENGTH_V3) return growV3(genome, G, locked, ranges, frame);
   const [full, preStreet] = upgrade(genome);
   genome = full;
   const { attractors, settings: s } = decode(genome, G.bounds, ranges);
