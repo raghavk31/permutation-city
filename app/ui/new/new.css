@@ -1,5 +1,5 @@
 /* Draw a site: the picker and the layer cake. Builds on style.css (.pc tokens). */
-.pc-error { color: #b42318; }
+.pc-error { color: var(--pc-forbidden); font-weight: 500; }
 .pc-head .pc-kicker a { text-decoration: none; }
 
 /* picker */
@@ -35,8 +35,8 @@
 .pcn-progress li.done { color: var(--pc-ink-2); }
 .pcn-progress li.done::marker { content: "✓  "; }
 .pcn-progress li.now { color: var(--pc-ink); font-weight: 600; }
-.pcn-warn { border-left: 3px solid var(--pc-build); padding: 6px 12px; margin: 8px 0; max-width: 760px; background: var(--pc-retained); font-size: 14px; }
-.pcn-offline { border: 1px solid var(--pc-line); border-left: 3px solid var(--pc-build); border-radius: 4px; padding: 10px 14px; margin: 8px 0 16px; max-width: 760px; }
+.pcn-warn { border-left: 3px solid var(--pc-ink); padding: 6px 12px; margin: 8px 0; max-width: 760px; background: var(--pc-surface-2); font-size: 14px; }
+.pcn-offline { border: 1px solid var(--pc-line); border-left: 3px solid var(--pc-ink); border-radius: 4px; padding: 10px 14px; margin: 8px 0 16px; max-width: 760px; }
 .pcn-offline p { margin: 4px 0; }
 .pcn-offline .pcn-ready { margin-top: 10px; }
 .pcn-ready { margin-top: 24px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
@@ -59,9 +59,9 @@
 .pcn-rule { border: 1px solid var(--pc-line); border-left-width: 4px; border-radius: 4px; padding: 8px 12px; }
 .pcn-rule p { margin: 4px 0; font-size: 13px; }
 .pcn-rule.off { opacity: .55; }
-.pcn-forbidden { border-left-color: var(--pc-water); }
+.pcn-forbidden { border-left-color: var(--pc-forbidden); }
 .pcn-retained { border-left-color: var(--pc-muted); }
-.pcn-constrained { border-left-color: var(--pc-build); }
+.pcn-constrained { border-left-color: var(--pc-muted); border-left-style: dashed; }
 .pcn-rule-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
 .pcn-kind { font-size: 12px; color: var(--pc-ink-2); text-transform: lowercase; }
 .pcn-when, .pcn-limits { font-size: 14px; margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }

@@ -5,11 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Permutation City</title>
   <meta name="description" content="A sandbox for generative design with nature, on any site.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- The fonts raghavkohli.xyz uses (checked 2026-10-21): Inter Tight, and IBM Plex Mono for data labels. -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,300;0,400;0,500;1,300;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
 </head>
 <body>
 <main class="pc" data-pc>
 
   <header class="pc-head">
+    <figure class="pc-hero">
+      <img src="hero.jpg" width="1120" height="560" alt="A design bred on the Mumbai Eastern Waterfront, in 3D: buildings rising
+        towards the cores, streets cut through them, ponds and parks, the existing city in grey around it.">
+      <!-- COPY: hero caption -->
+      <figcaption class="pc-muted">A design bred for the Mumbai Eastern Waterfront, in the sun of 15 March at 16:00.</figcaption>
+    </figure>
     <p class="pc-kicker">Permutation City · a sandbox for designing with nature</p>
     <h1>What could be here, if the land wrote the rules?</h1>
     <p class="pc-lead">Pick a site. Its ground, water, flooding, green and existing city are read from open data and
@@ -90,7 +100,7 @@
     <div class="pc-two">
       <canvas class="pc-map"></canvas>
       <div>
-        <p class="pc-genes" aria-label="The genome"></p>
+        <p class="pc-genes"></p>
         <p class="pc-scores"></p>
         <button type="button" class="pc-another">another genome</button>
       </div>
@@ -107,7 +117,7 @@
       through the five scores instead of keeping the most distinct. MAP-Elites asks a different question: not the best
       trade-offs, but the best design of every kind. Pick two traits; it keeps the best design in each cell of a grid
       over them (tall and open, low and dense, and so on), even where those designs lose on the scores.</p>
-    <p>Any form metric with a better end (chapter 05 lists them) can join the five scores as an objective, up to two.
+    <p>Any form metric with a better end (chapter 06 lists them) can join the five scores as an objective, up to two.
       With more than five objectives crowding stops telling designs apart, so "auto" switches to NSGA-III.</p>
     <form class="pc-controls">
       <label>search <select name="search" class="pc-wide">
@@ -173,7 +183,7 @@
       <p class="pc-muted">Every generation is a row, the first at the top. Lines run from parents to children; the parent
         that gave more of the genes where the two differ draws the heavier line. A ring marks a child that mutated
         (heavier for more genes), a square a newcomer, a diamond a design the run started from (the pen or a typology
-        seed). Dark: the designs the run kept; orange: <span class="pc-tree-front">its front</span>. At first only the
+        seed). <!-- COPY: --> Dark grey: the designs the run kept; the largest, darkest dots: <span class="pc-tree-front">its front</span>; the outlined dot: the design you opened. At first only the
         kept designs and their ancestors are drawn; "+n" at the end of a row counts the designs of that generation that
         left no surviving descendants. Point at a design to trace its ancestors; click it to open it below.</p>
       <p class="pc-actions"><label><input type="checkbox" class="pc-tree-all" autocomplete="off"> show every design
@@ -186,7 +196,7 @@
   <section class="pc-ch pc-explore" id="pc-explore">
     <p class="pc-n">06 · the trade-offs</p>
     <h2>Explore</h2>
-    <p>Every design the run kept. Blue designs are on the front (on the brief, and no other kept design beats them on
+    <p><!-- COPY: --> Every design the run kept. Dark designs are on the front (on the brief, and no other kept design beats them on
       every score); grey ones are beaten; hollow ones miss the floor-area brief. Each axis runs from worse to better.
       Point at a design to find it, click to look at it.</p>
     <p>Beside the scores, each design has thirty form metrics: human scale, permeability, nature, harmony and variety,
@@ -231,8 +241,9 @@
     <button type="button" class="pc-more" hidden></button>
     <div class="pc-detail" hidden>
       <h3></h3>
-      <canvas class="pc-map pc-solid" title="drag to turn"></canvas>
-      <p class="pc-muted">Drag to turn. Heights ×2.2 so the massing reads.</p>
+      <canvas class="pc-solid" title="drag to turn, scroll to zoom"></canvas>
+      <!-- COPY: -->
+      <p class="pc-muted">Drag to turn, scroll to zoom. Heights ×1.5 so the massing reads. Sun: 15 March, 16:00.</p>
       <div class="pc-two">
         <canvas class="pc-map pc-plan"></canvas>
         <div>

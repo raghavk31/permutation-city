@@ -83,7 +83,7 @@ interface Marks { selected: number; hover: number }
 function dot(ctx: CanvasRenderingContext2D, p: Palette, d: Kept, x: number, y: number, r: number) {
   ctx.beginPath(); ctx.arc(x, y, r, 0, 2 * Math.PI);
   if (!onBrief(d)) { ctx.strokeStyle = p.muted; ctx.lineWidth = 1; ctx.stroke(); return; }
-  ctx.fillStyle = onFront(d) ? p.water : p.muted; ctx.fill();
+  ctx.fillStyle = onFront(d) ? p.ink : p.muted; ctx.fill(); // the front in ink; the accent is for the selection
 }
 
 function ring(ctx: CanvasRenderingContext2D, colour: string, x: number, y: number, r: number) {
@@ -100,16 +100,16 @@ export function scatterMatrix(canvas: HTMLCanvasElement, kept: Kept[], p: Palett
   const sc = axes.map((a) => scaler(a, kept));
   const pos: { x: number; y: number }[][] = []; // per panel, per design
   const panels: { x0: number; y0: number; i: number; j: number }[] = [];
-  ctx.font = "11px system-ui, sans-serif";
+  ctx.font = `11px ${p.t.font.text}`;
   for (let row = 0; row < m; row++) for (let col = 0; col <= row; col++) {
     const i = col, j = row + 1; // x: axes[i], y: axes[j]
     const x0 = L + col * (cell + gap), y0 = T + row * (cell + gap);
-    ctx.strokeStyle = p.sea; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, y0 + 0.5, cell - 1, cell - 1);
+    ctx.strokeStyle = p.line; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, y0 + 0.5, cell - 1, cell - 1);
     const pts = kept.map((d) => ({ x: x0 + 5 + sc[i](d) * (cell - 10), y: y0 + cell - 5 - sc[j](d) * (cell - 10) }));
     kept.forEach((d, k) => { if (!onFront(d)) dot(ctx, p, d, pts[k].x, pts[k].y, 2.2); });
     kept.forEach((d, k) => { if (onFront(d)) dot(ctx, p, d, pts[k].x, pts[k].y, 2.6); });
     if (hover >= 0) ring(ctx, p.ink2, pts[hover].x, pts[hover].y, 5);
-    if (selected >= 0) ring(ctx, p.build, pts[selected].x, pts[selected].y, 6);
+    if (selected >= 0) ring(ctx, p.t.accent, pts[selected].x, pts[selected].y, 6);
     pos.push(pts); panels.push({ x0, y0, i, j });
     // Labels on the outer edge: the x measure under the bottom row, the y measure right of the diagonal.
     ctx.fillStyle = p.ink2;
@@ -142,12 +142,12 @@ export function parallel(canvas: HTMLCanvasElement, kept: Kept[], p: Palette, { 
   ctx.lineJoin = "round";
   ctx.strokeStyle = p.muted; ctx.globalAlpha = 0.35; ctx.lineWidth = 1;
   kept.forEach((d, k) => { if (!onFront(d)) line(k); });
-  ctx.strokeStyle = p.water; ctx.globalAlpha = 0.55; ctx.lineWidth = 1.2;
+  ctx.strokeStyle = p.ink; ctx.globalAlpha = 0.5; ctx.lineWidth = 1.2;
   kept.forEach((d, k) => { if (onFront(d)) line(k); });
   ctx.globalAlpha = 1;
   if (hover >= 0) { ctx.strokeStyle = p.ink2; ctx.lineWidth = 2; line(hover); }
-  if (selected >= 0) { ctx.strokeStyle = p.build; ctx.lineWidth = 3; line(selected); }
-  ctx.font = "11px system-ui, sans-serif"; ctx.textAlign = "center";
+  if (selected >= 0) { ctx.strokeStyle = p.t.accent; ctx.lineWidth = 3; line(selected); }
+  ctx.font = `11px ${p.t.font.text}`; ctx.textAlign = "center";
   axes.forEach((a, k) => {
     ctx.strokeStyle = p.ink2; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(X(k), T); ctx.lineTo(X(k), h - B); ctx.stroke();

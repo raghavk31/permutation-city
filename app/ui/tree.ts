@@ -104,10 +104,10 @@ export function drawTree(canvas: HTMLCanvasElement, L: TreeLayout, nodes: Lineag
   const inner = w - GUTTER - RIGHT;
   const X = (p: Placed) => GUTTER + p.x * inner, Y = (g: number) => PAD + (g + 0.5) * ROW_H;
   // Generations: a label every fifth, the shock's generation marked.
-  ctx.font = "11px system-ui, sans-serif"; ctx.textBaseline = "middle";
+  ctx.font = `11px ${P.t.font.text}`; ctx.textBaseline = "middle";
   for (let g = 0; g < L.generations; g++) {
     if (g === opts.shock) {
-      ctx.fillStyle = P.retained; ctx.fillRect(GUTTER - 4, Y(g) - ROW_H / 2, inner + 8, ROW_H);
+      ctx.fillStyle = P.paper2; ctx.fillRect(GUTTER - 4, Y(g) - ROW_H / 2, inner + 8, ROW_H);
       ctx.fillStyle = P.ink2; ctx.textAlign = "right"; ctx.fillText("shock", GUTTER - 6, Y(g));
     } else if (g % 5 === 0 || g === L.generations - 1) {
       ctx.fillStyle = P.muted; ctx.textAlign = "right"; ctx.fillText(`G${g}`, GUTTER - 6, Y(g));
@@ -131,7 +131,8 @@ export function drawTree(canvas: HTMLCanvasElement, L: TreeLayout, nodes: Lineag
   }
   ctx.globalAlpha = 1;
   const R: Record<Role, number> = { front: 4, kept: 3, ancestor: 2.2, dead: 1.6 };
-  const fill: Record<Role, string> = { front: P.build, kept: P.ink, ancestor: P.ink2, dead: P.muted };
+  // The front is the darkest and largest mark; the accent stays for the selected design.
+  const fill: Record<Role, string> = { front: P.ink, kept: P.ink2, ancestor: P.muted, dead: P.line };
   L.placed.forEach((p, i) => {
     const n = nodes[p.k], x = X(p), y = Y(p.gen), r = R[p.role] + (i === focus ? 1.5 : 0);
     ctx.fillStyle = fill[p.role];
@@ -148,7 +149,7 @@ export function drawTree(canvas: HTMLCanvasElement, L: TreeLayout, nodes: Lineag
       ctx.beginPath(); ctx.arc(x, y, r + 1.8, 0, Math.PI * 2); ctx.stroke();
     }
     if (i === opts.selected) {
-      ctx.globalAlpha = 1; ctx.strokeStyle = P.ink; ctx.lineWidth = 1.5;
+      ctx.globalAlpha = 1; ctx.strokeStyle = P.t.accent; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(x, y, r + 3.5, 0, Math.PI * 2); ctx.stroke();
     }
   });

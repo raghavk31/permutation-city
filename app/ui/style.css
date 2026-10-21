@@ -1,29 +1,20 @@
-/* Permutation City. Uses the site's tokens when present (--paper, --line, --ink ...) and
-   falls back to its own; dark mode follows the site's data-theme. */
+/* Permutation City. Colours, type and spacing come from ui/tokens.ts, which puts them on the
+   page as custom properties (--pc-*); nothing here defines a colour of its own. */
 .pc {
-  --pc-surface: var(--paper, #fcfcfb);
-  --pc-ink: var(--ink, #0b0b0b);
-  --pc-ink-2: #52514e;
-  --pc-muted: #898781;
-  --pc-line: var(--line, #e1e0d9);
-  --pc-sea: #e1e0d9;
-  --pc-retained: #f0efec;
-  --pc-water: #2a78d6;
-  --pc-green: #1baf7a;
-  --pc-build: #eb6834;
   color: var(--pc-ink);
   background: var(--pc-surface);
-  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+  font: 16px/1.55 var(--pc-font);
+  font-weight: 400;
   max-width: 1120px;
   margin: 0 auto;
   padding: 24px 16px 64px;
 }
-:root[data-theme="dark"] .pc { --pc-ink-2: #c3c2b7; --pc-sea: #2c2c2a; --pc-retained: #222220; --pc-muted: #a3a29b; }
-body:has(> .pc) { margin: 0; background: var(--paper, #fcfcfb); }
+body:has(> .pc) { margin: 0; background: var(--pc-surface); }
+.pc :where(table, .pc-scores, .pc-metrics dd, .pc-readout, .pc-status) { font-variant-numeric: tabular-nums; }
 
-.pc h1 { font-size: clamp(28px, 4.4vw, 46px); line-height: 1.1; margin: 8px 0 16px; font-weight: 600; max-width: 22ch; }
-.pc h2 { font-size: 26px; margin: 4px 0 8px; font-weight: 600; }
-.pc h3 { font-size: 18px; margin: 18px 0 6px; }
+.pc h1 { font-size: clamp(28px, 4.4vw, 42px); line-height: 1.05; margin: 8px 0 16px; font-weight: 500; letter-spacing: -0.01em; max-width: 22ch; }
+.pc h2 { font-size: 24px; margin: 4px 0 8px; font-weight: 500; }
+.pc h3 { font-size: 16px; margin: 18px 0 6px; font-weight: 500; }
 .pc p { max-width: 70ch; }
 .pc a { color: inherit; text-underline-offset: 3px; }
 .pc-kicker, .pc-n { font-size: 13px; letter-spacing: .04em; text-transform: lowercase; color: var(--pc-ink-2); margin: 0; }
@@ -58,12 +49,6 @@ body:has(> .pc) { margin: 0; background: var(--paper, #fcfcfb); }
 .pc-legend { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 14px; }
 .pc-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; border: 1px solid var(--pc-line); }
 
-.pc-genes { display: grid; grid-template-columns: repeat(47, 1fr); gap: 1px; height: 64px; align-items: end; margin: 0 0 12px; max-width: none; }
-.pc-genes i { display: block; height: calc(8% + var(--v) * 92%); border-radius: 1px; }
-.pc-genes .g-core { background: var(--pc-build); }
-.pc-genes .g-green { background: var(--pc-green); }
-.pc-genes .g-water { background: var(--pc-water); }
-.pc-genes .g-site { background: var(--pc-ink-2); }
 .pc-scores { font-size: 14px; }
 
 .pc-charts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 24px; }
@@ -83,7 +68,7 @@ body:has(> .pc) { margin: 0; background: var(--paper, #fcfcfb); }
 .pc-card button { font-size: 12px; padding: 2px 9px; }
 .pc-detail { margin-top: 24px; }
 .pc-credits { font-size: 12.5px; }
-.pc-site-warning { border-left: 3px solid var(--pc-build); padding: 6px 12px; background: var(--pc-retained); font-size: 14px; max-width: 70ch; }
+.pc-site-warning { border-left: 3px solid var(--pc-ink); padding: 6px 12px; background: var(--pc-surface-2); font-size: 14px; max-width: 70ch; }
 
 .pc select.pc-wide { max-width: 16em; }
 .pc-explore-body { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; align-items: start; margin-top: 8px; }
@@ -92,16 +77,16 @@ body:has(> .pc) { margin: 0; background: var(--paper, #fcfcfb); }
 .pc-pick h3 { margin-top: 8px; }
 .pc-archive { display: grid; gap: 3px; font-size: 11px; color: var(--pc-ink-2); }
 .pc-archive canvas, .pc-archive .pc-empty { width: 100%; display: block; border-radius: 2px; }
-.pc-archive .pc-empty { background: var(--pc-retained); }
+.pc-archive .pc-empty { background: var(--pc-surface-2); }
 .pc-archive button { padding: 0; margin: 0; border-radius: 3px; border: 2px solid transparent; background: none; }
-.pc-archive button.is-on { border-color: var(--pc-build); }
+.pc-archive button.is-on { border-color: var(--pc-accent); }
 .pc-archive .pc-ylab { writing-mode: vertical-rl; transform: rotate(180deg); text-align: center; }
 .pc-archive .pc-xlab { text-align: center; }
 .pc-extremes { border-collapse: collapse; font-size: 14px; margin-top: 4px; }
 .pc-extremes th, .pc-extremes td { text-align: left; padding: 3px 14px 3px 0; font-weight: normal; }
 .pc-extremes thead th { color: var(--pc-muted); font-size: 13px; }
 .pc-extremes button { font-size: 13px; padding: 1px 10px; white-space: nowrap; }
-.pc-extremes button.is-best { border-color: var(--pc-green); box-shadow: inset 0 0 0 1px var(--pc-green); }
+.pc-extremes button.is-best { border-color: var(--pc-ink); box-shadow: inset 0 0 0 1px var(--pc-ink); }
 @media (max-width: 560px) { .pc-extremes button { font-size: 12px; padding: 1px 6px; } .pc-extremes th, .pc-extremes td { padding-right: 6px; } }
 .pc [hidden] { display: none !important; }
 
@@ -111,15 +96,14 @@ body:has(> .pc) { margin: 0; background: var(--paper, #fcfcfb); }
 .pc-metrics h4 { margin: 10px 0 2px; font-size: 12px; font-weight: 600; color: var(--pc-ink-2); letter-spacing: .03em; }
 .pc-metrics dl { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1px 10px; margin: 0; }
 .pc-metrics dt { cursor: help; }
-.pc-metrics dt em { font-style: normal; font-size: 11px; color: var(--pc-build); }
+.pc-metrics dt em { font-style: normal; font-size: 11px; color: var(--pc-ink-2); }
 .pc-metrics dd { margin: 0; display: flex; gap: 8px; align-items: center; justify-content: flex-end; font-variant-numeric: tabular-nums; }
-.pc-bar { position: relative; width: 56px; height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--pc-line), var(--pc-green)); flex: none; }
+.pc-bar { position: relative; width: 56px; height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--pc-line), var(--pc-ink-2)); flex: none; }
 .pc-bar.is-neutral { background: var(--pc-line); }
 .pc-bar i { position: absolute; top: -3px; width: 4px; height: 12px; margin-left: -2px; border-radius: 1px; background: var(--pc-ink); }
 
-.pc-genes .g-street { background: var(--pc-ink); }
-.pc-tag { font-size: 12px; padding: 0 6px; border: 1px solid var(--pc-build); border-radius: 999px; color: var(--pc-build); }
-.pc-warn { color: var(--pc-build); }
+.pc-tag { font-size: 12px; padding: 0 6px; border: 1px solid var(--pc-ink-2); border-radius: 999px; color: var(--pc-ink-2); }
+.pc-warn { color: var(--pc-ink); font-weight: 500; text-decoration: underline dotted; text-underline-offset: 3px; }
 .pc-relief { font-size: 14px; max-width: 80ch; }
 .pc-ridges { font-size: 13px; }
 .pc-ridges summary { cursor: pointer; font-size: 14px; }
@@ -156,7 +140,7 @@ body:has(> .pc) { margin: 0; background: var(--paper, #fcfcfb); }
 .pc-syntax-table th, .pc-syntax-table td { text-align: left; padding: 2px 12px 2px 0; font-weight: normal; }
 .pc-syntax-table thead th { color: var(--pc-muted); }
 .pc-ramp { display: inline-block; width: 72px; height: 8px; border-radius: 2px; vertical-align: 0;
-  background: linear-gradient(90deg, #2b4c7e, #4f86c6, #9fc7e0, #f4c27a, #e2703a, #a3271f); }
+  background: var(--pc-measure); }
 .pc-run-load { font-size: 13.5px; }
 .pc-file { display: inline-flex; gap: 6px; align-items: center; margin-left: 6px; color: var(--pc-ink); }
 .pc-file input { font-size: 13px; max-width: 16em; }
@@ -167,3 +151,14 @@ body:has(> .pc) { margin: 0; background: var(--paper, #fcfcfb); }
 .pc-shock-table td, .pc-shock-table th { text-align: left; padding: 2px 14px 2px 0; font-weight: normal; }
 .pc-shock-table thead th { color: var(--pc-muted); font-size: 12.5px; }
 .pc-shock-table tr.is-changed td { font-weight: 600; }
+
+/* A1: the hero, the 3D view, the gene summary, the score glyph. */
+.pc-hero { margin: 0 0 20px; }
+.pc-hero img { width: 100%; height: auto; display: block; border-radius: var(--pc-radius, 6px); background: var(--pc-surface-2); }
+.pc-hero figcaption { margin-top: 6px; font-size: 12px; }
+.pc-solid { width: 100%; height: min(64vh, 560px); display: block; border-radius: 6px; touch-action: none; cursor: grab; background: var(--pc-surface); }
+.pc-genes { font-size: 14px; color: var(--pc-ink-2); }
+.pc-glyph { display: block; margin: 4px 0 2px; }
+.pc-glyph rect { fill: var(--pc-ink-2); }
+.pc-glyph line { stroke: var(--pc-line); }
+.pc-card .pc-muted { font-size: 12px; }

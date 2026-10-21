@@ -3,36 +3,37 @@ import * as E from "../../engine";
 import * as Draw from "../draw";
 
 type Kind = "metres" | "share" | "flag" | "count" | "hectares";
-type Ramp = "blues" | "oranges" | "greens" | "greys";
+/** Which token ramp a layer is drawn in (ui/tokens.ts): one meaning per colour. */
+type Ramp = "water" | "elevation" | "green" | "existing" | "heat" | "measure";
 interface LayerInfo { label: string; note: string; kind: Kind; ramp: Ramp }
 
 /** What each layer column means (pc/layers.py). Columns not listed here still show, by name. */
 const INFO: Record<string, LayerInfo> = {
-  water: { label: "water", note: "sea, river, pond, dock", kind: "flag", ramp: "blues" },
-  ground: { label: "ground", note: "bare-earth height above sea level (FABDEM)", kind: "metres", ramp: "greys" },
-  pool: { label: "rain pooling", note: "water that sits in hollows after rain", kind: "metres", ramp: "blues" },
-  catchment_ha: { label: "drainage", note: "the area that drains through this cell (unconditioned ground)", kind: "hectares", ramp: "blues" },
-  upstream: { label: "cells upstream", note: "how many cells drain through this one", kind: "count", ramp: "blues" },
-  edge_dist: { label: "distance to water", note: "metres to the nearest land-water edge", kind: "metres", ramp: "greys" },
-  trees: { label: "trees", note: "tree cover (ESA WorldCover)", kind: "share", ramp: "greens" },
-  green: { label: "other green", note: "grass, shrubs, crops, wetland plants", kind: "share", ramp: "greens" },
-  mangrove: { label: "mangrove", note: "mangrove cover", kind: "share", ramp: "greens" },
-  bare: { label: "bare ground", note: "bare or sparse cover", kind: "share", ramp: "greys" },
-  built: { label: "buildings", note: "footprint cover (Overture: Google, OSM, Microsoft)", kind: "share", ramp: "oranges" },
-  bldg_h: { label: "building height", note: "surface minus bare earth", kind: "metres", ramp: "oranges" },
-  elev: { label: "surface", note: "height including buildings and trees (Copernicus)", kind: "metres", ramp: "greys" },
-  industrial: { label: "industry and rail", note: "a stand-in for contaminated ground", kind: "flag", ramp: "oranges" },
-  in_design: { label: "design area", note: "inside the ground to design", kind: "flag", ramp: "greys" },
-  sea: { label: "sea", note: "water the sea reaches", kind: "flag", ramp: "blues" },
-  wl_built: { label: "built-up (WorldCover)", note: "built-up land cover", kind: "share", ramp: "oranges" },
-  wl_water: { label: "water (WorldCover)", note: "water land cover", kind: "share", ramp: "blues" },
-  lst: { label: "surface heat", note: "hot-season land surface temperature, °C (Landsat 8/9): surface, not air; about 100 m native", kind: "metres", ramp: "oranges" },
-  flow_acc_ha: { label: "flow", note: "area draining through each cell, on the conditioned ground (mapped drains burned in)", kind: "hectares", ramp: "blues" },
-  valley_order: { label: "valleys", note: "drainage lines and mapped streams, by stream order (pc/landform.py)", kind: "count", ramp: "blues" },
-  valley_buffer: { label: "valley buffer", note: "room either side of a valley, wider for bigger streams: provisional until checked against nallah margins", kind: "flag", ramp: "blues" },
-  catchment_id: { label: "catchments", note: "the valley segment or outlet each cell drains to", kind: "count", ramp: "greys" },
-  ridge: { label: "ridges", note: "divides between catchments: the land the smaller side drains (ha)", kind: "hectares", ramp: "oranges" },
-  mapped_channel: { label: "mapped streams and drains", note: "OSM via Overture: wins where it disagrees with the ground", kind: "flag", ramp: "blues" },
+  water: { label: "water", note: "sea, river, pond, dock", kind: "flag", ramp: "water" },
+  ground: { label: "ground", note: "bare-earth height above sea level (FABDEM)", kind: "metres", ramp: "elevation" },
+  pool: { label: "rain pooling", note: "water that sits in hollows after rain", kind: "metres", ramp: "water" },
+  catchment_ha: { label: "drainage", note: "the area that drains through this cell (unconditioned ground)", kind: "hectares", ramp: "water" },
+  upstream: { label: "cells upstream", note: "how many cells drain through this one", kind: "count", ramp: "water" },
+  edge_dist: { label: "distance to water", note: "metres to the nearest land-water edge", kind: "metres", ramp: "measure" },
+  trees: { label: "trees", note: "tree cover (ESA WorldCover)", kind: "share", ramp: "green" },
+  green: { label: "other green", note: "grass, shrubs, crops, wetland plants", kind: "share", ramp: "green" },
+  mangrove: { label: "mangrove", note: "mangrove cover", kind: "share", ramp: "green" },
+  bare: { label: "bare ground", note: "bare or sparse cover", kind: "share", ramp: "measure" },
+  built: { label: "buildings", note: "footprint cover (Overture: Google, OSM, Microsoft)", kind: "share", ramp: "existing" },
+  bldg_h: { label: "building height", note: "surface minus bare earth", kind: "metres", ramp: "existing" },
+  elev: { label: "surface", note: "height including buildings and trees (Copernicus)", kind: "metres", ramp: "elevation" },
+  industrial: { label: "industry and rail", note: "a stand-in for contaminated ground", kind: "flag", ramp: "measure" },
+  in_design: { label: "design area", note: "inside the ground to design", kind: "flag", ramp: "measure" },
+  sea: { label: "sea", note: "water the sea reaches", kind: "flag", ramp: "water" },
+  wl_built: { label: "built-up (WorldCover)", note: "built-up land cover", kind: "share", ramp: "existing" },
+  wl_water: { label: "water (WorldCover)", note: "water land cover", kind: "share", ramp: "water" },
+  lst: { label: "surface heat", note: "hot-season land surface temperature, °C (Landsat 8/9): surface, not air; about 100 m native", kind: "metres", ramp: "heat" },
+  flow_acc_ha: { label: "flow", note: "area draining through each cell, on the conditioned ground (mapped drains burned in)", kind: "hectares", ramp: "water" },
+  valley_order: { label: "valleys", note: "drainage lines and mapped streams, by stream order (pc/landform.py)", kind: "count", ramp: "water" },
+  valley_buffer: { label: "valley buffer", note: "room either side of a valley, wider for bigger streams: provisional until checked against nallah margins", kind: "flag", ramp: "water" },
+  catchment_id: { label: "catchments", note: "the valley segment or outlet each cell drains to", kind: "count", ramp: "measure" },
+  ridge: { label: "ridges", note: "divides between catchments: the land the smaller side drains (ha)", kind: "hectares", ramp: "measure" },
+  mapped_channel: { label: "mapped streams and drains", note: "OSM via Overture: wins where it disagrees with the ground", kind: "flag", ramp: "water" },
 };
 const ORDER = ["water", "ground", "flood_", "pool", "flow_acc_ha", "mapped_channel", "valley_order", "valley_buffer", "catchment_id",
   "ridge", "lst", "catchment_ha", "upstream", "edge_dist", "trees", "green", "mangrove", "built", "industrial", "in_design"];
@@ -43,11 +44,11 @@ export interface Layer extends LayerInfo { name: string }
 export function layerInfo(name: string, site?: E.SiteExport): Layer {
   if (name.startsWith("flood_")) {
     const level = name.slice(6), m = site?.meta.sea_levels?.[level];
-    return { name, label: `sea flooding: ${level.replace(/_/g, " ")}`, kind: "metres", ramp: "blues",
+    return { name, label: `sea flooding: ${level.replace(/_/g, " ")}`, kind: "metres", ramp: "water",
       note: `depth when the sea stands at +${m ?? "?"} m, on low ground the sea can reach` };
   }
   const i = INFO[name];
-  return i ? { name, ...i } : { name, label: name.replace(/_/g, " "), note: "", kind: "share", ramp: "greys" };
+  return i ? { name, ...i } : { name, label: name.replace(/_/g, " "), note: "", kind: "share", ramp: "measure" };
 }
 
 /** The layers worth showing, in reading order: water and ground, flooding, rain, green, the city. */
@@ -60,14 +61,16 @@ export function layers(site: E.SiteExport): Layer[] {
     .sort((a, b) => rank(a) - rank(b) || a.localeCompare(b)).map((n) => layerInfo(n, site));
 }
 
-const GREENS = ["#d3f2e4", "#8fdcb9", "#1baf7a", "#11815a", "#0a4f37"];
-const GREYS = ["#f0efec", "#d0cec7", "#a3a29b", "#6f6e69", "#3d3c39"];
+const RAMPS = (P: Draw.Palette): Record<Ramp, readonly string[]> => ({
+  water: P.blues, elevation: P.t.elevation, green: [P.t.green.light, P.t.green.proposed, P.t.green.existing],
+  existing: P.t.existingRamp, heat: P.t.heat, measure: P.t.measure,
+});
 
 /** Colour of each grid cell for a layer. Cells with nothing to show stay blank. */
 export function colours(site: E.SiteExport, l: Layer, P: Draw.Palette): (i: number) => string | null {
   const v = site.grid.layers![l.name], water = site.grid.layers!.water;
-  const ramp = l.ramp === "blues" ? P.blues : l.ramp === "oranges" ? P.oranges : l.ramp === "greens" ? GREENS : GREYS;
-  if (l.kind === "flag") return (i) => (v[i] ? ramp[3] : null);
+  const ramp = RAMPS(P)[l.ramp];
+  if (l.kind === "flag") return (i) => (v[i] ? ramp[Math.min(3, ramp.length - 1)] : null);
   const land = v.filter((x, i) => x !== null && (!water[i] || l.name === "water")) as number[];
   const sorted = [...land].sort((a, b) => a - b);
   const q = (t: number) => (sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(t * sorted.length))] : 0);
@@ -82,7 +85,7 @@ export function colours(site: E.SiteExport, l: Layer, P: Draw.Palette): (i: numb
     const x = v[i];
     if (x === null || (water[i] && l.name !== "water")) return null;
     if (!continuous && x <= (logScale ? lo * 1.0001 : 0)) return null; // nothing here (or only itself)
-    return Draw.ramp(ramp, t(x));
+    return Draw.step(ramp, t(x)); // classes, not a blend: they read better, and dissolve into shapes
   };
 }
 

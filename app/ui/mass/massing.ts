@@ -52,11 +52,11 @@ export function drawBlocks(canvas: HTMLCanvasElement, src: Source, d: E.Design, 
   const ctx = canvas.getContext("2d")!, { corners: shape } = Draw.shapeOf(src.site);
   if (chosen >= 0) {
     const cells = net.blocks[chosen] ?? [];
+    // The chosen block is the selection: the accent, as an outline over a light wash.
     const col: (string | null)[] = Array.from({ length: src.G.n }, () => null);
-    for (const i of cells) col[i] = P.ink;
-    ctx.save(); ctx.globalAlpha = 0.85;
-    Draw.cells(ctx, v, Array.from(src.G.x), Array.from(src.G.y), col, shape, 0.7);
-    ctx.restore();
+    for (const i of cells) col[i] = "chosen";
+    Draw.fillRegions(ctx, v, src.site.design.x, src.site.design.y, col, shape,
+      { chosen: { fill: false, edge: P.t.accent, width: 2.5 } });
   }
   return { v, block: net.block };
 }
@@ -74,9 +74,9 @@ export function groundCanvas(Env: M.Envelope, G: E.Ground, d: E.Design, P: Draw.
     const n = parseInt(s.slice(1), 16);
     return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
   };
-  const paper = rgb(P.paper), street = rgb(Draw.shade(P.paper, 0.8)), green = rgb(Draw.shade(P.green, 1.35)),
-    water = rgb(P.water), plot = rgb(Draw.shade(P.oranges[0], 1.02)), setback = rgb(Draw.shade(P.oranges[0], 1.1)),
-    built = rgb(Draw.shade(P.paper, 0.9));
+  const t = P.t, paper = rgb(P.paper), street = rgb(t.street.onGround), green = rgb(t.green.proposed),
+    water = rgb(t.water.storage), plot = rgb(t.building[0]), setback = rgb(t.paper2),
+    built = rgb(t.existing.fill);
   // The site's water cells (lakes, rivers; mostly off the design ground), stamped as discs.
   const wet = new Uint8Array(Env.nx * Env.ny), R = G.grid.size, k0 = Math.ceil(R / Env.res);
   for (const [x, y] of G.water ?? []) {
@@ -113,13 +113,15 @@ export function thumb(canvas: HTMLCanvasElement, Env: M.Envelope, m: M.Massing, 
     if (Env.inPlot[q] < 0) continue;
     let top = 0;
     for (let z = Env.nz - 1; z >= 0; z--) if (m.occ[z * N + q]) { top = z + 1; break; }
-    ctx.fillStyle = top ? Draw.ramp(P.oranges, top / Math.max(1, Env.nz)) : P.retained;
+    ctx.fillStyle = top ? Draw.step(P.t.building, top / Math.max(1, Env.nz)) : P.t.paper2;
     ctx.fillRect(ox + (c - c0) * s, oy + (r1 - r) * s, Math.ceil(s), Math.ceil(s));
   }
 }
 
 export function look(P: Draw.Palette) {
-  return { mass: P.oranges[1], context: Draw.shade(P.paper, 0.82), existing: Draw.shade(P.paper, 0.68), ground: P.paper, ink: P.ink,
+  // The massing in the building ramp's mid tone, the design's other buildings and the existing
+  // city in the existing city's greys (quieter than the massing).
+  return { mass: P.t.building[2], context: P.t.existingRamp[1], existing: P.t.existingRamp[3], ground: P.paper, ink: P.ink,
     background: P.paper };
 }
 

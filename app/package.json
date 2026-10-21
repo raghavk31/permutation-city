@@ -17,7 +17,8 @@
     "syntax-survey": "vite-node scripts/syntax-survey.ts --",
     "massing-shade": "vite-node scripts/massing-shade.ts --",
     "shock-survey": "vite-node scripts/shock-survey.ts --",
-    "piecemeal-vs-oneshot": "vite-node scripts/piecemeal-vs-oneshot.ts --"
+    "piecemeal-vs-oneshot": "vite-node scripts/piecemeal-vs-oneshot.ts --",
+    "colour-check": "vite-node scripts/colour-check.ts"
   },
   "dependencies": {
     "@vercel/blob": "2.8.0",

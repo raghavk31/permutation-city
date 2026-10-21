@@ -5,11 +5,16 @@ import * as E from "../engine";
 import type { EngineWorker, EvolveResult, FamilyLead, Grown, IncrementSummary, Kept, PiecemealResult, RunRequest, SyntaxDetail } from "../engine/worker";
 import * as Draw from "./draw";
 import * as X from "./explore";
+import * as Fam from "./families";
+import type { DesignView } from "./scene/design3d";
 import { describe as describeBrief } from "./new/brief";
 import * as Runs from "./runs";
 import * as Sites from "./sites";
 import "./style.css";
+import { applyTokens } from "./tokens";
 import * as Tree from "./tree";
+
+applyTokens();
 
 const root = document.querySelector<HTMLElement>("[data-pc]")!;
 const DATA = Sites.DATA; // where sites.json and <site>.json live
@@ -35,7 +40,7 @@ const state = {
   genome: [] as number[], run: null as RunSummary | null, lineage: null as Lineage | null, piecemeal: null as Piecemeal | null,
   families: [] as Item[], selected: null as Item | null,
   pen: [] as PenEntry[], children: [] as PenEntry[], brood: 0, locks: null as Int8Array | null, lockNote: [] as string[],
-  bearing: -0.55, layer: "ground" as LayerKey, showAll: false,
+  layer: "ground" as LayerKey, showAll: false,
   // A confirmed brief from the link: how genes are read, and whether to seed by typology.
   brief: null as Sites.LinkedBrief | null, ranges: E.DEFAULT_RANGES as E.Ranges, linkRules: null as string | null,
   // What the last run kept, for Explore; designs regrown as they're drawn.
@@ -252,21 +257,34 @@ function drawLayer() {
   });
   L = LAYERS[state.layer];
   const [lo, hi] = L.range(g);
-  const colourOf = (i: number) => {
-    if (g.water[i]) return P.sea;
+  const t = P.t, f = (v: number) => (v - lo) / (hi - lo || 1);
+  // One meaning per colour (ui/tokens.ts): water layers in the water family, green in the green
+  // family, the existing city in grey, height in the elevation ramp, heat in the heat ramp, and
+  // anything else in the measure ramp. Water is always deep water; nothing to show is paper.
+  const colourOf = (i: number): string | null => {
+    if (g.water[i]) return t.water.deep;
     const v = L.value(g, i);
-    if (state.layer === "industrial") return v ? P.blues[3] : P.retained;
-    if (state.layer === "flood" && v <= 0) return P.retained;
-    if (!Number.isFinite(v)) return P.retained;
-    if (state.layer === "lst") return Draw.ramp(P.oranges, (v - lo) / (hi - lo || 1));
-    if (state.layer === "flow") return Draw.ramp(P.blues, Math.log10(Math.max(v, 0.1) / 0.1) / 3);
-    if (state.layer === "valleys") return v > 0 ? P.blues[Math.min(v, 4)] : col(g, "valley_buffer", i) ? P.blues[0] : P.retained;
-    if (state.layer === "catchments") return v < 0 ? P.retained : CATCHMENT_COLOURS[v % CATCHMENT_COLOURS.length];
-    if (state.layer === "ridges") return v > 0 ? Draw.ramp(P.oranges, Math.min(v / hi, 1)) : P.retained;
-    return Draw.ramp(P.blues, (v - lo) / (hi - lo || 1));
+    if (!Number.isFinite(v)) return null;
+    switch (state.layer) {
+      case "ground": return Draw.step(t.elevation, f(v));
+      case "flood": return v > 0 ? Draw.step([t.water.storage, t.water.flood, t.water.deep], v / 3) : null;
+      case "pool": return v > 0.02 ? Draw.step([t.water.storage, t.water.flood, t.water.deep], v) : null;
+      case "green": return v > 0.05 ? Draw.step([t.green.light, t.green.proposed, t.green.existing], v) : null;
+      case "built": return v > 0.02 ? Draw.step(t.existingRamp, v) : null;
+      case "industrial": return v ? t.measure[3] : null;
+      case "lst": return Draw.step(t.heat, f(v));
+      case "flow": return Draw.step(P.blues, Math.log10(Math.max(v, 0.1) / 0.1) / 3);
+      case "valleys": return v > 0 ? P.blues[Math.min(v + 1, 4)] : col(g, "valley_buffer", i) ? t.water.storage : null;
+      case "catchments": return v < 0 ? null : CATCHMENT_TONES[v % CATCHMENT_TONES.length];
+      case "ridges": return v > 0 ? Draw.step(t.measure, Math.min(v / hi, 1)) : null;
+    }
+    return null;
   };
+  // Industry is hatched, so it isn't read as a fill colour alone.
+  const styles: Record<string, Draw.FillStyle> = { [t.measure[3]]: { fill: false, pattern: "\\", ink: t.measure[4] } };
+  if (state.layer === "catchments") for (const c of CATCHMENT_TONES) styles[c] = { edge: t.ink2 };
   const canvas = $<HTMLCanvasElement>(".pc-layer canvas");
-  const v = Draw.layer(canvas, site(), colourOf, P, { aspect: gridAspect(), labels: true });
+  const v = Draw.layer(canvas, site(), colourOf, P, { aspect: aspect(), labels: true, styles, buildings: state.layer !== "built" });
   const plain = ["industrial", "catchments", "valleys"].includes(state.layer);
   $(".pc-layer .pc-note").textContent = `${L.note}${plain ? "" : ` · ${L.unit(lo)} to ${L.unit(hi)}`}`;
   $(".pc-relief").innerHTML = reliefLine();
@@ -278,7 +296,8 @@ function drawLayer() {
   };
 }
 
-const CATCHMENT_COLOURS = ["#cde2fb", "#d8ead0", "#f6dcc8", "#e4d8f0", "#f3ecc2", "#cfe9e6", "#f0d0d8", "#dcdcdc"];
+/** Catchments are told apart by their edges, on alternating pale tones of the measure ramp. */
+const CATCHMENT_TONES = [P.t.measure[0], P.t.paper2, P.t.measure[1], P.t.line];
 
 /** What the landform reading says about this site, and how sure it is. */
 function reliefLine(): string {
@@ -302,14 +321,15 @@ function reliefLine(): string {
 
 const STATE_NAMES = ["forbidden", "retained", "constrained", "open"] as const;
 function drawRules() {
-  const g = site().grid, cols = [P.water, P.retained, P.build, P.green];
+  const g = site().grid;
   const canvas = $<HTMLCanvasElement>(".pc-rules canvas");
-  const v = Draw.layer(canvas, site(), (i) => (g.water[i] ? P.sea : cols[g.state[i]]), P, { aspect: gridAspect() });
+  const v = Draw.layer(canvas, site(), (i) => (g.water[i] ? P.t.water.deep : Draw.RULE_LOOK[g.state[i]].colour), P,
+    { aspect: aspect(), styles: Draw.RULE_STYLES, buildings: false });
   const area = site().meta.cell_area / 1e4;
   const ha = [0, 0, 0, 0];
   g.state.forEach((s, i) => { if (!g.water[i]) ha[s] += area; });
   const notes = { forbidden: "never built on", retained: "kept as context", constrained: "buildable with limits", open: "the genes decide" };
-  $(".pc-rules .pc-legend").innerHTML = [0, 2, 3, 1].map((s) => `<span><i style="background:${cols[s]}"></i>`
+  $(".pc-rules .pc-legend").innerHTML = [0, 2, 3, 1].map((s) => `<span><i style="${Draw.RULE_LOOK[s].swatch}"></i>`
     + `${STATE_NAMES[s]}: ${notes[STATE_NAMES[s]]} · ${fmtHa(ha[s])}</span>`).join("");
   canvas.onpointermove = (e) => {
     const i = Draw.cellAt(v, g.x, g.y, e.offsetX, e.offsetY, Draw.shapeOf(site()).r);
@@ -335,14 +355,14 @@ function drawLandform() {
   if (sec.hidden) return;
   const design = (i: number) => !g.water[i] && (g.state[i] === 2 || g.state[i] === 3);
   const colourOf = (i: number) => {
-    if (g.water[i]) return P.sea;
+    if (g.water[i]) return P.t.water.deep;
     const o = col(g, "valley_order", i);
     if (o > 0) return P.blues[Math.min(o + 1, 4)];
-    if (col(g, "valley_buffer", i)) return P.blues[0];
-    return design(i) ? P.paper : P.retained;
+    if (col(g, "valley_buffer", i)) return P.t.water.storage;
+    return design(i) ? P.t.paper2 : null;
   };
   const canvas = $<HTMLCanvasElement>(".pc-landform canvas");
-  const v = Draw.layer(canvas, site(), colourOf, P, { aspect: gridAspect() });
+  const v = Draw.layer(canvas, site(), colourOf, P, { aspect: aspect(), styles: { [P.t.paper2]: { edge: P.t.line } } });
   const ctx = canvas.getContext("2d")!;
   const lines = skeletonLines();
   if (lines) {
@@ -358,20 +378,20 @@ function drawLandform() {
   }
   // Valley crossings: rings at the middle of each crossing side.
   const sd = E.sides(G()), cross = site().skeleton?.crossings ?? [];
-  ctx.save(); ctx.strokeStyle = P.build; ctx.lineWidth = 2;
+  ctx.save(); ctx.strokeStyle = P.ink; ctx.lineWidth = 1.6; ctx.fillStyle = P.paper;
   for (const [i, a] of cross) {
     const s = i < G().n ? sd.at[i * G().deg + a] : -1;
     if (s < 0) continue;
     const x = (sd.vx[sd.v0[s]] + sd.vx[sd.v1[s]]) / 2, y = (sd.vy[sd.v0[s]] + sd.vy[sd.v1[s]]) / 2;
-    ctx.beginPath(); ctx.arc(v.px(x), v.py(y), 5, 0, 2 * Math.PI); ctx.stroke();
+    ctx.beginPath(); ctx.arc(v.px(x), v.py(y), 5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
   }
   ctx.restore();
   const lf = site().meta.landform!;
   $(".pc-landform-legend").innerHTML = [
-    [P.blues[3], "valley (darker: higher stream order)"], [P.blues[0], "valley buffer (provisional)"],
-    [P.ink, "primary streets: the skeleton"], [P.paper, "design ground"],
+    [P.blues[3], "valley (darker: higher stream order)"], [P.t.water.storage, "valley buffer (provisional)"],
+    [P.ink, "primary streets: the skeleton"], [P.t.paper2, "design ground"],
   ].map(([c, t]) => `<span><i style="background:${c}"></i>${t}</span>`).join("")
-    + (cross.length ? `<span><i style="border:2px solid ${P.build};border-radius:50%"></i>valley crossing</span>` : "");
+    + (cross.length ? `<span><i style="border:2px solid ${P.ink};border-radius:50%"></i>valley crossing</span>` : "");
   const notes: string[] = [];
   if (sk) {
     notes.push(`<b>${sk.note[0].toUpperCase()}${sk.note.slice(1)}.</b>`);
@@ -417,13 +437,13 @@ function drawGenome() {
     + `<br><span class="pc-muted">water ${pct(s.water_share)} · green ${pct(s.green_share)} · follows the site's water ${pct(s.follow_water)} · `
     + `coverage ${pct(s.coverage)}<br>streets every ${Math.round(s.street_spacing)} m, ${orient}, as ${pattern}; `
     + `secondary ${d.streetWidths![2].toFixed(1)} m, lanes ${d.streetWidths![1].toFixed(1)} m wide</span>`;
-  // The 51 numbers, as a strip: attractor slots in 8 groups of 5, the 7 site-wide genes, then the 4 street genes.
-  $(".pc-genes").innerHTML = state.genome.map((gv, k) => {
-    const slot = k < 40 ? Math.floor(k / 5) : -1;
-    const kind = slot >= 0 ? d.attractors[slot].kind : k >= E.PRE_STREET_LENGTH ? "street" : "site";
-    return `<i title="${k < 40 ? `attractor ${slot + 1} (${kind}): ${["x", "y", "reach", "weight", "kind"][k % 5]}` : E.GLOBAL_GENES[k - 40]} = ${gv.toFixed(2)}" `
-      + `class="g-${kind}" style="--v:${gv}"></i>`;
-  }).join("");
+  // The genes as their parts read in plain words; the attractors themselves are drawn on the plan.
+  const pulls = { core: "building", green: "green", water: "water" } as Record<string, string>;
+  const count = (k: string) => d.attractors.filter((a) => a.kind === k).length;
+  // COPY: the gene summary under the genome plan.
+  $(".pc-genes").innerHTML = `<b>Attractors</b>: ${count("core")} pull ${pulls.core}, ${count("green")} pull ${pulls.green}, `
+    + `${count("water")} pull ${pulls.water}; their reach runs ${Math.round(Math.min(...d.attractors.map((a) => a.radius)))} to `
+    + `${Math.round(Math.max(...d.attractors.map((a) => a.radius)))} m.`;
 }
 
 // --- 05 evolution ---------------------------------------------------------------------
@@ -627,10 +647,11 @@ function drawGrowth() {
     }
     const view = Draw.plan(canvas, site(), d, P, { aspect: aspect(), roads: roadsOf(d) });
     const ctx = canvas.getContext("2d")!;
-    const col = Array.from({ length: G().n }, (_, i) => (!after.built[i] ? P.retained : null));
-    Draw.cells(ctx, view, Array.from(G().x), Array.from(G().y), col, shape, 1);
+    const D = site().design;
+    Draw.fillRegions(ctx, view, D.x, D.y, Array.from({ length: G().n }, (_, i) => (!after.built[i] ? P.t.paper2 : null)), shape,
+      { [P.t.paper2]: { edge: P.t.line } });
     ctx.save(); ctx.globalAlpha = 0.55;
-    Draw.cells(ctx, view, Array.from(G().x), Array.from(G().y), Array.from({ length: G().n }, (_, i) => (before.built[i] ? P.paper : null)), shape, 1);
+    Draw.fillRegions(ctx, view, D.x, D.y, Array.from({ length: G().n }, (_, i) => (before.built[i] ? P.paper : null)), shape);
     ctx.restore();
   });
 }
@@ -1024,9 +1045,9 @@ function pickKept(k: number) {
 // --- 07 families ----------------------------------------------------------------------
 
 type Action = [string, (it: Item) => void];
-function gallery(box: HTMLElement, items: Item[], actions: Action[]) {
+function gallery(box: HTMLElement, items: Item[], actions: Action[], caption: (it: Item) => string = (it) => scoreLine(it.design)) {
   box.innerHTML = items.map((it, k) => `<figure class="pc-card${state.selected === it ? " is-on" : ""}" data-k="${k}">`
-    + `<canvas></canvas><figcaption><b>${it.title}</b><span>${scoreLine(it.design)}</span>`
+    + `<canvas></canvas><figcaption><b>${it.title}</b><span>${caption(it)}</span>`
     + `<span class="pc-actions">${actions.map(([label]) => `<button type="button" data-act="${label}">${label}</button>`).join("")}</span>`
     + `</figcaption></figure>`).join("");
   box.querySelectorAll<HTMLElement>(".pc-card").forEach((card) => {
@@ -1048,12 +1069,27 @@ function drawFamilies() {
     $(".pc-detail").hidden = true;
     return;
   }
-  state.families.forEach((f, n) => { f.title = `Family ${LETTERS[n % 26]} · ${f.name} (${f.size})`; });
-  const shown = state.showAll ? state.families : state.families.slice(0, 10);
-  gallery(box, shown, [["view", (it) => choose(it)], ["to the pen", (it) => toPen(it)]]);
+  // A few representatives, the most distinct designs of the front, named for what sets each
+  // apart; every other family joins the one it is closest to. "show all" lists every family.
+  const reps = Fam.representatives(state.families, 6);
+  const labels = Fam.apart(reps.map((r) => r.item.design), G());
+  const repOf = new Map<Item, number>();
+  reps.forEach((r, k) => { r.item.title = `Design ${k + 1} · ${labels[k]}`; r.members.forEach((m) => repOf.set(m, k)); });
+  state.families.forEach((f) => {
+    if (!reps.some((r) => r.item === f)) f.title = `${f.name} · like Design ${(repOf.get(f) ?? 0) + 1}`; // COPY:
+  });
+  const pool = state.families.map((f) => f.design);
+  const caption = (it: Item) => {
+    const rep = reps.find((r) => r.item === it);
+    const n = rep ? rep.members.reduce((s, m) => s + (m.size ?? 1), 0) : it.size ?? 1;
+    // COPY: the line under each representative.
+    return `${Fam.glyph(it.design, pool)}<span class="pc-muted">${it.name} · ${n} design${n === 1 ? "" : "s"} like it on the front</span>`;
+  };
+  const shown = state.showAll ? state.families : reps.map((r) => r.item);
+  gallery(box, shown, [["view", (it) => choose(it)], ["to the pen", (it) => toPen(it)]], caption);
   const more = $(".pc-more");
-  more.hidden = state.families.length <= 10;
-  more.textContent = state.showAll ? "show the first 10" : `show all ${state.families.length} families`;
+  more.hidden = state.families.length <= reps.length;
+  more.textContent = state.showAll ? `show the ${reps.length} most distinct` : `show all ${state.families.length} families`; // COPY:
   drawDetail();
 }
 
@@ -1204,16 +1240,17 @@ function drawShock() {
   const view = Draw.plan(canvas, site(), d, P, { aspect: aspect(), roads: roadsOf(d) });
   const ctx = canvas.getContext("2d")!, { corners: shape } = Draw.shapeOf(site());
   ctx.save(); ctx.globalAlpha = 0.65; ctx.fillStyle = P.paper; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.restore();
-  const ramp = kind === "heat" ? P.oranges : P.blues;
-  const col = Array.from(r.fail, (f) => (f === 2 ? ramp[4] : f === 1 ? ramp[2] : null));
-  Draw.cells(ctx, view, Array.from(G().x), Array.from(G().y), col, shape, 0.95);
+  // Failures in the shock's own colours: water for sea and rain, the heat ramp for heat.
+  const [c1, c2] = kind === "heat" ? [P.t.heat[4], P.t.heat[1]] : [P.blues[2], P.blues[4]];
+  const col = Array.from(r.fail, (f) => (f === 2 ? c2 : f === 1 ? c1 : null));
+  Draw.fillRegions(ctx, view, site().design.x, site().design.y, col, shape);
   const legends: Record<ShockKind, [string, string]> = {
     sea: ["flooded ground", "buildings with water above the plinth (45 cm)"],
     rain: ["ponds and tanks that filled and spilled, or water standing over 15 cm", "buildings with water above the plinth"],
     heat: ["cells beside an overheated street", "overheated landscape"],
   };
-  $(".pc-shock-legend").innerHTML = `<span><i style="background:${ramp[2]}"></i>${legends[kind][0]}</span>`
-    + `<span><i style="background:${ramp[4]}"></i>${legends[kind][1]}</span>`;
+  $(".pc-shock-legend").innerHTML = `<span><i style="background:${c1}"></i>${legends[kind][0]}</span>`
+    + `<span><i style="background:${c2}"></i>${legends[kind][1]}</span>`;
   $(".pc-shock-lines").innerHTML = r.lines.map((l) => `<li>${l}</li>`).join("");
   // Before and after, on the scores.
   const rows: [string, (s: E.ShockScores) => string][] = [
@@ -1230,9 +1267,20 @@ function drawShock() {
     }).join("") + "</tbody>";
 }
 
-function drawSolid() {
+/** The opened design in 3D (three.js, loaded the first time it's needed). */
+let view3d: DesignView | null = null, view3dFor: E.Design | null = null;
+async function drawSolid() {
   const it = state.selected;
-  if (it) Draw.solid($<HTMLCanvasElement>(".pc-solid"), site(), it.design, P, { bearing: state.bearing });
+  if (!it || view3dFor === it.design) return;
+  view3dFor = it.design;
+  if (!view3d) {
+    const { DesignView: View } = await import("./scene/design3d");
+    view3d = new View($<HTMLCanvasElement>(".pc-solid"));
+    (window as unknown as { pcView?: DesignView }).pcView = view3d; // for stills (scripts/hero) and checks
+  }
+  view3d.show({ site: site(), G: G(), d: it.design, roads: roadsOf(it.design) });
+  view3d.setSun({ month: 3, day: 15, clock: 16 }, site());
+  view3d.frameSite();
 }
 
 function lock(code: number, label: string) {
@@ -1457,15 +1505,6 @@ function wire() {
   });
   input(shockForm, "value").addEventListener("input", () => { select(shockForm, "preset").value = ""; drawShock(); });
   shockForm.addEventListener("submit", (e) => e.preventDefault());
-  // Drag the 3D view to turn it.
-  const solid = $(".pc-solid");
-  let drag: number | null = null;
-  solid.addEventListener("pointerdown", (e) => { drag = e.clientX; solid.setPointerCapture(e.pointerId); });
-  solid.addEventListener("pointermove", (e) => {
-    if (drag === null) return;
-    state.bearing += (e.clientX - drag) * 0.01; drag = e.clientX; drawSolid();
-  });
-  solid.addEventListener("pointerup", () => { drag = null; });
   $(".pc-more").addEventListener("click", () => { state.showAll = !state.showAll; drawFamilies(); });
   form(".pc-breed form").addEventListener("submit", (e) => { e.preventDefault(); breed(); });
   $(".pc-add-random").addEventListener("click", () => {

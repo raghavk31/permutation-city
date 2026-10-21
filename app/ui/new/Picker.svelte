@@ -12,6 +12,7 @@
   import { estimatedCells, polygonKm2 } from "../../sites/geo";
   import { search, type Place } from "./search";
   import * as Service from "./service";
+  import { tokens } from "../tokens";
 
   setWorkerUrl(mapWorker);
 
@@ -68,7 +69,7 @@
       draw = new TerraDraw({
         adapter: new TerraDrawMapLibreGLAdapter({ map: map! }),
         modes: [
-          new TerraDrawPolygonMode({ styles: { fillColor: "#eb6834", fillOpacity: 0.15, outlineColor: "#eb6834", outlineWidth: 2 } }),
+          new TerraDrawPolygonMode({ styles: { fillColor: tokens.accent as `#${string}`, fillOpacity: 0.12, outlineColor: tokens.accent as `#${string}`, outlineWidth: 2 } }),
           new TerraDrawSelectMode({ flags: { polygon: { feature: { draggable: true,
             coordinates: { midpoints: true, draggable: true, deletable: true } } } } }),
         ],

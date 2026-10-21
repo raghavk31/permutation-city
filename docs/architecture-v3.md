@@ -233,10 +233,12 @@ Milestone B option.
 - **Sun:** the engine's existing solar position (Spencer, site longitude and UTC offset) for
   the chosen date and time.
 - **Shadows:** one directional light with its shadow camera fitted to the site's bounds. A
-  4096 shadow map with PCF soft shadows covers a 2 km site at about half a metre per texel.
+  4096 shadow map with filtered (PCF) shadows and a blur radius covers a 2 km site at about
+  half a metre per texel. (three.js 0.186 has dropped PCFSoftShadowMap.)
   three.js's cascaded shadow maps take over above that, or at eye level.
-- **Ambient occlusion:** N8AO, a screen-space pass (MIT licence; works with three.js's own
-  composer), at half resolution. A quality toggle switches it off.
+- **Ambient occlusion:** three.js's own GTAOPass (ground-truth AO), a screen-space pass. A
+  quality toggle switches it off. (Changed in A1 from N8AO, which would also have pulled in the
+  `postprocessing` library; GTAOPass ships with three.js.)
 - **Materials:**
   - the design in the building ramp, from the tokens
   - existing context light grey, from Overture footprints at their known or estimated
@@ -253,6 +255,7 @@ Milestone B option.
 - N8AO gives good contact shading cheaply, with no baking, so it works on designs that
   change every second.
 - A baked occlusion would look better on a still frame but needs time per design.
+- N8AO was the first choice; see the note above.
 - A path tracer is for video stills only (Milestone B, if wanted).
 
 ### 5.7 2D maps: MapLibre with the design as vector layers
@@ -516,3 +519,52 @@ PRs:
 9. **Connectivity.** Agree with merged routes on a cost graph, and Physarum only as a
    Milestone B comparison figure?
 10. **The claim.** See the three questions at the end of `docs/research/claim.md`.
+
+---
+
+## A1 log (2026-10-21): quick visual fixes
+
+On branch `v3-a1`, off `main` after PRs #10, #13 and #14 were merged (each tested; the live
+site checked after each).
+
+- **Colour tokens** in `app/ui/tokens.ts`, the only place colours, ramps, type and spacing
+  are defined. CSS reads them as custom properties; canvas and three.js read them directly.
+  - Water is one blue family, green one teal-green family, buildings a warm ramp by storeys.
+    The existing city is light grey. Forbidden ground is a red hatch, constrained ground a thin
+    outline with a sparse hatch. Elevation, heat (inferno) and other measures have ramps of
+    their own. The accent marks the selection only.
+  - The colour-blind check is `npm run colour-check` (Machado 2009, OKLab distance), recorded
+    in `docs/ui/colour.md`. A six-step building ramp leaves no green that clears every pair
+    under protanopia. Greens therefore carry a stipple in plan, existing buildings an edge
+    line, and selections are outlines. Those pairs are marked, not hidden.
+- **No cell outlines.** `regions()` dissolves cells of one colour into smoothed outlines, as
+  side midpoints, a moving average and corner cutting. Every design and layer map uses it.
+  - Corners are matched within 20 cm, which fixed seams from float noise.
+  - A backdrop fills the slivers where three regions meet.
+- **Framing:** every map is framed to the design ground, with a margin of 60 m or 6%. The
+  context is roads, rail and the existing building footprints, not grey cells.
+- **3D** (`app/ui/scene/design3d.ts`, loaded on first use: 14 KB gzipped plus three.js):
+  - buildings dissolved by storeys, cut along the design's streets, set back 3 m, and
+    extruded (heights ×1.5)
+  - streets as ribbons
+  - existing buildings as light grey extrusions at their heights
+  - the site's sun on 15 March at 16:00
+  - soft shadows (PCF with a blur radius; three.js 0.186 dropped PCFSoftShadowMap) and GTAO
+    ambient occlusion
+- **Families:** the six most distinct designs, by farthest-point sampling on land-use
+  difference. Each is named for the score or trait it stands out on ("Design 3 · most flood
+  storage"), with a five-bar score glyph. "Show all" lists every family.
+- **Genome:** the genes strip is gone. Attractors are drawn as bold rings (solid, dashed or
+  dotted by kind) with a one-line summary.
+- **Other fixes:** the chapter cross-reference is fixed. The first screen leads with a 3D
+  image (`public/hero.jpg`). Fonts match raghavkohli.xyz (Inter Tight, IBM Plex Mono).
+- **Tests:** 336 (7 new: dissolving, holes, float noise, street cuts, inset, representatives,
+  labels).
+
+Unsure about, or left open:
+- **Building masses in 3D are big.** v2 designs merge every adjacent building cell of one
+  height, so a district can read as one 500 m slab. A2's plots replace this; the hero image
+  will be remade then.
+- **The hero is a capture,** not yet made by a script. It will be one in A4's figure script.
+- **Shadows are thin from the default aerial view.** They read well closer in. The camera
+  presets in A3 will help.
