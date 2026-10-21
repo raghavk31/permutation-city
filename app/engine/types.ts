@@ -97,6 +97,12 @@ export interface SiteMeta {
     ridge_min_ha: number; ridge_min_consistency: number };
   lst?: { source: string; months: number[]; years: number[]; scenes: { id: string; date: string; clear: number }[];
     median_clear_scenes_per_pixel: number; note: string };
+  /** The regional wind (pc/wind.py): ERA5 via Open-Meteo, per season; streets read the axis
+   *  `bearing_deg` (degrees from north, mod 180) of the season `bearing_from`. */
+  wind?: { source: string; years: number[]; grid_point: [number, number]; grid_point_km: number; regional: true;
+    bearing_deg: number | null; bearing_from: string; credit: string;
+    seasons: Record<string, { hours: number; calm: number; mean_ms?: number; prevailing_from_deg?: number; rose?: number[];
+      axis_deg?: number; consistency?: number }> };
   /** Sites built for someone who drew them: the data used, and anything a person should know. */
   service?: { overture: string | null; layers: number; terrain?: string; warnings?: string[] };
   /** Hours from UTC of local clock time (shade hours, the sun study), and where it came from. */

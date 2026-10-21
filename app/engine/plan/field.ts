@@ -137,9 +137,12 @@ function sources(G: Ground, g: FieldGenes, fam: Family, routes: Line[], centres:
     { lines: sf.water, w: g.f_edges * 0.6 },
     { lines: roadLines, w: g.f_edges },
   ];
-  // The wind: the site's prevailing wind when known, else no pull (docs/streets.md).
-  const wind = (G.meta as { wind?: { bearing_deg: number } }).wind;
-  const windTheta = wind ? (90 - wind.bearing_deg) * Math.PI / 180 : null;
+  // The wind: the site's regional hot-afternoon wind axis when known (pc/wind.py, ERA5), else
+  // no pull. Its pull is scaled by how steady it is, so a wind with no clear axis steers little
+  // (docs/streets.md).
+  const wind = G.meta.wind?.bearing_deg != null ? G.meta.wind : null;
+  const windTheta = wind ? (90 - wind.bearing_deg!) * Math.PI / 180 : null;
+  const windSteady = wind?.seasons[wind.bearing_from]?.consistency ?? 1;
   // The family's own field.
   let own: (p: Pt) => number | null;
   const name = fam.name;
@@ -161,7 +164,7 @@ function sources(G: Ground, g: FieldGenes, fam: Family, routes: Line[], centres:
     if (windTheta !== null && g.f_wind < 0.5) th = dominant(roadLines.length ? roadLines : sf.water);
     own = () => th;
   }
-  return { lines, own, windTheta, sf };
+  return { lines, own, windTheta, windSteady, sf };
 }
 
 /** The length-weighted mean direction of some lines (mod 180°). */
@@ -183,7 +186,7 @@ export function infill(G: Ground, d: Design, g: FieldGenes, existing: Line[], ro
   const majorGap = 2 * depth + fam.local_w, minorGap = g.local_spacing * fam.spacing;
   const loc = locator(G);
   const ok = (p: Pt) => { const c = loc.cell(p); return c >= 0 && (d.use[c] === BUILDING || d.use[c] === LANDSCAPE); };
-  const { lines: srcs, own, windTheta, sf } = sources(G, g, fam, routes, centres);
+  const { lines: srcs, own, windTheta, windSteady, sf } = sources(G, g, fam, routes, centres);
   // The line sources as a raster of 2θ vectors (length-weighted), blurred to the field's
   // reach: per site for the fixed sources, per design for its routes. Read by interpolation.
   let t0 = performance.now();
@@ -209,7 +212,7 @@ export function infill(G: Ground, d: Design, g: FieldGenes, existing: Line[], ro
       const w = srcs[0].w * 1.5;
       fc[k] += w * Math.cos(2 * sf.contour[cell]); fs[k] += w * Math.sin(2 * sf.contour[cell]);
     }
-    if (windTheta !== null && g.f_wind > 0) { fc[k] += g.f_wind * Math.cos(2 * windTheta); fs[k] += g.f_wind * Math.sin(2 * windTheta); }
+    if (windTheta !== null && g.f_wind > 0) { const w = g.f_wind * windSteady; fc[k] += w * Math.cos(2 * windTheta); fs[k] += w * Math.sin(2 * windTheta); }
   }
   t0 = tk("  infill.field", t0);
   const theta = (p: Pt): number => {

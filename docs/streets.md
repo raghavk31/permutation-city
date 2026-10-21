@@ -101,6 +101,38 @@ Two measurement faults were fixed with this page (2026-10-22):
 | block sliver | blocks under 400 m² merge into a neighbour | design | An engine tolerance |
 | corner splay | 4 m | checked | as the kerb radius above |
 
+## Wind (the `f_wind` gene)
+
+The tensor field can turn streets toward the prevailing wind, so streets carry breeze through
+the fabric. The wind is the **regional** wind, not the wind in the site's streets.
+
+- **Source:** ERA5 hourly 10 m wind, 2015-2024 (Hersbach et al. 2023, doi:10.24381/cds.adbb2d47),
+  through Open-Meteo's historical weather API, model `era5`. `pc/wind.py`; cached as
+  `data/<site>/raw/wind.json`; written into the site file as `meta.wind`. Terms beside
+  FABDEM's are in `docs/landform.md` section 1.
+- **Regional:** ERA5 is a 0.25° grid. The nearest grid point is kept with its distance:
+  Mumbai 17 km (19.00 N, 73.00 E, across the harbour), Wadaj 11 km, Bengaluru 13 km.
+  Sea breezes at the shore, hills and buildings change the wind locally; none of that is in it.
+- **Which wind:** the hot-season afternoon, March-May 14:00-17:00 local (the months and hours
+  the shade score uses), since that is when a breeze matters most. Hours under 0.5 m/s are calm
+  and left out.
+- **Axis:** the circular mean of the doubled bearings, so a street on the axis serves wind from
+  either end. Its consistency (0 to 1) scales the gene's pull, so a wind without a clear axis
+  steers little.
+- **Seasons kept** (for the page and the paper): year, hot season, hot afternoons, monsoon
+  (June-September), winter (December-February): a 16-sector rose of where the wind comes from,
+  calm share, mean speed, axis and consistency.
+
+| Site | Hot afternoons: from, axis, consistency | Monsoon: from, consistency | Winter: from |
+|---|---|---|---|
+| Mumbai (Docks, EWF) | 292.5° (WNW, the sea breeze), 103°, 0.78 | 225° (SW), 0.56 | 0° (N) |
+| Ahmedabad (Wadaj) | 270° (W), 93°, 0.38 | 225° (SW), 0.36 | 45° (NE) |
+| Bengaluru (cascade) | 90° (E), 100°, 0.47 | 270° (W), 0.80 | 90° (E) |
+
+Status: **design** for the choice of season and the consistency scaling; the data are as
+published. Orienting streets to the wind for cooling is not a code rule; its effect on the
+heat score is part of the evaluation (docs/research/claim.md), not assumed.
+
 ## Pattern families
 
 The five families (rotated orthogonal, contour-following, radial, organic, tight and shaded)

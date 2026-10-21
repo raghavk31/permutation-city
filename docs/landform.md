@@ -20,6 +20,7 @@ streets inside it, which come from genes.
 | Mapped water | Overture water theme (from OSM): streams, drains, canals, rivers, ditches, water bodies | Wins where it disagrees with the DEM. |
 | Roads | Overture transportation segments, every class except footpaths | Used for the skeleton's connections, and as the skeleton on flat land. |
 | Surface temperature | Landsat 8/9 Collection 2 Level-2 `ST_B10`, read from Microsoft Planetary Computer (STAC, no key) | See 4. |
+| Wind (regional) | ERA5 hourly 10 m wind, 0.25° (Hersbach et al. 2023, Copernicus Climate Change Service), through Open-Meteo's historical weather API (`pc/wind.py`) | Data CC BY 4.0, credit "Weather data by Open-Meteo.com" and Copernicus. The free API is for non-commercial use only (under 10,000 calls a day), the same limit as FABDEM's CC BY-NC-SA: a commercial use of this tool would need both replaced or licensed. One call per site. See `docs/streets.md`. |
 
 ## 2. Relief class
 

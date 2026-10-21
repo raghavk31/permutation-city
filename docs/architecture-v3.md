@@ -157,7 +157,7 @@ fields, each weighted by its distance:
 - **Landform (`f_landform`):** along contours where the land slopes; along ridge lines near
   ridges.
 - **Edges (`f_edges`):** along the coastline, water edges and existing roads near them.
-- **Wind (`f_wind`):** a grid on the prevailing wind bearing (needs a wind source: risk R9).
+- **Wind (`f_wind`):** a grid on the prevailing wind bearing (ERA5 regional wind, `pc/wind.py`: risk R9, resolved).
 - **The pattern family's own field:**
   - rotated orthogonal: a constant grid
   - radial: about the strongest centre
@@ -480,6 +480,8 @@ PRs:
   prevailing wind per site. Proposal: ERA5 hourly 10 m wind for 2015-2024 through
   Open-Meteo's archive API (free, no key), with roses for the hot season and the monsoon.
   Until then, wind falls back to the site-wide bearing gene.
+  **Resolved 2026-10-22** (`pc/wind.py`, docs/streets.md "Wind"): every benchmark site has
+  its regional wind, labelled regional, with the grid point's distance.
 - **R10. Compute for A4.** 4 sites × about 9 conditions × 10 seeds is about 360 runs.
   - Plain runs are seconds; piecemeal runs took 6-13 minutes in Phase 9. Wholeness caching
     (carry-over) is needed to keep the piecemeal arms to a night.
