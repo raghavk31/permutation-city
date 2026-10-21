@@ -161,6 +161,27 @@ export interface Settings {
   street_spacing: number; street_orientation: number; street_pattern: number; street_hierarchy: number;
 }
 
+/** A version 3 genome's site-wide genes (config.ts GENES_V3), as read. */
+export interface SettingsV3 {
+  water_share: number; green_share: number; follow_water: number; coverage: number;
+  peak: number; intensity: number; base: number;
+  detour: number; w_gates: number; w_centres: number; w_transit: number; w_schools: number; w_markets: number;
+  f_landform: number; f_edges: number; f_wind: number; local_spacing: number; pattern: number; plot_depth: number;
+}
+
+/** A version 3 design's vector plan (plan/grow.ts): streets by class with their widths, the
+ *  blocks (faces of the network), the plots, and what the rules repaired or flagged. */
+export interface VectorPlan {
+  family: string;
+  streets: { pts: [number, number][]; cls: number; w: number }[];
+  vx: number[]; vy: number[]; edges: { u: number; v: number; cls: number }[];
+  blocks: [number, number][][];
+  plots: { ring: [number, number][]; block: number; use: number; levels: number; frontage: number }[];
+  repairs: { kind: string; at: [number, number] }[];
+  flags: { rule: string; at: [number, number]; value: number; limit: number }[];
+  destinations: { kind: string; at: [number, number] }[];
+}
+
 export interface Scores {
   storage: number; heat: number; carbon: number; daylight: number; human: number; gap: number;
 }
@@ -181,7 +202,8 @@ export interface Design {
   // ground for now), and the design's wholeness.
   fresh?: Uint8Array; fallow?: Uint8Array; wholeness?: number;
   attractors: Attractor[];
-  settings: Settings;
+  settings: Settings | SettingsV3;
+  plan?: VectorPlan;             // genome version 3: the vector design (rasterised into the arrays above)
   scores: Scores | null;
   floorHa?: number;
 }

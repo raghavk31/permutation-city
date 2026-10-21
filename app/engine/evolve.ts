@@ -80,6 +80,7 @@ export interface EvolveOptions {
   ranges?: Ranges;                   // how genes are read (a brief may narrow them)
   progress?: ((gen: number, run: Run) => void) | null;
   hooks?: Hooks;                     // piecemeal growth (piecemeal.ts); none in a plain run
+  version?: 2 | 3;                   // genome version of Generation 0 and newcomers (2 unless asked)
 }
 
 /** How a mode other than a plain run grows and scores designs. `grow` replaces growth;
@@ -98,11 +99,11 @@ export function crossover(a: number[], b: number[], rng: Rng, pA = 0.6): number[
   for (let k = 0; k < N_ATTRACTORS; k++) {
     if (rng.random() < pA) for (let g = k * ATTRACTOR_GENES; g < (k + 1) * ATTRACTOR_GENES; g++) child[g] = a[g];
   }
-  for (let g = nAtt; g < LENGTH; g++) if (rng.random() < pA) child[g] = a[g];
+  for (let g = nAtt; g < a.length; g++) if (rng.random() < pA) child[g] = a[g];
   return child;
 }
 
-export function mutate(g: number[], rng: Rng, rate = 2 / LENGTH, sigma = 0.12): number[] {
+export function mutate(g: number[], rng: Rng, rate = 2 / g.length, sigma = 0.12): number[] {
   return g.map((v) => (rng.random() < rate ? Math.min(Math.max(v + rng.normal(0, sigma), 0), 1) : v));
 }
 
@@ -171,8 +172,8 @@ export function individual(G: Ground, g: number[], name: string, parents: string
 }
 
 /** Generation 0: `pop` random genomes, the first ones replaced by `start`. */
-export function firstGenomes(rng: Rng, pop: number, start: number[][] | null): number[][] {
-  const genomes = Array.from({ length: pop }, () => randomGenome(rng));
+export function firstGenomes(rng: Rng, pop: number, start: number[][] | null, version: 2 | 3 = 2): number[][] {
+  const genomes = Array.from({ length: pop }, () => randomGenome(rng, version));
   (start || []).forEach((g, k) => { genomes[k % pop] = g.slice(); });
   return genomes;
 }
@@ -197,18 +198,25 @@ function nicheSurvivors(sorted: Individual[], pop: number, refs: number[][], obj
   return chosen.concat(picks.map((k) => last[k]));
 }
 
-/** Breed `generations` of `pop` designs (pc.evolve.evolve). */
-export function evolve(G: Ground, { search = "nsga2", objectives = [], generations = 30, pop = 60, seed = 1,
-  immigrants = 0.1, locked = null, shock = null, start = null, progress = null, ranges = DEFAULT_RANGES, hooks = {} }: EvolveOptions = {}): Run {
+/** A batch of genomes to grow and score, and what each is to be called. */
+export interface Batch { genomes: number[][]; names: string[]; parents: string[][]; storm: number }
+
+/** The evolution loop as a generator: it yields each generation's genomes as one batch and is
+ *  resumed with their designs, grown and scored. Growing never touches the run's random
+ *  numbers, so evaluating a batch at once (or in a pool of workers) gives the same run as one
+ *  design at a time (pc.evolve.evolve). */
+export function* evolveSteps(G: Ground, { search = "nsga2", objectives = [], generations = 30, pop = 60, seed = 1,
+  immigrants = 0.1, shock = null, start = null, progress = null, hooks = {}, version = 2 }: EvolveOptions = {},
+  rescore: (d: Design, storm: number) => void): Generator<Batch, Run, Design[]> {
   const rng = makeRng(seed);
   let storm = 1.0;
   const obj = [...objectivesOf(objectives), ...(hooks.objectives ?? [])], m = obj.length;
-  const make = (g: number[], name: string, parents: string[]) =>
-    individual(G, g, name, parents, locked, ranges, storm, objectives, hooks);
   const refs = search === "nsga3" ? referencePoints(m, divisionsFor(m, pop)) : null;
-  const genomes = firstGenomes(rng, pop, start), nStart = Math.min(start?.length ?? 0, pop);
-  const run: Run = { pop: genomes.map((g, k) => make(g, `G0.${String(k + 1).padStart(2, "0")}`, [])), history: [], everyone: 0,
-    lineage: [], genomes: [] };
+  const genomes = firstGenomes(rng, pop, start, version), nStart = Math.min(start?.length ?? 0, pop);
+  const names0 = genomes.map((_, k) => `G0.${String(k + 1).padStart(2, "0")}`);
+  const ds0: Design[] = yield { genomes, names: names0, parents: genomes.map(() => []), storm };
+  const run: Run = { pop: ds0.map((design, k) => ({ name: names0[k], design, parents: [], rank: 0, crowd: 0 })), history: [],
+    everyone: 0, lineage: [], genomes: [] };
   run.pop.forEach((i, k) => note(run, i, 0, k < nStart ? "start" : "first"));
   run.everyone = run.pop.length;
   const order = (p: Individual[]) => (hooks.copies ? rank(p, obj, hooks.copies) : rank(p, obj));
@@ -219,17 +227,14 @@ export function evolve(G: Ground, { search = "nsga2", objectives = [], generatio
   for (let gen = 1; gen <= generations; gen++) {
     if (shock && gen === shock[0]) {
       storm = shock[1];
-      for (const i of run.pop) { score(i.design, G, storm, objectives); hooks.score?.(i.design, storm); }
+      for (const i of run.pop) rescore(i.design, storm);
       order(run.pop);
     }
-    const children: Individual[] = [];
+    // Breed the generation's genomes (all the random numbers), then grow them as one batch.
+    const plan: { name: string; how: "immigrant" | "bred"; g: number[]; pa?: Individual; pb?: Individual; x?: number[] }[] = [];
     for (let k = 0; k < pop; k++) {
       const name = childName(gen, k);
-      if (rng.random() < immigrants) {
-        const c = make(randomGenome(rng), name, ["immigrant"]);
-        children.push(c); note(run, c, gen, "immigrant");
-        continue;
-      }
+      if (rng.random() < immigrants) { plan.push({ name, how: "immigrant", g: randomGenome(rng, version) }); continue; }
       const pick = () => {
         const i = Math.floor(rng.random() * run.pop.length);
         let j = Math.floor(rng.random() * (run.pop.length - 1));
@@ -238,9 +243,16 @@ export function evolve(G: Ground, { search = "nsga2", objectives = [], generatio
       };
       const pa = pick(), pb = pick();
       const x = crossover(pa.design.genome, pb.design.genome, rng);
-      const c = make(mutate(x, rng), name, [pa.name, pb.name]);
-      children.push(c); note(run, c, gen, "bred", { a: pa.design.genome, b: pb.design.genome, x });
+      plan.push({ name, how: "bred", g: mutate(x, rng), pa, pb, x });
     }
+    const ds: Design[] = yield { genomes: plan.map((p) => p.g), names: plan.map((p) => p.name),
+      parents: plan.map((p) => (p.how === "immigrant" ? ["immigrant"] : [p.pa!.name, p.pb!.name])), storm };
+    const children: Individual[] = plan.map((p, k) => {
+      const c: Individual = { name: p.name, design: ds[k], parents: p.how === "immigrant" ? ["immigrant"] : [p.pa!.name, p.pb!.name], rank: 0, crowd: 0 };
+      if (p.how === "immigrant") note(run, c, gen, "immigrant");
+      else note(run, c, gen, "bred", { a: p.pa!.design.genome, b: p.pb!.design.genome, x: p.x! });
+      return c;
+    });
     run.everyone += children.length;
     const both = run.pop.concat(children);
     order(both);
@@ -251,6 +263,33 @@ export function evolve(G: Ground, { search = "nsga2", objectives = [], generatio
     progress?.(gen, run);
   }
   return run;
+}
+
+/** Breed `generations` of `pop` designs (pc.evolve.evolve), one design at a time. */
+export function evolve(G: Ground, options: EvolveOptions = {}): Run {
+  const { objectives = [], locked = null, ranges = DEFAULT_RANGES, hooks = {} } = options;
+  const rescore = (d: Design, storm: number) => { score(d, G, storm, objectives); hooks.score?.(d, storm); };
+  const steps = evolveSteps(G, options, rescore);
+  let r = steps.next();
+  while (!r.done) {
+    const b = r.value;
+    r = steps.next(b.genomes.map((g, k) => individual(G, g, b.names[k], b.parents[k], locked, ranges, b.storm, objectives, hooks).design));
+  }
+  return r.value;
+}
+
+/** The same loop, each batch grown and scored by `evaluate` (a pool of workers). */
+export async function evolveAsync(G: Ground, options: EvolveOptions,
+  evaluate: (genomes: number[][], storm: number) => Promise<Design[]>): Promise<Run> {
+  const { objectives = [], hooks = {} } = options;
+  const rescore = (d: Design, storm: number) => { score(d, G, storm, objectives); hooks.score?.(d, storm); };
+  const steps = evolveSteps(G, options, rescore);
+  let r = steps.next();
+  while (!r.done) {
+    const b = r.value;
+    r = steps.next(await evaluate(b.genomes, b.storm));
+  }
+  return r.value;
 }
 
 /** The final front, grouped into families, one representative each (best first). */

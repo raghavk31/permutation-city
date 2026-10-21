@@ -430,13 +430,20 @@ function drawGenome() {
   const d = grown(state.genome);
   Draw.plan($<HTMLCanvasElement>(".pc-genome canvas"), site(), d, P, { aspect: aspect(), attractors: true, roads: roadsOf(d) });
   const s = d.settings;
-  const orient = s.street_orientation < 1 / 3 ? "along the contours" : s.street_orientation < 2 / 3 ? "along the valleys"
-    : `on a bearing of ${Math.round((s.street_orientation * 3 - 2) * 180)}°`;
-  const pattern = ["a grid", "loops", "branching, with dead ends"][Math.min(Math.floor(s.street_pattern * 3), 2)];
+  let streetsLine: string;
+  if ("street_spacing" in s) {
+    const orient = s.street_orientation < 1 / 3 ? "along the contours" : s.street_orientation < 2 / 3 ? "along the valleys"
+      : `on a bearing of ${Math.round((s.street_orientation * 3 - 2) * 180)}°`;
+    const pattern = ["a grid", "loops", "branching, with dead ends"][Math.min(Math.floor(s.street_pattern * 3), 2)];
+    streetsLine = `streets every ${Math.round(s.street_spacing)} m, ${orient}, as ${pattern}; `
+      + `secondary ${d.streetWidths![2].toFixed(1)} m, lanes ${d.streetWidths![1].toFixed(1)} m wide`;
+  } else {
+    // COPY: the v3 street summary.
+    streetsLine = `${d.plan?.family ?? ""} blocks about ${Math.round(s.local_spacing)} m long · routes may detour ${pct(s.detour)} to share a street`;
+  }
   $(".pc-genome .pc-scores").innerHTML = scoreLine(d)
     + `<br><span class="pc-muted">water ${pct(s.water_share)} · green ${pct(s.green_share)} · follows the site's water ${pct(s.follow_water)} · `
-    + `coverage ${pct(s.coverage)}<br>streets every ${Math.round(s.street_spacing)} m, ${orient}, as ${pattern}; `
-    + `secondary ${d.streetWidths![2].toFixed(1)} m, lanes ${d.streetWidths![1].toFixed(1)} m wide</span>`;
+    + `coverage ${pct(s.coverage)}<br>${streetsLine}</span>`;
   // The genes as their parts read in plain words; the attractors themselves are drawn on the plan.
   const pulls = { core: "building", green: "green", water: "water" } as Record<string, string>;
   const count = (k: string) => d.attractors.filter((a) => a.kind === k).length;

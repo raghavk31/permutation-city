@@ -77,3 +77,36 @@ export const STREET_LANE_W = [6.0, 9.0] as const;         // lanes, by the hiera
 export const STREET_SHARE_MAX = 0.6;                      // streets take at most this much of a cell
 export const MIN_STREET_SLOPE = 0.003;                    // contour streets on flatter ground use this slope
 export const STREET_FRONT_RISE = 1.1;                     // buildings on a street rise a little higher (capped)
+
+// --- genome version 3 (A2, docs/architecture-v3.md section 4; docs/streets.md) -----------
+// The 8 attractors and 7 site-wide genes stay; the four street genes give way to twelve that
+// grow a vector street network, blocks and plots. A genome of LENGTH_V3 numbers is version 3;
+// 47 and 51 numbers are versions 1 and 2, grown as before.
+
+export const GENES_V3 = ["water_share", "green_share", "follow_water", "coverage", "peak", "intensity", "base",
+  "detour", "w_gates", "w_centres", "w_transit", "w_schools", "w_markets",
+  "f_landform", "f_edges", "f_wind", "local_spacing", "pattern", "plot_depth"] as const;
+export const LENGTH_V3 = N_ATTRACTORS * ATTRACTOR_GENES + GENES_V3.length;
+export type GeneV3 = (typeof GENES_V3)[number];
+
+export const RANGES_V3: Record<Exclude<GeneV3, keyof Settings>, Range> = {
+  detour: [0, 0.6],         // Otto's excess length: how far a route may run over its shortest path to share another
+  w_gates: [0, 1], w_centres: [0, 1], w_transit: [0, 1], w_schools: [0, 1], w_markets: [0, 1],
+  f_landform: [0, 1], f_edges: [0, 1], f_wind: [0, 1],
+  local_spacing: [50, 140], // metres between local streets (to check: Marshall; NACTO)
+  pattern: [0, 1],          // five bands: the block pattern family (FAMILIES)
+  plot_depth: [0, 1],       // where plot depth sits inside the family's range
+};
+
+/** Block pattern families (the `pattern` gene's five bands). Widths and ranges in metres,
+ *  all to check against their sources before the A2 checkpoint (docs/streets.md). */
+export const FAMILIES = [
+  { name: "rotated orthogonal", local_w: 9, frontage: [12, 30], depth: [15, 40], perimeter: [240, 600], spacing: 1 },
+  { name: "contour-following", local_w: 9, frontage: [12, 30], depth: [15, 35], perimeter: [240, 700], spacing: 1 },
+  { name: "radial", local_w: 9, frontage: [12, 30], depth: [15, 35], perimeter: [240, 650], spacing: 1 },
+  { name: "organic", local_w: 7.5, frontage: [8, 20], depth: [12, 30], perimeter: [160, 500], spacing: 0.85 },
+  { name: "tight and shaded", local_w: 6, frontage: [6, 15], depth: [15, 30], perimeter: [120, 360], spacing: 0.6 },
+] as const;
+export type Family = (typeof FAMILIES)[number];
+
+export const SECONDARY_W_M = 12.0;  // Otto routes (to check against IRC:86)
