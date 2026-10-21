@@ -166,7 +166,7 @@ details.grp summary { cursor: pointer; font-size: 13px; }
 
 <h1>Workbench</h1>
 <p class="lede">Low-fidelity wireframes for review before A3 is built (brief section 10). The frame is 1440 × 900, the size the layout is designed for; it scrolls sideways on a small screen. Pick a step to see its controls, centre view and notes. Dashed boxes marked B are cut to Milestone B in the approved plan.</p>
-<p class="mono"><a href="index.html">all wireframes</a> · <a href="story.html">story page</a></p>
+<p class="mono"><a href="index.html">all wireframes</a> · <a href="story.html">story page</a> · desktop layout approved 21 Oct; on a phone this page shows the story view</p>
 
 <div class="states" role="group" aria-label="What the frame shows">
   <div class="group" id="g-insp"><span>inspector</span>
@@ -334,7 +334,7 @@ const INSP = () => state.insp === "empty"
     <details class="grp"><summary>lineage · bred from G27.12 × G26.40</summary></details>
     <div class="actions"><span class="btn primary">keep in pen</span><span class="btn">breed with…</span><span class="btn">shock test</span><span class="btn">mass a block</span><span class="btn">export</span></div>`;
 
-const NOTES_ALL = ["Top bar: project, site, run status, save and share, undo and redo.", "Left rail 280 px: the steps with their state; the open step shows its controls only.", "Right inspector 340 px; bottom tray 140 px for the pen and the generation slider.", "At narrower widths, panels collapse in this order: tray, inspector, then the rail to icons. Minimum 1280 px; on a phone, a note and a link to the story.", "Shortcuts: Ctrl+Z / Ctrl+Shift+Z, J and K for next and previous design, P keeps it in the pen, 2 and 3 for 2D and 3D, ? for the list."];
+const NOTES_ALL = ["Top bar: project, site, run status, save and share, undo and redo.", "Left rail 280 px: the steps with their state; the open step shows its controls only.", "Right inspector 340 px; bottom tray 140 px for the pen and the generation slider.", "At narrower widths, panels collapse in this order: tray, inspector, then the rail to icons. Minimum 1280 px.", "On a phone or small tablet (narrower than about 900 px), /workbench opens the story view instead of a cut-down workbench, keeping the site in the link. The story's last section offers the workbench on a larger screen. (Your call, 21 Oct.)", "Shortcuts: Ctrl+Z / Ctrl+Shift+Z, J and K for next and previous design, P keeps it in the pen, 2 and 3 for 2D and 3D, ? for the list."];
 
 function render() {
   const done = STEPS.indexOf(state.step);
