@@ -71,7 +71,7 @@ export const RIDGE_MIN_HA = 5.0;         // a strong ridge (pc/landform.py): str
 
 // --- streets (streets.ts, pc/streets.py; docs/landform.md) ------------------------------
 
-export const PRIMARY_W_M = 18.0;                          // primary streets
+export const PRIMARY_W_M = 18.0;                          // primary streets (IRC:SP:118 template 18A; IRC:86 collector 15-30 m)
 export const STREET_SECONDARY_W = [9.0, 15.0] as const;   // secondary, by the hierarchy gene
 export const STREET_LANE_W = [6.0, 9.0] as const;         // lanes, by the hierarchy gene
 export const STREET_SHARE_MAX = 0.6;                      // streets take at most this much of a cell
@@ -93,23 +93,23 @@ export const RANGES_V3: Record<Exclude<GeneV3, keyof Settings>, Range> = {
   detour: [0, 0.6],         // Otto's excess length: how far a route may run over its shortest path to share another
   w_gates: [0, 1], w_centres: [0, 1], w_transit: [0, 1], w_schools: [0, 1], w_markets: [0, 1],
   f_landform: [0, 1], f_edges: [0, 1], f_wind: [0, 1],
-  local_spacing: [50, 140], // metres between local streets (to check: Marshall; NACTO)
+  local_spacing: [50, 125], // metres between local streets (IRC:SP:118 3.2: a walking route at least every 125 m)
   pattern: [0, 1],          // five bands: the block pattern family (FAMILIES)
   plot_depth: [0, 1],       // where plot depth sits inside the family's range
 };
 
-/** Block pattern families (the `pattern` gene's five bands). Widths and ranges in metres,
- *  all to check against their sources before the A2 checkpoint (docs/streets.md). */
+/** Block pattern families (the `pattern` gene's five bands). Widths and ranges in metres;
+ *  docs/streets.md gives the source of each, or says it is a design value. */
 export const FAMILIES = [
-  { name: "rotated orthogonal", local_w: 9, frontage: [12, 30], depth: [15, 40], perimeter: [240, 600], spacing: 1 },
-  { name: "contour-following", local_w: 9, frontage: [12, 30], depth: [15, 35], perimeter: [240, 700], spacing: 1 },
-  { name: "radial", local_w: 9, frontage: [12, 30], depth: [15, 35], perimeter: [240, 650], spacing: 1 },
+  { name: "rotated orthogonal", local_w: 9, frontage: [12, 30], depth: [15, 40], perimeter: [240, 500], spacing: 1 },
+  { name: "contour-following", local_w: 9, frontage: [12, 30], depth: [15, 35], perimeter: [240, 500], spacing: 1 },
+  { name: "radial", local_w: 9, frontage: [12, 30], depth: [15, 35], perimeter: [240, 500], spacing: 1 },
   { name: "organic", local_w: 7.5, frontage: [8, 20], depth: [12, 30], perimeter: [160, 500], spacing: 0.85 },
   { name: "tight and shaded", local_w: 6, frontage: [6, 15], depth: [15, 30], perimeter: [120, 360], spacing: 0.6 },
 ] as const;
 export type Family = (typeof FAMILIES)[number];
 
-export const SECONDARY_W_M = 12.0;  // Otto routes (to check against IRC:86)
+export const SECONDARY_W_M = 12.0;  // Otto routes (IRC:SP:118 template 12A; IRC:86 Table 4.1 local street 10-15 m)
 
 /** A genome's version, from its length (1: 47 numbers, 2: 51, 3: LENGTH_V3). */
 export const versionOf = (genome: ArrayLike<number>): 1 | 2 | 3 =>

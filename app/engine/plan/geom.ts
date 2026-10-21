@@ -99,6 +99,35 @@ export function spline(l: Line, step = 6): Line {
   return out;
 }
 
+/** The line rebuilt as straights and circular arcs of radius `r`: simplified to its corners,
+ *  then each corner cut back along both legs and joined by an arc (`step` m between points).
+ *  A corner whose legs are too short for the arc gets the largest that fits (half of each
+ *  leg, all of an end leg), so its radius may stay under `r`. Ends are kept. */
+export function fillet(l: Line, r: number, step = 4): Line {
+  const s = simplify(l, Math.min(0.25 * r, 8));  // coarse enough that a tight curve becomes one corner
+  if (s.length < 3) return s;
+  const out: Line = [s[0]];
+  for (let k = 1; k < s.length - 1; k++) {
+    const a = s[k - 1], b = s[k], c = s[k + 1], la = dist(a, b), lc = dist(b, c);
+    const ux = (a[0] - b[0]) / la, uy = (a[1] - b[1]) / la, vx = (c[0] - b[0]) / lc, vy = (c[1] - b[1]) / lc;
+    const half = Math.acos(Math.max(-1, Math.min(1, ux * vx + uy * vy))) / 2;  // half the angle at the corner
+    const turn = Math.PI - 2 * half;
+    if (turn < 1e-3 || half < 1e-3) { out.push(b); continue; }
+    const t = Math.min(r / Math.tan(half), (k === 1 ? 1 : 0.5) * la, (k === s.length - 2 ? 1 : 0.5) * lc);
+    const rr = t * Math.tan(half), bl = Math.hypot(ux + vx, uy + vy);
+    const cx = b[0] + (ux + vx) / bl * (t / Math.cos(half)), cy = b[1] + (uy + vy) / bl * (t / Math.cos(half));
+    const p1: Pt = [b[0] + ux * t, b[1] + uy * t], p2: Pt = [b[0] + vx * t, b[1] + vy * t];
+    const a1 = Math.atan2(p1[1] - cy, p1[0] - cx);
+    let sweep = Math.atan2(p2[1] - cy, p2[0] - cx) - a1;
+    if (sweep > Math.PI) sweep -= 2 * Math.PI;
+    if (sweep < -Math.PI) sweep += 2 * Math.PI;
+    const n = Math.max(1, Math.ceil(Math.abs(sweep) * rr / step));
+    for (let j = 0; j <= n; j++) out.push([cx + rr * Math.cos(a1 + sweep * j / n), cy + rr * Math.sin(a1 + sweep * j / n)]);
+  }
+  out.push(s[s.length - 1]);
+  return out.filter((p, k) => k === 0 || dist(p, out[k - 1]) > 1e-6);
+}
+
 /** Points every `step` metres along a line (ends included). */
 export function resample(l: Line, step: number): Line {
   const out: Line = [l[0]];

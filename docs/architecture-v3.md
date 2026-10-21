@@ -179,9 +179,9 @@ which gives T junctions instead of near-misses. Spacing comes from `local_spacin
 
 ### 5.3 Validation and repair
 
-Each rule is a named setting in `engine/streets/rules.ts`, documented in `docs/streets.md`
-with its source. The values below are placeholders to check against the sources, not
-numbers from them.
+Each rule is a named setting (`RULES` in `engine/plan/network.ts`), documented in
+`docs/streets.md` with its source. The values below were the first placeholders; the checked
+values and their sources are in `docs/streets.md` (2026-10-22).
 
 | Rule | Setting (to check) | Repair |
 |---|---|---|

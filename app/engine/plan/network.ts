@@ -6,6 +6,7 @@
 import type { Design, Ground } from "../types.js";
 import {
   area, centroid, cross, dist, length, lineAngle, obb, radii, resample, SegIndex, simplify, spline, toSegment, type Line, type Pt,
+  fillet,
 } from "./geom.js";
 import { locator, outline } from "./ground.js";
 
@@ -20,7 +21,7 @@ export const RULES = {
   JUNCTION_MERGE_M: 20,                  // junctions closer than this on one street are merged
   JUNCTION_SPACING_M: [0, 25, 40, 60],   // the least distance between junctions on a street of each class (flagged)
   CURVE_RADIUS_MIN_M: [0, 15, 30, 60],   // tightest bend by class
-  GRADIENT_MAX: [1, 0.10, 0.08, 0.06],   // steepest grade by class (flagged)
+  GRADIENT_MAX: [1, 0.08, 0.06, 0.04],   // steepest grade by class (flagged)
   SKELETON_FOLD_M: 25,                   // a route this close to the skeleton is the skeleton
   SLIVER_M2: 400,                        // a block smaller than this is merged into a neighbour
 };
@@ -307,7 +308,7 @@ export function repair(G: Ground, d: Design, net: { vx: number[]; vy: number[]; 
       const tight = Math.min(...r);
       if (tight >= minR) break;
       if (pass === 1) { const k = r.indexOf(tight); flags.push({ rule: "curve radius", at: resample(e.pts, 8)[k], value: tight, limit: minR }); break; }
-      e.pts = spline(simplify(e.pts, 4), 8);
+      e.pts = fillet(e.pts, minR);
       e.pts[0] = P(e.u); e.pts[e.pts.length - 1] = P(e.v);
       repairs.push({ kind: "smoothed bend", at: e.pts[Math.floor(e.pts.length / 2)] });
     }
@@ -318,7 +319,10 @@ export function repair(G: Ground, d: Design, net: { vx: number[]; vy: number[]; 
       for (let k = 1; k < pts.length; k++) {
         const a = loc.cell(pts[k - 1]), b = loc.cell(pts[k]);
         if (a < 0 || b < 0) continue;
-        const grade = Math.abs(G.z[b] - G.z[a]) / Math.max(dist(pts[k - 1], pts[k]), 1);
+        if (a === b) continue;
+        // between the two cells' centres: heights are per cell, so a step from one cell to the
+        // next spans their centres, not the 10 m between samples
+        const grade = Math.abs(G.z[b] - G.z[a]) / Math.max(Math.hypot(G.x[b] - G.x[a], G.y[b] - G.y[a]), 1);
         if (grade > worst) { worst = grade; at = pts[k]; }
       }
       if (worst > RULES.GRADIENT_MAX[e.cls]) flags.push({ rule: "gradient", at, value: worst, limit: RULES.GRADIENT_MAX[e.cls] });
