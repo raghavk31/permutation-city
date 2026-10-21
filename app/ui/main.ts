@@ -2,12 +2,14 @@
 // explore, families, breeding, massing (a Svelte component, ui/mass). Data: public/sites/<site>.json from `pc export`; engine: app/engine (same as Python).
 import * as Comlink from "comlink";
 import * as E from "../engine";
-import type { EngineWorker, EvolveResult, FamilyLead, Grown, Kept, RunRequest, SyntaxDetail } from "../engine/worker";
+import type { EngineWorker, EvolveResult, FamilyLead, Grown, IncrementSummary, Kept, PiecemealResult, RunRequest, SyntaxDetail } from "../engine/worker";
 import * as Draw from "./draw";
 import * as X from "./explore";
 import { describe as describeBrief } from "./new/brief";
+import * as Runs from "./runs";
 import * as Sites from "./sites";
 import "./style.css";
+import * as Tree from "./tree";
 
 const root = document.querySelector<HTMLElement>("[data-pc]")!;
 const DATA = Sites.DATA; // where sites.json and <site>.json live
@@ -15,10 +17,14 @@ const $ = <T extends HTMLElement = HTMLElement>(sel: string) => root.querySelect
 const $$ = (sel: string) => [...root.querySelectorAll<HTMLElement>(sel)];
 
 /** A design shown in a gallery: a family lead, a design in the pen, or a child. */
-interface Item { name: string; title: string; genome: number[]; design: E.Design; size?: number; parents?: string[] }
+interface Item { name: string; title: string; genome: number[]; design: E.Design; size?: number; parents?: string[]; fabric?: E.Fabric }
 interface PenEntry { name: string; genome: number[]; title?: string; parents?: string[] }
-interface RunSummary { history: E.HistoryRow[]; everyone: number; frontSize: number; opts: RunOptions }
-type RunOptions = Omit<RunRequest, "locked"> & { locked: number[] | null; typologySeeds?: number };
+interface RunSummary { history: E.HistoryRow[]; everyone: number; frontSize: number; opts: RunOptions; seconds: number | null }
+/** Every design a run made: how each came to be, and its genome (LENGTH numbers each). */
+interface Lineage { nodes: E.LineageNode[]; genomes: Float64Array; length: number }
+type RunOptions = Omit<RunRequest, "locked"> & { locked: number[] | null; typologySeeds?: number; growth?: "piecemeal"; scenario?: E.Scenario };
+/** A piecemeal run: its increments, and the fabric before each (replayed from the built genomes). */
+interface Piecemeal { increments: IncrementSummary[]; fabrics: E.Fabric[] }
 type ExploreView = "matrix" | "parallel" | "archive";
 
 const state = {
@@ -26,7 +32,8 @@ const state = {
   site: null as E.SiteExport | null, G: null as E.Ground | null, baseG: null as E.Ground | null,
   skeletonOff: new Set<number>(),  // ridges of the street skeleton switched off (the landform chapter)
   worker: null as { raw: Worker; api: Comlink.Remote<EngineWorker> } | null,
-  genome: [] as number[], run: null as RunSummary | null, families: [] as Item[], selected: null as Item | null,
+  genome: [] as number[], run: null as RunSummary | null, lineage: null as Lineage | null, piecemeal: null as Piecemeal | null,
+  families: [] as Item[], selected: null as Item | null,
   pen: [] as PenEntry[], children: [] as PenEntry[], brood: 0, locks: null as Int8Array | null, lockNote: [] as string[],
   bearing: -0.55, layer: "ground" as LayerKey, showAll: false,
   // A confirmed brief from the link: how genes are read, and whether to seed by typology.
@@ -37,6 +44,9 @@ const state = {
   syntax: { token: 0, read: 0, detail: null as (SyntaxDetail & { name: string }) | null, measure: "nain_rn", choice: null as { nach: Float64Array; mean: number; choice: number } | null },
   explore: { kept: [] as Kept[], archive: null as E.ArchiveInfo | null, view: "matrix" as ExploreView, measures: "scores",
     selected: -1, hover: -1, grown: new Map<number, E.Design>(), hit: null as ((x: number, y: number) => number) | null },
+  // The family tree: its layout (made again when the run or "show every design" changes).
+  tree: { all: false, layout: null as Tree.TreeLayout | null, of: null as Lineage | null, hover: -1, selected: -1,
+    hit: null as ((x: number, y: number) => number) | null },
 };
 let P = Draw.palette();
 const rng = E.makeRng(Date.now() % 2 ** 31);
@@ -89,10 +99,14 @@ async function loadSites() {
     .map(([id, s]) => `<button type="button" data-site="${id}">${s.name}</button>`).join("");
   bar.addEventListener("click", (e) => {
     const b = (e.target as HTMLElement).closest<HTMLElement>("[data-site]");
-    if (b) loadSite(b.dataset.site!);
+    if (!b) return;
+    // A link's run and rules belong to its site: picking another leaves them behind.
+    history.replaceState(null, "", `?site=${b.dataset.site}${location.hash}`);
+    loadSite(b.dataset.site!);
   });
   await loadSite(linked ? linked.id : Object.keys(state.sites)[0], linked?.rules ?? null, linked?.brief ?? null);
   if (linked && location.hash) document.querySelector(location.hash)?.scrollIntoView();
+  if (linked && state.id === linked.id) await runFromLink();
 }
 
 function startWorker(s: E.SiteExport) {
@@ -132,7 +146,7 @@ async function loadSite(id: string, rules: string | null = null, brief: string |
   state.baseG = E.prepare(site());
   state.G = state.baseG;
   state.skeletonOff = new Set();
-  Object.assign(state, { run: null, families: [], selected: null, pen: [], children: [], locks: null, lockNote: [] });
+  Object.assign(state, { run: null, lineage: null, piecemeal: null, families: [], selected: null, pen: [], children: [], locks: null, lockNote: [] });
   massing?.closeMassing();
   resetExplore([], null);
   startWorker(site());
@@ -174,6 +188,7 @@ function drawAll() {
   drawLandform();
   drawGenome();
   drawEvolve();
+  drawTree();
   drawExplore();
   drawFamilies();
   drawBreed();
@@ -383,7 +398,7 @@ function drawLandform() {
 function setSkeleton(off: Set<number>) {
   state.skeletonOff = off;
   state.G = off.size ? E.withSkeleton(site(), state.baseG!, off) : state.baseG!;
-  Object.assign(state, { run: null, families: [], selected: null, children: [] });
+  Object.assign(state, { run: null, lineage: null, piecemeal: null, families: [], selected: null, children: [] });
   resetExplore([], null);
   startWorker(site());
   drawAll();
@@ -413,12 +428,17 @@ function drawGenome() {
 
 // --- 05 evolution ---------------------------------------------------------------------
 
-function evolveOptions(): RunOptions {
+/** The run the form describes. `seed`: a link's, else a new one. */
+function evolveOptions(seed = Math.floor(rng.random() * 1e9)): RunOptions {
   const f = form(".pc-evolve form");
   const gens = +select(f, "gens").value;
   const shock: [number, number] | null = input(f, "shock").checked
     ? [Math.min(+input(f, "shockAt").value, gens), +input(f, "shockX").value] : null;
-  const pop = +select(f, "pop").value, seed = Math.floor(rng.random() * 1e9);
+  const pop = +select(f, "pop").value;
+  if (select(f, "growth").value === "piecemeal") {
+    return { search: "nsga3", objectives: [], generations: gens, pop, seed, shock: null, locked: null, start: null, ranges: state.ranges,
+      growth: "piecemeal", scenario: select(f, "scenario").value as E.Scenario };
+  }
   const pen = input(f, "fromPen").checked ? state.pen.map((p) => p.genome) : [];
   const priors = state.brief?.seeds ? state.brief.brief.typology_priors?.value ?? [] : [];
   // Typology seeds fill up to half of Generation 0 (after any designs from the pen).
@@ -437,8 +457,74 @@ function evolveOptions(): RunOptions {
   };
 }
 
-async function runEvolution() {
-  const opts = evolveOptions();
+/** The form set to a run's settings (from a link or a file). A value the form doesn't offer
+ *  (a population of 45, say) is added to it. */
+function applySettings(s: Runs.RunSettings, fromPen = false) {
+  const f = form(".pc-evolve form");
+  const pick = (name: string, v: string) => {
+    const el = select(f, name);
+    if (![...el.options].some((o) => o.value === v)) el.add(new Option(v, v));
+    el.value = v;
+  };
+  pick("search", s.search);
+  select(f, "search").dispatchEvent(new Event("change"));
+  pick("gens", String(s.gens));
+  pick("pop", String(s.pop));
+  select(f, "promote1").value = s.objectives[0] ?? "";
+  select(f, "promote2").value = s.objectives[1] ?? "";
+  if (s.axes) { select(f, "ax").value = s.axes[0]; select(f, "ay").value = s.axes[1]; }
+  if (s.bins) pick("bins", String(s.bins));
+  input(f, "shock").checked = !!s.shock;
+  $(".pc-shock-opts").hidden = !s.shock;
+  if (s.shock) { input(f, "shockAt").value = String(s.shock[0]); input(f, "shockX").value = String(s.shock[1]); }
+  input(f, "fromPen").checked = fromPen && state.pen.length > 0;
+  select(f, "growth").value = s.growth ?? "oneshot";
+  if (s.scenario) select(f, "scenario").value = s.scenario;
+  select(f, "growth").dispatchEvent(new Event("change"));
+}
+
+/** The settings a run was made with (what a link carries). */
+function settingsOf(o: RunOptions): Runs.RunSettings {
+  return {
+    search: (o.search ?? "auto") as Runs.SearchSetting, gens: o.generations ?? 30, pop: o.pop ?? 60, seed: o.seed ?? 1,
+    objectives: (o.objectives ?? []) as string[], axes: o.axes ?? null, bins: o.bins ?? null, shock: o.shock ?? null,
+    ...(o.growth === "piecemeal" ? { growth: "piecemeal" as const, scenario: o.scenario ?? "ssp245" } : {}),
+  };
+}
+
+/** The page's link for a run: site, rules and brief, then the run's settings. */
+function runQuery(o: RunOptions): URLSearchParams {
+  const q = new URLSearchParams({ site: state.id! });
+  if (state.linkRules) q.set("rules", state.linkRules);
+  if (state.brief) q.set("brief", Sites.encodeBrief(state.brief));
+  const fromPen = (o.start?.length ?? 0) - (o.typologySeeds ?? 0);
+  return Runs.writeLink(q, {
+    settings: settingsOf(o), off: [...state.skeletonOff].sort((a, b) => a - b), locks: o.locked ? Int8Array.from(o.locked) : null,
+    pen: Math.max(0, fromPen), genomeVersion: E.GENOME_VERSION, build: Runs.BUILD,
+  });
+}
+
+/** One line on what a run did. */
+function runLine(opts: RunOptions, m: { everyone: number; frontSize: number; kept: Kept[]; archive: E.ArchiveInfo | null },
+  seconds: number | null, prefix = ""): string {
+  if (opts.growth === "piecemeal") {
+    return `${prefix}Piecemeal growth (${opts.scenario === "ssp585" ? "SSP5-8.5" : "SSP2-4.5"}): ${E.YEARS.join(", ")}, NSGA-III, `
+      + `${m.everyone.toLocaleString("en-IN")} designs grown${seconds !== null ? ` in ${seconds.toFixed(0)} s` : ""} · `
+      + `the 2050 increment has ${m.frontSize} on its front, in ${state.families.length} families`;
+  }
+  const w = state.brief?.brief.objective_weights?.value;
+  const filled = m.archive ? ` · ${m.kept.length} of ${m.archive.bins ** 2} archive cells filled` : "";
+  const ran = E.searchOf(opts), promoted = opts.objectives?.length
+    ? ` · ${opts.objectives.map((k) => (E.METRICS[k] as E.Metric).label).join(" and ")} promoted, ${5 + opts.objectives.length} objectives` : "";
+  return `${prefix}${SEARCH_NAMES[ran]}${promoted} · ${m.everyone.toLocaleString("en-IN")} designs grown`
+    + `${seconds !== null ? ` in ${seconds.toFixed(1)} s` : ""}${filled} · `
+    + `${m.frontSize} on the front, in ${state.families.length} families`
+    + (opts.typologySeeds ? ` · Generation 0 had ${opts.typologySeeds} typology seeds` : "")
+    + (w ? ` · ${m.archive ? "elites judged and " : ""}families ordered by the brief's weights` : "");
+}
+
+async function runEvolution(seed?: number, note = "") {
+  const opts = evolveOptions(seed);
   const btn = $<HTMLButtonElement>(".pc-evolve button[type=submit]");
   btn.disabled = true;
   const rows: E.HistoryRow[] = [];
@@ -448,19 +534,33 @@ async function runEvolution() {
     $(".pc-progress").textContent = `generation ${gen} of ${opts.generations}`;
     drawCharts(rows, opts);
   };
-  let m: EvolveResult;
+  let step = -1;
+  const onIncrement = (k: number, gen: number, row: E.HistoryRow) => {
+    if (k !== step) { step = k; rows.length = 0; }
+    rows.push(row);
+    $(".pc-progress").textContent = `the ${E.YEARS[k]} increment: generation ${gen} of ${opts.generations}`;
+    drawCharts(rows, opts);
+  };
+  let m: EvolveResult | PiecemealResult;
   try {
-    const { typologySeeds: _, ...engineOpts } = opts;
-    m = await state.worker!.api.evolve(engineOpts, Comlink.proxy(onProgress));
+    if (opts.growth === "piecemeal") {
+      m = await state.worker!.api.piecemeal({ generations: opts.generations ?? 15, pop: opts.pop ?? 40, seed: opts.seed ?? 1,
+        scenario: opts.scenario ?? "ssp245", ranges: opts.ranges ?? E.DEFAULT_RANGES }, Comlink.proxy(onIncrement));
+    } else {
+      const { typologySeeds: _, growth: _g, scenario: _s, ...engineOpts } = opts;
+      m = await state.worker!.api.evolve(engineOpts, Comlink.proxy(onProgress));
+    }
   } catch (err) {
     $(".pc-progress").textContent = `The run failed: ${(err as Error).message}`;
     btn.disabled = false;
     return;
   }
   btn.disabled = false;
-  const secs = ((performance.now() - t0) / 1000).toFixed(1);
-  state.run = { history: m.history, everyone: m.everyone, frontSize: m.frontSize, opts };
-  state.families = m.families.map((f: FamilyLead) => ({ ...f, title: f.name, design: grown(f.genome) }));
+  const secs = (performance.now() - t0) / 1000;
+  state.run = { history: m.history, everyone: m.everyone, frontSize: m.frontSize, opts, seconds: secs };
+  state.lineage = { nodes: m.lineage, genomes: m.genomes, length: E.LENGTH };
+  state.piecemeal = "increments" in m ? piecemealOf(m.increments, opts) : null;
+  state.families = m.families.map((f: FamilyLead) => ({ ...f, title: f.name, design: runGrown(f.genome), fabric: lastFabric() }));
   const w = state.brief?.brief.objective_weights?.value;
   if (w && Object.values(w).some((x) => x > 0)) {
     const higher = Object.fromEntries(E.SCORE_KEYS.map((k) => [k, E.SCORES[k][2]])) as Record<E.ScoreKey, boolean>;
@@ -470,16 +570,247 @@ async function runEvolution() {
   state.selected = state.families[0] || null;
   state.showAll = false;
   resetExplore(m.kept, m.archive);
-  const filled = m.archive ? ` · ${m.kept.length} of ${m.archive.bins ** 2} archive cells filled` : "";
-  const ran = E.searchOf(opts), promoted = opts.objectives?.length
-    ? ` · ${opts.objectives.map((k) => (E.METRICS[k] as E.Metric).label).join(" and ")} promoted, ${5 + opts.objectives.length} objectives` : "";
-  $(".pc-progress").textContent = `${SEARCH_NAMES[ran]}${promoted} · ${m.everyone.toLocaleString("en-IN")} designs grown in ${secs} s${filled} · `
-    + `${m.frontSize} on the front, in ${state.families.length} families`
-    + (opts.typologySeeds ? ` · Generation 0 had ${opts.typologySeeds} typology seeds` : "")
-    + (w ? ` · ${m.archive ? "elites judged and " : ""}families ordered by the brief's weights` : "");
+  $(".pc-progress").textContent = runLine(opts, m, secs) + (note ? ` · ${note}` : "");
+  // The address now names this run, so it can be shared or opened again.
+  history.replaceState(null, "", `?${runQuery(opts)}${location.hash}`);
+  drawSaveBar();
+  drawGrowth();
+  drawTree();
   drawExplore();
   drawFamilies();
   readSyntax();
+}
+
+// --- piecemeal growth (engine/piecemeal.ts) ---------------------------------------------
+
+function piecemealOf(increments: IncrementSummary[], opts: RunOptions): Piecemeal {
+  return { increments, fabrics: E.replayFabric(G(), increments.map((x) => x.chosen.genome), E.SHARES, opts.ranges ?? E.DEFAULT_RANGES) };
+}
+
+/** The fabric a piecemeal run's last increment grew around (undefined for a plain run). */
+const lastFabric = () => (state.piecemeal ? state.piecemeal.fabrics[state.piecemeal.fabrics.length - 2] : undefined);
+
+/** A design of the run, grown as the run grew it. A piecemeal design grows around the fabric
+ *  before the last increment and is scored as that increment was, under 2050's conditions. */
+function runGrown(genome: number[]): E.Design {
+  const f = lastFabric(), o = state.run?.opts;
+  if (!f || !o) return grown(genome);
+  const d = E.growLast(genome, G(), f, o.ranges ?? E.DEFAULT_RANGES);
+  E.evaluate(d, G());
+  const S = shockSiteOf(), c = E.conditionsFor(site().meta, E.YEARS[E.YEARS.length - 1], o.scenario ?? "ssp245");
+  E.scoreUnder(d, G(), S, c, E.floorAreaTarget(G()), c.sea !== null && S.coastal ? E.seaDepth(S, c.sea) : null);
+  return d;
+}
+
+function drawGrowth() {
+  const box = $(".pc-growth"), pm = state.piecemeal;
+  box.hidden = !pm;
+  if (!pm) return;
+  const o = state.run!.opts, steps = $(".pc-growth-steps");
+  steps.innerHTML = pm.increments.map((x, k) => {
+    const c = x.conditions, pen = x.penalty > 0.0005 ? `<b>penalty ${x.penalty.toFixed(3)}</b>` : "no penalty";
+    return `<figure class="pc-card"><canvas></canvas><figcaption><b>${x.year}</b>${x.chosen.name} built ${x.chosen.built} cells,`
+      + ` the fabric to ${pct(x.share)} of the brief<br>`
+      + `<span class="pc-muted">${c.sea !== null ? `surge +${c.sea} m · ` : ""}storm ${c.storm} mm · hot season +${c.heat.toFixed(2)}°C`
+      + ` (${c.scenario === "ssp585" ? "SSP5-8.5" : "SSP2-4.5"}, ${c.warming.toFixed(2)}°C of warming since 2025)</span><br>`
+      + `wholeness ${x.wholeness.before.toFixed(3)} → ${x.wholeness.after.toFixed(3)} · ${pen}<br>`
+      + `<span class="pc-muted">${x.everyone.toLocaleString("en-IN")} designs in ${x.seconds.toFixed(0)} s</span>`
+      + `${k === pm.increments.length - 1 ? `<br><span class="pc-muted">Explore, Families and the tree show this increment.</span>` : ""}</figcaption></figure>`;
+  }).join("");
+  const { corners: shape } = Draw.shapeOf(site());
+  steps.querySelectorAll<HTMLCanvasElement>("canvas").forEach((canvas, k) => {
+    const before = pm.fabrics[k], after = pm.fabrics[k + 1];
+    const d = E.growIncrement(pm.increments[k].chosen.genome, G(), before, 0, false, o.ranges ?? E.DEFAULT_RANGES);
+    // Draw the fabric after this increment: built cells by use, earlier ones washed, unbuilt grey.
+    for (let i = 0; i < G().n; i++) {
+      if (after.built[i]) { d.use[i] = after.use[i]; d.levels[i] = after.levels[i]; d.coverage[i] = after.coverage[i]; }
+    }
+    const view = Draw.plan(canvas, site(), d, P, { aspect: aspect(), roads: roadsOf(d) });
+    const ctx = canvas.getContext("2d")!;
+    const col = Array.from({ length: G().n }, (_, i) => (!after.built[i] ? P.retained : null));
+    Draw.cells(ctx, view, Array.from(G().x), Array.from(G().y), col, shape, 1);
+    ctx.save(); ctx.globalAlpha = 0.55;
+    Draw.cells(ctx, view, Array.from(G().x), Array.from(G().y), Array.from({ length: G().n }, (_, i) => (before.built[i] ? P.paper : null)), shape, 1);
+    ctx.restore();
+  });
+}
+
+// --- saving and reloading runs (ui/runs.ts) -------------------------------------------
+
+function drawSaveBar() {
+  $(".pc-run-save").hidden = !state.run;
+  $(".pc-run-note").textContent = "";
+}
+
+async function copyRunLink() {
+  if (!state.run) return;
+  const url = `${location.origin}${location.pathname}?${runQuery(state.run.opts)}#pc-evolve`;
+  const fromPen = state.run.opts.start?.length ? (state.run.opts.start.length - (state.run.opts.typologySeeds ?? 0)) : 0;
+  try {
+    await navigator.clipboard.writeText(url);
+    $(".pc-run-note").textContent = "Link copied: it grows this run again."
+      + (fromPen ? ` It can't carry the ${fromPen} designs from the pen this run started from; download the run for those.` : "");
+  } catch {
+    $(".pc-run-note").textContent = url;
+  }
+}
+
+function savedRun(): Runs.SavedRun {
+  const r = state.run, L = state.lineage;
+  const pen = (p: PenEntry): Runs.PenEntry => ({ name: p.name, genome: p.genome, title: p.title, parents: p.parents });
+  return {
+    format: Runs.RUN_FORMAT, version: Runs.RUN_VERSION, build: Runs.BUILD, genomeVersion: E.GENOME_VERSION, saved: new Date().toISOString(),
+    site: { id: state.id!, name: site().meta.name, rules: state.linkRules, brief: state.brief ? Sites.encodeBrief(state.brief) : null },
+    off: [...state.skeletonOff].sort((a, b) => a - b), locks: state.locks ? Runs.encodeLocks(state.locks) : null, lockNote: state.lockNote,
+    pen: state.pen.map(pen), children: state.children.map(pen), brood: state.brood,
+    settings: r ? settingsOf(r.opts) : null, start: r?.opts.start ?? null, typologySeeds: r?.opts.typologySeeds ?? 0, ranges: r?.opts.ranges ?? null,
+    result: r && L ? {
+      history: r.history, everyone: r.everyone, frontSize: r.frontSize, seconds: r.seconds,
+      families: state.families.map((f) => ({ name: f.name, size: f.size ?? 1, genome: f.genome, parents: f.parents ?? [] })),
+      kept: state.explore.kept, archive: state.explore.archive,
+      lineage: L.nodes, genomes: Runs.f64ToBase64(L.genomes), genomeLength: L.length,
+      ...(state.piecemeal ? { increments: state.piecemeal.increments } : {}),
+    } : null,
+    selected: state.selected?.name ?? null,
+    heights: massing?.mass.heights[state.id!] ?? null,
+  };
+}
+
+function downloadRun() {
+  const blob = new Blob([JSON.stringify(savedRun())], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${state.id}-${state.run ? `seed${state.run.opts.seed}` : "state"}-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+/** A saved file, shown as it was: its site, rules, brief, skeleton and locks, the run's
+ *  result and lineage, the pen and the children. Nothing is run again. */
+async function loadRun(file: File) {
+  const note = $(".pc-run-load-note");
+  let s: Runs.SavedRun;
+  try { s = Runs.readSaved(await file.text()); } catch (err) { note.textContent = (err as Error).message; return; }
+  note.textContent = "loading …";
+  if (!state.sites[s.site.id]) {
+    state.sites = { [s.site.id]: { name: s.site.name }, ...state.sites };
+    $(".pc-sites").insertAdjacentHTML("afterbegin", `<button type="button" data-site="${s.site.id}">${s.site.name}</button>`);
+  }
+  await loadSite(s.site.id, s.site.rules, s.site.brief);
+  if (state.id !== s.site.id) { note.textContent = "The file's site couldn't be loaded."; return; }
+  if (s.off.length) setSkeleton(new Set(s.off));
+  try {
+    state.locks = s.locks ? Runs.decodeLocks(s.locks, G().n) : null;
+  } catch (err) { note.textContent = (err as Error).message; return; }
+  state.lockNote = s.lockNote;
+  state.pen = s.pen; state.children = s.children; state.brood = s.brood;
+  if (s.ranges) state.ranges = s.ranges;
+  if (s.settings) applySettings(s.settings, false);
+  if (s.heights && Object.keys(s.heights).length) {
+    const store = await import("./mass/store.svelte");
+    store.setHeights(state.id!, s.heights);
+  }
+  const notes = Runs.versionNotes(s.genomeVersion, s.build);
+  const r = s.result;
+  if (r && s.settings) {
+    const st = s.settings;
+    const opts: RunOptions = {
+      search: st.search, objectives: st.objectives as E.MetricKey[], generations: st.gens, pop: st.pop, seed: st.seed, shock: st.shock,
+      locked: state.locks ? Array.from(state.locks) : null, start: s.start, ranges: state.ranges, typologySeeds: s.typologySeeds,
+      ...(st.search === "map-elites" ? { axes: st.axes ?? undefined, bins: st.bins ?? undefined,
+        weights: state.brief?.brief.objective_weights?.value ?? null } : {}),
+      ...(st.growth === "piecemeal" ? { growth: "piecemeal" as const, scenario: st.scenario ?? "ssp245", locked: null } : {}),
+    };
+    state.run = { history: r.history, everyone: r.everyone, frontSize: r.frontSize, opts, seconds: r.seconds };
+    state.lineage = { nodes: r.lineage, genomes: Runs.base64ToF64(r.genomes), length: r.genomeLength };
+    state.piecemeal = r.increments ? piecemealOf(r.increments, opts) : null;
+    state.families = r.families.map((f) => ({ ...f, title: f.name, design: runGrown(f.genome), fabric: lastFabric() }));
+    resetExplore(r.kept, r.archive);
+    const pens = [...state.families, ...state.pen.map((p) => ({ ...p, title: p.name, design: grown(p.genome) }))];
+    state.selected = pens.find((it) => it.name === s.selected) ?? state.families[0] ?? null;
+    $(".pc-progress").textContent = runLine(opts, { ...r, kept: r.kept, archive: r.archive }, r.seconds, `From ${file.name} (saved ${s.saved.slice(0, 10)}): `);
+    history.replaceState(null, "", `?${runQuery(opts)}#pc-evolve`);
+    // Space syntax readouts saved with the run are kept; any missing are read again.
+    const all = r.kept.every((k) => E.SYNTAX_KEYS.every((key) => key in k.metrics));
+    state.syntax.token++;
+    if (all) state.syntax.read = r.kept.length;
+    else {
+      await state.worker!.api.keep(r.kept.map((k) => ({ genome: k.genome, locked: opts.locked, ranges: opts.ranges ?? E.DEFAULT_RANGES })));
+      readSyntax();
+    }
+  }
+  drawAll();
+  drawSaveBar();
+  note.textContent = [r ? "Loaded." : "Loaded (no run in the file).", ...notes].join(" ");
+}
+
+// --- the family tree (ui/tree.ts) ------------------------------------------------------
+
+function treeLayout(): Tree.TreeLayout | null {
+  const t = state.tree, L = state.lineage;
+  if (!L) { t.layout = null; t.of = null; return null; }
+  if (t.of !== L || !t.layout || (t.layout.placed.length === L.nodes.length) !== t.all) {
+    const kept = new Set(state.explore.kept.map((k) => k.name));
+    const front = new Set(state.explore.kept.filter((k) => state.explore.archive || k.rank === 1).map((k) => k.name));
+    t.layout = Tree.layoutTree(L.nodes, kept, front, t.all);
+    if (t.of !== L) t.selected = -1;
+    t.of = L; t.hover = -1;
+    $(".pc-tree-readout").textContent = "";
+  }
+  return t.layout;
+}
+
+function drawTree() {
+  const box = $(".pc-tree"), L = state.lineage, layout = treeLayout();
+  box.hidden = !L || !layout;
+  if (!L || !layout) return;
+  $(".pc-tree-count").textContent = `${L.nodes.length.toLocaleString("en-IN")}; ${layout.placed.length.toLocaleString("en-IN")} shown`;
+  $(".pc-tree-front").textContent = state.explore.archive ? "the archive's elites" : "its front";
+  $<HTMLInputElement>(".pc-tree-all").checked = state.tree.all;
+  state.tree.hit = Tree.drawTree($<HTMLCanvasElement>(".pc-tree-canvas"), layout, L.nodes, P, {
+    selected: state.tree.selected, hover: state.tree.hover, shock: state.run?.opts.shock?.[0] ?? null,
+  });
+}
+
+const treeScores = (s: number[]) => {
+  const [storage, heat, carbon, daylight, human, gap] = s;
+  return `storage ${pct(storage)} · +${heat.toFixed(1)}°C · ${Math.round(carbon)} kg/m² · daylight ${pct(daylight)} · human scale ${pct(human)}`
+    + ` · floor area ${gap <= E.TARGET_TOLERANCE ? "on brief" : `${pct(gap)} off the brief`}`;
+};
+
+/** Open a design from the tree, grown as the run grew it. */
+function openTreeNode(i: number) {
+  const L = state.lineage, layout = state.tree.layout, o = state.run?.opts;
+  if (!L || !layout || !o) return;
+  const p = layout.placed[i], n = L.nodes[p.k];
+  const genome = Runs.lineageGenome(L.genomes, L.length, p.k);
+  const design = runGrown(genome);
+  state.tree.selected = i;
+  drawTree();
+  choose({ name: n.name, title: `${n.name} · from the family tree, Generation ${n.gen}`, genome, design,
+    parents: n.how === "bred" ? n.parents : [], fabric: lastFabric() });
+}
+
+/** A run from the link (?seed=…): its settings, skeleton and locks set, then grown again. */
+async function runFromLink() {
+  let link: Runs.RunLink | null;
+  try { link = Runs.readLink(new URLSearchParams(location.search), G().n); } catch (err) {
+    $(".pc-progress").textContent = (err as Error).message;
+    return;
+  }
+  if (!link) return;
+  if (link.off.length) setSkeleton(new Set(link.off));
+  if (link.locks) { state.locks = link.locks; state.lockNote = ["cells locked in the link"]; }
+  applySettings(link.settings);
+  drawEvolve();
+  const notes = Runs.versionNotes(link.genomeVersion, link.build);
+  if (link.pen) {
+    notes.push(`This run started from ${link.pen} designs in the pen, which a link can't carry, so it was grown without them`
+      + " and won't match. The run's file keeps them.");
+  }
+  $(".pc-progress").textContent = "Growing the run from the link …";
+  document.querySelector("#pc-evolve")?.scrollIntoView();
+  await runEvolution(link.settings.seed, notes.join(" "));
 }
 
 /** Space syntax for the designs a run kept: asked of the worker one design at a time, so the
@@ -529,6 +860,7 @@ function drawCharts(rows: E.HistoryRow[], opts: RunOptions) {
 }
 
 function drawEvolve() {
+  $(".pc-run-save").hidden = !state.run;
   $(".pc-locks").textContent = state.locks ? `Locked: ${state.lockNote.join("; ")}.` : "";
   $(".pc-locks-clear").hidden = !state.locks;
   const f = form(".pc-evolve form");
@@ -556,8 +888,9 @@ function keptDesign(k: number): E.Design {
   const x = state.explore;
   let d = x.grown.get(k);
   if (!d) {
-    const o = state.run!.opts;
-    d = E.grow(x.kept[k].genome, G(), o.locked ? Int8Array.from(o.locked) : null, o.ranges ?? E.DEFAULT_RANGES);
+    const o = state.run!.opts, f = lastFabric();
+    d = f ? E.growLast(x.kept[k].genome, G(), f, o.ranges ?? E.DEFAULT_RANGES)
+      : E.grow(x.kept[k].genome, G(), o.locked ? Int8Array.from(o.locked) : null, o.ranges ?? E.DEFAULT_RANGES);
     d.scores = x.kept[k].scores;
     x.grown.set(k, d);
   }
@@ -566,7 +899,7 @@ function keptDesign(k: number): E.Design {
 
 const keptItem = (k: number): Item => {
   const d = state.explore.kept[k];
-  return { name: d.name, title: d.name, genome: d.genome, parents: d.parents, design: keptDesign(k) };
+  return { name: d.name, title: d.name, genome: d.genome, parents: d.parents, design: keptDesign(k), fabric: lastFabric() };
 };
 
 function drawExplore() {
@@ -745,6 +1078,7 @@ function drawDetail() {
   Draw.plan(box.querySelector<HTMLCanvasElement>(".pc-plan")!, site(), it.design, P,
     { aspect: aspect(), attractors: true, locked: state.locks, roads: roadsOf(it.design) });
   drawSolid();
+  drawShock();
 }
 
 // --- space syntax of the opened design ------------------------------------------------
@@ -824,6 +1158,78 @@ function drawSyntax() {
     + ` · landmarks seen from the core ${pctOf(d.parts.landmarks)}</p>`;
 }
 
+// --- shock tests on the opened design (engine/shocks.ts) -------------------------------
+
+type ShockKind = "sea" | "rain" | "heat";
+const shockSites = new WeakMap<E.Ground, E.ShockSite>();
+const shockSiteOf = () => {
+  let s = shockSites.get(G());
+  if (!s) { s = E.shockSite(site(), G()); shockSites.set(G(), s); }
+  return s;
+};
+const SHOCK_UNITS: Record<ShockKind, string> = { sea: "sea level, m above mean sea level", rain: "storm, mm in a day", heat: "rise, °C" };
+
+function shockPresets(kind: ShockKind): E.Preset[] {
+  return kind === "sea" ? E.seaPresets(site().meta) : kind === "rain" ? E.rainPresets(site().meta) : E.HEAT_PRESETS;
+}
+
+/** Set the shock form for a kind: its presets, the default preset, its unit. */
+function setShockKind(kind: ShockKind) {
+  const f = form(".pc-shock-form"), ps = shockPresets(kind);
+  select(f, "kind").value = kind;
+  select(f, "preset").innerHTML = ps.map((p, k) => `<option value="${k}">${p.label}</option>`).join("") + `<option value="">typed</option>`;
+  const start = kind === "sea" ? Math.max(0, ps.findIndex((p) => /2050, SSP2-4.5/.test(p.label))) : kind === "rain" ? Math.max(0, ps.findIndex((p) => /^100-year/.test(p.label))) : 1;
+  select(f, "preset").value = ps.length ? String(Math.min(start, ps.length - 1)) : "";
+  input(f, "value").value = ps.length ? String(ps[Math.min(start, ps.length - 1)].value) : kind === "rain" ? String(site().meta.design_storm_mm) : "4";
+  $(".pc-shock-unit").textContent = SHOCK_UNITS[kind];
+}
+
+function drawShock() {
+  const box = $<HTMLDetailsElement>(".pc-shock"), it = state.selected;
+  if (!box.open || !it) return;
+  const f = form(".pc-shock-form"), S = shockSiteOf();
+  const seaOpt = select(f, "kind").querySelector<HTMLOptionElement>("option[value=sea]")!;
+  seaOpt.disabled = !S.coastal;
+  seaOpt.textContent = S.coastal ? "sea level" : "sea level (not a coastal site)";
+  let kind = select(f, "kind").value as ShockKind;
+  if (kind === "sea" && !S.coastal) { setShockKind("rain"); kind = "rain"; }
+  const v = +input(f, "value").value, ps = shockPresets(kind), p = ps[+select(f, "preset").value];
+  $(".pc-shock-source").textContent = p && select(f, "preset").value !== "" && p.value === v ? `Source: ${p.source}.` : "A typed value.";
+  const d = it.design;
+  if (!d.scores) E.evaluate(d, G());
+  const r: E.ShockResult & { share?: [number, number] } = kind === "sea" ? E.seaShock(d, G(), S, v)
+    : kind === "rain" ? E.rainShock(d, G(), S, v) : E.heatShock(d, G(), S, v);
+  // The map: the design washed pale, failures over it.
+  const canvas = $<HTMLCanvasElement>(".pc-shock-map");
+  const view = Draw.plan(canvas, site(), d, P, { aspect: aspect(), roads: roadsOf(d) });
+  const ctx = canvas.getContext("2d")!, { corners: shape } = Draw.shapeOf(site());
+  ctx.save(); ctx.globalAlpha = 0.65; ctx.fillStyle = P.paper; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.restore();
+  const ramp = kind === "heat" ? P.oranges : P.blues;
+  const col = Array.from(r.fail, (f) => (f === 2 ? ramp[4] : f === 1 ? ramp[2] : null));
+  Draw.cells(ctx, view, Array.from(G().x), Array.from(G().y), col, shape, 0.95);
+  const legends: Record<ShockKind, [string, string]> = {
+    sea: ["flooded ground", "buildings with water above the plinth (45 cm)"],
+    rain: ["ponds and tanks that filled and spilled, or water standing over 15 cm", "buildings with water above the plinth"],
+    heat: ["cells beside an overheated street", "overheated landscape"],
+  };
+  $(".pc-shock-legend").innerHTML = `<span><i style="background:${ramp[2]}"></i>${legends[kind][0]}</span>`
+    + `<span><i style="background:${ramp[4]}"></i>${legends[kind][1]}</span>`;
+  $(".pc-shock-lines").innerHTML = r.lines.map((l) => `<li>${l}</li>`).join("");
+  // Before and after, on the scores.
+  const rows: [string, (s: E.ShockScores) => string][] = [
+    ...E.SCORE_KEYS.map((k): [string, (s: E.ShockScores) => string] => [E.SCORES[k][0], (s) => E.SCORES[k][1](s.scores[k])]),
+    ["floor area (net)", (s) => fmtHa(s.floorHa)],
+    ["off the floor-area brief by", (s) => pct(s.scores.gap)],
+  ];
+  if (r.share) rows.push(["public ground overheated", () => ""]);
+  $(".pc-shock-table").innerHTML = `<thead><tr><th></th><th>before</th><th>after</th></tr></thead><tbody>`
+    + rows.map(([label, fmt], k) => {
+      let b = fmt(r.before), a = fmt(r.after);
+      if (r.share && k === rows.length - 1) { b = pct(r.share[0]); a = pct(r.share[1]); }
+      return `<tr${a !== b ? ` class="is-changed"` : ""}><td>${label}</td><td>${b}</td><td>${a}</td></tr>`;
+    }).join("") + "</tbody>";
+}
+
 function drawSolid() {
   const it = state.selected;
   if (it) Draw.solid($<HTMLCanvasElement>(".pc-solid"), site(), it.design, P, { bearing: state.bearing });
@@ -866,6 +1272,7 @@ async function massSelected() {
   openMassing({
     siteId: state.id!, site: site(), G: G(), skeletonOff: [...state.skeletonOff], name: it.name, genome: it.genome,
     locks: state.locks ? Array.from(state.locks) : null, ranges: state.ranges, brief: state.brief?.brief ?? null,
+    fabric: it.fabric ?? null,
   });
   $("#pc-massing").scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -948,12 +1355,36 @@ function wire() {
   });
   const ev = form(".pc-evolve form");
   ev.addEventListener("submit", (e) => { e.preventDefault(); runEvolution(); });
+  $(".pc-tree-all").addEventListener("change", (e) => { state.tree.all = (e.target as HTMLInputElement).checked; state.tree.selected = -1; drawTree(); });
+  const treeCanvas = $(".pc-tree-canvas");
+  treeCanvas.addEventListener("pointermove", (e) => {
+    const t = state.tree, i = t.hit ? t.hit(e.offsetX, e.offsetY) : -1;
+    if (i === t.hover) return;
+    t.hover = i;
+    const L = state.lineage, p = i >= 0 ? t.layout!.placed[i] : null;
+    $(".pc-tree-readout").textContent = p && L ? Tree.describeNode(L.nodes[p.k], p.role, treeScores(L.nodes[p.k].scores)) : "";
+    treeCanvas.style.cursor = i >= 0 ? "pointer" : "";
+    drawTree();
+  });
+  treeCanvas.addEventListener("pointerleave", () => { state.tree.hover = -1; drawTree(); });
+  treeCanvas.addEventListener("click", () => { if (state.tree.hover >= 0) openTreeNode(state.tree.hover); });
+  $(".pc-run-link").addEventListener("click", () => copyRunLink());
+  $(".pc-run-download").addEventListener("click", () => downloadRun());
+  $<HTMLInputElement>(".pc-run-load input").addEventListener("change", (e) => {
+    const el = e.target as HTMLInputElement, file = el.files?.[0];
+    if (file) loadRun(file).finally(() => { el.value = ""; });
+  });
   input(ev, "shock").addEventListener("change", (e) => {
     $(".pc-shock-opts").hidden = !(e.target as HTMLInputElement).checked;
   });
   const traits = E.DESCRIPTOR_KEYS.map((k) => `<option value="${k}">${E.DESCRIPTORS[k].label}</option>`).join("");
   select(ev, "ax").innerHTML = traits; select(ev, "ay").innerHTML = traits;
   select(ev, "ax").value = "mean_levels"; select(ev, "ay").value = "open_share";
+  select(ev, "growth").addEventListener("change", (e) => {
+    const pm = (e.target as HTMLSelectElement).value === "piecemeal";
+    $(".pc-growth-opts").hidden = !pm;
+    $(".pc-growth-note").hidden = !pm;
+  });
   select(ev, "search").addEventListener("change", (e) => {
     const elites = (e.target as HTMLSelectElement).value === "map-elites";
     $(".pc-elite-opts").hidden = !elites;
@@ -1013,6 +1444,19 @@ function wire() {
     drawSyntax();
   });
   $(".pc-syntax-choice").addEventListener("click", () => exactChoice());
+  const shockForm = form(".pc-shock-form");
+  $(".pc-shock").addEventListener("toggle", () => {
+    if (!select(shockForm, "preset").options.length) setShockKind(shockSiteOf().coastal ? "sea" : "rain");
+    drawShock();
+  });
+  select(shockForm, "kind").addEventListener("change", (e) => { setShockKind((e.target as HTMLSelectElement).value as ShockKind); drawShock(); });
+  select(shockForm, "preset").addEventListener("change", (e) => {
+    const k = (e.target as HTMLSelectElement).value, p = shockPresets(select(shockForm, "kind").value as ShockKind)[+k];
+    if (k !== "" && p) input(shockForm, "value").value = String(p.value);
+    drawShock();
+  });
+  input(shockForm, "value").addEventListener("input", () => { select(shockForm, "preset").value = ""; drawShock(); });
+  shockForm.addEventListener("submit", (e) => e.preventDefault());
   // Drag the 3D view to turn it.
   const solid = $(".pc-solid");
   let drag: number | null = null;

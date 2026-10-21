@@ -133,11 +133,54 @@
         <label>storm × <input type="number" name="shockX" value="1.3" min="1.1" max="2.5" step="0.1"></label>
       </span>
       <label><input type="checkbox" name="fromPen"> start from the pen (<span class="pc-pen-count">0</span>)</label>
+      <label>growth <select name="growth">
+        <option value="oneshot" selected>all at once</option>
+        <option value="piecemeal">piecemeal: 2025, 2035, 2050</option>
+      </select></label>
+      <span class="pc-growth-opts" hidden>
+        <label>climate <select name="scenario"><option value="ssp245" selected>SSP2-4.5</option><option value="ssp585">SSP5-8.5</option></select></label>
+      </span>
       <button type="submit">run</button>
     </form>
+    <p class="pc-growth-note pc-muted" hidden>Piecemeal growth builds the site in three increments, as Alexander argues
+      cities should grow. Each increment is a run of the size above that evolves only what it adds: by 2025 up to 40% of
+      the floor-area brief on up to 40% of the land, by 2035 70%, by 2050 all of it. What earlier increments built stays
+      as built, and the street network is laid out once, in 2025. Each increment is scored under its year's sea level,
+      storm and heat (IPCC AR6, SSP2-4.5 or SSP5-8.5). An increment that lowers the wholeness of what is there pays for
+      it: a sixth objective, the drop in wholeness. Search is NSGA-III; locks, the pen, the shock and MAP-Elites don't
+      apply. Wholeness is read on every design, so expect minutes.</p>
     <p class="pc-locks"></p><button type="button" class="pc-locks-clear" hidden>clear locks</button>
     <p class="pc-progress pc-muted" aria-live="polite"></p>
+    <p class="pc-run-save pc-actions" hidden>
+      <button type="button" class="pc-run-link">copy a link to this run</button>
+      <button type="button" class="pc-run-download">download the run</button>
+      <span class="pc-run-note pc-muted" aria-live="polite"></span>
+    </p>
+    <p class="pc-run-load pc-muted">A link grows the run again from its seed and settings. A downloaded run keeps
+      everything as it is: designs, family tree, the pen, locks.
+      <label class="pc-file">load a saved run <input type="file" accept="application/json,.json"></label>
+      <span class="pc-run-load-note" aria-live="polite"></span></p>
     <div class="pc-charts"></div>
+    <div class="pc-growth" hidden>
+      <h3>Piecemeal growth</h3>
+      <p class="pc-muted">What each increment built (bright), over what was there (pale); grey is not built yet. Wholeness
+        is the mean of Alexander's measured properties with legibility and intelligibility, 0 to 1
+        (<a href="https://github.com/raghavk31/permutation-city/blob/main/docs/piecemeal.md">how</a>).</p>
+      <div class="pc-growth-steps pc-gallery"></div>
+    </div>
+    <div class="pc-tree" hidden>
+      <h3>Family tree</h3>
+      <p class="pc-muted">Every generation is a row, the first at the top. Lines run from parents to children; the parent
+        that gave more of the genes where the two differ draws the heavier line. A ring marks a child that mutated
+        (heavier for more genes), a square a newcomer, a diamond a design the run started from (the pen or a typology
+        seed). Dark: the designs the run kept; orange: <span class="pc-tree-front">its front</span>. At first only the
+        kept designs and their ancestors are drawn; "+n" at the end of a row counts the designs of that generation that
+        left no surviving descendants. Point at a design to trace its ancestors; click it to open it below.</p>
+      <p class="pc-actions"><label><input type="checkbox" class="pc-tree-all" autocomplete="off"> show every design
+        (<span class="pc-tree-count"></span>)</label></p>
+      <canvas class="pc-tree-canvas" aria-label="family tree of the run"></canvas>
+      <p class="pc-tree-readout pc-muted" aria-live="polite"></p>
+    </div>
   </section>
 
   <section class="pc-ch pc-explore" id="pc-explore">
@@ -212,6 +255,22 @@
             <div class="pc-syntax-body"></div>
             <p class="pc-actions"><button type="button" class="pc-syntax-choice">exact choice, Rn</button>
               <span class="pc-muted pc-syntax-status"></span></p>
+          </details>
+          <details class="pc-shock"><summary>shock test</summary>
+            <p class="pc-muted">Throw a higher sea, a rarer storm or a heatwave at this design and see what fails and
+              where. Each preset names its source; any value can be typed.</p>
+            <form class="pc-controls pc-shock-form">
+              <label>shock <select name="kind">
+                <option value="sea">sea level</option><option value="rain">extreme rain</option><option value="heat">heatwave</option>
+              </select></label>
+              <label>preset <select name="preset" class="pc-wide"></select></label>
+              <label><span class="pc-shock-unit"></span> <input type="number" name="value" step="0.1"></label>
+            </form>
+            <p class="pc-muted pc-shock-source"></p>
+            <canvas class="pc-map pc-shock-map"></canvas>
+            <p class="pc-legend pc-shock-legend"></p>
+            <ul class="pc-shock-lines"></ul>
+            <table class="pc-shock-table"></table>
           </details>
         </div>
       </div>

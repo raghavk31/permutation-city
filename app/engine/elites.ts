@@ -5,7 +5,7 @@
 // Same breeding and budget as evolve(): Generation 0 is the same random genomes, then each
 // generation breeds `pop` children from elites picked at random from the archive.
 import { DEFAULT_RANGES, TARGET_TOLERANCE, BUILDING, LANDSCAPE, WATER } from "./config.js";
-import { childName, crossover, firstGenomes, individual, mutate, rank, record, type EvolveOptions, type Individual,
+import { childName, crossover, firstGenomes, individual, mutate, note as noteLineage, rank, record, type EvolveOptions, type Individual,
   type Run, type Search } from "./evolve.js";
 import { evaluate, SCORES, SCORE_KEYS } from "./fitness.js";
 import { randomGenome } from "./genome.js";
@@ -123,7 +123,7 @@ export function mapElites(G: Ground, { generations = 30, pop = 60, seed = 1, imm
   };
   const elites = () => [...archive.keys()].sort((a, b) => a - b).map((c) => archive.get(c)!);
   const make = (g: number[], name: string, parents: string[]) => individual(G, g, name, parents, locked, ranges, storm);
-  const run: Run & { archive: ArchiveInfo } = { pop: [], history: [], everyone: 0, archive: { axes, bins } };
+  const run: Run & { archive: ArchiveInfo } = { pop: [], history: [], everyone: 0, lineage: [], genomes: [], archive: { axes, bins } };
   const note = (gen: number) => {
     run.pop = elites();
     rank(run.pop);
@@ -134,7 +134,11 @@ export function mapElites(G: Ground, { generations = 30, pop = 60, seed = 1, imm
     progress?.(gen, run);
   };
 
-  firstGenomes(rng, pop, start).forEach((g, k) => insert(make(g, childName(0, k), [])));
+  const nStart = Math.min(start?.length ?? 0, pop);
+  firstGenomes(rng, pop, start).forEach((g, k) => {
+    const i = make(g, childName(0, k), []);
+    insert(i); noteLineage(run, i, 0, k < nStart ? "start" : "first");
+  });
   run.everyone = pop;
   note(0);
 
@@ -149,12 +153,18 @@ export function mapElites(G: Ground, { generations = 30, pop = 60, seed = 1, imm
     const children: Individual[] = [];
     for (let k = 0; k < pop; k++) {
       const name = childName(gen, k);
-      if (rng.random() < immigrants) { children.push(make(randomGenome(rng), name, ["immigrant"])); continue; }
+      if (rng.random() < immigrants) {
+        const c = make(randomGenome(rng), name, ["immigrant"]);
+        children.push(c); noteLineage(run, c, gen, "immigrant");
+        continue;
+      }
       const i = Math.floor(rng.random() * n);
       let j = Math.floor(rng.random() * (n - 1));
       if (n < 2) j = i; else if (j >= i) j++;
       const pa = parents[i], pb = parents[j];
-      children.push(make(mutate(crossover(pa.design.genome, pb.design.genome, rng), rng), name, [pa.name, pb.name]));
+      const x = crossover(pa.design.genome, pb.design.genome, rng);
+      const c = make(mutate(x, rng), name, [pa.name, pb.name]);
+      children.push(c); noteLineage(run, c, gen, "bred", { a: pa.design.genome, b: pb.design.genome, x });
     }
     run.everyone += children.length;
     for (const c of children) insert(c);

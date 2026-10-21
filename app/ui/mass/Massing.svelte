@@ -9,7 +9,7 @@
   import * as Draw from "../draw";
   import { downloadGlb, downloadObj, downloadRhino, type Part } from "./exports";
   import * as Mass from "./massing";
-  import { mass } from "./store.svelte";
+  import { mass, setHeights } from "./store.svelte";
   import type { Section, Viewer } from "./viewer";
 
   const KINDS: { kind: M.RepKind; label: string; note: string }[] = [
@@ -40,15 +40,14 @@
   let pickA = $state(-1), pickB = $state(-1);
   let date = $state(0), hour = $state(15);
   let sectionMode = $state<Section["mode"]>("none"), sectionAt = $state(0.5);
-  // Existing buildings' heights the user has set (index → m), kept per site across designs.
-  let heights = $state<Record<number, number>>({});
-  let heightsSite = "";
+  // Existing buildings' heights the user has set (index → m), kept per site in the store.
+  const heights = $derived<Record<number, number>>(src ? mass.heights[src.siteId] ?? {} : {});
   let picked = $state(-1), neighboursOpen = $state(false);
 
   // A new design: start over, with the brief's setbacks.
   $effect(() => {
     const s = src;
-    if ((s?.siteId ?? "") !== heightsSite) { heights = {}; heightsSite = s?.siteId ?? ""; picked = -1; }
+    picked = -1;
     breeder.cancel();
     running = false; result = null; pickA = pickB = -1; error = "";
     const sb = Mass.setbacksOf(s?.brief ?? null);
@@ -74,9 +73,10 @@
       .map((k) => ({ k, area: Mass.ringArea(B.rings[k]), h: B.h[k], from: Mass.sourceOf(G, k) }));
   });
   function setHeight(k: number, v: number) {
+    if (!src) return;
     const next = { ...heights };
     if (Number.isFinite(v) && v > 0) next[k] = Math.min(300, v); else delete next[k];
-    heights = next;
+    setHeights(src.siteId, next);
   }
   function onPick(k: number) {
     picked = k; neighboursOpen = true;

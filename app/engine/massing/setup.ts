@@ -2,6 +2,7 @@
 // genome the worker sends back builds the same massing on the page.
 import type { Ranges } from "../config.js";
 import { grow } from "../genome.js";
+import { growLast, type Fabric } from "../piecemeal.js";
 import type { Design, Ground, SiteMeta } from "../types.js";
 import type { Where } from "./scores.js";
 import { massContext, type MassContext, type RepKind } from "./context.js";
@@ -12,6 +13,8 @@ export interface MassSetup {
   setbacks?: Setbacks; narrowWings?: boolean; typeWeights?: number[] | null;
   /** Existing buildings' heights set by the user (index into Ground.buildings → metres). */
   heights?: Record<number, number> | null;
+  /** A piecemeal design: the fabric its last increment grew around (piecemeal.ts). */
+  fabric?: Fabric | null;
 }
 
 export interface MassRequest extends MassSetup {
@@ -32,7 +35,7 @@ export function withHeights(G: Ground, heights: Record<number, number> | null | 
 
 export function prepareBlock(G0: Ground, s: MassSetup): { d: Design; E: Envelope; ctx: MassContext; G: Ground } {
   const G = withHeights(G0, s.heights);
-  const d = grow(s.genome, G, s.locks ? Int8Array.from(s.locks) : null, s.ranges);
+  const d = s.fabric ? growLast(s.genome, G, s.fabric, s.ranges) : grow(s.genome, G, s.locks ? Int8Array.from(s.locks) : null, s.ranges);
   const E = envelope(d, G, s.block, s.setbacks ?? DEFAULT_SETBACKS);
   return { d, E, ctx: massContext(E, whereOf(G.meta), s.narrowWings ?? false, s.typeWeights ?? null), G };
 }

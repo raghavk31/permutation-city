@@ -1181,6 +1181,130 @@ Choices I made that you may want otherwise:
 - **Open Buildings reads low** (3 m on average at Bengaluru and Wadaj, 7 m at EWF). I left
   it uncorrected rather than fit a bias on a few hundred tagged buildings that lean tall.
 
+## Phase 9 log (2026-10-21): runs you can keep, and their family trees
+
+On branch `v2-phase9`, off `v2-phase7c` (PR #13).
+
+### Step 1: save and reload runs (`app/ui/runs.ts`)
+
+- **The link.** After every run the address names it:
+  `?site=…[&rules=…][&brief=…]&seed=…&gens=…&pop=…&search=…[&obj=…][&ax=…&ay=…&bins=…][&shock=15x1.3][&off=…][&locks=…][&pen=n]&gv=2&b=<build>`.
+  - Opening it loads the site with its rules and brief, switches the same ridges off, locks
+    the same cells, sets the form and runs again. The engine is deterministic, so the same
+    designs come back: checked on Docks (330 designs, with a promoted metric and a shock) and
+    Bengaluru (1,860, with a shock); families, front and sizes matched.
+  - Locks are run-length encoded ("<use><count in base 36>"), so a link stays short.
+  - A link can't carry designs from the pen. When a run started from them, it says how many
+    (`pen=`), and opening it warns that the run won't match.
+  - `gv` is the genome version, `b` the build (Vercel's commit, or the local one). Either one
+    differing from this page puts a note under the run.
+  - Unknown metrics, traits or searches are refused with a sentence, not guessed.
+- **The file** (download the run / load a saved run) holds the full state:
+  - the site, rules, brief, skeleton, locks with their notes
+  - the settings and the run's start genomes (pen and typology seeds)
+  - the result (history, families, kept designs with their metrics and space syntax, the
+    archive) and the lineage, with every design's genome packed as Float64 base64
+  - the pen, the hand-bred children, the opened design, and heights set on existing buildings
+  - Loading shows the run as it was, without running it again (311 KB for a 330-design run).
+  - Old genome versions load: 47-number genomes grow with the default street genes and carry
+    the "pre-street genome" label, and the file's genome version is named.
+- **Engine:** `evolve` and `mapElites` record a lineage: each design's parents, how it came
+  (random, start, newcomer, bred), the share of genes from each parent, genes mutated, and
+  its scores when made. Recording never touches the random stream (parity unchanged).
+
+### Step 2: the family tree (`app/ui/tree.ts`)
+
+- In the Evolution chapter, under the charts.
+  - One row per generation, top to bottom. Lines run parent to child, heavier from the parent
+    that gave more of the differing genes.
+  - Ring: mutated (heavier for more genes). Square: newcomer. Diamond: a starting design.
+  - Dark: kept; orange: the front, or the archive's elites under MAP-Elites. The shock's
+    generation is shaded.
+  - Pointing at a design traces its ancestry in ink and describes it; clicking opens it in
+    the detail panel, grown as the run grew it.
+- **At 1,800+ designs.** By default only the kept designs and their ancestors are drawn
+  (284 of 1,860 on a Bengaluru run); each row ends with "+n" dead ends. "Show every design"
+  draws all 1,860. A redraw takes about 20 ms either way.
+- **Layout:** barycentre ordering (down, up, down), each design near its parents' mean with
+  a minimum gap.
+- Tests: `npm test` 310 (10 new: links, files, lineage, layout), `uv run pytest` 76.
+
+### Step 3: shock tests (`app/engine/shocks.ts`, `docs/shocks.md`)
+
+- **A "shock test" section in the opened design's panel:** choose sea level, extreme rain or
+  heatwave; pick a sourced preset or type a value. It shows a map of what failed, a few lines,
+  and the scores before and after (changed rows in bold).
+- **Sea:** the site's connected bathtub at any level, on the whole grid. It matches the
+  site's flood layers exactly at their levels (tested). Flooded storage is lost; buildings
+  lose the storeys under water above a 0.45 m plinth.
+  - Presets: the site's levels, the surge plus IPCC AR6 rise at Apollo Bandar (read from
+    the NASA tool's data: SSP2-4.5 2050 and 2100, SSP5-8.5 median and high end), and the
+    Maritime Board's reported worst stacks.
+- **Rain:** a storm routed downhill through storage, standing in the site's hollows. Ponds
+  and tanks that spill, water over 15 cm and buildings over the plinth fail; storage is
+  scored against the storm.
+  - Presets: 10- to 100-year one-day rain I computed from IMD's 0.25° gridded rainfall,
+    1951–2024 (GEV by L-moments; `pc/imd_rain.py`), and the 944 mm Santacruz day near Mumbai.
+- **Heatwave:** today's LST, with today's land cover swapped for the design's through the
+  heat model, plus IMD's heat-wave rise (+4.5 °C) or severe heat-wave rise (+6.5 °C).
+  Public ground (landscape and streets) above today's hottest tenth is overheated.
+- **Survey** (`npm run shock-survey`, in `docs/shocks.md`):
+  - Sea flooding is the terrain's (identical across designs); designs differ in floor lost.
+  - Rain separates designs by their ponds.
+  - Heat separates them most.
+  - No design ever has buildings over the plinth in rain: the rules keep building out of
+    hollows deeper than 45 cm.
+- Tests: `npm test` 319 (9 new).
+
+### Step 4: piecemeal growth (`app/engine/piecemeal.ts`, `docs/piecemeal.md`)
+
+- **"growth: piecemeal" in the run form.** The site grows in three increments: 2025, 2035
+  and 2050.
+  - The cumulative floor-area shares are 40%, 70% and 100%, each capped at the same share of
+    the land.
+  - Each increment is a run of the form's size (NSGA-III). It evolves only what it adds,
+    around a fixed fabric: earlier cells are locked and kept as built.
+  - The streets are laid out once, in 2025. Unbuilt cells are open ground for now.
+- **The site changes between increments.** Each increment is scored under its year (AR6,
+  SSP2-4.5 or SSP5-8.5):
+  - sea: the surge plus the gauge rise for that year
+  - storm: +7% per °C of warming
+  - heat: + the warming
+- **Wholeness.** The equal-weight mean of Alexander's twelve measured properties that have a
+  better end, plus legibility and intelligibility, each scaled 0..1.
+  - An increment that lowers the fabric's wholeness pays the drop as a sixth objective. It is
+    a penalty, not a ban, and is also subtracted when choosing what to build.
+  - The page shows each increment's map (new cells bright over old), its wholeness before
+    and after, and the penalty.
+- **Saved runs and links** carry the increments. The fabric is replayed from the built
+  genomes (`replayFabric`), and an opened design grows around the fabric it grew in.
+- **Experiment** (`npm run piecemeal-vs-oneshot`, `docs/experiments/piecemeal-vs-oneshot.md`):
+  four sites, three seeds, 1,920 designs per mode.
+  - Piecemeal is hotter at 2050 on three sites and level on the fourth, with much less
+    diversity (largely by construction).
+  - Storage is mixed.
+  - The design built is higher on wholeness than one-shot today's on all four sites.
+  - On Docks no 2050 design meets the brief, in any seed.
+- Tests: `npm test` 329 (10 new), `vite build` ok.
+
+Unsure about, or left open:
+- **Docks piecemeal misses the brief.** The land cap stops the early increments before
+  their floor-area share, and the 2050 increment can't make it up. Possible fixes are in the
+  experiment's doubts; not changed.
+- **Increments don't look ahead.** 2025 builds where the 2050 sea floods.
+- **A piecemeal run takes 6–13 minutes** (wholeness on every design).
+- **The IMD grid reads below rain gauges** (492 mm in the Docks cell on 26 July 2005 against
+  944 mm at Santacruz). The levels are areal; the gauge day is a preset of its own.
+- **Heatwave on surface temperature:** IMD's rises are air temperatures, added to LST.
+- **Designs can't raise ground,** so the sea shock can't reward a design for it.
+- **Opening a link runs it.** A run with legibility promoted takes minutes, and it starts as
+  soon as the page loads. A "grow this run" button would be gentler; say if you want one.
+- **Reloading the page reruns the run.** The address always names the last run.
+- **The full tree is dense.** At 60 designs a row it is a lattice; tracing one design's
+  ancestry works, reading the whole doesn't. Ancestries are wide: a front design after 30
+  generations descends from most of Generation 0.
+- **Under MAP-Elites the archive is the whole kept set,** so every kept design is orange.
+
 ## 8. Decisions (2026-10-16)
 
 The user asked to go with the recommendations:

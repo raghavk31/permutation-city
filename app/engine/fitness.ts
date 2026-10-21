@@ -37,19 +37,16 @@ function dilateMax(v: Float64Array, nbr: Int32Array, deg: number): Float64Array 
   return out;
 }
 
-/** Score a design (pc.fitness.evaluate). stormFactor > 1 is a climate shock. */
-export function evaluate(d: Design, G: Ground, stormFactor = 1.0): Scores {
-  const n = G.n, a = G.cellArea, m = G.meta;
-  let held = 0, totalFa = 0;
-  for (let i = 0; i < n; i++) {
-    const depth = d.use[i] === WATER ? STORAGE_WATER : d.use[i] === LANDSCAPE ? STORAGE_LANDSCAPE
-      : G.minPerm[i] * PLOT_STORAGE;
-    held += depth * a;
-    totalFa += d.floorArea[i];
-  }
-  const storage = held / (m.design_storm_mm * stormFactor / 1000 * (a * n));
+/** How much rain a cell holds (m of water over the cell): water and landscape by use, a
+ *  building plot by its permeable share. */
+export function storageDepth(d: Design, G: Ground, i: number): number {
+  return d.use[i] === WATER ? STORAGE_WATER : d.use[i] === LANDSCAPE ? STORAGE_LANDSCAPE : G.minPerm[i] * PLOT_STORAGE;
+}
 
-  const dt = new Float64Array(n);
+/** The heat score's field: each cell's warming (°C) by its surfaces and height, spread over
+ *  HEAT_REACH_M. The score is its mean. */
+export function heatField(d: Design, G: Ground): Float64Array {
+  const n = G.n, dt = new Float64Array(n);
   for (let i = 0; i < n; i++) {
     if (d.use[i] === BUILDING) {
       const sealed = Math.min(Math.max(1 - d.coverage[i] - G.minPerm[i], 0), 1);
@@ -57,7 +54,20 @@ export function evaluate(d: Design, G: Ground, stormFactor = 1.0): Scores {
         + HEAT_PER_LEVEL * d.levels[i];
     } else dt[i] = d.use[i] === WATER ? HEAT.water : HEAT.landscape;
   }
-  const sm = smooth(dt, G.nbr, G.deg, passes(HEAT_REACH_M, G.grid.spacing));
+  return smooth(dt, G.nbr, G.deg, passes(HEAT_REACH_M, G.grid.spacing));
+}
+
+/** Score a design (pc.fitness.evaluate). stormFactor > 1 is a climate shock. */
+export function evaluate(d: Design, G: Ground, stormFactor = 1.0): Scores {
+  const n = G.n, a = G.cellArea, m = G.meta;
+  let held = 0, totalFa = 0;
+  for (let i = 0; i < n; i++) {
+    held += storageDepth(d, G, i) * a;
+    totalFa += d.floorArea[i];
+  }
+  const storage = held / (m.design_storm_mm * stormFactor / 1000 * (a * n));
+
+  const sm = heatField(d, G);
   let heatSum = 0;
   for (let i = 0; i < n; i++) heatSum += sm[i] * a;
   const heat = heatSum / (a * n);

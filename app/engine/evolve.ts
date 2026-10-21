@@ -26,10 +26,43 @@ export type HistoryRow = {
   filled?: number; qd?: number;   // MAP-Elites: archive cells filled, and their summed quality
 } & Record<ScoreKey, number | null>;
 
+/** How a design came to be, for the family tree. `fromA`: share of the genes where its
+ *  parents differ that came from the first parent; `mutated`: genes the mutation changed.
+ *  `scores`: the five scores and the gap to the brief when it was made (4 places). */
+export interface LineageNode {
+  name: string; gen: number; parents: string[];
+  how: "first" | "start" | "immigrant" | "bred";
+  fromA?: number; mutated?: number;
+  scores: number[];
+}
+
 export interface Run {
   pop: Individual[];
   history: HistoryRow[];
   everyone: number;
+  lineage: LineageNode[];
+  genomes: number[][];   // every design's genome, in lineage order
+}
+
+const LINEAGE_SCORES = ["storage", "heat", "carbon", "daylight", "human", "gap"] as const;
+
+/** Note a design in the run's lineage. Recording never touches the random stream. */
+export function note(run: Run, ind: Individual, gen: number, how: LineageNode["how"], cross?: { a: number[]; b: number[]; x: number[] }) {
+  const s = ind.design.scores!, node: LineageNode = {
+    name: ind.name, gen, parents: ind.parents, how, scores: LINEAGE_SCORES.map((k) => roundTo(s[k], 4)),
+  };
+  if (cross) {
+    const { a, b, x } = cross, y = ind.design.genome;
+    let differ = 0, fromA = 0, mutated = 0;
+    for (let g = 0; g < x.length; g++) {
+      if (a[g] !== b[g]) { differ++; if (x[g] === a[g]) fromA++; }
+      if (x[g] !== y[g]) mutated++;
+    }
+    node.fromA = differ ? roundTo(fromA / differ, 3) : 0.5;
+    node.mutated = mutated;
+  }
+  run.lineage.push(node);
+  run.genomes.push(ind.design.genome);
 }
 
 export type Search = "nsga2" | "nsga3";
@@ -46,6 +79,17 @@ export interface EvolveOptions {
   start?: number[][] | null;         // genomes for Generation 0
   ranges?: Ranges;                   // how genes are read (a brief may narrow them)
   progress?: ((gen: number, run: Run) => void) | null;
+  hooks?: Hooks;                     // piecemeal growth (piecemeal.ts); none in a plain run
+}
+
+/** How a mode other than a plain run grows and scores designs. `grow` replaces growth;
+ *  `score` adjusts the scores after they are computed (and may add keys); `objectives` join
+ *  the run's objectives under those keys. */
+export interface Hooks {
+  grow?: (genome: number[]) => Design;
+  score?: (d: Design, storm: number) => void;
+  objectives?: Objective[];
+  copies?: (a: Design, b: Design) => number;   // how different two designs are (0..1), for the near-copy rule
 }
 
 export function crossover(a: number[], b: number[], rng: Rng, pA = 0.6): number[] {
@@ -67,7 +111,8 @@ export function breed(a: number[], b: number[], rng: Rng, n = 6): number[][] {
   return Array.from({ length: n }, () => mutate(crossover(a, b, rng), rng));
 }
 
-export function rank(inds: Individual[], obj: Objective[] = SCORE_OBJECTIVES) {
+export function rank(inds: Individual[], obj: Objective[] = SCORE_OBJECTIVES,
+  copies: (a: Design, b: Design) => number = (a, b) => difference(a.use, b.use, DUPLICATE)) {
   const scores = inds.map((i) => i.design.scores!);
   const r = paretoRanks(scores, TARGET_TOLERANCE, obj);
   for (const level of new Set(r)) {
@@ -79,7 +124,7 @@ export function rank(inds: Individual[], obj: Objective[] = SCORE_OBJECTIVES) {
   const order = [...inds.keys()].sort((a, b) => inds[a].rank - inds[b].rank || inds[b].crowd - inds[a].crowd);
   const kept: number[] = [];
   for (const i of order) {
-    if (kept.some((j) => difference(inds[i].design.use, inds[j].design.use, DUPLICATE) < DUPLICATE)) inds[i].rank += 1000;
+    if (kept.some((j) => copies(inds[i].design, inds[j].design) < DUPLICATE)) inds[i].rank += 1000;
     else kept.push(i);
   }
 }
@@ -118,9 +163,10 @@ export function objectivesOf(objectives: readonly MetricKey[] = []): Objective[]
 
 /** Grow and score one design. */
 export function individual(G: Ground, g: number[], name: string, parents: string[], locked: ArrayLike<number> | null,
-  ranges: Ranges, storm: number, objectives: readonly MetricKey[] = []): Individual {
-  const design = grow(g, G, locked, ranges);
+  ranges: Ranges, storm: number, objectives: readonly MetricKey[] = [], hooks: Hooks = {}): Individual {
+  const design = hooks.grow ? hooks.grow(g) : grow(g, G, locked, ranges);
   score(design, G, storm, objectives);
+  hooks.score?.(design, storm);
   return { name, design, parents, rank: 0, crowd: 0 };
 }
 
@@ -153,30 +199,37 @@ function nicheSurvivors(sorted: Individual[], pop: number, refs: number[][], obj
 
 /** Breed `generations` of `pop` designs (pc.evolve.evolve). */
 export function evolve(G: Ground, { search = "nsga2", objectives = [], generations = 30, pop = 60, seed = 1,
-  immigrants = 0.1, locked = null, shock = null, start = null, progress = null, ranges = DEFAULT_RANGES }: EvolveOptions = {}): Run {
+  immigrants = 0.1, locked = null, shock = null, start = null, progress = null, ranges = DEFAULT_RANGES, hooks = {} }: EvolveOptions = {}): Run {
   const rng = makeRng(seed);
   let storm = 1.0;
-  const obj = objectivesOf(objectives), m = obj.length;
+  const obj = [...objectivesOf(objectives), ...(hooks.objectives ?? [])], m = obj.length;
   const make = (g: number[], name: string, parents: string[]) =>
-    individual(G, g, name, parents, locked, ranges, storm, objectives);
+    individual(G, g, name, parents, locked, ranges, storm, objectives, hooks);
   const refs = search === "nsga3" ? referencePoints(m, divisionsFor(m, pop)) : null;
-  const genomes = firstGenomes(rng, pop, start);
-  const run: Run = { pop: genomes.map((g, k) => make(g, `G0.${String(k + 1).padStart(2, "0")}`, [])), history: [], everyone: 0 };
+  const genomes = firstGenomes(rng, pop, start), nStart = Math.min(start?.length ?? 0, pop);
+  const run: Run = { pop: genomes.map((g, k) => make(g, `G0.${String(k + 1).padStart(2, "0")}`, [])), history: [], everyone: 0,
+    lineage: [], genomes: [] };
+  run.pop.forEach((i, k) => note(run, i, 0, k < nStart ? "start" : "first"));
   run.everyone = run.pop.length;
-  rank(run.pop, obj);
+  const order = (p: Individual[]) => (hooks.copies ? rank(p, obj, hooks.copies) : rank(p, obj));
+  order(run.pop);
   record(run, 0, storm, obj);
   progress?.(0, run);
 
   for (let gen = 1; gen <= generations; gen++) {
     if (shock && gen === shock[0]) {
       storm = shock[1];
-      for (const i of run.pop) score(i.design, G, storm, objectives);
-      rank(run.pop, obj);
+      for (const i of run.pop) { score(i.design, G, storm, objectives); hooks.score?.(i.design, storm); }
+      order(run.pop);
     }
     const children: Individual[] = [];
     for (let k = 0; k < pop; k++) {
       const name = childName(gen, k);
-      if (rng.random() < immigrants) { children.push(make(randomGenome(rng), name, ["immigrant"])); continue; }
+      if (rng.random() < immigrants) {
+        const c = make(randomGenome(rng), name, ["immigrant"]);
+        children.push(c); note(run, c, gen, "immigrant");
+        continue;
+      }
       const pick = () => {
         const i = Math.floor(rng.random() * run.pop.length);
         let j = Math.floor(rng.random() * (run.pop.length - 1));
@@ -184,14 +237,16 @@ export function evolve(G: Ground, { search = "nsga2", objectives = [], generatio
         return better(run.pop[i], run.pop[j]);
       };
       const pa = pick(), pb = pick();
-      children.push(make(mutate(crossover(pa.design.genome, pb.design.genome, rng), rng), name, [pa.name, pb.name]));
+      const x = crossover(pa.design.genome, pb.design.genome, rng);
+      const c = make(mutate(x, rng), name, [pa.name, pb.name]);
+      children.push(c); note(run, c, gen, "bred", { a: pa.design.genome, b: pb.design.genome, x });
     }
     run.everyone += children.length;
     const both = run.pop.concat(children);
-    rank(both, obj);
+    order(both);
     both.sort((a, b) => a.rank - b.rank || b.crowd - a.crowd);
     run.pop = refs ? nicheSurvivors(both, pop, refs, obj) : both.slice(0, pop);
-    rank(run.pop, obj);
+    order(run.pop);
     record(run, gen, storm, obj);
     progress?.(gen, run);
   }
