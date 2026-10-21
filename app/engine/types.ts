@@ -177,6 +177,9 @@ export interface Design {
   street?: Int8Array;            // per side (streets.ts): 0 none, 1 lane, 2 secondary, 3 primary
   streetWidths?: [number, number, number, number];
   preStreet?: boolean;           // grown from a 47-gene genome, with default street genes
+  // Piecemeal growth (piecemeal.ts): cells this increment builds, cells not built yet (open
+  // ground for now), and the design's wholeness.
+  fresh?: Uint8Array; fallow?: Uint8Array; wholeness?: number;
   attractors: Attractor[];
   settings: Settings;
   scores: Scores | null;

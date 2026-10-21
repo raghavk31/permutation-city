@@ -97,11 +97,9 @@ function scoresOf(d: Design, G: Ground): ShockScores {
 
 const round = (v: number, p: number) => Math.round(v * 10 ** p) / 10 ** p;
 
-/** The design under a sea at `level` m above mean sea level. fail: 1 flooded ground,
- *  2 a building with water above its plinth. */
-export function seaShock(d: Design, G: Ground, S: ShockSite, level: number): ShockResult {
-  const before = scoresOf(d, G), a = G.cellArea, gr = S.grid;
-  const wet = new Uint8Array(gr.n), queue: number[] = [];
+/** Flood depth (m) on each design cell with the sea at `level` (connected bathtub). */
+export function seaDepth(S: ShockSite, level: number): Float64Array {
+  const gr = S.grid, wet = new Uint8Array(gr.n), queue: number[] = [];
   for (let c = 0; c < gr.n; c++) if (gr.sea[c]) { wet[c] = 1; queue.push(c); }
   for (let h = 0; h < queue.length; h++) {
     const c = queue[h];
@@ -110,16 +108,31 @@ export function seaShock(d: Design, G: Ground, S: ShockSite, level: number): Sho
       if (o >= 0 && !wet[o] && gr.ground[o] < level) { wet[o] = 1; queue.push(o); }
     }
   }
+  return Float64Array.from(S.cell, (c, i) => (c >= 0 && wet[c] && !gr.water[c] ? Math.max(0, level - S.z[i]) : 0));
+}
+
+/** Floor area (m²) lost to standing water `depth` on a building cell: every storey whose
+ *  floor is under water above the plinth. */
+export function floorUnder(d: Design, i: number, depth: number): number {
+  if (d.use[i] !== BUILDING || depth <= PLINTH_M) return 0;
+  const under = Math.min(d.levels[i], Math.ceil((depth - PLINTH_M) / STOREY_M));
+  return d.floorArea[i] * (under / Math.max(1, d.levels[i]));
+}
+
+/** The design under a sea at `level` m above mean sea level. fail: 1 flooded ground,
+ *  2 a building with water above its plinth. */
+export function seaShock(d: Design, G: Ground, S: ShockSite, level: number): ShockResult {
+  const before = scoresOf(d, G), a = G.cellArea, depthOf = seaDepth(S, level);
   const value = new Float64Array(G.n), fail = new Uint8Array(G.n);
   let held = 0, lost = 0, floodedCells = 0, buildings = 0, storeys = 0;
   for (let i = 0; i < G.n; i++) {
-    const c = S.cell[i], depth = c >= 0 && wet[c] && !gr.water[c] ? level - S.z[i] : 0;
-    value[i] = Math.max(0, depth);
+    const depth = depthOf[i];
+    value[i] = depth;
     if (depth > 0) { floodedCells++; fail[i] = 1; } else held += storageDepth(d, G, i) * a;
-    if (d.use[i] === BUILDING && depth > PLINTH_M) {
-      const under = Math.min(d.levels[i], Math.ceil((depth - PLINTH_M) / STOREY_M));
-      lost += d.floorArea[i] * (under / Math.max(1, d.levels[i]));
-      buildings++; storeys += under; fail[i] = 2;
+    const gone = floorUnder(d, i, depth);
+    if (gone > 0) {
+      lost += gone; buildings++; fail[i] = 2;
+      storeys += Math.min(d.levels[i], Math.ceil((depth - PLINTH_M) / STOREY_M));
     }
   }
   const after = afterScores(before, G, held, lost);
@@ -213,35 +226,50 @@ export function shockSummary(d: Design, G: Ground, S: ShockSite, b: ShockBattery
   };
 }
 
+/** Each design cell's hot-season surface temperature under the design (°C), `rise` above
+ *  today's; NaN where there is no LST. */
+export function surfaceHeat(d: Design, G: Ground, S: ShockSite, rise: number): Float64Array {
+  const out = new Float64Array(G.n).fill(NaN);
+  if (!S.lst) return out;
+  const field = heatField(d, G);
+  for (let i = 0; i < G.n; i++) out[i] = S.lst[i] + (field[i] - S.today[i]) + rise;
+  return out;
+}
+
+/** Public ground (landscape cells, and streets by their area) against today's hottest tenth:
+ *  the share above it, and how far above it on average (°C, over all public ground). */
+export function publicHeat(d: Design, G: Ground, S: ShockSite, rise: number): { share: number; excess: number } {
+  if (!S.lst || !Number.isFinite(S.hot)) return { share: 0, excess: 0 };
+  const T = surfaceHeat(d, G, S, rise), a = G.cellArea;
+  let area = 0, hot = 0, over = 0;
+  const add = (t: number, w: number) => {
+    if (!Number.isFinite(t)) return;
+    area += w;
+    if (t > S.hot) { hot += w; over += (t - S.hot) * w; }
+  };
+  for (let i = 0; i < G.n; i++) if (d.use[i] === LANDSCAPE) add(T[i], a);
+  if (d.street && d.streetWidths) {
+    const sd = sides(G), edge = G.grid.edge;
+    for (let s = 0; s < d.street.length; s++) {
+      if (!d.street[s]) continue;
+      const i = sd.cell[s], j = sd.other[s];
+      add(j >= 0 ? (T[i] + T[j]) / 2 : T[i], edge * d.streetWidths[d.street[s]]);
+    }
+  }
+  return area ? { share: hot / area, excess: over / area } : { share: 0, excess: 0 };
+}
+
 /** Each design cell's surface temperature in a heatwave `plus` °C hotter than today's hot
  *  season, and public ground (landscape cells and streets) above today's hottest tenth.
  *  fail: 1 an overheated street beside the cell, 2 the cell itself overheated public ground. */
 export function heatShock(d: Design, G: Ground, S: ShockSite, plus: number): ShockResult & { share: [number, number] } {
-  const before = scoresOf(d, G), n = G.n, a = G.cellArea;
+  const before = scoresOf(d, G), n = G.n;
   const value = new Float64Array(n), fail = new Uint8Array(n);
   if (!S.lst || !Number.isFinite(S.hot)) {
     return { before, after: before, fail, value, share: [0, 0], lines: ["no surface temperature for this site, so no heatwave test"] };
   }
-  const field = heatField(d, G);
-  for (let i = 0; i < n; i++) value[i] = S.lst[i] + (field[i] - S.today[i]);
-  const share = (rise: number) => {
-    let area = 0, hot = 0;
-    for (let i = 0; i < n; i++) if (d.use[i] === LANDSCAPE && Number.isFinite(value[i])) {
-      area += a; if (value[i] + rise > S.hot) hot += a;
-    }
-    if (d.street && d.streetWidths) {
-      const sd = sides(G), edge = G.grid.edge;
-      for (let s = 0; s < d.street.length; s++) {
-        if (!d.street[s]) continue;
-        const i = sd.cell[s], j = sd.other[s], t = j >= 0 ? (value[i] + value[j]) / 2 : value[i];
-        if (!Number.isFinite(t)) continue;
-        const w = edge * d.streetWidths[d.street[s]];
-        area += w; if (t + rise > S.hot) hot += w;
-      }
-    }
-    return area ? hot / area : 0;
-  };
-  const was = share(0), now = share(plus);
+  value.set(surfaceHeat(d, G, S, 0));
+  const was = publicHeat(d, G, S, 0).share, now = publicHeat(d, G, S, plus).share;
   for (let i = 0; i < n; i++) {
     value[i] += plus;
     if (d.use[i] === LANDSCAPE && value[i] > S.hot) fail[i] = 2;

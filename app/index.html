@@ -133,8 +133,22 @@
         <label>storm × <input type="number" name="shockX" value="1.3" min="1.1" max="2.5" step="0.1"></label>
       </span>
       <label><input type="checkbox" name="fromPen"> start from the pen (<span class="pc-pen-count">0</span>)</label>
+      <label>growth <select name="growth">
+        <option value="oneshot" selected>all at once</option>
+        <option value="piecemeal">piecemeal: 2025, 2035, 2050</option>
+      </select></label>
+      <span class="pc-growth-opts" hidden>
+        <label>climate <select name="scenario"><option value="ssp245" selected>SSP2-4.5</option><option value="ssp585">SSP5-8.5</option></select></label>
+      </span>
       <button type="submit">run</button>
     </form>
+    <p class="pc-growth-note pc-muted" hidden>Piecemeal growth builds the site in three increments, as Alexander argues
+      cities should grow. Each increment is a run of the size above that evolves only what it adds: by 2025 up to 40% of
+      the floor-area brief on up to 40% of the land, by 2035 70%, by 2050 all of it. What earlier increments built stays
+      as built, and the street network is laid out once, in 2025. Each increment is scored under its year's sea level,
+      storm and heat (IPCC AR6, SSP2-4.5 or SSP5-8.5). An increment that lowers the wholeness of what is there pays for
+      it: a sixth objective, the drop in wholeness. Search is NSGA-III; locks, the pen, the shock and MAP-Elites don't
+      apply. Wholeness is read on every design, so expect minutes.</p>
     <p class="pc-locks"></p><button type="button" class="pc-locks-clear" hidden>clear locks</button>
     <p class="pc-progress pc-muted" aria-live="polite"></p>
     <p class="pc-run-save pc-actions" hidden>
@@ -147,6 +161,13 @@
       <label class="pc-file">load a saved run <input type="file" accept="application/json,.json"></label>
       <span class="pc-run-load-note" aria-live="polite"></span></p>
     <div class="pc-charts"></div>
+    <div class="pc-growth" hidden>
+      <h3>Piecemeal growth</h3>
+      <p class="pc-muted">What each increment built (bright), over what was there (pale); grey is not built yet. Wholeness
+        is the mean of Alexander's measured properties with legibility and intelligibility, 0 to 1
+        (<a href="https://github.com/raghavk31/permutation-city/blob/main/docs/piecemeal.md">how</a>).</p>
+      <div class="pc-growth-steps pc-gallery"></div>
+    </div>
     <div class="pc-tree" hidden>
       <h3>Family tree</h3>
       <p class="pc-muted">Every generation is a row, the first at the top. Lines run from parents to children; the parent

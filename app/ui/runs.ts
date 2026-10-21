@@ -9,6 +9,7 @@
 //   shock (generation x factor, e.g. 15x1.3)  off (ridges switched off, comma)
 //   locks (locked cells, run-length: "<use><count base 36>" joined by "-")
 //   pen (how many designs from the pen started Generation 0: a link can't carry them)
+//   growth=piecemeal, ssp (piecemeal growth and its climate scenario)
 //   gv (genome version)  b (build)
 //
 // The file (download and upload) holds the full state: the same settings, the run's result
@@ -16,7 +17,7 @@
 // on existing buildings. Loading it shows the run as it was, without running it again.
 import * as E from "../engine";
 import type { ArchiveInfo } from "../engine";
-import type { FamilyLead, Kept } from "../engine/worker";
+import type { FamilyLead, IncrementSummary, Kept } from "../engine/worker";
 
 export const RUN_FORMAT = "permutation-city run";
 export const RUN_VERSION = 1;
@@ -28,6 +29,7 @@ export interface RunSettings {
   objectives: string[];               // promoted metrics (not with MAP-Elites)
   axes: [string, string] | null; bins: number | null;   // MAP-Elites
   shock: [number, number] | null;
+  growth?: "piecemeal"; scenario?: "ssp245" | "ssp585";   // piecemeal growth (engine/piecemeal.ts)
 }
 export interface RunLink {
   settings: RunSettings; off: number[]; locks: Int8Array | null; pen: number;
@@ -35,7 +37,7 @@ export interface RunLink {
 }
 
 const SEARCHES: SearchSetting[] = ["auto", "nsga2", "nsga3", "map-elites"];
-const KEYS = ["seed", "gens", "pop", "search", "obj", "ax", "ay", "bins", "shock", "off", "locks", "pen", "gv", "b"];
+const KEYS = ["seed", "gens", "pop", "search", "obj", "ax", "ay", "bins", "shock", "off", "locks", "pen", "growth", "ssp", "gv", "b"];
 
 /** Locked cells as runs of the same code: "<code><count in base 36>", joined by "-". */
 export function encodeLocks(locks: ArrayLike<number>): string {
@@ -76,6 +78,7 @@ export function writeLink(q: URLSearchParams, link: RunLink): URLSearchParams {
   if (s.axes) { q.set("ax", s.axes[0]); q.set("ay", s.axes[1]); }
   if (s.bins) q.set("bins", String(s.bins));
   if (s.shock) q.set("shock", `${s.shock[0]}x${s.shock[1]}`);
+  if (s.growth === "piecemeal") { q.set("growth", "piecemeal"); q.set("ssp", s.scenario ?? "ssp245"); }
   if (link.off.length) q.set("off", link.off.join(","));
   if (link.locks && link.locks.some((v) => v !== 0)) q.set("locks", encodeLocks(link.locks));
   if (link.pen) q.set("pen", String(link.pen));
@@ -110,11 +113,16 @@ export function readLink(q: URLSearchParams, n: number): RunLink | null {
   }
   const off = (q.get("off") ?? "").split(",").filter(Boolean).map((v) => int(v, 0, 1e7, "ridge"));
   const locks = q.get("locks") ? decodeLocks(q.get("locks")!, n) : null;
+  const growth = q.get("growth");
+  if (growth && growth !== "piecemeal") throw new Error(`The growth "${growth}" in this link isn't one this page knows.`);
+  const ssp = q.get("ssp") ?? "ssp245";
+  if (ssp !== "ssp245" && ssp !== "ssp585") throw new Error(`The climate scenario "${ssp}" in this link isn't one this page knows.`);
   return {
     settings: {
       search, seed: int(q.get("seed"), 0, 2 ** 31, "seed"), gens: int(q.get("gens") ?? "30", 1, 200, "generations"),
       pop: int(q.get("pop") ?? "60", 4, 500, "population"), objectives,
       axes: ax && ay ? [ax, ay] : null, bins: q.get("bins") ? int(q.get("bins"), 2, 30, "bins") : null, shock,
+      ...(growth === "piecemeal" ? { growth: "piecemeal" as const, scenario: ssp as "ssp245" | "ssp585" } : {}),
     },
     off, locks, pen: q.get("pen") ? int(q.get("pen"), 0, 500, "pen count") : 0,
     genomeVersion: q.get("gv") ? int(q.get("gv"), 1, 99, "genome version") : E.GENOME_VERSION, build: q.get("b"),
@@ -148,6 +156,7 @@ export interface SavedResult {
   lineage: E.LineageNode[];
   genomes: string;        // every design's genome: Float64 little-endian, base64
   genomeLength: number;
+  increments?: IncrementSummary[];   // piecemeal growth: each increment, with the genome it built
 }
 
 export interface SavedRun {
@@ -209,6 +218,9 @@ export function readSaved(text: string): SavedRun {
     }
     if (!Array.isArray(r.families) || !r.families.every((f) => isObj(f) && genomeOk(f.genome))) throw new Error("The run's families can't be read.");
     if (!Array.isArray(r.history) || !Array.isArray(r.lineage)) throw new Error("The run's history can't be read.");
+    if (r.increments && (!Array.isArray(r.increments) || !r.increments.every((x) => isObj(x) && isObj(x.chosen) && genomeOk(x.chosen.genome)))) {
+      throw new Error("The run's increments can't be read.");
+    }
     const g = base64ToF64(r.genomes ?? "");
     if (g.length !== r.lineage.length * r.genomeLength) throw new Error("The run's family tree doesn't match its designs.");
     r.kept = r.kept.map(revive);

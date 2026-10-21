@@ -1256,7 +1256,43 @@ On branch `v2-phase9`, off `v2-phase7c` (PR #13).
     hollows deeper than 45 cm.
 - Tests: `npm test` 319 (9 new).
 
+### Step 4: piecemeal growth (`app/engine/piecemeal.ts`, `docs/piecemeal.md`)
+
+- **"growth: piecemeal" in the run form.** The site grows in three increments: 2025, 2035
+  and 2050.
+  - The cumulative floor-area shares are 40%, 70% and 100%, each capped at the same share of
+    the land.
+  - Each increment is a run of the form's size (NSGA-III). It evolves only what it adds,
+    around a fixed fabric: earlier cells are locked and kept as built.
+  - The streets are laid out once, in 2025. Unbuilt cells are open ground for now.
+- **The site changes between increments.** Each increment is scored under its year (AR6,
+  SSP2-4.5 or SSP5-8.5):
+  - sea: the surge plus the gauge rise for that year
+  - storm: +7% per °C of warming
+  - heat: + the warming
+- **Wholeness.** The equal-weight mean of Alexander's twelve measured properties that have a
+  better end, plus legibility and intelligibility, each scaled 0..1.
+  - An increment that lowers the fabric's wholeness pays the drop as a sixth objective. It is
+    a penalty, not a ban, and is also subtracted when choosing what to build.
+  - The page shows each increment's map (new cells bright over old), its wholeness before
+    and after, and the penalty.
+- **Saved runs and links** carry the increments. The fabric is replayed from the built
+  genomes (`replayFabric`), and an opened design grows around the fabric it grew in.
+- **Experiment** (`npm run piecemeal-vs-oneshot`, `docs/experiments/piecemeal-vs-oneshot.md`):
+  four sites, three seeds, 1,920 designs per mode.
+  - Piecemeal is hotter at 2050 on three sites and level on the fourth, with much less
+    diversity (largely by construction).
+  - Storage is mixed.
+  - The design built is higher on wholeness than one-shot today's on all four sites.
+  - On Docks no 2050 design meets the brief, in any seed.
+- Tests: `npm test` 329 (10 new), `vite build` ok.
+
 Unsure about, or left open:
+- **Docks piecemeal misses the brief.** The land cap stops the early increments before
+  their floor-area share, and the 2050 increment can't make it up. Possible fixes are in the
+  experiment's doubts; not changed.
+- **Increments don't look ahead.** 2025 builds where the 2050 sea floods.
+- **A piecemeal run takes 6–13 minutes** (wholeness on every design).
 - **The IMD grid reads below rain gauges** (492 mm in the Docks cell on 26 July 2005 against
   944 mm at Santacruz). The levels are areal; the gauge day is a preset of its own.
 - **Heatwave on surface temperature:** IMD's rises are air temperatures, added to LST.

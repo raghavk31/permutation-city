@@ -11,6 +11,7 @@ import * as Draw from "../draw";
 export interface Source {
   siteId: string; site: E.SiteExport; G: E.Ground; skeletonOff: number[];
   name: string; genome: number[]; locks: number[] | null; ranges: E.Ranges; brief: E.Brief | null;
+  fabric?: E.Fabric | null;   // a piecemeal design: what its last increment grew around
 }
 
 export const PATTERNS_FOR_WINGS = [107, 159];
@@ -34,13 +35,13 @@ export const narrowWings = (brief: E.Brief | null) => !!brief?.patterns.some((p)
 export function setupOf(src: Source, block: number, setbacks: M.Setbacks, heights: Record<number, number> | null = null): M.MassSetup {
   return {
     genome: src.genome, locks: src.locks, ranges: src.ranges, block, setbacks,
-    narrowWings: narrowWings(src.brief), typeWeights: typeWeights(src.brief), heights,
+    narrowWings: narrowWings(src.brief), typeWeights: typeWeights(src.brief), heights, fabric: src.fabric ?? null,
   };
 }
 
 /** The design grown as the worker grows it. */
-export const designOf = (src: Source) =>
-  E.grow(src.genome, src.G, src.locks ? Int8Array.from(src.locks) : null, src.ranges);
+export const designOf = (src: Source) => src.fabric ? E.growLast(src.genome, src.G, src.fabric, src.ranges)
+  : E.grow(src.genome, src.G, src.locks ? Int8Array.from(src.locks) : null, src.ranges);
 
 /** The design in plan with its blocks: the chosen one in ink, the rest pale. Returns the view
  *  and, per design cell, its block (-1: none), for picking. */
