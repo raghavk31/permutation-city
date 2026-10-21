@@ -10,10 +10,13 @@ import { prepare, withSkeleton } from "./ground.js";
 import { measure, METRIC_KEYS, network, SYNTAX_KEYS, type MetricKey, type Metrics } from "./metrics/index.js";
 import { landmarks } from "./metrics/network.js";
 import { legibilityParts, siteMean, viewpoints } from "./metrics/syntax.js";
+import { piecemeal, type Conditions, type Scenario } from "./piecemeal.js";
+import { shockSite } from "./shocks.js";
 import { choiceRn, syntaxOf } from "./syntax.js";
 import type { Design, Ground, Scores, SiteExport } from "./types.js";
 
 let G: Ground | null = null;
+let siteNow: SiteExport | null = null;
 let lastKept: Design[] = [];   // the designs the last run kept, in the order sent back
 
 export interface FamilyLead { name: string; size: number; genome: number[]; parents: string[] }
@@ -32,6 +35,15 @@ export interface EvolveResult {
 export type RunRequest = Omit<EvolveOptions, "progress" | "search"> & Omit<EliteOptions, "progress"> & {
   search?: SearchChoice;
 };
+/** Piecemeal growth as the page asks for it: the size of each increment, a seed, a scenario. */
+export interface PiecemealRequest { generations: number; pop: number; seed: number; scenario: Scenario; ranges: Ranges }
+/** One increment, for the page: its year and conditions, and the design it built. */
+export interface IncrementSummary {
+  year: number; conditions: Conditions; target: number; share: number; everyone: number; seconds: number;
+  chosen: { name: string; genome: number[]; scores: Scores; built: number };
+  wholeness: { before: number; after: number }; penalty: number;
+}
+export interface PiecemealResult extends EvolveResult { increments: IncrementSummary[] }
 /** A design as the page grew it: its genome, and the locks and gene ranges it was grown under. */
 export interface Grown { genome: number[]; locked: number[] | null; ranges: Ranges }
 
@@ -57,6 +69,7 @@ const api = {
   /** The site, with any ridges of its street skeleton switched off. */
   setSite(site: SiteExport, off: number[] = []) {
     G = off.length ? withSkeleton(site, prepare(site), new Set(off)) : prepare(site);
+    siteNow = site;
     lastKept = [];
   },
   evolve({ search: asked, axes, bins, weights, ...options }: RunRequest,
@@ -87,6 +100,34 @@ const api = {
       archive: run.archive,
       lineage: run.lineage,
       genomes: Float64Array.from(run.genomes.flat()),
+    };
+  },
+  /** Grow the site in increments (piecemeal.ts). Returns each increment's summary, and the
+   *  last increment as a run (its kept designs, families, history and lineage). */
+  piecemeal(o: PiecemealRequest, onProgress?: (step: number, gen: number, row: HistoryRow) => void): PiecemealResult {
+    if (!G) throw new Error("no site loaded");
+    const g = G, S = shockSite(siteNow!, g);
+    const r = piecemeal(g, S, { generations: o.generations, pop: o.pop, seed: o.seed, scenario: o.scenario, ranges: o.ranges,
+      progress: onProgress ? (k, gen, row) => onProgress(k, gen, row) : null });
+    const last = r.increments[r.increments.length - 1];
+    lastKept = last.pop.map((i) => i.design);
+    const run = { pop: last.pop, history: last.history, everyone: last.everyone, lineage: last.lineage, genomes: last.genomes };
+    return {
+      increments: r.increments.map((x) => ({
+        year: x.year, conditions: x.conditions, target: x.target, share: x.share, everyone: x.everyone, seconds: x.seconds,
+        chosen: { name: x.chosen.name, genome: x.chosen.design.genome, scores: x.chosen.design.scores!,
+          built: x.chosen.design.fresh!.reduce((s, v) => s + v, 0) },
+        wholeness: x.wholeness, penalty: x.penalty,
+      })),
+      history: last.history, everyone: r.increments.reduce((s, x) => s + x.everyone, 0),
+      frontSize: last.pop.filter((i) => i.rank === 1).length,
+      families: frontFamilies(run).map((f) => ({ name: f.lead.name, size: f.members.length, genome: f.lead.design.genome, parents: f.lead.parents })),
+      kept: last.pop.map((i) => {
+        const st = stats(i.design, g);
+        return { name: i.name, genome: i.design.genome, parents: i.parents, rank: i.rank, scores: i.design.scores!,
+          floorArea: st.floor_area_ha, levels: st.mean_levels, metrics: measure(i.design, g, NON_SYNTAX) as Metrics };
+      }),
+      archive: null, lineage: last.lineage, genomes: Float64Array.from(last.genomes.flat()),
     };
   },
   /** The kept designs of a run reloaded from a file, so syntaxKept can read them. */

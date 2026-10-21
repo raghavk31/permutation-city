@@ -31,3 +31,4 @@ export { measure, network, METRICS, METRIC_KEYS, OBJECTIVE_KEYS, NOT_MEASURED, S
   type Metrics, type Net } from "./metrics/index.js";
 export * from "./shocks.js";
 export * from "./scenarios.js";
+export * from "./piecemeal.js";

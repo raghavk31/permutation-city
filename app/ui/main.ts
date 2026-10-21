@@ -2,7 +2,7 @@
 // explore, families, breeding, massing (a Svelte component, ui/mass). Data: public/sites/<site>.json from `pc export`; engine: app/engine (same as Python).
 import * as Comlink from "comlink";
 import * as E from "../engine";
-import type { EngineWorker, EvolveResult, FamilyLead, Grown, Kept, RunRequest, SyntaxDetail } from "../engine/worker";
+import type { EngineWorker, EvolveResult, FamilyLead, Grown, IncrementSummary, Kept, PiecemealResult, RunRequest, SyntaxDetail } from "../engine/worker";
 import * as Draw from "./draw";
 import * as X from "./explore";
 import { describe as describeBrief } from "./new/brief";
@@ -17,12 +17,14 @@ const $ = <T extends HTMLElement = HTMLElement>(sel: string) => root.querySelect
 const $$ = (sel: string) => [...root.querySelectorAll<HTMLElement>(sel)];
 
 /** A design shown in a gallery: a family lead, a design in the pen, or a child. */
-interface Item { name: string; title: string; genome: number[]; design: E.Design; size?: number; parents?: string[] }
+interface Item { name: string; title: string; genome: number[]; design: E.Design; size?: number; parents?: string[]; fabric?: E.Fabric }
 interface PenEntry { name: string; genome: number[]; title?: string; parents?: string[] }
 interface RunSummary { history: E.HistoryRow[]; everyone: number; frontSize: number; opts: RunOptions; seconds: number | null }
 /** Every design a run made: how each came to be, and its genome (LENGTH numbers each). */
 interface Lineage { nodes: E.LineageNode[]; genomes: Float64Array; length: number }
-type RunOptions = Omit<RunRequest, "locked"> & { locked: number[] | null; typologySeeds?: number };
+type RunOptions = Omit<RunRequest, "locked"> & { locked: number[] | null; typologySeeds?: number; growth?: "piecemeal"; scenario?: E.Scenario };
+/** A piecemeal run: its increments, and the fabric before each (replayed from the built genomes). */
+interface Piecemeal { increments: IncrementSummary[]; fabrics: E.Fabric[] }
 type ExploreView = "matrix" | "parallel" | "archive";
 
 const state = {
@@ -30,7 +32,7 @@ const state = {
   site: null as E.SiteExport | null, G: null as E.Ground | null, baseG: null as E.Ground | null,
   skeletonOff: new Set<number>(),  // ridges of the street skeleton switched off (the landform chapter)
   worker: null as { raw: Worker; api: Comlink.Remote<EngineWorker> } | null,
-  genome: [] as number[], run: null as RunSummary | null, lineage: null as Lineage | null,
+  genome: [] as number[], run: null as RunSummary | null, lineage: null as Lineage | null, piecemeal: null as Piecemeal | null,
   families: [] as Item[], selected: null as Item | null,
   pen: [] as PenEntry[], children: [] as PenEntry[], brood: 0, locks: null as Int8Array | null, lockNote: [] as string[],
   bearing: -0.55, layer: "ground" as LayerKey, showAll: false,
@@ -144,7 +146,7 @@ async function loadSite(id: string, rules: string | null = null, brief: string |
   state.baseG = E.prepare(site());
   state.G = state.baseG;
   state.skeletonOff = new Set();
-  Object.assign(state, { run: null, lineage: null, families: [], selected: null, pen: [], children: [], locks: null, lockNote: [] });
+  Object.assign(state, { run: null, lineage: null, piecemeal: null, families: [], selected: null, pen: [], children: [], locks: null, lockNote: [] });
   massing?.closeMassing();
   resetExplore([], null);
   startWorker(site());
@@ -396,7 +398,7 @@ function drawLandform() {
 function setSkeleton(off: Set<number>) {
   state.skeletonOff = off;
   state.G = off.size ? E.withSkeleton(site(), state.baseG!, off) : state.baseG!;
-  Object.assign(state, { run: null, lineage: null, families: [], selected: null, children: [] });
+  Object.assign(state, { run: null, lineage: null, piecemeal: null, families: [], selected: null, children: [] });
   resetExplore([], null);
   startWorker(site());
   drawAll();
@@ -433,6 +435,10 @@ function evolveOptions(seed = Math.floor(rng.random() * 1e9)): RunOptions {
   const shock: [number, number] | null = input(f, "shock").checked
     ? [Math.min(+input(f, "shockAt").value, gens), +input(f, "shockX").value] : null;
   const pop = +select(f, "pop").value;
+  if (select(f, "growth").value === "piecemeal") {
+    return { search: "nsga3", objectives: [], generations: gens, pop, seed, shock: null, locked: null, start: null, ranges: state.ranges,
+      growth: "piecemeal", scenario: select(f, "scenario").value as E.Scenario };
+  }
   const pen = input(f, "fromPen").checked ? state.pen.map((p) => p.genome) : [];
   const priors = state.brief?.seeds ? state.brief.brief.typology_priors?.value ?? [] : [];
   // Typology seeds fill up to half of Generation 0 (after any designs from the pen).
@@ -472,6 +478,9 @@ function applySettings(s: Runs.RunSettings, fromPen = false) {
   $(".pc-shock-opts").hidden = !s.shock;
   if (s.shock) { input(f, "shockAt").value = String(s.shock[0]); input(f, "shockX").value = String(s.shock[1]); }
   input(f, "fromPen").checked = fromPen && state.pen.length > 0;
+  select(f, "growth").value = s.growth ?? "oneshot";
+  if (s.scenario) select(f, "scenario").value = s.scenario;
+  select(f, "growth").dispatchEvent(new Event("change"));
 }
 
 /** The settings a run was made with (what a link carries). */
@@ -479,6 +488,7 @@ function settingsOf(o: RunOptions): Runs.RunSettings {
   return {
     search: (o.search ?? "auto") as Runs.SearchSetting, gens: o.generations ?? 30, pop: o.pop ?? 60, seed: o.seed ?? 1,
     objectives: (o.objectives ?? []) as string[], axes: o.axes ?? null, bins: o.bins ?? null, shock: o.shock ?? null,
+    ...(o.growth === "piecemeal" ? { growth: "piecemeal" as const, scenario: o.scenario ?? "ssp245" } : {}),
   };
 }
 
@@ -497,6 +507,11 @@ function runQuery(o: RunOptions): URLSearchParams {
 /** One line on what a run did. */
 function runLine(opts: RunOptions, m: { everyone: number; frontSize: number; kept: Kept[]; archive: E.ArchiveInfo | null },
   seconds: number | null, prefix = ""): string {
+  if (opts.growth === "piecemeal") {
+    return `${prefix}Piecemeal growth (${opts.scenario === "ssp585" ? "SSP5-8.5" : "SSP2-4.5"}): ${E.YEARS.join(", ")}, NSGA-III, `
+      + `${m.everyone.toLocaleString("en-IN")} designs grown${seconds !== null ? ` in ${seconds.toFixed(0)} s` : ""} · `
+      + `the 2050 increment has ${m.frontSize} on its front, in ${state.families.length} families`;
+  }
   const w = state.brief?.brief.objective_weights?.value;
   const filled = m.archive ? ` · ${m.kept.length} of ${m.archive.bins ** 2} archive cells filled` : "";
   const ran = E.searchOf(opts), promoted = opts.objectives?.length
@@ -519,10 +534,22 @@ async function runEvolution(seed?: number, note = "") {
     $(".pc-progress").textContent = `generation ${gen} of ${opts.generations}`;
     drawCharts(rows, opts);
   };
-  let m: EvolveResult;
+  let step = -1;
+  const onIncrement = (k: number, gen: number, row: E.HistoryRow) => {
+    if (k !== step) { step = k; rows.length = 0; }
+    rows.push(row);
+    $(".pc-progress").textContent = `the ${E.YEARS[k]} increment: generation ${gen} of ${opts.generations}`;
+    drawCharts(rows, opts);
+  };
+  let m: EvolveResult | PiecemealResult;
   try {
-    const { typologySeeds: _, ...engineOpts } = opts;
-    m = await state.worker!.api.evolve(engineOpts, Comlink.proxy(onProgress));
+    if (opts.growth === "piecemeal") {
+      m = await state.worker!.api.piecemeal({ generations: opts.generations ?? 15, pop: opts.pop ?? 40, seed: opts.seed ?? 1,
+        scenario: opts.scenario ?? "ssp245", ranges: opts.ranges ?? E.DEFAULT_RANGES }, Comlink.proxy(onIncrement));
+    } else {
+      const { typologySeeds: _, growth: _g, scenario: _s, ...engineOpts } = opts;
+      m = await state.worker!.api.evolve(engineOpts, Comlink.proxy(onProgress));
+    }
   } catch (err) {
     $(".pc-progress").textContent = `The run failed: ${(err as Error).message}`;
     btn.disabled = false;
@@ -532,7 +559,8 @@ async function runEvolution(seed?: number, note = "") {
   const secs = (performance.now() - t0) / 1000;
   state.run = { history: m.history, everyone: m.everyone, frontSize: m.frontSize, opts, seconds: secs };
   state.lineage = { nodes: m.lineage, genomes: m.genomes, length: E.LENGTH };
-  state.families = m.families.map((f: FamilyLead) => ({ ...f, title: f.name, design: grown(f.genome) }));
+  state.piecemeal = "increments" in m ? piecemealOf(m.increments, opts) : null;
+  state.families = m.families.map((f: FamilyLead) => ({ ...f, title: f.name, design: runGrown(f.genome), fabric: lastFabric() }));
   const w = state.brief?.brief.objective_weights?.value;
   if (w && Object.values(w).some((x) => x > 0)) {
     const higher = Object.fromEntries(E.SCORE_KEYS.map((k) => [k, E.SCORES[k][2]])) as Record<E.ScoreKey, boolean>;
@@ -546,10 +574,65 @@ async function runEvolution(seed?: number, note = "") {
   // The address now names this run, so it can be shared or opened again.
   history.replaceState(null, "", `?${runQuery(opts)}${location.hash}`);
   drawSaveBar();
+  drawGrowth();
   drawTree();
   drawExplore();
   drawFamilies();
   readSyntax();
+}
+
+// --- piecemeal growth (engine/piecemeal.ts) ---------------------------------------------
+
+function piecemealOf(increments: IncrementSummary[], opts: RunOptions): Piecemeal {
+  return { increments, fabrics: E.replayFabric(G(), increments.map((x) => x.chosen.genome), E.SHARES, opts.ranges ?? E.DEFAULT_RANGES) };
+}
+
+/** The fabric a piecemeal run's last increment grew around (undefined for a plain run). */
+const lastFabric = () => (state.piecemeal ? state.piecemeal.fabrics[state.piecemeal.fabrics.length - 2] : undefined);
+
+/** A design of the run, grown as the run grew it. A piecemeal design grows around the fabric
+ *  before the last increment and is scored as that increment was, under 2050's conditions. */
+function runGrown(genome: number[]): E.Design {
+  const f = lastFabric(), o = state.run?.opts;
+  if (!f || !o) return grown(genome);
+  const d = E.growLast(genome, G(), f, o.ranges ?? E.DEFAULT_RANGES);
+  E.evaluate(d, G());
+  const S = shockSiteOf(), c = E.conditionsFor(site().meta, E.YEARS[E.YEARS.length - 1], o.scenario ?? "ssp245");
+  E.scoreUnder(d, G(), S, c, E.floorAreaTarget(G()), c.sea !== null && S.coastal ? E.seaDepth(S, c.sea) : null);
+  return d;
+}
+
+function drawGrowth() {
+  const box = $(".pc-growth"), pm = state.piecemeal;
+  box.hidden = !pm;
+  if (!pm) return;
+  const o = state.run!.opts, steps = $(".pc-growth-steps");
+  steps.innerHTML = pm.increments.map((x, k) => {
+    const c = x.conditions, pen = x.penalty > 0.0005 ? `<b>penalty ${x.penalty.toFixed(3)}</b>` : "no penalty";
+    return `<figure class="pc-card"><canvas></canvas><figcaption><b>${x.year}</b>${x.chosen.name} built ${x.chosen.built} cells,`
+      + ` the fabric to ${pct(x.share)} of the brief<br>`
+      + `<span class="pc-muted">${c.sea !== null ? `surge +${c.sea} m · ` : ""}storm ${c.storm} mm · hot season +${c.heat.toFixed(2)}°C`
+      + ` (${c.scenario === "ssp585" ? "SSP5-8.5" : "SSP2-4.5"}, ${c.warming.toFixed(2)}°C of warming since 2025)</span><br>`
+      + `wholeness ${x.wholeness.before.toFixed(3)} → ${x.wholeness.after.toFixed(3)} · ${pen}<br>`
+      + `<span class="pc-muted">${x.everyone.toLocaleString("en-IN")} designs in ${x.seconds.toFixed(0)} s</span>`
+      + `${k === pm.increments.length - 1 ? `<br><span class="pc-muted">Explore, Families and the tree show this increment.</span>` : ""}</figcaption></figure>`;
+  }).join("");
+  const { corners: shape } = Draw.shapeOf(site());
+  steps.querySelectorAll<HTMLCanvasElement>("canvas").forEach((canvas, k) => {
+    const before = pm.fabrics[k], after = pm.fabrics[k + 1];
+    const d = E.growIncrement(pm.increments[k].chosen.genome, G(), before, 0, false, o.ranges ?? E.DEFAULT_RANGES);
+    // Draw the fabric after this increment: built cells by use, earlier ones washed, unbuilt grey.
+    for (let i = 0; i < G().n; i++) {
+      if (after.built[i]) { d.use[i] = after.use[i]; d.levels[i] = after.levels[i]; d.coverage[i] = after.coverage[i]; }
+    }
+    const view = Draw.plan(canvas, site(), d, P, { aspect: aspect(), roads: roadsOf(d) });
+    const ctx = canvas.getContext("2d")!;
+    const col = Array.from({ length: G().n }, (_, i) => (!after.built[i] ? P.retained : null));
+    Draw.cells(ctx, view, Array.from(G().x), Array.from(G().y), col, shape, 1);
+    ctx.save(); ctx.globalAlpha = 0.55;
+    Draw.cells(ctx, view, Array.from(G().x), Array.from(G().y), Array.from({ length: G().n }, (_, i) => (before.built[i] ? P.paper : null)), shape, 1);
+    ctx.restore();
+  });
 }
 
 // --- saving and reloading runs (ui/runs.ts) -------------------------------------------
@@ -586,6 +669,7 @@ function savedRun(): Runs.SavedRun {
       families: state.families.map((f) => ({ name: f.name, size: f.size ?? 1, genome: f.genome, parents: f.parents ?? [] })),
       kept: state.explore.kept, archive: state.explore.archive,
       lineage: L.nodes, genomes: Runs.f64ToBase64(L.genomes), genomeLength: L.length,
+      ...(state.piecemeal ? { increments: state.piecemeal.increments } : {}),
     } : null,
     selected: state.selected?.name ?? null,
     heights: massing?.mass.heights[state.id!] ?? null,
@@ -635,10 +719,12 @@ async function loadRun(file: File) {
       locked: state.locks ? Array.from(state.locks) : null, start: s.start, ranges: state.ranges, typologySeeds: s.typologySeeds,
       ...(st.search === "map-elites" ? { axes: st.axes ?? undefined, bins: st.bins ?? undefined,
         weights: state.brief?.brief.objective_weights?.value ?? null } : {}),
+      ...(st.growth === "piecemeal" ? { growth: "piecemeal" as const, scenario: st.scenario ?? "ssp245", locked: null } : {}),
     };
     state.run = { history: r.history, everyone: r.everyone, frontSize: r.frontSize, opts, seconds: r.seconds };
     state.lineage = { nodes: r.lineage, genomes: Runs.base64ToF64(r.genomes), length: r.genomeLength };
-    state.families = r.families.map((f) => ({ ...f, title: f.name, design: grown(f.genome) }));
+    state.piecemeal = r.increments ? piecemealOf(r.increments, opts) : null;
+    state.families = r.families.map((f) => ({ ...f, title: f.name, design: runGrown(f.genome), fabric: lastFabric() }));
     resetExplore(r.kept, r.archive);
     const pens = [...state.families, ...state.pen.map((p) => ({ ...p, title: p.name, design: grown(p.genome) }))];
     state.selected = pens.find((it) => it.name === s.selected) ?? state.families[0] ?? null;
@@ -698,12 +784,11 @@ function openTreeNode(i: number) {
   if (!L || !layout || !o) return;
   const p = layout.placed[i], n = L.nodes[p.k];
   const genome = Runs.lineageGenome(L.genomes, L.length, p.k);
-  const design = E.grow(genome, G(), o.locked ? Int8Array.from(o.locked) : null, o.ranges ?? E.DEFAULT_RANGES);
-  E.evaluate(design, G());
+  const design = runGrown(genome);
   state.tree.selected = i;
   drawTree();
   choose({ name: n.name, title: `${n.name} · from the family tree, Generation ${n.gen}`, genome, design,
-    parents: n.how === "bred" ? n.parents : [] });
+    parents: n.how === "bred" ? n.parents : [], fabric: lastFabric() });
 }
 
 /** A run from the link (?seed=…): its settings, skeleton and locks set, then grown again. */
@@ -803,8 +888,9 @@ function keptDesign(k: number): E.Design {
   const x = state.explore;
   let d = x.grown.get(k);
   if (!d) {
-    const o = state.run!.opts;
-    d = E.grow(x.kept[k].genome, G(), o.locked ? Int8Array.from(o.locked) : null, o.ranges ?? E.DEFAULT_RANGES);
+    const o = state.run!.opts, f = lastFabric();
+    d = f ? E.growLast(x.kept[k].genome, G(), f, o.ranges ?? E.DEFAULT_RANGES)
+      : E.grow(x.kept[k].genome, G(), o.locked ? Int8Array.from(o.locked) : null, o.ranges ?? E.DEFAULT_RANGES);
     d.scores = x.kept[k].scores;
     x.grown.set(k, d);
   }
@@ -813,7 +899,7 @@ function keptDesign(k: number): E.Design {
 
 const keptItem = (k: number): Item => {
   const d = state.explore.kept[k];
-  return { name: d.name, title: d.name, genome: d.genome, parents: d.parents, design: keptDesign(k) };
+  return { name: d.name, title: d.name, genome: d.genome, parents: d.parents, design: keptDesign(k), fabric: lastFabric() };
 };
 
 function drawExplore() {
@@ -1186,6 +1272,7 @@ async function massSelected() {
   openMassing({
     siteId: state.id!, site: site(), G: G(), skeletonOff: [...state.skeletonOff], name: it.name, genome: it.genome,
     locks: state.locks ? Array.from(state.locks) : null, ranges: state.ranges, brief: state.brief?.brief ?? null,
+    fabric: it.fabric ?? null,
   });
   $("#pc-massing").scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -1293,6 +1380,11 @@ function wire() {
   const traits = E.DESCRIPTOR_KEYS.map((k) => `<option value="${k}">${E.DESCRIPTORS[k].label}</option>`).join("");
   select(ev, "ax").innerHTML = traits; select(ev, "ay").innerHTML = traits;
   select(ev, "ax").value = "mean_levels"; select(ev, "ay").value = "open_share";
+  select(ev, "growth").addEventListener("change", (e) => {
+    const pm = (e.target as HTMLSelectElement).value === "piecemeal";
+    $(".pc-growth-opts").hidden = !pm;
+    $(".pc-growth-note").hidden = !pm;
+  });
   select(ev, "search").addEventListener("change", (e) => {
     const elites = (e.target as HTMLSelectElement).value === "map-elites";
     $(".pc-elite-opts").hidden = !elites;

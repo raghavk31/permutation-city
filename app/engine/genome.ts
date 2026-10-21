@@ -29,11 +29,11 @@ export function decode(genome: number[], bounds: Ground["bounds"], ranges: Range
 
 export const randomGenome = (rng: Rng): number[] => Array.from({ length: LENGTH }, () => rng.random());
 
-/** Sum of attractor fields of one kind: weight × (1 - d/r)² inside the radius. */
-function field(G: Ground, attractors: Attractor[], kind: Kind): Float64Array {
+/** Sum of attractor fields of one kind (or all kinds): weight × (1 - d/r)² inside the radius. */
+export function field(G: Ground, attractors: Attractor[], kind: Kind | null): Float64Array {
   const f = new Float64Array(G.n);
   for (const a of attractors) {
-    if (a.kind !== kind) continue;
+    if (kind && a.kind !== kind) continue;
     for (let i = 0; i < G.n; i++) {
       const dx = G.x[i] - a.x, dy = G.y[i] - a.y;
       const t = Math.max(1 - Math.sqrt(dx * dx + dy * dy) / a.radius, 0);
