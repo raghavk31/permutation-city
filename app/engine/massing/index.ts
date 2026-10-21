@@ -10,4 +10,4 @@ export { evolveMassing, REPRESENTATIONS, MASS_OBJECTIVES, type MassRun, type Mas
 export { TYPES } from "./typology.js";
 export { boxesMesh, skinMesh, massingMesh, contextMesh, existingMesh, boxRing, triangulate, type Mesh } from "./mesh.js";
 export { readouts, READOUTS, DAYLIT_M, type MassReadouts } from "./readouts.js";
-export { prepareBlock, type MassSetup, type MassRequest } from "./setup.js";
+export { prepareBlock, withHeights, type MassSetup, type MassRequest } from "./setup.js";

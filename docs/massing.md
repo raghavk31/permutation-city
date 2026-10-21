@@ -49,22 +49,59 @@ Per plot:
   (`existing_buildings` in `pc/export.py`; added 2026-10-20). They cast shade and receive it.
   - Overture's footprints, off the design ground (one whose middle is on it is left out: the
     design replaces it).
-  - Heights, in order: Overture's `height`; its `num_floors` × 3.2 m; the median of known
-    heights within 300 m, when at least 5 are known; else 2 storeys. Every building keeps
-    where its height came from, and the page says how many came from each.
-  - Overture rarely knows heights here, so most are estimated. Of the buildings kept:
+  - Heights, in order (changed 2026-10-20):
+    1. Overture's `height`
+    2. Overture's `num_floors` × 3.2 m
+    3. **Google Open Buildings 2.5D Temporal**, 2023: the 90th percentile of its heights
+       inside the footprint, when at least 2.5 m
+    4. the median of known heights (1 or 2) within 300 m, when at least 5 are known
+    5. 2 storeys
+    6. **set by you**: a height typed in the massing view, for that site, overrides all of
+       these
 
-    | site | kept | height | floors | nearby median | 2 storeys |
-    |---|---:|---:|---:|---:|---:|
-    | mumbai-docks | 289 | 0 | 0 | 0 | 289 |
-    | mumbai-ewf | 616 | 0 | 7 | 82 | 527 |
-    | ahmedabad-wadaj | 112 | 0 | 28 | 52 | 32 |
-    | bengaluru-cascade | 1,051 | 4 | 36 | 602 | 409 |
+    Every building keeps where its height came from, and the page says how many came from each.
+  - Of the buildings kept:
 
-  - The surface model minus FABDEM bare earth was tested as an estimate and dropped: against
-    the buildings with known floor counts it correlated at r = −0.32 to 0.06 (at 30 m it
-    can't resolve single buildings). Known heights lean tall (tagged apartment blocks), so the
+    | site | kept | height | floors | Open Buildings | nearby median | 2 storeys |
+    |---|---:|---:|---:|---:|---:|---:|
+    | mumbai-docks | 289 | 0 | 0 | 188 | 0 | 101 |
+    | mumbai-ewf | 616 | 0 | 7 | 521 | 5 | 83 |
+    | ahmedabad-wadaj | 112 | 0 | 28 | 54 | 16 | 14 |
+    | bengaluru-cascade | 1,051 | 4 | 36 | 794 | 141 | 76 |
+
+    Before Open Buildings, 2 storeys was the height of all 289 at Docks, 527 at EWF, 32 at
+    Wadaj and 409 at Bengaluru.
+  - **Open Buildings 2.5D Temporal** (Sirko et al. 2023, "High-Resolution Building and Road
+    Detection from Sentinel-2", arXiv:2310.11622) estimates building height in metres from
+    Sentinel-2 at an effective 4 m, yearly 2016–2023. It covers Africa, South and South-East
+    Asia, Latin America and the Caribbean. `pc fetch <site> --only heights` reads the 2023
+    tiles from Google's public bucket (`open-buildings-temporal-data`, no account) at 2 m into
+    `raw/heights.tif`. Outside its coverage, the export says so and goes on without it.
+    - Licence: CC BY 4.0 or ODbL 1.0, at the user's choice; we use CC BY 4.0 and credit it
+      on the page. It contains Copernicus Sentinel-2 data.
+  - **How it was tested.** Against Overture buildings with known floor counts (× 3.2 m) over
+    each site's whole box, the same check the surface model failed:
+
+    | site | known floors | Open Buildings r (p90) | r (median) | nearby median r | MAE: Open Buildings | nearby | 2 storeys |
+    |---|---:|---:|---:|---:|---:|---:|---:|
+    | bengaluru-cascade | 577 | 0.88 | 0.84 | 0.62 | 6.6 m | 8.6 m | 17.2 m |
+    | ahmedabad-wadaj | 1,373 | 0.84 | 0.81 | 0.68 | 2.4 m | 2.4 m | 3.7 m |
+    | mumbai-ewf | 30 | 0.60 | 0.57 | −0.33 | 15.3 m | 23.8 m | 30.8 m |
+    | mumbai-docks | 2 | too few | | | | | |
+
+    The nearby median here is leave-one-out (the building's own floors not counted). Open
+    Buildings reads low: by 3 m on average at Bengaluru and Wadaj and 7 m at EWF. It isn't
+    corrected for that. Against Overture's own `height` (38 buildings at Bengaluru) it
+    correlates at only 0.26; those tags look unreliable too.
+  - The surface model minus FABDEM bare earth was tested first and dropped: against the
+    buildings with known floor counts it correlated at r = −0.32 to 0.06 (at 30 m it can't
+    resolve single buildings). Known heights lean tall (tagged apartment blocks), so the
     nearby median does too.
+  - **Low confidence.** When more than half of a block's existing neighbours have guessed
+    heights (the nearby median or 2 storeys: nothing measured on the building itself), the
+    two scores that read them, hot-season shade and winter sun taken from neighbours, are
+    labelled low confidence. The rule counts the buildings the block's scores read, not the
+    whole site.
 - **The ground the shade and sky scores read** is the street bands plus landscape cells.
 
 ## Three representations, one interface

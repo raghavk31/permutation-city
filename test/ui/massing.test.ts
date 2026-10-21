@@ -231,4 +231,24 @@ describe("time and neighbours", () => {
     for (let q = 0; q < N; q++) for (let z = 0; z < E.capZ[q]; z++) if (E.plotOf[q] >= 0) full[z * N + q] = 1;
     expect(M.massScores(E, full, ctx.where).neighbours).toBeGreaterThanOrEqual(0);
   });
+  it("uses a height the user sets for an existing building, with source 'user', on the raster and the mesh", () => {
+    const site = load("mumbai-docks"), H = prepare(site);
+    const d = grow(randomGenome(makeRng(7)), H, null, DEFAULT_RANGES);
+    const setup = M.blocksOf(d, H).map((b) => ({ genome: d.genome, locks: null, ranges: DEFAULT_RANGES, block: b.id }))
+      .find((s) => M.prepareBlock(H, s).E.neighbours.length > 0)!;
+    const before = M.prepareBlock(H, setup), k = before.E.neighbours[0];
+    const after = M.prepareBlock(H, { ...setup, heights: { [k]: 61 } });
+    const B = after.G.buildings!;
+    expect(B.h[k]).toBe(61);
+    expect(B.sources[B.src[k]]).toBe("user");
+    expect(H.buildings!.h[k]).not.toBe(61);  // the site's own ground is untouched
+    expect(Math.max(...after.E.existing)).toBeGreaterThanOrEqual(61 - 1e-6);
+    // One mesh group per existing building, named by its index.
+    const mesh = M.existingMesh(after.E, after.G);
+    expect(mesh.groups.map((g) => g.name)).toContain(`existing ${k}`);
+    const zs = mesh.positions.filter((_, i) => i % 3 === 2);
+    expect(Math.max(...zs)).toBeCloseTo(61, 4);
+    // Nonsense is ignored.
+    expect(M.withHeights(H, { [k]: -3 })).toBe(H);
+  });
 });

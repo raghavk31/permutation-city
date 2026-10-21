@@ -161,17 +161,51 @@ NEIGHBOURS_M = 100.0   # existing buildings kept within this of the design groun
 NEARBY_M = 300.0       # a building of unknown height takes the median of known ones this close ...
 NEARBY_MIN = 5         # ... when at least this many are known
 DEFAULT_STOREYS = 2    # ... else this many storeys
-HEIGHT_SOURCES = ["height", "floors", "nearby", "default"]
+OB_MIN_M = 2.5         # an Open Buildings reading lower than this counts as no reading
+# "user" is never written here: the massing view sets it when someone types a height.
+HEIGHT_SOURCES = ["height", "floors", "open_buildings", "nearby", "default", "user"]
+
+
+def _open_buildings_heights(site: Site, geoms) -> np.ndarray:
+    """The 90th percentile of Open Buildings heights inside each footprint (NaN without a
+    reading). Fetches raw/heights.tif if missing; all NaN where the dataset doesn't reach."""
+    import rasterio
+    from rasterio.features import rasterize
+
+    from pc.fetch import fetch_heights
+    out = np.full(len(geoms), np.nan)
+    if not site.heights.exists():
+        try:
+            fetch_heights(site)
+        except Exception as err:  # outside coverage, or the bucket didn't answer
+            print(f"  Open Buildings heights unavailable ({type(err).__name__}: {err}); estimating", flush=True)
+            return out
+    with rasterio.open(site.heights) as src:
+        hv = src.read(1)
+        ids = rasterize(((g, k + 1) for k, g in enumerate(geoms)), out_shape=hv.shape, transform=src.transform,
+                        fill=0, dtype="int32", all_touched=True)
+    flat = ids.ravel()
+    order = np.argsort(flat, kind="stable")
+    fs, hs = flat[order], hv.ravel()[order]
+    starts = np.searchsorted(fs, np.arange(1, len(geoms) + 2))
+    for k in range(len(geoms)):
+        v = hs[starts[k]:starts[k + 1]]
+        v = v[np.isfinite(v)]
+        if len(v):
+            out[k] = np.percentile(v, 90)
+    return out
 
 
 def existing_buildings(site: Site, ground) -> dict | None:
     """Existing buildings near the design ground, for building-scale massing (shade on and from
     neighbours; app/engine/massing). Footprints (outer rings, 0.5 m simplified, local metres)
     with a height and where it came from:
-      height   Overture's `height`
-      floors   Overture's `num_floors` × STOREY_M
-      nearby   the median of known heights within NEARBY_M (at least NEARBY_MIN known)
-      default  DEFAULT_STOREYS × STOREY_M
+      height          Overture's `height`
+      floors          Overture's `num_floors` × STOREY_M
+      open_buildings  Google Open Buildings 2.5D Temporal (2023): the 90th percentile of its
+                      heights inside the footprint, when at least OB_MIN_M
+      nearby          the median of known heights within NEARBY_M (at least NEARBY_MIN known)
+      default         DEFAULT_STOREYS × STOREY_M
     Buildings on the design ground are left out: the design replaces them."""
     from pc import syntax as sx
     from pc.metrics.network import STOREY_M
@@ -188,18 +222,20 @@ def existing_buildings(site: Site, ground) -> dict | None:
     f = b["num_floors"].to_numpy(float) if "num_floors" in b else np.full(len(b), np.nan)
     known_h = np.where(np.isfinite(h) & (h > 2) & (h < 300), h, np.where(np.isfinite(f) & (f > 0), f * STOREY_M, np.nan))
     kx, ky, kh = cx[np.isfinite(known_h)], cy[np.isfinite(known_h)], known_h[np.isfinite(known_h)]
+    keep = [k for k in range(len(b)) if not idx.has(float(cx[k]), float(cy[k])) and idx.near(float(cx[k]), float(cy[k]), reach)]
+    ob = dict(zip(keep, _open_buildings_heights(site, b.geometry.iloc[keep].tolist()))) if keep else {}
     rings, heights, src = [], [], []
-    for k, geom in enumerate(b.geometry):
-        x, y = float(cx[k]), float(cy[k])
-        if idx.has(x, y) or not idx.near(x, y, reach):
-            continue
+    for k in keep:
+        geom, x, y = b.geometry.iloc[k], float(cx[k]), float(cy[k])
         if np.isfinite(h[k]) and 2 < h[k] < 300:
             hk, sk = float(h[k]), 0
         elif np.isfinite(f[k]) and f[k] > 0:
             hk, sk = float(f[k]) * STOREY_M, 1
+        elif np.isfinite(ob[k]) and ob[k] >= OB_MIN_M:
+            hk, sk = float(ob[k]), 2
         else:
             near = kh[(kx - x) ** 2 + (ky - y) ** 2 <= NEARBY_M ** 2]
-            hk, sk = (float(np.median(near)), 2) if len(near) >= NEARBY_MIN else (DEFAULT_STOREYS * STOREY_M, 3)
+            hk, sk = (float(np.median(near)), 3) if len(near) >= NEARBY_MIN else (DEFAULT_STOREYS * STOREY_M, 4)
         poly = max(getattr(geom, "geoms", [geom]), key=lambda g: g.area).simplify(0.5)
         pts = [(round(px - ox, 1), round(py - oy, 1)) for px, py in poly.exterior.coords][:-1]
         if len(pts) < 3:

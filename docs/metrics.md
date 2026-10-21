@@ -315,6 +315,10 @@ high. Full definitions and sources are in `docs/massing.md`.
 | local symmetries | readout | per plot, the better mirror about its own axes, area-weighted |
 | levels of scale | readout | e-fold ladder of floor-plate and open-ground sizes, entropy per rung |
 
+Shade and winter sun taken read the existing buildings' heights. When more than half of the
+block's existing neighbours have guessed heights (nearby median or 2 storeys), both are
+labelled low confidence (`docs/massing.md`, "Existing buildings").
+
 ## Promoting metrics
 
 - **To objectives** (`objectives` in `evolve`; `--objectives a,b` in `pc evolve`; "also

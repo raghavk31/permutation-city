@@ -31,10 +31,10 @@ export function typeWeights(brief: E.Brief | null): number[] | null {
 
 export const narrowWings = (brief: E.Brief | null) => !!brief?.patterns.some((p) => PATTERNS_FOR_WINGS.includes(p.id));
 
-export function setupOf(src: Source, block: number, setbacks: M.Setbacks): M.MassSetup {
+export function setupOf(src: Source, block: number, setbacks: M.Setbacks, heights: Record<number, number> | null = null): M.MassSetup {
   return {
     genome: src.genome, locks: src.locks, ranges: src.ranges, block, setbacks,
-    narrowWings: narrowWings(src.brief), typeWeights: typeWeights(src.brief),
+    narrowWings: narrowWings(src.brief), typeWeights: typeWeights(src.brief), heights,
   };
 }
 
@@ -128,15 +128,41 @@ export function utcLabel(h: number): string {
   return `UTC${sign}${Math.floor(a)}${m ? `:${String(m).padStart(2, "0")}` : ""}`;
 }
 
+/** Where an existing building's height came from, in words (pc/export.py HEIGHT_SOURCES). */
+export const HEIGHT_FROM: Record<string, string> = {
+  height: "Overture's height", floors: "floor count", open_buildings: "Google Open Buildings (satellite)",
+  nearby: "median of known buildings within 300 m", default: "assumed 2 storeys", user: "set by you",
+};
+/** Sources that guess a building's height from others, not from the building itself. */
+export const GUESSED_FROM = ["nearby", "default"];
+/** The scores that read existing buildings' heights. */
+export const HEIGHT_SCORES: M.MassScoreKey[] = ["shade", "neighbours"];
+
+export const sourceOf = (G: E.Ground, k: number) => G.buildings!.sources[G.buildings!.src[k]];
+
 /** The existing buildings in an envelope's frame, by where their heights came from. */
 export function neighbourLine(Env: M.Envelope, G: E.Ground): string {
   const B = G.buildings;
   if (!B || !Env.neighbours.length) return "No existing buildings near this block are mapped.";
-  const counts = B.sources.map(() => 0);
-  for (const k of Env.neighbours) counts[B.src[k]]++;
-  const said = ["from Overture's heights", "from floor counts", "from the median of known buildings within 300 m", "assumed 2 storeys"];
-  const parts = counts.map((n, i) => (n ? `${n} ${said[i] ?? B.sources[i]}` : "")).filter(Boolean);
-  return `${Env.neighbours.length} existing buildings stand round this block (darker grey), casting shade and receiving it: heights ${parts.join(", ")}.`;
+  const counts = new Map<string, number>();
+  for (const k of Env.neighbours) counts.set(sourceOf(G, k), (counts.get(sourceOf(G, k)) ?? 0) + 1);
+  const parts = B.sources.filter((s) => counts.get(s)).map((s) => `${counts.get(s)} ${HEIGHT_FROM[s] ?? s}`);
+  return `${Env.neighbours.length} existing buildings stand round this block (darker grey), casting shade and receiving it. Heights: ${parts.join(", ")}.`;
+}
+
+/** Low confidence: most of the block's existing neighbours have guessed heights, so the
+ *  scores that read them (shade, sun taken from neighbours) rest on guesses. */
+export function heightsLow(Env: M.Envelope, G: E.Ground): boolean {
+  if (!G.buildings || !Env.neighbours.length) return false;
+  const guessed = Env.neighbours.filter((k) => GUESSED_FROM.includes(sourceOf(G, k))).length;
+  return guessed * 2 > Env.neighbours.length;
+}
+
+/** A footprint's area (m²) from its flat ring. */
+export function ringArea(r: number[]): number {
+  let a = 0;
+  for (let j = 0; j < r.length; j += 2) { const k = (j + 2) % r.length; a += r[j] * r[k + 1] - r[k] * r[j + 1]; }
+  return Math.abs(a) / 2;
 }
 
 /** The worker that breeds buildings: started on first use, restarted to cancel. */
