@@ -14,7 +14,7 @@
 import { BUILDING, FAMILIES, LANDSCAPE, type Family } from "../config.js";
 import type { Design, Ground } from "../types.js";
 import { dayOfYear, solarHour, sunAt } from "../massing/sun.js";
-import { dist, length, SegIndex, simplify, spline, type Line, type Pt } from "./geom.js";
+import { dist, length, resample, SegIndex, simplify, spline, type Line, type Pt } from "./geom.js";
 import { locator, outline, skeletonLines, thinAndTrace } from "./ground.js";
 import { makeRng } from "../rng.js";
 import { planTimes } from "./grow.js";
@@ -264,8 +264,9 @@ export function infill(G: Ground, d: Design, g: FieldGenes, existing: Line[], ro
   const grid: Pt[] = [];
   const gs = Math.min(majorGap, minorGap);
   for (let y = y0 + gs / 2; y < y1; y += gs) for (let x = x0 + gs / 2; x < x1; x += gs) grid.push([x + (rng.random() - 0.5) * gs * 0.3, y + (rng.random() - 0.5) * gs * 0.3]);
+  // Seeds along the streets laid so far, about every half spacing.
   const along: Pt[] = [];
-  for (const l of existing) for (let k = 1; k < l.length; k++) along.push(l[k]);
+  for (const l of existing) { const r = resample(l, Math.max(12, gs / 2)); for (let k = 1; k < r.length; k++) along.push(r[k]); }
   for (const minor of [0, 1]) {
     const gap = minor ? minorGap : majorGap;
     for (const sp of [...along, ...grid]) {

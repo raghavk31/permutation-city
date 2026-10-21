@@ -102,7 +102,7 @@ export interface EliteOptions extends Omit<EvolveOptions, "search"> {
  *  order (cell = row × bins + column; columns are the first axis), ranked like a population. */
 export function mapElites(G: Ground, { generations = 30, pop = 60, seed = 1, immigrants = 0.1, locked = null,
   shock = null, start = null, progress = null, ranges = DEFAULT_RANGES, axes = ["mean_levels", "open_share"], bins = 10,
-  weights = null }: EliteOptions = {}): Run & { archive: ArchiveInfo } {
+  weights = null, version = 2 }: EliteOptions = {}): Run & { archive: ArchiveInfo } {
   const [ax, ay] = axes.map((k) => {
     const d = DESCRIPTORS[k];
     if (!d) throw new Error(`unknown trait '${k}'`);
@@ -135,7 +135,7 @@ export function mapElites(G: Ground, { generations = 30, pop = 60, seed = 1, imm
   };
 
   const nStart = Math.min(start?.length ?? 0, pop);
-  firstGenomes(rng, pop, start).forEach((g, k) => {
+  firstGenomes(rng, pop, start, version).forEach((g, k) => {
     const i = make(g, childName(0, k), []);
     insert(i); noteLineage(run, i, 0, k < nStart ? "start" : "first");
   });
@@ -154,7 +154,7 @@ export function mapElites(G: Ground, { generations = 30, pop = 60, seed = 1, imm
     for (let k = 0; k < pop; k++) {
       const name = childName(gen, k);
       if (rng.random() < immigrants) {
-        const c = make(randomGenome(rng), name, ["immigrant"]);
+        const c = make(randomGenome(rng, version), name, ["immigrant"]);
         children.push(c); noteLineage(run, c, gen, "immigrant");
         continue;
       }

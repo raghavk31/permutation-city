@@ -41,6 +41,9 @@ const state = {
   families: [] as Item[], selected: null as Item | null,
   pen: [] as PenEntry[], children: [] as PenEntry[], brood: 0, locks: null as Int8Array | null, lockNote: [] as string[],
   layer: "ground" as LayerKey, showAll: false,
+  // The genome version the page breeds: 3 (vector streets and plots), or 2 when a link or file
+  // from before asks for it (version 1 runs breed as 2, as they did).
+  version: E.GENOME_VERSION as 2 | 3,
   // A confirmed brief from the link: how genes are read, and whether to seed by typology.
   brief: null as Sites.LinkedBrief | null, ranges: E.DEFAULT_RANGES as E.Ranges, linkRules: null as string | null,
   // What the last run kept, for Explore; designs regrown as they're drawn.
@@ -171,7 +174,8 @@ async function loadSite(id: string, rules: string | null = null, brief: string |
   $(".pc-site-warning").hidden = !warnings.length;
   $(".pc-site-warning").textContent = warnings.join(" ");
   drawBriefLine();
-  state.genome = E.randomGenome(rng);
+  state.version = E.GENOME_VERSION as 2 | 3;
+  state.genome = E.randomGenome(rng, state.version);
   drawAll();
 }
 
@@ -464,12 +468,13 @@ function evolveOptions(seed = Math.floor(rng.random() * 1e9)): RunOptions {
   const pop = +select(f, "pop").value;
   if (select(f, "growth").value === "piecemeal") {
     return { search: "nsga3", objectives: [], generations: gens, pop, seed, shock: null, locked: null, start: null, ranges: state.ranges,
-      growth: "piecemeal", scenario: select(f, "scenario").value as E.Scenario };
+      growth: "piecemeal", scenario: select(f, "scenario").value as E.Scenario, version: 2 };
   }
-  const pen = input(f, "fromPen").checked ? state.pen.map((p) => p.genome) : [];
+  // Designs in the pen of another genome version can't join this run (they can't be bred together).
+  const pen = input(f, "fromPen").checked ? state.pen.map((p) => p.genome).filter((g) => g.length === E.lengthOf(state.version)) : [];
   const priors = state.brief?.seeds ? state.brief.brief.typology_priors?.value ?? [] : [];
   // Typology seeds fill up to half of Generation 0 (after any designs from the pen).
-  const seeds = E.typologySeeds(priors, Math.max(0, Math.floor(pop / 2) - pen.length), seed + 1);
+  const seeds = E.typologySeeds(priors, Math.max(0, Math.floor(pop / 2) - pen.length), seed + 1, state.version);
   const start = [...pen, ...seeds];
   const search = select(f, "search").value as RunOptions["search"];
   const objectives = search === "map-elites" ? []
@@ -480,7 +485,7 @@ function evolveOptions(seed = Math.floor(rng.random() * 1e9)): RunOptions {
   } : {};
   return {
     search, objectives, generations: gens, pop, seed, shock, locked: state.locks ? Array.from(state.locks) : null,
-    start: start.length ? start : null, ranges: state.ranges, typologySeeds: seeds.length, ...elite,
+    start: start.length ? start : null, ranges: state.ranges, typologySeeds: seeds.length, ...elite, version: state.version,
   };
 }
 
@@ -527,7 +532,7 @@ function runQuery(o: RunOptions): URLSearchParams {
   const fromPen = (o.start?.length ?? 0) - (o.typologySeeds ?? 0);
   return Runs.writeLink(q, {
     settings: settingsOf(o), off: [...state.skeletonOff].sort((a, b) => a - b), locks: o.locked ? Int8Array.from(o.locked) : null,
-    pen: Math.max(0, fromPen), genomeVersion: E.GENOME_VERSION, build: Runs.BUILD,
+    pen: Math.max(0, fromPen), genomeVersion: o.version ?? 2, build: Runs.BUILD,
   });
 }
 
@@ -578,6 +583,7 @@ async function runEvolution(seed?: number, note = "") {
       m = await state.worker!.api.evolve(engineOpts, Comlink.proxy(onProgress));
     }
   } catch (err) {
+    console.error(err);
     $(".pc-progress").textContent = `The run failed: ${(err as Error).message}`;
     btn.disabled = false;
     return;
@@ -585,9 +591,9 @@ async function runEvolution(seed?: number, note = "") {
   btn.disabled = false;
   const secs = (performance.now() - t0) / 1000;
   state.run = { history: m.history, everyone: m.everyone, frontSize: m.frontSize, opts, seconds: secs };
-  state.lineage = { nodes: m.lineage, genomes: m.genomes, length: E.LENGTH };
+  state.lineage = { nodes: m.lineage, genomes: m.genomes, length: E.lengthOf(opts.version ?? 2) };
   state.piecemeal = "increments" in m ? piecemealOf(m.increments, opts) : null;
-  state.families = m.families.map((f: FamilyLead) => ({ ...f, title: f.name, design: runGrown(f.genome), fabric: lastFabric() }));
+  state.families = m.families.map((f: FamilyLead) => ({ ...f, title: f.name, design: f.design ?? runGrown(f.genome), fabric: lastFabric() }));
   const w = state.brief?.brief.objective_weights?.value;
   if (w && Object.values(w).some((x) => x > 0)) {
     const higher = Object.fromEntries(E.SCORE_KEYS.map((k) => [k, E.SCORES[k][2]])) as Record<E.ScoreKey, boolean>;
@@ -687,7 +693,7 @@ function savedRun(): Runs.SavedRun {
   const r = state.run, L = state.lineage;
   const pen = (p: PenEntry): Runs.PenEntry => ({ name: p.name, genome: p.genome, title: p.title, parents: p.parents });
   return {
-    format: Runs.RUN_FORMAT, version: Runs.RUN_VERSION, build: Runs.BUILD, genomeVersion: E.GENOME_VERSION, saved: new Date().toISOString(),
+    format: Runs.RUN_FORMAT, version: Runs.RUN_VERSION, build: Runs.BUILD, genomeVersion: state.run?.opts.version ?? state.version, saved: new Date().toISOString(),
     site: { id: state.id!, name: site().meta.name, rules: state.linkRules, brief: state.brief ? Sites.encodeBrief(state.brief) : null },
     off: [...state.skeletonOff].sort((a, b) => a - b), locks: state.locks ? Runs.encodeLocks(state.locks) : null, lockNote: state.lockNote,
     pen: state.pen.map(pen), children: state.children.map(pen), brood: state.brood,
@@ -739,12 +745,14 @@ async function loadRun(file: File) {
     store.setHeights(state.id!, s.heights);
   }
   const notes = Runs.versionNotes(s.genomeVersion, s.build);
+  state.version = s.genomeVersion >= 3 ? 3 : 2;
   const r = s.result;
   if (r && s.settings) {
     const st = s.settings;
     const opts: RunOptions = {
       search: st.search, objectives: st.objectives as E.MetricKey[], generations: st.gens, pop: st.pop, seed: st.seed, shock: st.shock,
       locked: state.locks ? Array.from(state.locks) : null, start: s.start, ranges: state.ranges, typologySeeds: s.typologySeeds,
+      version: state.version,
       ...(st.search === "map-elites" ? { axes: st.axes ?? undefined, bins: st.bins ?? undefined,
         weights: state.brief?.brief.objective_weights?.value ?? null } : {}),
       ...(st.growth === "piecemeal" ? { growth: "piecemeal" as const, scenario: st.scenario ?? "ssp245", locked: null } : {}),
@@ -832,6 +840,7 @@ async function runFromLink() {
   applySettings(link.settings);
   drawEvolve();
   const notes = Runs.versionNotes(link.genomeVersion, link.build);
+  state.version = link.genomeVersion >= 3 ? 3 : 2;
   if (link.pen) {
     notes.push(`This run started from ${link.pen} designs in the pen, which a link can't carry, so it was grown without them`
       + " and won't match. The run's file keeps them.");
@@ -1360,6 +1369,12 @@ async function breed() {
   const a = state.pen.find((p) => p.name === select(f, "a").value);
   const b = state.pen.find((p) => p.name === select(f, "b").value);
   if (!a || !b) return;
+  if (a.genome.length !== b.genome.length) {
+    // COPY: breeding across genome versions.
+    $(".pc-children-head").hidden = false;
+    $(".pc-children-head").textContent = `${a.name} and ${b.name} are written in different genome versions, so they can't be bred together.`;
+    return;
+  }
   state.brood += 1;
   // Biased: breed four times as many and keep the six best on the chosen measure.
   const bias = BIAS.find((o) => o.key === select(f, "bias").value);
@@ -1400,7 +1415,7 @@ function wire() {
     const b = (e.target as HTMLElement).closest<HTMLElement>("[data-layer]");
     if (b) { state.layer = b.dataset.layer as LayerKey; drawLayer(); }
   });
-  $(".pc-genome .pc-another").addEventListener("click", () => { state.genome = E.randomGenome(rng); drawGenome(); });
+  $(".pc-genome .pc-another").addEventListener("click", () => { state.genome = E.randomGenome(rng, E.GENOME_VERSION as 3); drawGenome(); });
   $(".pc-ridges").addEventListener("change", (e) => {
     const b = (e.target as HTMLElement).closest<HTMLInputElement>("[data-ridge]");
     if (!b) return;
@@ -1515,7 +1530,7 @@ function wire() {
   $(".pc-more").addEventListener("click", () => { state.showAll = !state.showAll; drawFamilies(); });
   form(".pc-breed form").addEventListener("submit", (e) => { e.preventDefault(); breed(); });
   $(".pc-add-random").addEventListener("click", () => {
-    for (let k = 0; k < 4; k++) { state.brood += 1; state.pen.push({ name: `R${state.brood}`, genome: E.randomGenome(rng) }); }
+    for (let k = 0; k < 4; k++) { state.brood += 1; state.pen.push({ name: `R${state.brood}`, genome: E.randomGenome(rng, state.version) }); }
     drawBreed(); drawEvolve();
   });
   // Redraw on resize and when the page theme changes.

@@ -1,7 +1,7 @@
 // The vector design onto the analysis grid, for scoring (architecture-v3 3.1 step 9).
 //
-//   share     per cell, the share of its area streets take: each street walked and swept across
-//             its width in 4 m steps, every sample's area given to the cell under it
+//   share     per cell, the share of its area streets take: each street walked in 6 m steps along
+//             its line, each step's area (step × width) given to the cell under it
 //   sides     per cell side (streets.ts), the class of the street crossing the line between
 //             the two cells' centres: the bridge to everything that reads streets on cell
 //             sides (blocks of cells, shocks, the massing envelope). 0: none.
@@ -18,23 +18,19 @@ export interface Raster { share: Float64Array; sides: Int8Array; plotOf: Int32Ar
 export function rasterise(G: Ground, edges: Edge[], widthOf: (cls: number) => number, plots: Plot[]): Raster {
   const idx = new SegIndex(30);
   edges.forEach((e, k) => { if (e.cls > 0) idx.addLine(e.pts, k); });
-  // Street area per cell: each street walked every STEP metres and swept across its width in
-  // STEP steps; each sample is STEP² of street, given to the cell under it.
-  const STEP = 4, loc = locator(G), area = new Float64Array(G.n);
+  // Street area per cell: each street walked every STEP metres along its line, each step's
+  // area (step × width) given to the cell under it.
+  const STEP = 6, loc = locator(G), area = new Float64Array(G.n);
   for (const e of edges) {
     if (e.cls === 0) continue;
-    const w = widthOf(e.cls), across = Math.max(1, Math.round(w / STEP));
+    const w = widthOf(e.cls);
     for (let k = 1; k < e.pts.length; k++) {
       const a = e.pts[k - 1], b = e.pts[k], len = Math.hypot(b[0] - a[0], b[1] - a[1]);
       if (len < 1e-9) continue;
-      const tx = (b[0] - a[0]) / len, ty = (b[1] - a[1]) / len, steps = Math.max(1, Math.round(len / STEP));
-      const each = (len / steps) * (w / across);
+      const steps = Math.max(1, Math.round(len / STEP)), each = (len / steps) * w;
       for (let t = 0; t < steps; t++) {
-        const u = (t + 0.5) * (len / steps), cx = a[0] + tx * u, cy = a[1] + ty * u;
-        for (let q = 0; q < across; q++) {
-          const v = -w / 2 + (q + 0.5) * (w / across), c = loc.cell([cx - ty * v, cy + tx * v]);
-          if (c >= 0) area[c] += each;
-        }
+        const u = (t + 0.5) / steps, c = loc.cell([a[0] + u * (b[0] - a[0]), a[1] + u * (b[1] - a[1])]);
+        if (c >= 0) area[c] += each;
       }
     }
   }
@@ -42,7 +38,8 @@ export function rasterise(G: Ground, edges: Edge[], widthOf: (cls: number) => nu
   const sd = sides(G), cls = new Int8Array(sd.cell.length);
   for (let s = 0; s < sd.cell.length; s++) {
     const i = sd.cell[s], j = sd.other[s];
-    if (j < 0) continue;
+    // A street between two centres passes through one of the two cells.
+    if (j < 0 || (area[i] === 0 && area[j] === 0)) continue;
     const a: Pt = [G.x[i], G.y[i]], b: Pt = [G.x[j], G.y[j]];
     let c = 0;
     const mid: Pt = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], r = Math.hypot(b[0] - a[0], b[1] - a[1]) / 2 + 1;

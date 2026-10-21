@@ -493,6 +493,34 @@ export function attractors(ctx: Ctx, v: View, d: Design) {
   ctx.restore();
 }
 
+/** A version 3 design as it is: plots coloured by use (buildings by storeys), its streets
+ *  at their widths on top. No cells. */
+export function vectorPlan(ctx: Ctx, v: View, d: Design) {
+  const plan = d.plan!;
+  ctx.save();
+  ctx.lineJoin = "round";
+  const ring = (r: [number, number][]) => { ctx.beginPath(); r.forEach(([x, y], k) => (k ? ctx.lineTo(v.px(x), v.py(y)) : ctx.moveTo(v.px(x), v.py(y)))); ctx.closePath(); };
+  // Blocks first, in the street colour's neighbour (the ground between plots), then plots.
+  for (const b of plan.blocks) { ring(b); ctx.fillStyle = T.paper2; ctx.fill(); }
+  for (const p of plan.plots) {
+    ring(p.ring);
+    const c = p.use === 1 ? buildingAt(p.levels) : p.use === 2 ? T.green.proposed : p.use === 3 ? T.water.storage : T.paper2;
+    ctx.fillStyle = c; ctx.fill();
+    if (p.use === 2) { ctx.fillStyle = pattern(ctx, "dots", T.green.existing); ctx.fill(); }
+    ctx.strokeStyle = p.use === 1 ? T.paper : c; ctx.lineWidth = p.use === 1 ? 0.5 : 0.8; ctx.stroke();
+  }
+  ctx.lineCap = "round";
+  for (const pass of [0, 1]) for (const st of [...plan.streets].sort((a, b) => a.cls - b.cls)) {
+    if (pass === 1 && st.cls < 3) continue;
+    ctx.beginPath();
+    st.pts.forEach(([x, y], k) => (k ? ctx.lineTo(v.px(x), v.py(y)) : ctx.moveTo(v.px(x), v.py(y))));
+    ctx.strokeStyle = pass ? T.street.primary : T.street.onDesign;
+    ctx.lineWidth = pass ? 0.5 : Math.max(st.w * v.s, 0.8);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 export interface PlanOptions {
   aspect?: number; attractors?: boolean; labels?: boolean; locked?: ArrayLike<number> | null; roads?: StreetLines | null;
 }
@@ -513,8 +541,8 @@ export function plan(canvas: HTMLCanvasElement, site: SiteExport, d: Design, p: 
   const { ctx, w, h } = fitCanvas(canvas, aspect);
   const v = view(D.x, D.y, w, h, 4, marginOf(site));
   ground(ctx, v, site, p, w, h, shape);
-  fillRegions(ctx, v, D.x, D.y, designColours(d), shape, DESIGN_STYLES);
-  streets(ctx, v, roads, p);
+  if (d.plan) vectorPlan(ctx, v, d);
+  else { fillRegions(ctx, v, D.x, D.y, designColours(d), shape, DESIGN_STYLES); streets(ctx, v, roads, p); }
   if (locked) dots(ctx, v, D.x, D.y, (i) => !!locked[i], p.ink, 1.4);
   context(ctx, v, site.context, p, { labels, roads: false });
   if (showAttractors) attractors(ctx, v, d);
@@ -537,8 +565,8 @@ export function plans(canvases: HTMLCanvasElement[], site: SiteExport, designs: 
   canvases.forEach((canvas, k) => {
     const { ctx } = k ? fitCanvas(canvas, aspect) : first;
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(under, 0, 0); ctx.restore();
-    fillRegions(ctx, v, D.x, D.y, designColours(designs[k]), shape, DESIGN_STYLES);
-    streets(ctx, v, roads[k], p);
+    if (designs[k].plan) vectorPlan(ctx, v, designs[k]);
+    else { fillRegions(ctx, v, D.x, D.y, designColours(designs[k]), shape, DESIGN_STYLES); streets(ctx, v, roads[k], p); }
     context(ctx, v, site.context, p, { roads: false });
   });
 }

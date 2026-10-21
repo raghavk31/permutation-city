@@ -4,7 +4,8 @@
 import * as Comlink from "comlink";
 import type { Ranges } from "./config.js";
 import { mapElites, searchOf, type ArchiveInfo, type EliteOptions, type SearchChoice } from "./elites.js";
-import { evolve, frontFamilies, type EvolveOptions, type HistoryRow, type LineageNode } from "./evolve.js";
+import { evolve, evolveAsync, frontFamilies, type EvolveOptions, type HistoryRow, type LineageNode, type Run } from "./evolve.js";
+import { Pool, poolSize } from "./pool.js";
 import { grow, stats } from "./genome.js";
 import { prepare, withSkeleton } from "./ground.js";
 import { measure, METRIC_KEYS, network, SYNTAX_KEYS, type MetricKey, type Metrics } from "./metrics/index.js";
@@ -18,8 +19,10 @@ import type { Design, Ground, Scores, SiteExport } from "./types.js";
 let G: Ground | null = null;
 let siteNow: SiteExport | null = null;
 let lastKept: Design[] = [];   // the designs the last run kept, in the order sent back
+let pool: Pool | null = null;  // workers for version 3 runs, made on the first one
+let siteOff: number[] = [];
 
-export interface FamilyLead { name: string; size: number; genome: number[]; parents: string[] }
+export interface FamilyLead { name: string; size: number; genome: number[]; parents: string[]; design?: Design }  // design: grown whole, for version 3 (so the page needn't regrow it)
 /** A design the run kept (the final population, or MAP-Elites' archive), for the Explore plots. */
 export interface Kept {
   name: string; genome: number[]; parents: string[]; rank: number; scores: Scores;
@@ -70,31 +73,51 @@ const api = {
   setSite(site: SiteExport, off: number[] = []) {
     G = off.length ? withSkeleton(site, prepare(site), new Set(off)) : prepare(site);
     siteNow = site;
+    siteOff = off;
     lastKept = [];
+    pool?.terminate(); pool = null;
   },
-  evolve({ search: asked, axes, bins, weights, ...options }: RunRequest,
-    onProgress?: (gen: number, row: HistoryRow) => void): EvolveResult {
+  async evolve({ search: asked, axes, bins, weights, ...options }: RunRequest,
+    onProgress?: (gen: number, row: HistoryRow) => void): Promise<EvolveResult> {
     if (!G) throw new Error("no site loaded");
     const g = G, search = searchOf({ search: asked, objectives: options.objectives });
     const progress = (gen: number, r: { history: HistoryRow[] }) => onProgress?.(gen, r.history[r.history.length - 1]);
-    const run = search === "map-elites"
-      ? mapElites(g, { ...options, axes, bins, weights, progress })
-      : { ...evolve(g, { ...options, search, progress }), archive: null };
+    // Version 3 designs are grown by the pool, a generation at a time.
+    const v3 = options.version === 3 && search !== "map-elites";
+    let run: Run & { archive: ArchiveInfo | null; pop: (Run["pop"][number] & { cell?: number; quality?: number })[] };
+    if (v3) {
+      pool ??= new Pool(poolSize(), siteNow!, siteOff);
+      const p = pool, locked = options.locked ? Array.from(options.locked) : null, ranges = options.ranges!;
+      const r = await evolveAsync(g, { ...options, search, progress },
+        (genomes, storm) => p.grow(genomes, { storm, ranges, locked, objectives: options.objectives ?? [] }));
+      run = { ...r, archive: null };
+    } else {
+      run = search === "map-elites"
+        ? mapElites(g, { ...options, axes, bins, weights, progress })
+        : { ...evolve(g, { ...options, search, progress }), archive: null };
+    }
     lastKept = run.pop.map((i) => i.design);
+    const fams = frontFamilies(run);
+    const leads = v3 ? await pool!.whole(fams.map((f) => f.lead.design.genome), { storm: 1, ranges: options.ranges!,
+      locked: options.locked ? Array.from(options.locked) : null, objectives: options.objectives ?? [] }) : null;
+    const metrics = v3
+      ? await pool!.measure(run.pop.map((i) => i.design.genome), { ranges: options.ranges!, locked: options.locked ? Array.from(options.locked) : null })
+      : run.pop.map((i) => measure(i.design, g, NON_SYNTAX) as Metrics);
     // Send back genomes; the page regrows the designs it draws (fast, and identical).
     return {
       history: run.history,
       everyone: run.everyone,
       frontSize: run.pop.filter((i) => i.rank === 1).length,
-      families: frontFamilies(run).map((f) => ({
+      families: fams.map((f, k) => ({
         name: f.lead.name, size: f.members.length, genome: f.lead.design.genome, parents: f.lead.parents,
+        ...(leads ? { design: leads[k] } : {}),
       })),
-      kept: run.pop.map((i) => {
+      kept: run.pop.map((i, k) => {
         const st = stats(i.design, g);
         return {
           name: i.name, genome: i.design.genome, parents: i.parents, rank: i.rank, scores: i.design.scores!,
           floorArea: st.floor_area_ha, levels: st.mean_levels, cell: i.cell, quality: i.quality,
-          metrics: measure(i.design, g, NON_SYNTAX) as Metrics,
+          metrics: metrics[k],
         };
       }),
       archive: run.archive,

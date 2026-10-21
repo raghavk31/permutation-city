@@ -13,7 +13,7 @@ export const GLOBAL_GENES = ["water_share", "green_share", "follow_water", "cove
 export const STREET_GENES = 4;
 export const LENGTH = N_ATTRACTORS * ATTRACTOR_GENES + GLOBAL_GENES.length;
 export const PRE_STREET_LENGTH = LENGTH - STREET_GENES;
-export const GENOME_VERSION = 2;
+export const GENOME_VERSION = 3;  // what the page breeds; versions 1 and 2 still grow (genome.ts)
 export const STREET_GENE_DEFAULT = 0.5;  // what a pre-street genome's street genes are read as
 export const KINDS: Kind[] = ["core", "green", "water"];
 export const USES = ["building", "landscape", "water"]; // use codes 1, 2, 3 (0 = none)
@@ -110,3 +110,9 @@ export const FAMILIES = [
 export type Family = (typeof FAMILIES)[number];
 
 export const SECONDARY_W_M = 12.0;  // Otto routes (to check against IRC:86)
+
+/** A genome's version, from its length (1: 47 numbers, 2: 51, 3: LENGTH_V3). */
+export const versionOf = (genome: ArrayLike<number>): 1 | 2 | 3 =>
+  genome.length === LENGTH_V3 ? 3 : genome.length === PRE_STREET_LENGTH ? 1 : 2;
+/** How many numbers a genome of a version has. */
+export const lengthOf = (version: number) => (version >= 3 ? LENGTH_V3 : version === 1 ? PRE_STREET_LENGTH : LENGTH);

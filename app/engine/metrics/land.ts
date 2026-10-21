@@ -8,8 +8,20 @@ import { BUILDING, LANDSCAPE, RIDGE_MIN_HA, WATER } from "../config.js";
 import { sides } from "../streets.js";
 import type { Net } from "./network.js";
 
-/** Street degree of each corner, and which corners sit on the edge of the design ground. */
+/** Street degree of each corner, and which corners sit on the edge of the design ground.
+ *  A version 3 design reads its own network: vertices and street edges of its plan, the edge
+ *  of the ground being its class-0 edges. */
 function graph(net: Net): { deg: Int32Array; edge: Uint8Array; sides: number } {
+  const plan = net.d.plan;
+  if (plan) {
+    const deg = new Int32Array(plan.vx.length), edge = new Uint8Array(plan.vx.length);
+    let count = 0;
+    for (const e of plan.edges) {
+      if (e.cls === 0) { edge[e.u] = 1; edge[e.v] = 1; continue; }
+      deg[e.u]++; deg[e.v]++; count++;
+    }
+    return { deg, edge, sides: count };
+  }
   const sd = sides(net.G), nv = sd.vx.length, deg = new Int32Array(nv), edge = new Uint8Array(nv);
   let count = 0;
   for (let s = 0; s < sd.cell.length; s++) {
@@ -30,6 +42,20 @@ export function junctionDensity(net: Net): number {
 
 /** Connected parts of the street graph (by corners). */
 function partsOf(net: Net): number {
+  const plan = net.d.plan;
+  if (plan) {
+    const parent = new Int32Array(plan.vx.length).map((_, k) => k), used = new Uint8Array(plan.vx.length);
+    const find = (v: number) => { while (parent[v] !== v) { parent[v] = parent[parent[v]]; v = parent[v]; } return v; };
+    for (const e of plan.edges) {
+      if (e.cls === 0) continue;
+      used[e.u] = 1; used[e.v] = 1;
+      const a = find(e.u), b = find(e.v);
+      if (a !== b) parent[Math.max(a, b)] = Math.min(a, b);
+    }
+    let c = 0;
+    for (let v = 0; v < used.length; v++) if (used[v] && find(v) === v) c++;
+    return c;
+  }
   const sd = sides(net.G), parent = new Int32Array(sd.vx.length).map((_, k) => k);
   const find = (v: number) => { while (parent[v] !== v) { parent[v] = parent[parent[v]]; v = parent[v]; } return v; };
   const used = new Uint8Array(sd.vx.length);

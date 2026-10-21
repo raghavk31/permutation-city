@@ -185,11 +185,11 @@ export function repair(G: Ground, d: Design, net: { vx: number[]; vy: number[]; 
     const { deg, edge } = degrees(vx.length, edges);
     const { idx: streetIdx, seg } = indexEdges(edges, (e) => e.cls > 0);
     let changed = false;
-    const drop = new Set<number>();
+    const drop = new Set<number>(), split = new Set<number>();  // split: streets cut this pass (the index is stale for them)
     const n0 = edges.length;
     for (let k = 0; k < n0; k++) {
       const e = edges[k];
-      if (e.cls === 0 || drop.has(k)) continue;
+      if (e.cls === 0 || drop.has(k) || split.has(k)) continue;
       for (const atEnd of [true, false]) {
         const end = atEnd ? e.v : e.u;
         if (deg[end] !== 1 || edge[end]) continue;
@@ -202,7 +202,8 @@ export function repair(G: Ground, d: Design, net: { vx: number[]; vy: number[]; 
         if (hit) for (let t = 6, reach = dist(b, hit.at); t < reach; t += 6) if (!onGround([b[0] + dx * t, b[1] + dy * t])) { clear = false; break; }
         if (hit && clear) {
           const [hk, hs] = seg[hit.id];
-          if (drop.has(hk) || hk >= n0) continue;
+          if (drop.has(hk) || hk >= n0 || split.has(hk) || hk === k) continue;  // the next pass sees it afresh
+          split.add(hk);
           const v = splitEdge({ vx, vy, edges }, hk, hs, hit.at);
           if (atEnd) { e.pts.push(hit.at); e.v = v; } else { e.pts.unshift(hit.at); e.u = v; }
           deg[end] = 2;

@@ -35,8 +35,15 @@ export function locator(G: Ground): Locator {
   // samples, and the metrics read the cells themselves).
   const [bx0, by0, bx1, by1] = G.bounds, pad = 2 * R, res = LOC_RES;
   const ox = bx0 - pad, oy = by0 - pad, W = Math.ceil((bx1 - bx0 + 2 * pad) / res), H = Math.ceil((by1 - by0 + 2 * pad) / res);
-  const ras = new Int32Array(W * H);
-  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) ras[j * W + i] = exact([ox + (i + 0.5) * res, oy + (j + 0.5) * res]);
+  // Filled cell by cell: only the pixels within a cell radius of its centre are asked.
+  const ras = new Int32Array(W * H).fill(-1), k = Math.ceil(R / res) + 1;
+  for (let c = 0; c < G.n; c++) {
+    const ci = Math.floor((G.x[c] - ox) / res), cj = Math.floor((G.y[c] - oy) / res);
+    for (let j = Math.max(0, cj - k); j <= Math.min(H - 1, cj + k); j++) for (let i = Math.max(0, ci - k); i <= Math.min(W - 1, ci + k); i++) {
+      if (ras[j * W + i] !== -1) continue;
+      ras[j * W + i] = exact([ox + (i + 0.5) * res, oy + (j + 0.5) * res]);
+    }
+  }
   const loc: Locator = {
     cell([x, y]) {
       const i = Math.floor((x - ox) / res), j = Math.floor((y - oy) / res);

@@ -24,6 +24,7 @@ import { inset, regions, shapeOf, type StreetLines } from "../draw";
 import { buildingAt, tokens as T } from "../tokens";
 
 const STOREY = 3.2;
+const area2 = (r: [number, number][]) => r.reduce((s, [x, y], k) => s + x * r[(k + 1) % r.length][1] - r[(k + 1) % r.length][0] * y, 0);
 
 export interface DesignScene {
   site: SiteExport; G: Ground; d: Design; roads: StreetLines | null;
@@ -244,6 +245,7 @@ export class DesignView {
     }));
     const water = regions(g.x, g.y, g.water.map((w) => (w ? "w" : null)), shape).get("w") ?? [];
     add(sheet(water, 0.3), new THREE.MeshStandardMaterial({ color: T.water.deep, roughness: 0.18, metalness: 0, envMapIntensity: 1.2 }));
+    if (d.plan) { this.showPlan(o, add, flat, sheet, ex); this.finish(site, ex, add, flat); return; }
     const uses = regions(D.x, D.y, Array.from(d.use, (u) => (u === 3 ? "water" : u === 2 ? "green" : u === 1 ? "plot" : null)), shape);
     add(sheet(uses.get("water") ?? [], 0.12), new THREE.MeshStandardMaterial({ color: T.water.storage, roughness: 0.15, metalness: 0, envMapIntensity: 1.2 }));
     const grass = new THREE.MeshStandardMaterial({ color: T.green.proposed, roughness: 1, map: grainTexture() });
@@ -273,6 +275,32 @@ export class DesignView {
       add(geom, new THREE.MeshStandardMaterial({ color: buildingAt(+lv), roughness: 0.85, metalness: 0 }), true, true);
     }
 
+    this.finish(site, ex, add, flat);
+  }
+
+  /** A version 3 design: its plots (buildings set back from the plot edge, by storeys; green
+   *  and water flat) and its streets at their widths. */
+  private showPlan(o: DesignScene, add: (g: THREE.BufferGeometry | null, m: THREE.Material, cast?: boolean, receive?: boolean) => void,
+    flat: (c: string, r?: number) => THREE.Material, sheet: (loops: [number, number][][], z: number) => THREE.BufferGeometry | null, ex: number) {
+    const plan = o.d.plan!;
+    add(sheet(plan.blocks.map((r) => (area2(r) < 0 ? [...r].reverse() : r)), 0.08), flat(T.paper2));
+    const byUse = (u: number) => plan.plots.filter((p) => p.use === u).map((p) => (area2(p.ring) < 0 ? [...p.ring].reverse() : p.ring));
+    add(sheet(byUse(3), 0.12), new THREE.MeshStandardMaterial({ color: T.water.storage, roughness: 0.15, metalness: 0, envMapIntensity: 1.2 }));
+    add(sheet(byUse(2), 0.1), new THREE.MeshStandardMaterial({ color: T.green.proposed, roughness: 1, map: grainTexture() }));
+    add(merge(plan.streets.map((st) => ribbon(st.pts, st.w, 0.2)).filter((x): x is THREE.BufferGeometry => !!x)), flat(T.street.onDesign));
+    const groups = new Map<number, THREE.BufferGeometry[]>();
+    for (const p of plan.plots) {
+      if (p.use !== 1 || p.levels <= 0) continue;
+      const r = area2(p.ring) < 0 ? [...p.ring].reverse() : p.ring;
+      const fp = inset(r, 1.5) ?? r;
+      const g = new THREE.ExtrudeGeometry(new THREE.Shape(fp.map(([x, y]) => new THREE.Vector2(x, y))), { depth: p.levels * STOREY * ex, bevelEnabled: false });
+      const l = groups.get(p.levels); if (l) l.push(g); else groups.set(p.levels, [g]);
+    }
+    for (const [lv, gs] of groups) add(merge(gs), new THREE.MeshStandardMaterial({ color: buildingAt(lv), roughness: 0.85, metalness: 0 }), true, true);
+  }
+
+  private finish(site: SiteExport, ex: number, add: (g: THREE.BufferGeometry | null, m: THREE.Material, cast?: boolean, receive?: boolean) => void,
+    flat: (c: string, r?: number) => THREE.Material) {
     // The existing city round the design ground, light grey, at its own heights.
     const eb = site.context.buildings;
     if (eb?.rings?.length) {
