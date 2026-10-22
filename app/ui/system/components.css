@@ -259,6 +259,26 @@
 .wb-inline:hover { background: var(--wb-fill); }
 .wb-inline:focus-visible { outline: 2px solid var(--pc-ink); outline-offset: 1px; }
 
+/* Explainers: one diagram, a title and one plain sentence. In a step intro (wide), an empty
+   state, a term tooltip (.is-mini) and the story page. Diagrams come from app/ui/diagrams/iso.ts. */
+.wb-diagram { display: block; max-width: 100%; height: auto; }
+.wb-explain { display: grid; gap: var(--wb-s2); align-content: start; min-width: 0; }
+.wb-explain > figure { margin: 0; display: grid; place-items: center; padding: var(--wb-s3); border-radius: var(--pc-radius); background: var(--pc-surface-2); min-height: 150px; }
+.wb-explain > figure svg { width: 100%; height: auto; max-height: 190px; }
+.wb-explain b { font-weight: 500; font-size: var(--pc-size-ui); }
+.wb-explain p { margin: 0; font-size: var(--pc-size-small); color: var(--pc-ink-2); line-height: 1.45; max-width: 46ch; }
+.wb-explain.is-wide { grid-template-columns: minmax(0, 220px) minmax(0, 1fr); gap: var(--wb-s4); align-items: center; }
+.wb-explain.is-wide > figure { min-height: 0; }
+.wb-explain.is-wide > figure svg { max-height: 160px; }
+.wb-explain .wb-row { display: flex; gap: var(--wb-s2); flex-wrap: wrap; }
+.wb-tip.is-mini { display: grid; gap: 6px; max-width: 220px; background: var(--pc-surface); color: var(--pc-ink); border: var(--wb-hair); padding: var(--wb-s2); }
+.wb-tip.is-mini figure { margin: 0; padding: 6px; border-radius: calc(var(--pc-radius) - 2px); background: var(--pc-surface-2); }
+.wb-tip.is-mini figure svg { width: 100%; height: auto; max-height: 100px; }
+.wb-state > figure { margin: 0; width: 100%; display: grid; place-items: center; }
+.wb-state > figure svg { width: 100%; height: auto; max-height: 130px; color: inherit; }
+.wb-tip.is-mini span { color: var(--pc-ink-2); }
+@media (max-width: 560px) { .wb-explain.is-wide { grid-template-columns: minmax(0, 1fr); } }
+
 /* Panel states. Every panel has empty, loading and error; none is a blank box. */
 .wb-state { display: grid; gap: var(--wb-s2); justify-items: start; padding: var(--wb-s4); border: var(--pc-border) dashed var(--pc-line); border-radius: var(--pc-radius); color: var(--pc-ink-2); font-size: var(--pc-size-ui); }
 .wb-state svg { width: 20px; height: 20px; color: var(--pc-muted); }

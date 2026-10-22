@@ -113,6 +113,15 @@ section.sp-sec { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap
 .sp-chart text { font-family: var(--pc-font); font-size: 11px; fill: var(--pc-ink-2); }
 .sp-chart .sp-axis-better { fill: var(--pc-ink); font-weight: 500; }
 
+/* diagrams and words */
+.sp-diagrams { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 24px 20px; }
+.sp-table { overflow-x: auto; }
+.sp-table table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: var(--pc-size-small); }
+.sp-table th { text-align: left; font-weight: 500; color: var(--pc-muted); padding: 6px 12px 6px 0; border-bottom: var(--wb-hair); }
+.sp-table td { padding: 7px 12px 7px 0; border-bottom: var(--wb-hair); vertical-align: top; color: var(--pc-ink-2); }
+.sp-table td:first-child { color: var(--pc-ink); font-weight: 500; white-space: nowrap; }
+.sp-table td:nth-child(2) { font-family: var(--pc-mono); }
+
 /* states */
 .sp-keys { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; align-items: center; font-size: var(--pc-size-small); color: var(--pc-ink-2); }
 .sp-keys span:nth-child(odd) { display: flex; gap: 4px; }
@@ -144,7 +153,7 @@ section.sp-sec { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap
     <p>Every token, component and state the workbench and the story page use, in one place. The colours, sizes and spaces come from <code class="wb-mono">app/ui/tokens.ts</code>; the components from <code class="wb-mono">app/ui/system/components.css</code>, which the app imports as is. Components are built here before they appear in the app.</p>
     <div class="sp-bar">
       <nav class="sp-index" aria-label="Sections">
-        <a href="#principles">Principles</a><a href="#colour">Colour</a><a href="#type">Type</a><a href="#space">Space and shape</a><a href="#icons">Icons</a>
+        <a href="#principles">Principles</a><a href="#colour">Colour</a><a href="#type">Type</a><a href="#space">Space and shape</a><a href="#icons">Icons</a><a href="#diagrams">Diagrams</a><a href="#words">Plain words</a>
         <a href="#controls">Controls</a><a href="#workbench">Workbench parts</a><a href="#map">Map</a><a href="#charts">Charts</a><a href="#states">States</a><a href="#motion">Motion and copy</a>
       </nav>
       <div class="sp-row sp-theme"><span class="sp-cap">Theme</span>
@@ -165,6 +174,7 @@ section.sp-sec { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap
         <li><b>Colour carries meaning.</b><span>The meaning never changes between steps.</span></li>
         <li><b>The machine proposes, the designer decides.</b><span>Select, keep, lock and breed come first; running is supporting.</span></li>
         <li><b>Honest about uncertainty.</b><span>Guessed values and weak data are marked where they appear.</span></li>
+        <li><b>Plain first, with a picture.</b><span>Anyone new can follow: everyday words on screen, a small diagram for every idea, the technical name one hover away.</span></li>
       </ol>
     </div>
   </section>
@@ -238,6 +248,81 @@ section.sp-sec { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap
     <header><h2>Icons</h2><p>Lucide line icons (ISC licence), 16 px at 1.75 stroke. Always with a label or a tooltip.</p></header>
     <div class="sp-body">
       <div class="sp-icons" data-icons></div>
+    </div>
+  </section>
+
+  <section class="sp-sec" id="diagrams">
+    <header><h2>Diagrams</h2><p>Small isometric drawings that explain one idea each, before any words do. Drawn by code from the map's colours, so they match the map and follow the theme.</p></header>
+    <div class="sp-body">
+      <ul class="sp-rules">
+        <li><b>One idea</b> per diagram, and <b>at most five labels</b>.</li>
+        <li><b>The same angle</b> every time (30° isometric), so the ground always reads the same way.</li>
+        <li><b>Map colours mean what they mean on the map</b>: blue is water, the warm ramp is height, the red hatch is never built.</li>
+        <li><b>One plain sentence</b> under each. No numbers unless the number is the point.</li>
+        <li>A <b>flat chart</b> where a chart is clearer (the trade-off front). Isometric is for ground and buildings.</li>
+      </ul>
+      <div class="sp-diagrams"><!--DIAGRAMS--></div>
+      <div class="sp-sub">
+        <h3 class="wb-label">Where they appear</h3>
+        <div class="sp-panel">
+          <span class="wb-label">Step intro · first visit to Rules</span>
+          <div class="wb-explain is-wide">
+            <figure><!--DIAGRAM:rules--></figure>
+            <div class="sp-sub">
+              <b>Rules: what the land allows</b>
+              <!-- COPY: step intro, rules -->
+              <p>Rules sort the ground: some is never built on, some is built with limits, and the rest is free for designs to use. Change a rule and the map updates.</p>
+              <div class="wb-row"><button class="wb-btn" type="button">Show me on the map</button><button class="wb-btn is-quiet" type="button">Got it</button></div>
+            </div>
+          </div>
+        </div>
+        <p class="sp-note">Each step opens with its intro the first time, folded to a one-line strip after that, and back on "?". "Show me on the map" lights the same idea up on the real site.</p>
+        <div class="sp-grid2">
+          <div class="wb-state">
+            <figure><!--DIAGRAM:evolution--></figure>
+            <b>No run yet</b>
+            <!-- COPY: empty state, evolve -->
+            <span>Designs breed: the better ones become parents, so each generation does a little better. Run one, or load the example run.</span>
+            <span class="sp-row"><button class="wb-btn is-primary" type="button"><i data-lucide="play"></i>Run 15 generations</button><button class="wb-btn is-quiet" type="button">Load example run</button></span>
+          </div>
+          <div class="sp-sub">
+            <span class="sp-row" style="font-size: var(--pc-size-ui)">Hover a term: <span style="border-bottom: 1px dotted var(--pc-ink-2)">the front</span></span>
+            <div class="wb-tip is-mini" role="tooltip">
+              <figure><!--DIAGRAM:tradeoff--></figure>
+              <!-- COPY: term tooltip, the front -->
+              <span><b>The front</b>: the designs no other design beats on every count. Also called the Pareto front.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sp-sec" id="words">
+    <header><h2>Plain words</h2><p>What the screen says, and what the code and the papers call it. The technical name stays one hover away.</p></header>
+    <div class="sp-body">
+      <!-- COPY: the whole table is a first draft of on-screen terms -->
+      <div class="sp-table"><table>
+        <thead><tr><th>On screen</th><th>In the code and papers</th><th>One sentence for the tooltip</th></tr></thead>
+        <tbody>
+          <tr><td>Never built</td><td>forbidden</td><td>Ground the design can't use: water, steep hillsides, deep floods.</td></tr>
+          <tr><td>Built with limits</td><td>constrained</td><td>Ground that can be built on, lower or greener than elsewhere.</td></tr>
+          <tr><td>Kept as it is</td><td>retained</td><td>The existing city around the site, shown for context.</td></tr>
+          <tr><td>Free to design</td><td>open</td><td>Ground where the designs decide.</td></tr>
+          <tr><td>How hilly</td><td>relief class</td><td>Flat, gentle or hilly, from how much the ground rises and how steep it gets.</td></tr>
+          <tr><td>Main streets</td><td>skeleton</td><td>The streets every design keeps: on ridges, or the existing major roads.</td></tr>
+          <tr><td>Recipe</td><td>genome, genes</td><td>The few settings a design grows from.</td></tr>
+          <tr><td>Generation</td><td>generation</td><td>One round of breeding: a new set of designs from the best of the last.</td></tr>
+          <tr><td>Best trade-offs</td><td>NSGA-II, NSGA-III</td><td>A search that keeps the designs nothing else beats.</td></tr>
+          <tr><td>One of every kind</td><td>MAP-Elites</td><td>A search that keeps the best design of each kind, for variety.</td></tr>
+          <tr><td>The front</td><td>Pareto front</td><td>The designs no other design beats on every count.</td></tr>
+          <tr><td>Kind of design</td><td>family, cluster</td><td>Designs that look alike, grouped so you see a few, not hundreds.</td></tr>
+          <tr><td>How connected</td><td>integration (NAIN)</td><td>How easily a street is reached from everywhere else.</td></tr>
+          <tr><td>Grow in phases</td><td>piecemeal growth</td><td>Build in steps; what is built stays.</td></tr>
+          <tr><td>What if</td><td>shock test</td><td>Try a design against a flood, a storm or a heatwave.</td></tr>
+        </tbody>
+      </table></div>
+      <p class="sp-note">Scores keep their own plain names (flood storage, heat, embodied carbon, daylight, human scale), each with a one-line tooltip.</p>
     </div>
   </section>
 
