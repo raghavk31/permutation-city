@@ -25,6 +25,7 @@
   "dependencies": {
     "@vercel/blob": "2.8.0",
     "comlink": "^4.4.2",
+    "lucide": "1.52.0",
     "maplibre-gl": "6.11.2",
     "pdfjs-dist": "6.3.289",
     "rhino3dm": "8.35.0",

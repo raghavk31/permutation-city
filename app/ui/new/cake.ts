@@ -66,6 +66,9 @@ const RAMPS = (P: Draw.Palette): Record<Ramp, readonly string[]> => ({
   existing: P.t.existingRamp, heat: P.t.heat, measure: P.t.measure,
 });
 
+/** A layer's colour ramp (for legends). */
+export const rampOf = (l: Layer, P: Draw.Palette): readonly string[] => RAMPS(P)[l.ramp];
+
 /** Colour of each grid cell for a layer. Cells with nothing to show stay blank. */
 export function colours(site: E.SiteExport, l: Layer, P: Draw.Palette): (i: number) => string | null {
   const v = site.grid.layers![l.name], water = site.grid.layers!.water;

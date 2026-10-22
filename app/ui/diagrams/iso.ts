@@ -528,8 +528,37 @@ export function growth(): Diagram {
   return { id: "growth", title: "Growing in phases", caption: "The site is built in phases. What is built stays, and each phase adds to it under its own year's conditions.", svg };
 }
 
+/** Picking a site: the ground to design outlined over the city, its corners as handles. The
+ *  outline is a selection, so it is in the accent. */
+export function site(): Diagram {
+  const s = new Scene("site"), W = 124, D = 86, T = 2, r = rng(51);
+  const P: P2[] = [[34, 16], [88, 10], [100, 44], [74, 72], [28, 62]];
+  const inside = (x: number, y: number) => {
+    let c = false;
+    for (let i = 0, j = P.length - 1; i < P.length; j = i++) {
+      const [xi, yi] = P[i], [xj, yj] = P[j];
+      if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) c = !c;
+    }
+    return c;
+  };
+  s.slab(0, 0, 0, W, D, T);
+  s.poly(P.map(([x, y]): P3 => [x, y, T + .05]), "color-mix(in srgb, var(--pc-accent) 9%, var(--pc-surface))", false);
+  const th: Thing[] = [];
+  for (let i = 0; i < 8; i++) for (let j = 0; j < 6; j++) {
+    const x = 3 + i * 15.2, y = 3 + j * 14;
+    if ([[x, y], [x + 10, y], [x, y + 9], [x + 10, y + 9]].some(([a, b]) => inside(a, b)) || r() < .15) continue;
+    th.push({ x, y, z: T, w: 10, d: 9, h: 3 + r() * 9 });
+  }
+  for (let k = 0; k < 6; k++) { const x = 40 + r() * 50, y = 22 + r() * 40; if (inside(x, y)) th.push({ kind: "tree", x, y, z: T, s: 2 }); }
+  s.things(th, { x0: 0, y0: 0, x1: W, y1: D });
+  s.line([...P, P[0]].map(([x, y]): P3 => [x, y, T + .1]), "var(--pc-accent)", 1.8);
+  for (const [x, y] of P) { const [px, py] = iso([x, y, T + .1]); s.raw(px - 3, py - 3, 6, 6, `<rect width="6" height="6" rx="1" style="fill: var(--pc-surface); stroke: var(--pc-accent)" stroke-width="1.4"/>`); }
+  s.label([88, 10, T], "drag a corner to adjust", { dx: 18, dy: -14, strong: true });
+  return { id: "site", title: "Site", caption: "Outline the ground to design. Everything outside it stays as the city around it.", svg: s.svg("A white model of a city with an orange outline drawn around part of it, a small handle at each corner.") };
+}
+
 /** Every diagram, in the order the story tells them. */
-export const DIAGRAMS = () => [layers(), rules(), landform(), streets(), recipe(), evolution(), tradeoff(), massing(), growth()];
+export const DIAGRAMS = () => [site(), layers(), rules(), landform(), streets(), recipe(), evolution(), tradeoff(), massing(), growth()];
 
 function hull(p: P2[]): P2[] {
   const q = [...p].sort((a, b) => a[0] - b[0] || a[1] - b[1]);

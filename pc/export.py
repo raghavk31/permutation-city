@@ -534,6 +534,44 @@ def fixture(data: dict, n=40, seed=7, site: Site | None = None) -> dict:
             "briefs": brief_cases(data)}
 
 
+def index_entry(site: Site, data: dict) -> dict:
+    """The site's line in sites.json, for the workbench's site cards and map: its size, how
+    hilly it is and how sure, where it is, its outline (degrees) and a tiny map of its cells
+    (rows of characters: "." nothing, "w" water, "d" design ground, "c" context)."""
+    from shapely.geometry import box as sbox
+
+    from pc.site import read_polygon
+
+    meta = data["meta"]
+    relief = (meta.get("landform") or {}).get("relief") or {}
+    shape = (read_polygon(site.design_area) if site.design_area else
+             read_polygon(site.boundary) if site.boundary else sbox(*site.bbox))
+    shape = shape.simplify(0.0002)
+    geom = shape if shape.geom_type == "Polygon" else max(shape.geoms, key=lambda g: g.area)
+    outline = [[round(x, 5), round(y, 5)] for x, y in list(geom.exterior.coords)[:80]]
+    # the thumbnail: 36 columns, rows to keep the aspect
+    g, d = data["grid"], data["design"]
+    xs, ys = np.array(g["x"]), np.array(g["y"])
+    x0, x1, y0, y1 = xs.min(), xs.max(), ys.min(), ys.max()
+    cols = 36
+    rows = max(8, min(48, round(cols * (y1 - y0) / max(x1 - x0, 1))))
+    cell = [["." for _ in range(cols)] for _ in range(rows)]
+    water = g.get("layers", {}).get("water") or [0] * len(xs)
+    design = set(zip(np.round(d["x"], 1), np.round(d["y"], 1)))
+    for x, y, w in zip(xs, ys, water):
+        c = min(cols - 1, int((x - x0) / (x1 - x0 + 1e-9) * cols))
+        r = min(rows - 1, int((y1 - y) / (y1 - y0 + 1e-9) * rows))
+        k = "w" if w else "d" if (round(x, 1), round(y, 1)) in design else "c"
+        if cell[r][c] != "w":
+            cell[r][c] = k if cell[r][c] in ".c" or k == "w" else cell[r][c]
+    return {
+        "name": site.name, "design_ha": meta["design_ha"], "target_ha": meta["target_ha"],
+        "origin": meta["origin"], "cells": len(d["x"]),
+        "relief": relief.get("class"), "relief_m": relief.get("relief_m"), "confidence": relief.get("confidence"),
+        "terrain": relief.get("source"), "outline": outline, "thumb": ["".join(r) for r in cell],
+    }
+
+
 def write(site: Site, with_fixture=False):
     data = export(site)
     SITES_OUT.mkdir(parents=True, exist_ok=True)
@@ -548,6 +586,5 @@ def write(site: Site, with_fixture=False):
         print(f"  {fx.relative_to(ROOT)}")
     index = SITES_OUT / "sites.json"
     sites = json.loads(index.read_text(encoding="utf-8")) if index.exists() else {}
-    sites[site.id] = {"name": site.name, "design_ha": data["meta"]["design_ha"],
-                      "target_ha": data["meta"]["target_ha"]}
+    sites[site.id] = index_entry(site, data)
     index.write_text(json.dumps(sites, indent=1), encoding="utf-8")
