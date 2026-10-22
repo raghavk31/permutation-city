@@ -1,0 +1,38 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Bharalu valley and the north-eastern hill"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       91.778,
+       26.15
+      ],
+      [
+       91.792,
+       26.15
+      ],
+      [
+       91.792,
+       26.17
+      ],
+      [
+       91.778,
+       26.17
+      ],
+      [
+       91.778,
+       26.15
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

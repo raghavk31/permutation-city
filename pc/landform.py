@@ -7,6 +7,7 @@ site's whole grid (design area plus its context margin):
     mapped_channel  cells a mapped stream, drain, canal or river runs through (Overture water)
     flow_acc_ha     upstream area draining through each cell (ha), on the conditioned ground
     flow_to_row/col the cell it drains to (-1: an outlet)
+    slope           each cell's slope (rise over run), from the plane through it and its neighbours
     valley_order    Strahler order of drainage lines (0: not a valley)
     valley_buffer   1 within the buffer of a valley (width by order; provisional)
     catchment_id    the valley segment (or outlet) each cell drains to
@@ -58,6 +59,24 @@ def terrain_source(site: Site) -> str:
         if h(site.dem) == h(site.terrain):
             return "copernicus-surface"
     return "fabdem"
+
+
+def slope(grid, nbrs) -> np.ndarray:
+    """Each cell's slope (rise over run): the least-squares plane through it and its
+    neighbours. Steadier than the steepest single neighbour, which picks up DEM noise."""
+    c = grid.centroid
+    x, y, z = c.x.to_numpy(), c.y.to_numpy(), grid["ground"].to_numpy().astype(float)
+    out = np.zeros(len(grid))
+    for i, nb in enumerate(nbrs):
+        if len(nb) < 2:
+            continue
+        dx, dy, dz = x[nb] - x[i], y[nb] - y[i], z[nb] - z[i]
+        a = np.array([[dx @ dx, dx @ dy], [dx @ dy, dy @ dy]])
+        if abs(np.linalg.det(a)) < 1e-9:
+            continue
+        gx, gy = np.linalg.solve(a, [dx @ dz, dy @ dz])
+        out[i] = math.hypot(gx, gy)
+    return out
 
 
 def relief(grid, nbrs, spacing: float, source: str) -> dict:
@@ -156,6 +175,7 @@ def analyse(site: Site, grid, nbrs: list, graph) -> tuple[gpd.GeoDataFrame, dict
     source = terrain_source(site)
     rel = relief(grid, nbrs, graph.spacing, source)
     flat = rel["class"] == "flat"
+    grid["slope"] = slope(grid, nbrs).round(4)
 
     channel = mapped_channels(site, grid) & ~water
     z = grid["ground"].to_numpy().astype(float)

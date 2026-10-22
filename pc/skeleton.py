@@ -9,6 +9,9 @@ the design ground as the site's rules leave it; the browser can switch ridges of
               existing roads, not landform". Major roads (motorway to tertiary) are primary
               streets, residential roads secondary, service and port roads lanes
 
+A site can choose (site.yaml `skeleton`): `auto` as above, `roads` always (a built-up site
+whose existing streets carry the city, such as Guwahati's Bharalu basin), or `landform`.
+
 Joining: each part of the skeleton that no existing road reaches is linked to the nearest
 road side by the shortest path along cell sides. A side between two valley cells (channel
 or buffer) is a crossing, a bridge or causeway: it costs CROSSING_COST sides' length, so
@@ -184,7 +187,10 @@ def build(site, ground, cells, grid) -> dict:
             ridges.append({"id": r["id"], "strength_ha": r["strength_ha"], "consistency": r["consistency"],
                            "sides": sorted(set(on))})
 
-    if ridges:
+    if site.skeleton not in ("auto", "roads", "landform"):
+        raise ValueError(f"site.yaml skeleton: {site.skeleton!r} (auto, roads or landform)")
+    chosen_by_site = site.skeleton == "roads" and bool(ridges)
+    if ridges and site.skeleton != "roads":
         source = "landform"
         chosen = {sid for r in ridges for sid in r["sides"]}
         level = {sid: PRIMARY for sid in chosen}
@@ -213,7 +219,7 @@ def build(site, ground, cells, grid) -> dict:
     valley2 = int((cells["valley_order"] >= 2).sum()) if "valley_order" in cells else 0
     cap = max(MIN_CROSSINGS, round(valley2 * S.spacing / CROSSING_PER_M))
     note = {"landform": "primary streets on the strong ridges, joined to the existing roads",
-            "roads": "skeleton from existing roads, not landform",
+            "roads": "skeleton from existing roads, not landform" + (" (the site's choice)" if chosen_by_site else ""),
             "none": "no ridges and no roads reach the design ground: no skeleton"}[source]
     return {
         "source": source, "note": note, "relief": rel,

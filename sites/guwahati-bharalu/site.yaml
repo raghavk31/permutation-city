@@ -6,8 +6,10 @@ grid:
 design_storm_mm: 110
 # assumed: a mid value for the city; check against the Guwahati Master Plan 2025 and the GMDA bye-laws
 target_far: 1.5
-bbox:
-- 91.768
-- 26.148
-- 91.792
-- 26.17
+# The eastern half of the first 2.4 km box (3.1 km²): the valley floor, GS Road and the
+# north-eastern hill. The whole box was 5.8 km² and 563 ms a design.
+boundary: boundary.geojson
+context_m: 250
+# A built-up basin: its existing major roads carry the city, so they are the skeleton
+# (pc/skeleton.py), not the landform's ridges.
+skeleton: roads

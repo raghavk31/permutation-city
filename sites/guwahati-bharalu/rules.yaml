@@ -37,6 +37,15 @@ forbidden:
     when: flood_surge_2050 > 1.5
     why: more than 1.5 m of water in a 2050 surge; give it back to the sea
 
+  - name: steep hillside
+    when: slope > 0.25
+    why: >-
+      over 25% (14°) the hills stay as they are, with no streets or buildings. A design value,
+      stricter than the bye-laws (Guwahati Building Construction (Regulation) Bye-laws 2014,
+      74: no building on slopes over 45° unless proved safe; 110(c): special protection over
+      10°). Streets can't meet the IRC hill gradients there (docs/streets.md)
+    roles: [canopy]
+
   - name: water's edge
     when: edge_dist < 30
     why: a continuous public edge and room for wetland
@@ -48,6 +57,15 @@ retained:
     why: existing city outside the design area is context; industrial land stays designable
 
 constrained:
+  - name: hill slopes
+    when: slope > 0.176
+    why: >-
+      over 10°, Bye-laws 2014 110: special protection, at least 30% of a plot under
+      vegetation (110(k)); 117(v): no multistoreyed building on hills needing excavation
+      (taken here as at most 4 levels)
+    roles: [canopy]
+    limits: {max_levels: 4, min_permeable: 0.3}
+
   - name: shallow flooding in 2050
     when: flood_surge_2050 > 0
     why: floods up to 1.5 m in a 2050 surge

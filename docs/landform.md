@@ -53,6 +53,11 @@ Relief is measured on the design ground's land:
 | mumbai-docks | 4.7 m | 0.58% | 6.1% | flat (low confidence) |
 | ahmedabad-wadaj | 7.1 m | 0.58% | 6.4% | gentle (low confidence) |
 | bengaluru-cascade | 31.5 m | 1.15% | 7.8% | gentle |
+| guwahati-bharalu (first 2.4 km box) | 90.0 m | 0.58% | 34.7% | pronounced |
+
+**Cell slope.** Each cell also gets `slope`, rise over run from the least-squares plane through
+it and its neighbours, for rules to test (Guwahati: `steep hillside` over 25% is forbidden,
+`hill slopes` over 10° constrained; the bye-law clauses are in its rules.yaml).
 
 ## 3. Valleys, catchments and ridges
 
@@ -235,6 +240,11 @@ Fixed per site, worked out at export:
   | motorway to tertiary | primary street, 18 m |
   | residential, unclassified, living street | secondary street |
   | service, track, unknown | lane |
+- **The site's choice** (`skeleton` in site.yaml): `auto` (the default) is the above, landform
+  where there are strong ridges and roads otherwise; `roads` takes the existing roads even
+  where there are ridges; `landform` asks for ridges. Guwahati's Bharalu basin is `roads`: a
+  built-up basin whose major roads (GS Road among them) carry the city, where the ridges
+  mostly ran across the flat valley floor.
 - **Forbidden land:** the skeleton never runs between two forbidden cells (those aren't
   design ground). It may run along their edge.
 - **Editing:** the skeleton is exported on design cells and on grid cells, so it maps onto a
