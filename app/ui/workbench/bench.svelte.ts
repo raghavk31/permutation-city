@@ -9,8 +9,8 @@ export type StepId = "site" | "layers" | "rules" | "landform" | "brief" | "evolv
 export const STEPS: { id: StepId; name: string; built: boolean }[] = [
   { id: "site", name: "Site", built: true },
   { id: "layers", name: "Layers", built: true },
-  { id: "rules", name: "Rules", built: false },
-  { id: "landform", name: "Landform", built: false },
+  { id: "rules", name: "Rules", built: true },
+  { id: "landform", name: "Landform", built: true },
   { id: "brief", name: "Brief", built: false },
   { id: "evolve", name: "Evolve", built: false },
   { id: "explore", name: "Explore", built: false },
@@ -63,6 +63,16 @@ class Bench {
   hover = $state(-1);
   layerView = $state<"map" | "stack">("map");
 
+  // the Rules step: the rules as edited, with undo and redo; the rule pointed at; before/after
+  rules = $state.raw<E.RuleSet | null>(null);
+  past = $state.raw<E.RuleSet[]>([]);
+  future = $state.raw<E.RuleSet[]>([]);
+  ruleHover = $state<number | null>(null);
+  showBefore = $state(false);
+
+  // the Landform step: ridges switched off (by ridge id)
+  ridgesOff = $state.raw<ReadonlySet<number>>(new Set());
+
   // panels and intros
   railOpen = $state(true);
   inspOpen = $state(true);
@@ -100,6 +110,9 @@ class Bench {
       this.picked = id;
       this.layerOn = {};
       this.opacity = {};
+      this.rules = s.rules ?? null;
+      this.past = []; this.future = [];
+      this.ridgesOff = new Set();
       this.step = step;
       this.sync();
     } catch (e) {
@@ -107,6 +120,33 @@ class Bench {
     } finally {
       this.loading = false;
     }
+  }
+
+  /** Change the rules, keeping the old ones for undo. */
+  setRules(r: E.RuleSet) {
+    if (!this.rules) return;
+    this.past = [...this.past, this.rules].slice(-50);
+    this.future = [];
+    this.rules = r;
+  }
+  undo() {
+    if (!this.past.length || !this.rules) return;
+    this.future = [this.rules, ...this.future];
+    this.rules = this.past[this.past.length - 1];
+    this.past = this.past.slice(0, -1);
+  }
+  redo() {
+    if (!this.future.length || !this.rules) return;
+    this.past = [...this.past, this.rules];
+    this.rules = this.future[0];
+    this.future = this.future.slice(1);
+  }
+  get edited() { return !!this.site?.rules && !!this.rules && JSON.stringify(this.rules) !== JSON.stringify(this.site.rules); }
+
+  toggleRidge(id: number) {
+    const s = new Set(this.ridgesOff);
+    if (s.has(id)) s.delete(id); else s.add(id);
+    this.ridgesOff = s;
   }
 
   seen(id: StepId, yes = true) {

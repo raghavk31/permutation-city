@@ -9,6 +9,8 @@
   const INTRO: Record<string, { title: string; text: string; svg: () => string }> = {
     site: { title: "Site: the ground to design", text: "Pick a ready-made site or outline your own. Everything outside it stays as the city around it.", svg: () => Iso.site().svg },
     layers: { title: "Layers: what the land is like", text: "Each map of the site is a layer: ground, water, green, the city. Read together, they show what the land is like in every spot.", svg: () => Iso.layers().svg },
+    rules: { title: "Rules: what the land allows", text: "Rules sort the ground: some is never built on, some is built with limits, and the rest is free for designs to use. Change a number and the map follows.", svg: () => Iso.rules().svg },
+    landform: { title: "Landform: valleys and ridges", text: "Water gathers in the valleys, so they stay open; the ridges between them are where the main streets go.", svg: () => Iso.landform().svg },
   };
   const intro = $derived(INTRO[bench.step]);
   const svg = $derived(intro ? intro.svg() : "");
@@ -34,7 +36,31 @@
     {/if}
   {/if}
 
-  {#if bench.step === "site"}
+  {#if bench.step === "rules" && bench.rules}
+    {@const r = bench.ruleHover !== null ? bench.rules.list[bench.ruleHover] : null}
+    {#if r}
+      <div class="wb-sub">
+        <span class="wb-label">Why this rule</span>
+        <b class="wb-insp-title">{r.name}</b>
+        <p class="wb-why">{r.why || "No reason recorded."}</p>
+        {#if r.source}<span class="wb-tag" title="Where the rule comes from">{r.source}</span>{/if}
+        {#if r.roles.length}<p class="wb-hint">What this ground does: {r.roles.map((x) => x.replace(/_/g, " ")).join(", ")}.</p>{/if}
+      </div>
+    {:else}
+      <div class="wb-state">
+        <b>Point at a rule</b>
+        <!-- COPY: inspector empty, rules step -->
+        <span>Its ground is outlined on the map, and why it is there appears here. Change any underlined number; Ctrl Z undoes it.</span>
+      </div>
+    {/if}
+  {:else if bench.step === "landform" && meta}
+    <div class="wb-sub">
+      <span class="wb-label">How it was read</span>
+      <!-- COPY: landform method note -->
+      <p class="wb-why">Valleys are where water from {meta.landform?.valley_ha ?? 10} ha or more runs; mapped streams count even where the ground disagrees. Each valley keeps a buffer either side, wider for bigger streams.</p>
+      {#if meta.landform}<p class="wb-hint">Buffers are provisional: {Object.entries(meta.landform.valley_buffer_m).map(([o, m]) => `${m} m for order ${o}`).join(", ")}, to be checked against drain margins in the local rules.</p>{/if}
+    </div>
+  {:else if bench.step === "site"}
     {#if card && bench.picked}
       <div class="wb-sub">
         <span class="wb-label">Ready-made site</span>

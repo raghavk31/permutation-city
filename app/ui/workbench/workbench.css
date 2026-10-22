@@ -132,3 +132,32 @@ a { color: inherit; }
   .wb-narrow p { margin: 0; font-size: var(--pc-size-body); }
   .wb-narrow .wb-btn { justify-self: start; }
 }
+
+/* rules */
+.wb-states { display: grid; gap: 6px; }
+.wb-state-row { display: grid; grid-template-columns: 14px minmax(0, 1fr) 56px auto; gap: 8px; align-items: center; font-size: var(--pc-size-small); }
+.wb-state-row > i { width: 14px; height: 12px; border-radius: 2px; border: var(--pc-border) solid var(--pc-line); }
+.wb-state-row > i.is-kept { background: var(--pc-retained); }
+.wb-state-row > i.is-free { background: var(--pc-surface-2); border-color: var(--pc-ink-2); }
+.wb-bar { height: 6px; border-radius: 3px; background: var(--wb-fill); overflow: hidden; }
+.wb-bar b { display: block; height: 100%; background: var(--pc-ink-2); }
+.wb-state-row .wb-num { text-align: right; color: var(--pc-ink-2); }
+.wb-rule-name { font-weight: 500; font-size: var(--pc-size-small); }
+.wb-sentence .wb-head { gap: 8px; }
+.wb-sentence .wb-head .wb-meta { margin-left: auto; }
+.wb-sentence > span { font-size: var(--pc-size-small); line-height: 1.6; }
+.wb-limits { color: var(--pc-ink-2); }
+.wb-inline-num {
+  -moz-appearance: textfield; appearance: textfield; padding: 0 2px; margin: 0 1px; border: 0; border-bottom: 1.5px dashed var(--pc-ink-2); border-radius: 0;
+  background: transparent; color: var(--pc-ink); font-family: var(--pc-font); font-weight: 500; font-size: inherit; font-variant-numeric: tabular-nums; text-align: center;
+}
+.wb-inline-num::-webkit-outer-spin-button, .wb-inline-num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.wb-inline-num:hover { background: var(--wb-fill); }
+.wb-inline-num:focus-visible { outline: 2px solid var(--pc-ink); outline-offset: 1px; border-bottom-color: transparent; }
+.wb-reset { justify-self: start; height: 26px; padding: 0 8px; font-size: var(--pc-size-small); }
+.wb-why { margin: 0; font-size: var(--pc-size-small); color: var(--pc-ink-2); line-height: 1.5; }
+.wb-insp .wb-tag { justify-self: start; white-space: normal; height: auto; padding: 2px 6px; line-height: 1.4; }
+
+/* landform */
+.wb-big { font-size: var(--pc-size-title); font-weight: 400; letter-spacing: -.01em; }
+.wb-ridges { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: var(--pc-size-small); }

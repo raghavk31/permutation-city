@@ -6,7 +6,11 @@
   import Icon from "./Icon.svelte";
   import Inspector from "./Inspector.svelte";
   import LayersMap from "./LayersMap.svelte";
+  import LandformMap from "./LandformMap.svelte";
+  import LandformRail from "./LandformRail.svelte";
   import LayersRail from "./LayersRail.svelte";
+  import RulesMap from "./RulesMap.svelte";
+  import RulesRail from "./RulesRail.svelte";
   import SiteMap from "./SiteMap.svelte";
   import SiteRail from "./SiteRail.svelte";
 
@@ -34,6 +38,8 @@
   const stepMeta = (id: string) => {
     if (id === "site" && bench.site) return `${Math.round(bench.site.meta.design_ha)} ha`;
     if (id === "layers" && bench.site) return `${Object.keys(bench.site.grid.layers ?? {}).length}`;
+    if (id === "rules" && bench.rules) return bench.edited ? "changed" : `${bench.rules.list.length}`;
+    if (id === "landform" && bench.site?.meta.landform) return { flat: "flat", gentle: "gentle", pronounced: "hilly" }[bench.site.meta.landform.relief.class];
     return "";
   };
   // COPY: why a step is blocked
@@ -53,8 +59,8 @@
     <div class="wb-top-right">
       <!-- COPY: run status -->
       <span class="wb-pill">No run yet</span>
-      <button class="wb-icon-btn" type="button" aria-label="Undo" title="Undo (Ctrl Z)" disabled><Icon icon={Undo2} /></button>
-      <button class="wb-icon-btn" type="button" aria-label="Redo" title="Redo (Ctrl Shift Z)" disabled><Icon icon={Redo2} /></button>
+      <button class="wb-icon-btn" type="button" aria-label="Undo" title="Undo (Ctrl Z)" disabled={!bench.past.length} onclick={() => bench.undo()}><Icon icon={Undo2} /></button>
+      <button class="wb-icon-btn" type="button" aria-label="Redo" title="Redo (Ctrl Shift Z)" disabled={!bench.future.length} onclick={() => bench.redo()}><Icon icon={Redo2} /></button>
       <button class="wb-btn" type="button" onclick={share}><Icon icon={Share2} />{copied ? "Copied" : "Share"}</button>
       <button class="wb-icon-btn" type="button" aria-label="Help" title="What this step does"
         onclick={() => bench.seen(bench.step, false)}><Icon icon={CircleHelp} /></button>
@@ -74,6 +80,8 @@
             <div class="wb-rail-panel">
               {#if s.id === "site"}<SiteRail />
               {:else if s.id === "layers"}<LayersRail />
+              {:else if s.id === "rules"}<RulesRail />
+              {:else if s.id === "landform"}<LandformRail />
               {/if}
             </div>
           {/if}
@@ -89,6 +97,10 @@
       <SiteMap />
     {:else if bench.step === "layers" && bench.site}
       <LayersMap site={bench.site} />
+    {:else if bench.step === "rules" && bench.site && bench.rules}
+      <RulesMap site={bench.site} />
+    {:else if bench.step === "landform" && bench.site}
+      <LandformMap site={bench.site} />
     {/if}
     {#if bench.loading}
       <div class="wb-centre-note"><div class="wb-progress is-indeterminate"><div class="wb-row"><span>Opening the site</span></div><div class="wb-track"><b></b></div></div></div>
@@ -110,6 +122,11 @@
 </div>
 
 <svelte:window onkeydown={(e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !(e.target as HTMLElement).closest("input, textarea")) {
+    e.preventDefault();
+    if (e.shiftKey) bench.redo(); else bench.undo();
+    return;
+  }
   if ((e.target as HTMLElement).closest("input, select, textarea")) return;
   if (e.key === "[") bench.railOpen = !bench.railOpen;
   if (e.key === "]") bench.inspOpen = !bench.inspOpen;
