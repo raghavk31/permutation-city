@@ -47,6 +47,7 @@ export class Scene {
   private out: string[] = [];
   private b = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
   private defs = new Set<string>();
+  private pins: string[] = [];
   constructor(private id: string) {}
 
   private grow(q: P2[]) {
@@ -207,8 +208,30 @@ export class Scene {
     return this;
   }
 
+  /** A pin: a thin stalk up from a place on the ground to a round badge with a sign in it
+   *  (after MVRDV's diagrams). Badges are drawn last, over everything. */
+  pin(at: P3, glyph: keyof typeof GLYPHS, fill = "var(--pc-ink)", stalk = 26): this {
+    const [x, y] = iso(at), top = y - stalk, R = 8.5;
+    this.grow([[x - R, top - R], [x + R, y + 2]]);
+    this.pins.push(`<line x1="${f(x)}" y1="${f(y)}" x2="${f(x)}" y2="${f(top + R)}" style="stroke: var(--pc-ink-2)" stroke-width=".8"/><circle cx="${f(x)}" cy="${f(y)}" r="1.6" style="fill: var(--pc-ink)"/>`
+      + `<g transform="translate(${f(x)} ${f(top)})"><circle r="${R}" style="fill: ${fill}; stroke: var(--pc-surface)" stroke-width="1.2"/><g style="fill: none; stroke: var(--pc-surface)" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round">${GLYPHS[glyph]}</g></g>`);
+    return this;
+  }
+
+  /** An arrow painted on the ground along a straight run, following the ground's height
+   *  (`zAt`), like the flow arrows on a landscape plan. */
+  groundArrow(a: P2, b: P2, zAt: (x: number, y: number) => number, width = 2.4, fill = "var(--pc-water)"): this {
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1]), u: P2 = [(b[0] - a[0]) / L, (b[1] - a[1]) / L], n: P2 = [-u[1], u[0]];
+    const head = Math.min(L * .45, width * 2.4), m: P2 = [b[0] - u[0] * head, b[1] - u[1] * head], w = width / 2;
+    const flat: P2[] = [
+      [a[0] + n[0] * w, a[1] + n[1] * w], [m[0] + n[0] * w, m[1] + n[1] * w], [m[0] + n[0] * w * 2.3, m[1] + n[1] * w * 2.3], b,
+      [m[0] - n[0] * w * 2.3, m[1] - n[1] * w * 2.3], [m[0] - n[0] * w, m[1] - n[1] * w], [a[0] - n[0] * w, a[1] - n[1] * w],
+    ];
+    return this.poly(flat.map(([x, y]): P3 => [x, y, zAt(x, y) + .5]), fill, "var(--pc-surface)");
+  }
+
   /** The drawing's body and bounds, for composing several into one (`series`). */
-  parts() { return { body: this.out.join(""), defs: [...this.defs].join(""), b: { ...this.b } }; }
+  parts() { return { body: this.out.join("") + this.pins.join(""), defs: [...this.defs].join(""), b: { ...this.b } }; }
 
   /** An arrow on the page between two world points. */
   arrow(a: P3, c: P3, color = "var(--pc-ink-2)"): this {
@@ -239,9 +262,18 @@ export class Scene {
 
   svg(title: string): string {
     const p = 8, { x0, y0, x1, y1 } = this.b, w = x1 - x0 + 2 * p, h = y1 - y0 + 2 * p;
-    return `<svg viewBox="${f(x0 - p)} ${f(y0 - p)} ${f(w)} ${f(h)}" width="${Math.round(w)}" height="${Math.round(h)}" role="img" aria-label="${esc(title)}" class="wb-diagram"><defs>${[...this.defs].join("")}</defs>${this.out.join("")}</svg>`;
+    return `<svg viewBox="${f(x0 - p)} ${f(y0 - p)} ${f(w)} ${f(h)}" width="${Math.round(w)}" height="${Math.round(h)}" role="img" aria-label="${esc(title)}" class="wb-diagram"><defs>${[...this.defs].join("")}</defs>${this.out.join("")}${this.pins.join("")}</svg>`;
   }
 }
+
+/** Signs for pins: simple line drawings centred on 0, 0 (about 9 px across). */
+const GLYPHS = {
+  bus: `<rect x="-3.6" y="-4.2" width="7.2" height="7" rx="1.4"/><line x1="-3.6" y1="-.8" x2="3.6" y2="-.8"/><line x1="-2.2" y1="2.8" x2="-2.2" y2="4.4"/><line x1="2.2" y1="2.8" x2="2.2" y2="4.4"/>`,
+  school: `<path d="M-4.6 -1.2 L0 -3.6 L4.6 -1.2 L0 1.2 Z"/><path d="M-2.6 0 V2.4 Q0 4 2.6 2.4 V0"/>`,
+  market: `<path d="M-4.2 -1.4 H4.2 L3.2 -3.8 H-3.2 Z"/><path d="M-3.4 -1.4 V3.8 H3.4 V-1.4"/><line x1="-1" y1="3.8" x2="-1" y2="1"/><line x1="1" y1="1" x2="1" y2="3.8"/>`,
+  tree: `<circle cx="0" cy="-1.4" r="3"/><line x1="0" y1="1.6" x2="0" y2="4.4"/>`,
+  drop: `<path d="M0 -4.4 C 2.6 -1, 3.4 .6, 3.4 1.6 A 3.4 3.4 0 0 1 -3.4 1.6 C -3.4 .6, -2.6 -1, 0 -4.4 Z"/>`,
+} as const;
 
 // A seeded random, so a diagram is the same every time it is drawn.
 export const rng = (seed: number) => () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
@@ -334,9 +366,16 @@ export function landform(): Diagram {
   // ridge streets along the two crests
   const crest = (x0: number) => Array.from({ length: ny + 1 }, (_, j): P3 => { let bi = x0, bz = -1; for (let i = x0 - 3; i <= x0 + 3; i++) if (h(i, j) > bz) { bz = h(i, j); bi = i; } return [bi * c, j * c, bz + .4]; });
   for (const x0 of [Math.round(nx * .2), Math.round(nx * .82)]) { const p = crest(x0); s.line(p, "var(--pc-ink)", 3.4, { opacity: .25 }); s.line(p, "var(--pc-street)", 2.2); }
+  // rain running off both hills into the valley, painted on the ground
+  const zAt = (x: number, y: number) => Math.max(h(x / c, y / c), 1.6);
+  for (const y of [.25, .55, .85].map((v) => v * ny * c)) {
+    s.groundArrow([nx * c * .3, y], [nx * c * .45, y + 2], zAt);
+    s.groundArrow([nx * c * .72, y - 2], [nx * c * .59, y], zAt);
+  }
+  s.pin([nx * c * .52, ny * c * .5, 1.7], "drop", "var(--pc-water)", 34);
   s.label([nx * c * .52, ny * c, 1.7], "valley: water runs here, kept open", { dx: 0, dy: 28, anchor: "middle", strong: true });
   s.label([Math.round(nx * .82) * c, 1 * c, h(Math.round(nx * .82), 1) + .4], "ridge: a main street", { dx: 22, dy: -16, strong: true });
-  return { id: "landform", title: "Landform", caption: "Water gathers in the valleys, so they stay open; the ridges between them are where the main streets go.", svg: s.svg("Shaded ground with two hills, a street along each crest, and a stream in the valley between.") };
+  return { id: "landform", title: "Landform", caption: "Water gathers in the valleys, so they stay open; the ridges between them are where the main streets go.", svg: s.svg("Shaded ground with two hills, a street along each crest, blue arrows of rain running down both slopes, and a stream in the valley between.") };
 }
 
 /** Street hierarchy: main streets, routes, local streets, and the blocks between. The streets
@@ -348,7 +387,7 @@ export function streets(): Diagram {
   for (const x of LOCAL) s.street([[x, 0, T + .1], [x, D, T + .1]], 6, grey);
   s.street([[ROUTE, 0, T + .1], [ROUTE, D, T + .1]], 10, grey);
   s.street([[0, MAIN, T + .1], [W, MAIN, T + .1]], 15, grey);
-  s.groundText([46, MAIN, T + .2], "main street", "x", { size: 10, fill: "var(--pc-surface)" });
+  s.groundText([30, MAIN, T + .2], "main street", "x", { size: 10, fill: "var(--pc-surface)" });
   s.groundText([ROUTE, 76, T + .2], "route", "y", { size: 8, fill: "var(--pc-surface)" });
   s.groundText([LOCAL[1], 78, T + .2], "local", "y", { size: 6, fill: "var(--pc-surface)" });
   const th: Thing[] = [];
@@ -364,7 +403,11 @@ export function streets(): Diagram {
     th.push({ kind: "tree", x, y: MAIN - 9, z: T, s: 2 }, { kind: "tree", x: x + 2, y: MAIN + 9, z: T, s: 2 });
   }
   s.things(th, { x0: 0, y0: 0, x1: W, y1: D });
-  return { id: "streets", title: "Streets", caption: "Wide main streets carry the city across, routes link the places people go, and narrow local streets make the blocks.", svg: s.svg("White blocks cut by a wide tree-lined main street, a route and two local streets, each named on the ground.") };
+  // the places the routes join
+  s.pin([ROUTE, MAIN, T], "bus", "var(--pc-ink)", 40);
+  s.pin([16, 20, T + 6], "school", "var(--pc-ink)", 34);
+  s.pin([84, 70, T + 6], "market", "var(--pc-ink)", 30);
+  return { id: "streets", title: "Streets", caption: "Wide main streets carry the city across, routes link the places people go, and narrow local streets make the blocks.", svg: s.svg("White blocks cut by a wide tree-lined main street, a route and two local streets, each named on the ground, with pins on a bus stop, a school and a market.") };
 }
 
 /** A design's recipe: a few settings, read as a plan. */

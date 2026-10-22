@@ -12,3 +12,6 @@ app/dist/
 .env.*
 !.env.example
 corpus/_sources/
+
+# design references (large images, kept local)
+reference/
