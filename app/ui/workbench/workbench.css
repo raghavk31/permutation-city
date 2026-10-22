@@ -231,6 +231,7 @@ a { color: inherit; }
 .wb-setback .wb-num-input { width: 64px; }
 .wb-mass-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .wb-mass-list canvas { display: block; width: 100%; }
+.wb-mass-list .wb-thumb { width: auto; min-width: 0; }
 .wb-mass-list .wb-pic { aspect-ratio: 1; }
 .wb-table { width: 100%; border-collapse: collapse; font-size: var(--pc-size-small); }
 .wb-table th { text-align: right; font-weight: 500; color: var(--pc-muted); padding: 2px 4px; border-bottom: var(--wb-hair); }
