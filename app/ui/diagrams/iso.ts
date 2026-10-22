@@ -5,7 +5,11 @@
 // intros, empty states, term tooltips), the story page and docs/ui/system.html.
 //
 // Rules for a diagram: one idea; at most five labelled things; a plain one-sentence caption;
-// no numbers unless the number is the point.
+// no numbers unless the number is the point. Style, after the references in reference/:
+//   paper   context: white faces, a whisper of shade, crisp hairline edges
+//   colour  what the diagram is about, in its map colour
+//   mark    solid ink: what this step changes
+//   ghost   dashed edges: what isn't built yet, or was taken away
 
 export type P3 = [number, number, number];
 export type P2 = [number, number];
@@ -32,7 +36,7 @@ export const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;")
 const EDGE = 'stroke="var(--pc-ink)" stroke-opacity=".22" stroke-width=".6" stroke-linejoin="round"';
 const SHADOW = "color-mix(in srgb, var(--pc-ink) 13%, transparent)";
 
-export interface Box { kind?: "box"; x: number; y: number; z: number; w: number; d: number; h: number; fill: string; floors?: boolean }
+export interface Box { kind?: "box"; x: number; y: number; z: number; w: number; d: number; h: number; fill?: string; floors?: boolean; style?: "paper" | "colour" | "mark" | "ghost" }
 export interface Tree { kind: "tree"; x: number; y: number; z: number; s: number; fill?: string }
 export type Thing = Box | Tree;
 type Clip = { x0: number; y0: number; x1: number; y1: number };
@@ -71,25 +75,42 @@ export class Scene {
     return this.box({ x, y, z, w, d, h: t, fill });
   }
 
-  /** A box: its top and the two faces toward the viewer, lit from the upper left; with
-   *  `floors`, a line at each storey. */
+  /** A box: its top and the two faces toward the viewer, lit from the upper left, then its
+   *  edges drawn once (the silhouette and the three edges at the near top corner); with
+   *  `floors`, a line at each storey. Style "paper" (default without a fill), "colour"
+   *  (default with one), "mark" (solid ink) or "ghost" (dashed edges only). */
   box(k: Box): this {
-    const { x, y, z, w, d, h, fill } = k;
-    const top: P3[] = [[x, y, z + h], [x + w, y, z + h], [x + w, y + d, z + h], [x, y + d, z + h]];
-    const right: P3[] = [[x + w, y, z], [x + w, y + d, z], [x + w, y + d, z + h], [x + w, y, z + h]];
-    const left: P3[] = [[x, y + d, z], [x + w, y + d, z], [x + w, y + d, z + h], [x, y + d, z + h]];
-    if (h > 0) {
-      this.poly(right, darker(fill, 0.24)); this.poly(left, darker(fill, 0.1));
-      if (k.floors && h > FLOOR * 1.5) {
-        let g = "";
-        for (let zz = z + FLOOR; zz < z + h - 0.8; zz += FLOOR) {
-          const a = iso([x, y + d, zz]), b = iso([x + w, y + d, zz]), c = iso([x + w, y, zz]);
-          g += `<polyline points="${pts([a, b, c])}" fill="none" style="stroke: var(--pc-ink)" stroke-opacity=".13" stroke-width=".55"/>`;
-        }
-        this.out.push(g);
-      }
+    const { x, y, z, w, d, h } = k, style = k.style ?? (k.fill ? "colour" : "paper");
+    const T: P2[] = [iso([x, y, z + h]), iso([x + w, y, z + h]), iso([x + w, y + d, z + h]), iso([x, y + d, z + h])];
+    const Bt: P2[] = [iso([x, y, z]), iso([x + w, y, z]), iso([x + w, y + d, z]), iso([x, y + d, z])];
+    this.grow([...T, ...Bt]);
+    const seg = (a: P2, b: P2) => `M${f(a[0])} ${f(a[1])}L${f(b[0])} ${f(b[1])}`;
+    if (style === "ghost") {
+      const d4 = [0, 1, 2, 3].map((i) => seg(T[i], T[(i + 1) % 4]) + seg(Bt[i], Bt[(i + 1) % 4]) + seg(T[i], Bt[i])).join("");
+      this.out.push(`<path d="${d4}" fill="none" style="stroke: var(--pc-ink-2)" stroke-width=".7" stroke-dasharray="2.4 2" stroke-opacity=".75"/>`);
+      return this;
     }
-    return this.poly(top, h > 0 ? lighter(fill, 0.08) : fill);
+    const fill = k.fill ?? "var(--pc-surface)";
+    const faces = style === "mark"
+      ? { top: "color-mix(in srgb, var(--pc-ink) 82%, var(--pc-surface))", left: "var(--pc-ink)", right: "color-mix(in srgb, var(--pc-ink) 92%, var(--pc-surface))" }
+      : style === "paper"
+        ? { top: "var(--pc-surface)", left: "color-mix(in srgb, var(--pc-ink) 4%, var(--pc-surface))", right: "color-mix(in srgb, var(--pc-ink) 12%, var(--pc-surface))" }
+        : { top: lighter(fill, 0.06), left: darker(fill, 0.07), right: darker(fill, 0.2) };
+    const line = style === "mark" ? "var(--pc-surface)" : "var(--pc-ink)", op = style === "mark" ? .45 : .6;
+    const seal = (q: P2[], c: string) => `<polygon points="${pts(q)}" style="fill: ${c}; stroke: ${c}" stroke-width=".4" stroke-linejoin="round"/>`;
+    let g = "";
+    if (h > 0) {
+      g += seal([Bt[1], Bt[2], T[2], T[1]], faces.right) + seal([Bt[3], Bt[2], T[2], T[3]], faces.left);
+      if (k.floors && h > FLOOR * 1.5)
+        for (let zz = z + FLOOR; zz < z + h - 0.8; zz += FLOOR)
+          g += `<polyline points="${pts([iso([x, y + d, zz]), iso([x + w, y + d, zz]), iso([x + w, y, zz])])}" fill="none" style="stroke: ${line}" stroke-opacity="${style === "mark" ? .28 : .13}" stroke-width=".5"/>`;
+    }
+    g += seal(T, faces.top);
+    const sil = h > 0 ? [T[0], T[1], Bt[1], Bt[2], Bt[3], T[3]] : T;
+    g += `<polygon points="${pts(sil)}" fill="none" style="stroke: ${line}" stroke-opacity="${op}" stroke-width=".75" stroke-linejoin="round"/>`;
+    if (h > 0) g += `<path d="${seg(T[1], T[2])}${seg(T[2], T[3])}${seg(T[2], Bt[2])}" fill="none" style="stroke: ${line}" stroke-opacity="${op * .75}" stroke-width=".55"/>`;
+    this.out.push(g);
+    return this;
   }
 
   /** A tree: a trunk and a round canopy, with a highlight toward the light. */
@@ -106,6 +127,7 @@ export class Scene {
   /** Soft shadows on the ground for boxes and trees: each footprint swept away from the light. */
   shadows(list: Thing[], clip?: Clip): this {
     for (const t of list) {
+      if (t.kind !== "tree" && t.style === "ghost") continue;
       const L = t.kind === "tree" ? t.s * 2.2 : t.h, z = t.z + 0.05;
       const foot: P2[] = t.kind === "tree"
         ? Array.from({ length: 8 }, (_, i): P2 => [t.x + t.s * .7 * Math.cos(i * Math.PI / 4), t.y + t.s * .7 * Math.sin(i * Math.PI / 4)])
@@ -160,11 +182,33 @@ export class Scene {
     return this;
   }
 
-  /** A street on the ground: a pale band with a fine kerb either side. */
-  street(p: P3[], width: number): this {
+  /** A street on the ground: a band with a fine kerb either side (pale on a designed site,
+   *  grey on plain ground). */
+  street(p: P3[], width: number, fill = "var(--pc-street)"): this {
     this.line(p, "var(--pc-ink)", width + 1, { cap: "butt", opacity: .16 });
-    return this.line(p, "var(--pc-street)", width, { cap: "butt" });
+    return this.line(p, fill, width, { cap: "butt" });
   }
+
+  /** Lettering lying on the ground, along the world's x or y axis (like a street name painted
+   *  on a plan). */
+  groundText(at: P3, text: string, axis: "x" | "y", opts: { size?: number; fill?: string; anchor?: "start" | "middle" | "end" } = {}): this {
+    const [X, Y] = iso(at), size = opts.size ?? 8, w = text.length * size * .72;
+    this.grow([[X - w, Y - w * .6], [X + w, Y + w * .6]]);
+    const c = COS.toFixed(4), m = axis === "x" ? `matrix(${c} ${SIN} -${c} ${SIN} ${f(X)} ${f(Y)})` : `matrix(${c} -${SIN} ${c} ${SIN} ${f(X)} ${f(Y)})`;
+    this.out.push(`<text transform="${m}" text-anchor="${opts.anchor ?? "middle"}" dominant-baseline="central" style="fill: ${opts.fill ?? "var(--pc-ink-2)"}; font: 500 ${size}px var(--pc-font); letter-spacing: .14em">${esc(text.toUpperCase())}</text>`);
+    return this;
+  }
+
+  /** A soft wedge of light from a point on the page to a polygon on the ground. */
+  cone(from: P2, to: P3[], fill = "var(--pc-heat-5)"): this {
+    const q = to.map(iso), all = [from, ...q];
+    this.grow(all);
+    this.out.push(`<polygon points="${pts(hull(all))}" style="fill: ${fill}" fill-opacity=".16"/>`);
+    return this;
+  }
+
+  /** The drawing's body and bounds, for composing several into one (`series`). */
+  parts() { return { body: this.out.join(""), defs: [...this.defs].join(""), b: { ...this.b } }; }
 
   /** An arrow on the page between two world points. */
   arrow(a: P3, c: P3, color = "var(--pc-ink-2)"): this {
@@ -204,16 +248,36 @@ export const rng = (seed: number) => () => ((seed = (seed * 16807) % 2147483647)
 const B = (i: number) => `var(--pc-building-${Math.max(0, Math.min(5, i))})`;
 /** Building colour by height, as on the map: the ramp runs to 15 storeys. */
 export const byHeight = (h: number) => B(Math.floor((h / FLOOR) / 15 * 6));
-const sun = (s: Scene, at: P3) => {
+const sun = (s: Scene, at: P3): P2 => {
   const [x, y] = iso(at);
-  return s.raw(x - 10, y - 10, 20, 20, `<circle cx="10" cy="10" r="5" style="fill: var(--pc-heat-5)"/>${Array.from({ length: 8 }, (_, i) => { const a = i * Math.PI / 4; return `<line x1="${f(10 + 7.5 * Math.cos(a))}" y1="${f(10 + 7.5 * Math.sin(a))}" x2="${f(10 + 10 * Math.cos(a))}" y2="${f(10 + 10 * Math.sin(a))}" style="stroke: var(--pc-heat-5)" stroke-width="1.3" stroke-linecap="round"/>`; }).join("")}`);
+  sunAt = [x, y];
+  s.raw(x - 10, y - 10, 20, 20, `<circle cx="10" cy="10" r="5" style="fill: var(--pc-heat-5)"/>${Array.from({ length: 8 }, (_, i) => { const a = i * Math.PI / 4; return `<line x1="${f(10 + 7.5 * Math.cos(a))}" y1="${f(10 + 7.5 * Math.sin(a))}" x2="${f(10 + 10 * Math.cos(a))}" y2="${f(10 + 10 * Math.sin(a))}" style="stroke: var(--pc-heat-5)" stroke-width="1.3" stroke-linecap="round"/>`; }).join("")}`);
+  return sunAt;
 };
+let sunAt: P2 = [0, 0];
+
+/** Frames side by side, each with a caption: "01 TITLE" and a grey line under it (as in a
+ *  numbered process sheet). Bottoms line up, so the ground reads level. */
+export function series(frames: { scene: Scene; num: string; title: string; note: string }[], label: string): string {
+  const parts = frames.map((fr) => ({ ...fr, ...fr.scene.parts() })), GAPX = 26, CAP = 34;
+  const H = Math.max(...parts.map((p) => p.b.y1 - p.b.y0));
+  let x = 0, body = "", defs = "";
+  for (const p of parts) {
+    const w = Math.max(p.b.x1 - p.b.x0, 120), dx = x + (w - (p.b.x1 - p.b.x0)) / 2 - p.b.x0, dy = H - p.b.y1;
+    body += `<g transform="translate(${f(dx)} ${f(dy)})">${p.body}</g>`;
+    body += `<text x="${f(x + w / 2)}" y="${f(H + 20)}" text-anchor="middle" style="fill: var(--pc-ink); font: 500 10.5px var(--pc-font); letter-spacing: .08em"><tspan style="font-weight: 600">${esc(p.num)}</tspan> ${esc(p.title.toUpperCase())}</text>`;
+    body += `<text x="${f(x + w / 2)}" y="${f(H + 34)}" text-anchor="middle" style="fill: var(--pc-muted); font: 10.5px var(--pc-font)">${esc(p.note)}</text>`;
+    defs += p.defs; x += w + GAPX;
+  }
+  const W = x - GAPX, pad = 8;
+  return `<svg viewBox="${-pad} ${-pad} ${f(W + 2 * pad)} ${f(H + CAP + 2 * pad)}" width="${Math.round(W + 2 * pad)}" height="${Math.round(H + CAP + 2 * pad)}" role="img" aria-label="${esc(label)}" class="wb-diagram"><defs>${defs}</defs>${body}</svg>`;
+}
 
 export interface Diagram { id: string; title: string; caption: string; svg: string }
 
 /** McHarg's layer cake: maps of the site stacked, read together. */
 export function layers(): Diagram {
-  const s = new Scene("layers"), W = 100, D = 70, T = 2.5, GAP = 30, r = rng(3);
+  const s = new Scene("layers"), W = 100, D = 70, T = 2.5, GAP = 48, r = rng(3);
   // registration lines at the corners, behind everything
   for (const [x, y] of [[0, D], [W, D], [W, 0]] as P2[]) s.line([[x, y, 0], [x, y, 3 * GAP + T]], "var(--pc-ink-2)", .6, { dash: "2 3", opacity: .5 });
   // 0: ground height, a gentle hill
@@ -225,15 +289,15 @@ export function layers(): Diagram {
   s.poly([[56, 0, z + T], [63, 0, z + T], [56, D, z + T], [48, D, z + T]], "var(--pc-water)", false);
   // 2: green
   z = 2 * GAP; s.slab(0, 0, z, W, D, T);
-  s.poly([[0, 0, z + T], [34, 0, z + T], [26, 30, z + T], [0, 38, z + T]], "var(--pc-green-light)", false);
+  // on the front of the layer, where the one above doesn't hide it
+  s.poly([[52, 30, z + T], [W, 22, z + T], [W, D, z + T], [40, D, z + T], [44, 50, z + T]], "var(--pc-green-light)", false);
   const trees: Thing[] = [];
-  for (let k = 0; k < 9; k++) trees.push({ kind: "tree", x: 4 + r() * 22, y: 3 + r() * 26, z: z + T, s: 2.6 + r() * 1.2 });
-  for (let k = 0; k < 4; k++) trees.push({ kind: "tree", x: 76 + r() * 16, y: 44 + r() * 18, z: z + T, s: 2.4 + r(), fill: "var(--pc-green-proposed)" });
+  for (let k = 0; k < 14; k++) { const x = 56 + r() * 40, y = 36 + r() * 30; trees.push({ kind: "tree", x, y, z: z + T, s: 2.4 + r() * 1.2 }); }
   s.things(trees);
   // 3: the city today
   z = 3 * GAP; s.slab(0, 0, z, W, D, T);
   const bx: Thing[] = [];
-  for (let i = 0; i < 6; i++) for (let j = 0; j < 4; j++) if (r() > .3) bx.push({ x: 4 + i * 15, y: 4 + j * 16, z: z + T, w: 10, d: 11, h: 3 + r() * 7, fill: "var(--pc-existing)" });
+  for (let i = 0; i < 6; i++) for (let j = 0; j < 4; j++) if (r() > .3) bx.push({ x: 4 + i * 15, y: 4 + j * 16, z: z + T, w: 10, d: 11, h: 3 + r() * 7 });
   s.things(bx, { x0: 0, y0: 0, x1: W, y1: D });
   ["ground height", "water and floods", "trees and green", "the city today"].forEach((t, k) => s.label([W, D, k * GAP + T], t, { dx: 30, dy: 2 }));
   return { id: "layers", title: "Layers", caption: "Each map of the site is a layer. Stacked, they show what the land is like in every spot at once.", svg: s.svg("Four maps of a site stacked like a cake: ground height, water, green, existing buildings.") };
@@ -246,9 +310,9 @@ export function rules(): Diagram {
   s.poly([[0, 0, T], [36, 0, T], [28, 34, T], [0, 42, T]], s.pattern("forbidden"));
   s.poly([[36, 0, T], [56, 0, T], [50, D, T], [30, D, T], [28, 34, T]], s.pattern("constrained"));
   const th: Thing[] = [];
-  for (let k = 0; k < 6; k++) th.push({ kind: "tree", x: 4 + r() * 20, y: 4 + r() * 24, z: T, s: 2.6 + r() });
-  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) if (r() > .2) { const h = 8 + r() * 22; th.push({ x: 60 + i * 15, y: 4 + j * 19, z: T, w: 11, d: 14, h, fill: byHeight(h), floors: true }); }
-  for (let j = 0; j < 3; j++) th.push({ x: 37, y: 42 + j * 12.5, z: T, w: 8, d: 9, h: 6.4, fill: byHeight(6.4), floors: true });
+  for (let k = 0; k < 7; k++) th.push({ kind: "tree", x: 4 + r() * 20, y: 4 + r() * 26, z: T, s: 2.6 + r() });
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) if (r() > .2) th.push({ x: 60 + i * 15, y: 4 + j * 19, z: T, w: 11, d: 14, h: 8 + r() * 22, floors: true });
+  for (let j = 0; j < 3; j++) th.push({ x: 37, y: 42 + j * 12.5, z: T, w: 8, d: 9, h: 6.4, floors: true });
   s.things(th, { x0: 0, y0: 0, x1: W, y1: D });
   s.label([8, 34, T], "never built", { dx: -22, dy: 8, anchor: "end", strong: true });
   s.label([44, 6, T], "built with limits", { dx: -14, dy: -32, anchor: "end", strong: true });
@@ -275,31 +339,32 @@ export function landform(): Diagram {
   return { id: "landform", title: "Landform", caption: "Water gathers in the valleys, so they stay open; the ridges between them are where the main streets go.", svg: s.svg("Shaded ground with two hills, a street along each crest, and a stream in the valley between.") };
 }
 
-/** Street hierarchy: main streets, routes, local streets, and the blocks between. */
+/** Street hierarchy: main streets, routes, local streets, and the blocks between. The streets
+ *  are the idea, so they carry the tone and their names lie on the ground. */
 export function streets(): Diagram {
   const s = new Scene("streets"), W = 130, D = 92, T = 3, r = rng(21);
   s.slab(0, 0, 0, W, D, T);
-  const MAIN = 42, ROUTE = 66, LOCAL = [30, 100];
-  s.street([[0, MAIN, T + .1], [W, MAIN, T + .1]], 9);
-  s.street([[ROUTE, 0, T + .1], [ROUTE, D, T + .1]], 6);
-  for (const x of LOCAL) s.street([[x, 0, T + .1], [x, D, T + .1]], 3.4);
+  const MAIN = 42, ROUTE = 66, LOCAL = [30, 100], grey = "color-mix(in srgb, var(--pc-ink) 34%, var(--pc-surface))";
+  for (const x of LOCAL) s.street([[x, 0, T + .1], [x, D, T + .1]], 6, grey);
+  s.street([[ROUTE, 0, T + .1], [ROUTE, D, T + .1]], 10, grey);
+  s.street([[0, MAIN, T + .1], [W, MAIN, T + .1]], 15, grey);
+  s.groundText([46, MAIN, T + .2], "main street", "x", { size: 10, fill: "var(--pc-surface)" });
+  s.groundText([ROUTE, 76, T + .2], "route", "y", { size: 8, fill: "var(--pc-surface)" });
+  s.groundText([LOCAL[1], 78, T + .2], "local", "y", { size: 6, fill: "var(--pc-surface)" });
   const th: Thing[] = [];
   const xs = [0, LOCAL[0], ROUTE, LOCAL[1], W], ys = [0, MAIN, D];
   for (let i = 0; i < xs.length - 1; i++) for (let j = 0; j < ys.length - 1; j++) {
-    const x0 = xs[i] + 5.5, x1 = xs[i + 1] - 5.5, y0 = ys[j] + 6.5, y1 = ys[j + 1] - 6.5, k = 2;
+    const x0 = xs[i] + 7, x1 = xs[i + 1] - 7, y0 = ys[j] + 10, y1 = ys[j + 1] - 8, k = 2;
     for (let p = 0; p < k; p++) for (const half of [0, 1]) {
-      const pw = (x1 - x0) / k, pd = (y1 - y0) / 2, hh = 5 + r() * 11;
-      th.push({ x: x0 + p * pw + 1.5, y: (half ? y0 + pd : y0) + 1.5, z: T, w: pw - 3, d: pd - 3, h: hh, fill: byHeight(hh), floors: true });
+      const pw = (x1 - x0) / k, pd = (y1 - y0) / 2;
+      th.push({ x: x0 + p * pw + 1.5, y: (half ? y0 + pd : y0) + 1.5, z: T, w: pw - 3, d: pd - 3, h: 4 + r() * 6, floors: true });
     }
   }
-  for (let x = 5; x < W; x += 10) if (Math.abs(x - ROUTE) > 5 && LOCAL.every((l) => Math.abs(x - l) > 4)) {
-    th.push({ kind: "tree", x, y: MAIN - 5, z: T, s: 2 }, { kind: "tree", x: x + 2, y: MAIN + 5, z: T, s: 2 });
+  for (let x = 5; x < W; x += 10) if (Math.abs(x - ROUTE) > 6 && LOCAL.every((l) => Math.abs(x - l) > 5)) {
+    th.push({ kind: "tree", x, y: MAIN - 9, z: T, s: 2 }, { kind: "tree", x: x + 2, y: MAIN + 9, z: T, s: 2 });
   }
   s.things(th, { x0: 0, y0: 0, x1: W, y1: D });
-  s.label([0, MAIN, T], "main street", { dx: -10, dy: -18, anchor: "end", strong: true });
-  s.label([ROUTE, 0, T], "route", { dx: 12, dy: -22, strong: true });
-  s.label([LOCAL[1], D, T], "local street", { dx: -6, dy: 22, anchor: "end", strong: true });
-  return { id: "streets", title: "Streets", caption: "Wide main streets carry the city across, routes link the places people go, and narrow local streets make the blocks.", svg: s.svg("Blocks of buildings cut by one wide tree-lined street, one medium street and two narrow ones.") };
+  return { id: "streets", title: "Streets", caption: "Wide main streets carry the city across, routes link the places people go, and narrow local streets make the blocks.", svg: s.svg("White blocks cut by a wide tree-lined main street, a route and two local streets, each named on the ground.") };
 }
 
 /** A design's recipe: a few settings, read as a plan. */
@@ -319,36 +384,41 @@ export function recipe(): Diagram {
   s.poly([[0, 40, T], [26, 40, T], [26, D, T], [0, D, T]], "var(--pc-green-light)", false);
   s.poly([[48, 44, T], [66, 44, T], [66, 57, T], [48, 57, T]], "var(--pc-water-storage)", "var(--pc-water)");
   const th: Thing[] = [];
-  for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) { const h = 8 + r() * 16; th.push({ x: 3 + i * 17, y: 3 + j * 18, z: T, w: 13, d: 14, h, fill: byHeight(h), floors: true }); }
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) th.push({ x: 3 + i * 17, y: 3 + j * 18, z: T, w: 13, d: 14, h: 8 + r() * 16, floors: true });
   for (let k = 0; k < 5; k++) th.push({ kind: "tree", x: 4 + r() * 18, y: 43 + r() * 15, z: T, s: 2.3 + r() * .8, fill: "var(--pc-green-proposed)" });
   s.things(th, { x0: 0, y0: 0, x1: W, y1: D });
   return { id: "recipe", title: "Recipe", caption: "Every design grows from a short recipe of settings. Change a setting and a different plan grows on the same ground.", svg: s.svg("Five setting sliders on the left, an arrow, and the small plan they produce on the right.") };
 }
 
-/** One small plan in a sequence, placed `o` along the page: `order` 0 is scattered, 1 is
- *  settled with a park. */
-function smallPlan(s: Scene, o: number, order: number, seed: number) {
-  const r = rng(seed), W = 40, D = 40, T = 2, x0 = o, y0 = -o, park = order > .5;
-  s.slab(x0, y0, 0, W, D, T);
-  if (park) s.poly([[x0 + 2, y0 + 26, T], [x0 + 18, y0 + 26, T], [x0 + 18, y0 + D - 2, T], [x0 + 2, y0 + D - 2, T]], "var(--pc-green-light)", false);
+/** One small plan: `order` 0 is scattered, 1 is settled with a park; `marked` buildings (by
+ *  index) are drawn in ink, as what changed. */
+function smallPlan(order: number, seed: number, marked: number[] = []): Scene {
+  const s = new Scene(`plan${seed}`), r = rng(seed), W = 40, D = 40, T = 2, park = order > .7;
+  s.slab(0, 0, 0, W, D, T);
+  if (park) s.poly([[2, 26, T], [18, 26, T], [18, D - 2, T], [2, D - 2, T]], "var(--pc-green-light)", false);
   const th: Thing[] = [];
+  let n = 0;
   for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
     if (park && i < 2 && j >= 3) continue;
-    const jit = (1 - order) * 4, skip = r() < .3 * (1 - order), hh = 4 + r() * (6 + order * 12);
+    const jit = (1 - order) * 5, skip = r() < .3 * (1 - order), hh = 4 + r() * (6 + order * 12);
     if (skip) continue;
-    th.push({ x: x0 + 2 + i * 9.5 + (r() - .5) * jit, y: y0 + 2 + j * 9.5 + (r() - .5) * jit, z: T, w: 6.5, d: 6.5, h: hh, fill: byHeight(hh), floors: true });
+    th.push({ x: 2 + i * 9.5 + (r() - .5) * jit, y: 2 + j * 9.5 + (r() - .5) * jit, z: T, w: 6.5, d: 6.5, h: hh, floors: true, style: marked.includes(n) ? "mark" : "paper" });
+    n++;
   }
-  if (park) for (let k = 0; k < 3; k++) th.push({ kind: "tree", x: x0 + 5 + k * 5, y: y0 + 31 + (k % 2) * 4, z: T, s: 2, fill: "var(--pc-green-proposed)" });
-  s.things(th, { x0, y0, x1: x0 + W, y1: y0 + D });
+  if (park) for (let k = 0; k < 3; k++) th.push({ kind: "tree", x: 5 + k * 5, y: 31 + (k % 2) * 4, z: T, s: 2, fill: "var(--pc-green-proposed)" });
+  s.things(th, { x0: 0, y0: 0, x1: W, y1: D });
+  return s;
 }
 
 /** Evolution: generations of designs, the better ones breeding. */
 export function evolution(): Diagram {
-  const s = new Scene("evolution"), W = 40, D = 40, STEP = 62;
-  smallPlan(s, 0, 0, 4); smallPlan(s, STEP, .5, 8); smallPlan(s, 2 * STEP, 1, 12);
-  for (const k of [0, 1]) s.arrow([k * STEP + W + 8, -k * STEP + D / 2 - 14, 4], [(k + 1) * STEP - 2, -(k + 1) * STEP + D / 2 + 2, 4]);
-  ["generation 0: random", "generation 5", "generation 15"].forEach((n, k) => s.label([k * STEP + W, -k * STEP + D, 0], n, { dy: 26, dx: -4, anchor: "middle", strong: k === 2 }));
-  return { id: "evolution", title: "Evolution", caption: "Designs breed. The better ones become parents, so each generation tends to do a little better than the last.", svg: s.svg("Three small plans left to right: scattered, then tidier, then ordered with a park, joined by arrows.") };
+  // COPY: evolution frames
+  const svg = series([
+    { scene: smallPlan(0, 4), num: "01", title: "Start", note: "random designs" },
+    { scene: smallPlan(.5, 8, [2, 5, 9]), num: "02", title: "Breed", note: "the best become parents" },
+    { scene: smallPlan(1, 12), num: "03", title: "Settle", note: "after 15 generations" },
+  ], "Three small plans: scattered, then tidier with a few changed buildings in black, then settled with a park.");
+  return { id: "evolution", title: "Evolution", caption: "Designs breed. The better ones become parents, so each generation tends to do a little better than the last.", svg };
 }
 
 /** The trade-off front (a flat chart: a picture where a chart is clearer). */
@@ -371,39 +441,48 @@ export function tradeoff(): Diagram {
   return { id: "tradeoff", title: "Trade-offs", caption: "No design is best at everything. The front is the set of designs that no other design beats on both counts.", svg: s.svg("A scatter of designs, more water stored to the right and cooler to the bottom, with the best edge joined by a dashed line.") };
 }
 
-/** Massing: buildings on a block, with the sun's shadows. */
+/** Massing: buildings on a block, with the sun's light and shadows. */
 export function massing(): Diagram {
   const s = new Scene("massing"), W = 90, D = 64, T = 3;
   s.slab(0, 0, 0, W, D, T);
-  s.poly([[34, 18, T], [70, 18, T], [70, 46, T], [34, 46, T]], "var(--pc-green-light)", false);
+  const yard: P3[] = [[34, 18, T], [70, 18, T], [70, 46, T], [34, 46, T]];
+  s.poly(yard, "var(--pc-green-light)", false);
   const th: Thing[] = [
-    { x: 6, y: 18, z: T, w: 20, d: 20, h: 38.4, fill: byHeight(38.4), floors: true },
-    { x: 6, y: 44, z: T, w: 20, d: 14, h: 12.8, fill: byHeight(12.8), floors: true },
-    { x: 34, y: 50, z: T, w: 48, d: 10, h: 9.6, fill: byHeight(9.6), floors: true },
-    { x: 76, y: 6, z: T, w: 10, d: 40, h: 16, fill: byHeight(16), floors: true },
+    { x: 6, y: 18, z: T, w: 20, d: 20, h: 38.4, floors: true },
+    { x: 6, y: 44, z: T, w: 20, d: 14, h: 12.8, floors: true },
+    { x: 34, y: 50, z: T, w: 48, d: 10, h: 9.6, floors: true },
+    { x: 76, y: 6, z: T, w: 10, d: 40, h: 16, floors: true },
     { kind: "tree", x: 44, y: 38, z: T, s: 2.4, fill: "var(--pc-green-proposed)" }, { kind: "tree", x: 60, y: 30, z: T, s: 2.4, fill: "var(--pc-green-proposed)" },
   ];
+  const at = sun(s, [-34, 44, 70]);
+  s.cone(at, [[52, 18, T], [70, 18, T], [70, 46, T], [52, 46, T]]);
   s.things(th, { x0: 0, y0: 0, x1: W, y1: D });
-  sun(s, [-30, 40, 56]);
   s.label([16, 28, T + 38.4], "taller: more floors", { dx: -16, dy: -14, anchor: "end", strong: true });
-  s.label([48, 22, T], "its shadow on the yard", { dx: 28, dy: -30, strong: true });
-  return { id: "massing", title: "Massing", caption: "On one block, the buildings are given heights and shapes. The sun shows which streets and yards they shade.", svg: s.svg("A block with a tower, three lower buildings with a line per storey, and the tower's shadow across a green yard.") };
+  s.label([44, 24, T], "and a longer shadow on the yard", { dx: 30, dy: -34, strong: true });
+  return { id: "massing", title: "Massing", caption: "On one block, the buildings are given heights and shapes. The sun shows which streets and yards they shade.", svg: s.svg("White buildings on a block, a tower casting its shadow across a green yard, and the sun's light falling on the rest of the yard.") };
 }
 
-/** Growing in phases: what is built stays, each phase adds. */
+/** Growing in phases: what is built stays, each phase adds; what comes later is dashed. */
 export function growth(): Diagram {
-  const s = new Scene("growth"), W = 40, D = 40, T = 2, STEP = 62, r = rng(31);
-  const all: Box[] = [];
-  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { const h = 4 + r() * 12; all.push({ x: 2 + i * 9.5, y: 2 + j * 9.5, z: T, w: 6.5, d: 6.5, h, fill: byHeight(h), floors: true }); }
-  const order = all.map((_, k) => k).sort(() => r() - .5);
-  ["2025", "2035", "2050"].forEach((yr, p) => {
-    const o = p * STEP, n = [5, 10, 16][p];
-    s.slab(o, -o, 0, W, D, T);
-    s.things(order.slice(0, n).map((k) => ({ ...all[k], x: all[k].x + o, y: all[k].y - o })), { x0: o, y0: -o, x1: o + W, y1: -o + D });
-    s.label([o + W, -o + D, 0], yr, { dy: 26, dx: -4, anchor: "middle", strong: p === 2 });
-  });
-  for (const k of [0, 1]) s.arrow([k * STEP + W + 8, -k * STEP + D / 2 - 14, 4], [(k + 1) * STEP - 2, -(k + 1) * STEP + D / 2 + 2, 4]);
-  return { id: "growth", title: "Growing in phases", caption: "The site is built in phases. What is built stays, and each phase adds to it under its own year's conditions.", svg: s.svg("The same block in 2025, 2035 and 2050, with more buildings each time and the earlier ones unchanged.") };
+  const r = rng(31), all: Box[] = [];
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) all.push({ x: 2 + i * 9.5, y: 2 + j * 9.5, z: 2, w: 6.5, d: 6.5, h: 4 + r() * 12, floors: true });
+  const order = all.map((_, k) => k).sort(() => r() - .5), phaseOf = new Map(order.map((k, i) => [k, i < 5 ? 0 : i < 10 ? 1 : 2]));
+  const frame = (p: number) => {
+    const s = new Scene(`grow${p}`);
+    s.slab(0, 0, 0, 40, 40, 2);
+    s.things(all.map((b, k): Box => {
+      const ph = phaseOf.get(k)!;
+      return { ...b, style: ph < p ? "paper" : ph === p ? "mark" : "ghost" };
+    }), { x0: 0, y0: 0, x1: 40, y1: 40 });
+    return s;
+  };
+  // COPY: growth frames
+  const svg = series([
+    { scene: frame(0), num: "2025", title: "First phase", note: "the rest still to come" },
+    { scene: frame(1), num: "2035", title: "Added", note: "what was built stays" },
+    { scene: frame(2), num: "2050", title: "Complete", note: "under 2050's conditions" },
+  ], "The same block in 2025, 2035 and 2050: each phase's new buildings in black, earlier ones white, later ones dashed.");
+  return { id: "growth", title: "Growing in phases", caption: "The site is built in phases. What is built stays, and each phase adds to it under its own year's conditions.", svg };
 }
 
 /** Every diagram, in the order the story tells them. */
