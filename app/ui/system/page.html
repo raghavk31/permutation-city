@@ -114,6 +114,8 @@ section.sp-sec { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap
 .sp-chart .sp-axis-better { fill: var(--pc-ink); font-weight: 500; }
 
 /* diagrams and words */
+.sp-hero { margin: 0; padding: 16px; border-radius: var(--pc-radius); background: var(--pc-surface-2); overflow-x: auto; }
+.sp-hero svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
 .sp-diagrams { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 28px 24px; }
 .sp-table { overflow-x: auto; }
 .sp-table table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: var(--pc-size-small); }
@@ -261,6 +263,12 @@ section.sp-sec { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap
         <li><b>One plain sentence</b> under each. No numbers unless the number is the point.</li>
         <li>A <b>flat chart</b> where a chart is clearer (the trade-off front). Isometric is for ground and buildings.</li>
       </ul>
+      <div class="sp-sub">
+        <h3 class="wb-label">The whole method: the layer cake</h3>
+        <figure class="sp-hero"><!--DIAGRAM:cake--></figure>
+        <!-- COPY: layer cake caption -->
+        <p class="sp-note">The site is read in layers from the ground up. Where they meet, the rules say what the land allows, and the design adds streets, plots and buildings on top. Adapted from the author's "Climate resilient process" drawing; used on the story page and as the Layers step's intro.</p>
+      </div>
       <div class="sp-diagrams"><!--DIAGRAMS--></div>
       <div class="sp-sub">
         <h3 class="wb-label">Where they appear</h3>

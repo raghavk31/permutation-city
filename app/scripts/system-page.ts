@@ -5,12 +5,13 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { cssVariables, dark, tokens } from "../ui/tokens.js";
 import { DIAGRAMS } from "../ui/diagrams/iso.js";
+import { layerCake } from "../ui/diagrams/cake.js";
 
 const page = readFileSync("ui/system/page.html", "utf8");
 const components = readFileSync("ui/system/components.css", "utf8");
-const diagrams = DIAGRAMS();
+const small = DIAGRAMS(), diagrams = [...small, layerCake()];
 // COPY: diagram titles and captions live in app/ui/diagrams/iso.ts
-const gallery = diagrams.map((d) => `<div class="wb-explain"><figure>${d.svg}</figure><b>${d.title}</b><p>${d.caption}</p></div>`).join("\n");
+const gallery = small.map((d) => `<div class="wb-explain"><figure>${d.svg}</figure><b>${d.title}</b><p>${d.caption}</p></div>`).join("\n");
 const out = page
   .replace("/*TOKENS*/", () => cssVariables(true))
   .replace("/*COMPONENTS*/", () => components)

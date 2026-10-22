@@ -7,13 +7,13 @@
 // Rules for a diagram: one idea; at most five labelled things; a plain one-sentence caption;
 // no numbers unless the number is the point.
 
-type P3 = [number, number, number];
-type P2 = [number, number];
+export type P3 = [number, number, number];
+export type P2 = [number, number];
 
 const COS = Math.cos(Math.PI / 6), SIN = 0.5;
 /** Page pixels per world unit. Diagrams are drawn at this one scale and never enlarged, so
  *  labels are the same size in every diagram. */
-const SCALE = 1.5;
+export const SCALE = 1.5;
 /** World (x right-down, y left-down, z up) to the page. */
 export const iso = ([x, y, z]: P3): P2 => [(x - y) * COS * SCALE, ((x + y) * SIN - z) * SCALE];
 
@@ -21,20 +21,20 @@ export const iso = ([x, y, z]: P3): P2 => [(x - y) * COS * SCALE, ((x + y) * SIN
  *  and the right faces are in shade. Shadows fall the other way, `AWAY` per unit of height. */
 const LIGHT = (() => { const v: P3 = [-0.55, 0.25, 1]; const n = Math.hypot(...v); return v.map((c) => c / n) as P3; })();
 const AWAY: P2 = [0.5, -0.2];
-const FLOOR = 3.2; // one storey, in diagram units
+export const FLOOR = 3.2; // one storey, in diagram units
 
-const darker = (c: string, k: number) => `color-mix(in srgb, ${c} ${Math.round(100 - k * 100)}%, var(--pc-ink))`;
-const lighter = (c: string, k: number) => `color-mix(in srgb, ${c} ${Math.round(100 - k * 100)}%, var(--pc-surface))`;
-const f = (n: number) => +n.toFixed(1);
-const pts = (q: P2[]) => q.map(([a, b]) => `${f(a)},${f(b)}`).join(" ");
-const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+export const darker = (c: string, k: number) => `color-mix(in srgb, ${c} ${Math.round(100 - k * 100)}%, var(--pc-ink))`;
+export const lighter = (c: string, k: number) => `color-mix(in srgb, ${c} ${Math.round(100 - k * 100)}%, var(--pc-surface))`;
+export const f = (n: number) => +n.toFixed(1);
+export const pts = (q: P2[]) => q.map(([a, b]) => `${f(a)},${f(b)}`).join(" ");
+export const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
 
 const EDGE = 'stroke="var(--pc-ink)" stroke-opacity=".22" stroke-width=".6" stroke-linejoin="round"';
 const SHADOW = "color-mix(in srgb, var(--pc-ink) 13%, transparent)";
 
 export interface Box { kind?: "box"; x: number; y: number; z: number; w: number; d: number; h: number; fill: string; floors?: boolean }
 export interface Tree { kind: "tree"; x: number; y: number; z: number; s: number; fill?: string }
-type Thing = Box | Tree;
+export type Thing = Box | Tree;
 type Clip = { x0: number; y0: number; x1: number; y1: number };
 const depthOf = (t: Thing) => (t.kind === "tree" ? t.x + t.y + t.s : t.x + t.w + t.y + t.d);
 
@@ -200,10 +200,10 @@ export class Scene {
 }
 
 // A seeded random, so a diagram is the same every time it is drawn.
-const rng = (seed: number) => () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+export const rng = (seed: number) => () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
 const B = (i: number) => `var(--pc-building-${Math.max(0, Math.min(5, i))})`;
 /** Building colour by height, as on the map: the ramp runs to 15 storeys. */
-const byHeight = (h: number) => B(Math.floor((h / FLOOR) / 15 * 6));
+export const byHeight = (h: number) => B(Math.floor((h / FLOOR) / 15 * 6));
 const sun = (s: Scene, at: P3) => {
   const [x, y] = iso(at);
   return s.raw(x - 10, y - 10, 20, 20, `<circle cx="10" cy="10" r="5" style="fill: var(--pc-heat-5)"/>${Array.from({ length: 8 }, (_, i) => { const a = i * Math.PI / 4; return `<line x1="${f(10 + 7.5 * Math.cos(a))}" y1="${f(10 + 7.5 * Math.sin(a))}" x2="${f(10 + 10 * Math.cos(a))}" y2="${f(10 + 10 * Math.sin(a))}" style="stroke: var(--pc-heat-5)" stroke-width="1.3" stroke-linecap="round"/>`; }).join("")}`);
