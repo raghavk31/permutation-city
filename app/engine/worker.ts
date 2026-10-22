@@ -64,6 +64,7 @@ export interface SyntaxDetail {
 }
 
 const DRAW_M = 400;  // how much of the buffer the page draws round the site
+const LEADERS = 3;   // designs sent to the page's live strip after each generation
 
 const grownOf = (g: Ground, x: Grown) => grow(x.genome, g, x.locked ? Int8Array.from(x.locked) : null, x.ranges);
 const NON_SYNTAX = METRIC_KEYS.filter((k) => !SYNTAX_KEYS.includes(k));
@@ -77,11 +78,23 @@ const api = {
     lastKept = [];
     pool?.terminate(); pool = null;
   },
+  /** `onLeaders`: after each generation of a version 3 run, the best few designs on the
+   *  front, grown whole (plan included), for the page's live strip. */
   async evolve({ search: asked, axes, bins, weights, ...options }: RunRequest,
-    onProgress?: (gen: number, row: HistoryRow) => void): Promise<EvolveResult> {
+    onProgress?: (gen: number, row: HistoryRow) => void,
+    onLeaders?: (gen: number, designs: Design[]) => void): Promise<EvolveResult> {
     if (!G) throw new Error("no site loaded");
     const g = G, search = searchOf({ search: asked, objectives: options.objectives });
-    const progress = (gen: number, r: { history: HistoryRow[] }) => onProgress?.(gen, r.history[r.history.length - 1]);
+    const leaders = (gen: number, r: Run) => {
+      if (!onLeaders || !pool) return;
+      const top = r.pop.filter((i) => i.rank === 1).sort((a, b) => b.crowd - a.crowd).slice(0, LEADERS).map((i) => i.design.genome);
+      pool.whole(top, { storm: 1, ranges: options.ranges!, locked: options.locked ? Array.from(options.locked) : null, objectives: options.objectives ?? [] })
+        .then((ds) => onLeaders(gen, ds)).catch(() => {});
+    };
+    const progress = (gen: number, r: Run) => {
+      onProgress?.(gen, r.history[r.history.length - 1]);
+      if (options.version === 3 && search !== "map-elites") leaders(gen, r);
+    };
     // Version 3 designs are grown by the pool, a generation at a time.
     const v3 = options.version === 3 && search !== "map-elites";
     let run: Run & { archive: ArchiveInfo | null; pop: (Run["pop"][number] & { cell?: number; quality?: number })[] };

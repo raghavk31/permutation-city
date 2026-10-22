@@ -208,7 +208,7 @@
 .wb-thumb .wb-cap { display: flex; justify-content: space-between; gap: var(--wb-s1); align-items: center; padding: 0 2px 2px; }
 .wb-thumb .wb-cap span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wb-thumb .wb-cap span:last-child { color: var(--pc-muted); font-variant-numeric: tabular-nums; }
-.wb-thumb[aria-selected="true"] { border-color: var(--pc-accent); box-shadow: 0 0 0 1px var(--pc-accent); }
+.wb-thumb[aria-selected="true"], .wb-thumb[aria-pressed="true"] { border-color: var(--pc-accent); box-shadow: 0 0 0 1px var(--pc-accent); }
 .wb-thumb .wb-flags { display: flex; gap: 2px; color: var(--pc-ink-2); }
 .wb-thumb .wb-flags svg { width: 12px; height: 12px; }
 .wb-thumb.is-ghost { border-style: dashed; color: var(--pc-muted); place-items: center; min-height: 112px; cursor: default; }

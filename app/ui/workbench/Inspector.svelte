@@ -1,6 +1,7 @@
 <script lang="ts">
   // The inspector. Before a run there is no design to inspect, so it shows the step's intro
   // (a diagram and one sentence, folded to a line once read) and what the step is looking at.
+  import * as E from "../../engine";
   import * as Iso from "../diagrams/iso";
   import { bench, HILLY } from "./bench.svelte";
   import Thumb from "./Thumb.svelte";
@@ -10,6 +11,8 @@
     site: { title: "Site: the ground to design", text: "Pick a ready-made site or outline your own. Everything outside it stays as the city around it.", svg: () => Iso.site().svg },
     layers: { title: "Layers: what the land is like", text: "Each map of the site is a layer: ground, water, green, the city. Read together, they show what the land is like in every spot.", svg: () => Iso.layers().svg },
     rules: { title: "Rules: what the land allows", text: "Rules sort the ground: some is never built on, some is built with limits, and the rest is free for designs to use. Change a number and the map follows.", svg: () => Iso.rules().svg },
+    brief: { title: "Brief: what to build", text: "The brief says how much to build and how high, and what matters most. Every figure says where it comes from, or that it is assumed.", svg: () => Iso.brief().svg },
+    evolve: { title: "Evolve: breed designs", text: "Designs breed. The better ones become parents, so each generation tends to do a little better. You choose among what it finds.", svg: () => Iso.tradeoff().svg },
     landform: { title: "Landform: valleys and ridges", text: "Water gathers in the valleys, so they stay open; the ridges between them are where the main streets go.", svg: () => Iso.landform().svg },
   };
   const intro = $derived(INTRO[bench.step]);
@@ -17,6 +20,22 @@
   const folded = $derived(!!bench.introSeen[bench.step]);
 
   const card = $derived(bench.picked ? bench.index[bench.picked] : null);
+
+  // the design shown large on the Evolve step, and where each score sits in the run
+  const chosen = $derived.by(() => {
+    if (bench.result) { const f = bench.result.families.filter((x) => x.design)[bench.picked3]; return f ? { name: f.name, d: f.design! } : null; }
+    const d = bench.leaders[bench.picked3];
+    return d ? { name: `Best now ${bench.picked3 + 1}`, d } : null;
+  });
+  const span = $derived.by(() => {
+    const all = bench.result ? bench.result.kept.map((k) => k.scores) : bench.leaders.map((d) => d.scores!).filter(Boolean);
+    return Object.fromEntries(E.SCORE_KEYS.map((k) => [k, [Math.min(...all.map((s) => s[k])), Math.max(...all.map((s) => s[k]))]]));
+  });
+  /** A score's place between the run's worst (0) and best (100). */
+  function at(k: E.ScoreKey, v: number) {
+    const [lo, hi] = span[k] ?? [v, v], t = hi > lo ? (v - lo) / (hi - lo) : 1;
+    return Math.round((E.SCORES[k][2] ? t : 1 - t) * 100);
+  }
   const meta = $derived(bench.site?.meta);
   const fmtHa = (v: number) => `${Math.round(v).toLocaleString("en-IN")} ha`;
   const TERRAIN: Record<string, string> = { fabdem: "FABDEM bare earth", "copernicus-surface": "Copernicus surface model (buildings and trees count as ground)" };
@@ -36,7 +55,37 @@
     {/if}
   {/if}
 
-  {#if bench.step === "rules" && bench.rules}
+  {#if bench.step === "evolve"}
+    {#if chosen}
+      <div class="wb-sub">
+        <span class="wb-label">{bench.result ? "Design" : "Best so far"}</span>
+        <b class="wb-insp-title">{chosen.name}</b>
+        {#if chosen.d.scores}
+          <div class="wb-scores">
+            {#each E.SCORE_KEYS as k}
+              <div class="wb-score"><span>{E.SCORES[k][0]}</span>
+                <span class="wb-track" style="--at: {at(k, chosen.d.scores[k])}%"><b></b><i></i></span>
+                <span class="wb-v">{E.SCORES[k][1](chosen.d.scores[k])}</span></div>
+            {/each}
+            <div class="wb-axis"><span>run's worst</span><span>best</span></div>
+          </div>
+          <div class="wb-fit">
+            <span class="wb-label">Floor area against the brief</span>
+            <!-- COPY: brief fit -->
+            <div class="wb-row wb-between"><span class="wb-quiet">{chosen.d.scores.gap <= 0.1 ? "within the brief" : `${Math.round(chosen.d.scores.gap * 100)}% off the brief`}</span></div>
+          </div>
+        {/if}
+        <button class="wb-btn is-primary" type="button" disabled={bench.pen.some((p) => p.name === chosen.name)}
+          onclick={() => bench.keep(chosen.name, chosen.d)}>{bench.pen.some((p) => p.name === chosen.name) ? "In the pen" : "Keep in pen"}</button>
+      </div>
+    {:else}
+      <div class="wb-state">
+        <b>No design yet</b>
+        <!-- COPY: inspector empty, evolve step -->
+        <span>Run an evolution. The design shown large appears here with its scores against the rest of the run.</span>
+      </div>
+    {/if}
+  {:else if bench.step === "rules" && bench.rules}
     {@const r = bench.ruleHover !== null ? bench.rules.list[bench.ruleHover] : null}
     {#if r}
       <div class="wb-sub">

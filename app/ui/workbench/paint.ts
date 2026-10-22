@@ -73,3 +73,11 @@ export function landform(ctx: Ctx, v: Draw.View, site: E.SiteExport, G: E.Ground
   }
   ctx.restore();
 }
+
+/** A design: the existing city round it, its plan (plots, streets, green and water), then
+ *  the boundary and names. */
+export function design(ctx: Ctx, v: Draw.View, site: E.SiteExport, d: E.Design, P: Draw.Palette) {
+  Draw.footprints(ctx, v, site);
+  if (d.plan) Draw.vectorPlan(ctx, v, d);
+  Draw.context(ctx, v, site.context, P, { labels: true, roads: false });
+}

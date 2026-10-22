@@ -100,7 +100,7 @@
 
 <div class="wb-canvas-wrap" bind:this={wrap}>
   <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-  <canvas bind:this={canvas} style="width: {W}px; height: {H}px" aria-label={label} tabindex="0" role="img"
+  <canvas bind:this={canvas} style="width: {W}px; height: {H}px" aria-label={label} tabindex="0"
     onwheel={onWheel} onpointerdown={onDown} onpointermove={onMove} onpointerup={onUp} onkeydown={onKey}
     onpointerleave={() => { onUp(); onhover?.(-1); }}></canvas>
 </div>

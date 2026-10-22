@@ -557,8 +557,25 @@ export function site(): Diagram {
   return { id: "site", title: "Site", caption: "Outline the ground to design. Everything outside it stays as the city around it.", svg: s.svg("A white model of a city with an orange outline drawn around part of it, a small handle at each corner.") };
 }
 
+/** The brief: how much to build (floor area to fit) and how high (the height limit, dashed). */
+export function brief(): Diagram {
+  const s = new Scene("brief"), W = 90, D = 66, T = 2, LIMIT = 28, r = rng(61);
+  s.slab(0, 0, 0, W, D, T);
+  const th: Thing[] = [];
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 3; j++) {
+    const h = 6 + r() * (LIMIT - 8);
+    th.push({ x: 6 + i * 20, y: 6 + j * 20, z: T, w: 13, d: 13, h, floors: true });
+  }
+  th.push({ kind: "tree", x: 30, y: 58, z: T, s: 2.2 }, { kind: "tree", x: 62, y: 58, z: T, s: 2.2 });
+  s.things(th, { x0: 0, y0: 0, x1: W, y1: D });
+  s.box({ x: 3, y: 3, z: T, w: W - 6, d: D - 10, h: LIMIT, style: "ghost" });
+  s.label([W - 3, 3, T + LIMIT], "height limit", { dx: 16, dy: -10, strong: true });
+  s.label([46, 46, T + 10], "floor area to fit", { dx: 70, dy: 30, strong: true });
+  return { id: "brief", title: "Brief", caption: "The brief says how much to build and how high, with where each figure comes from.", svg: s.svg("Buildings on a block, all under a dashed box marking the height limit.") };
+}
+
 /** Every diagram, in the order the story tells them. */
-export const DIAGRAMS = () => [site(), layers(), rules(), landform(), streets(), recipe(), evolution(), tradeoff(), massing(), growth()];
+export const DIAGRAMS = () => [site(), layers(), rules(), landform(), brief(), streets(), recipe(), evolution(), tradeoff(), massing(), growth()];
 
 function hull(p: P2[]): P2[] {
   const q = [...p].sort((a, b) => a[0] - b[0] || a[1] - b[1]);

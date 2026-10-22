@@ -1,7 +1,11 @@
 // The workbench's state: which step is open, the site, and what each step's panels share.
 // The URL carries the step and the site (?site=…&step=…), so any view can be shared.
-import type * as E from "../../engine";
+import * as Comlink from "comlink";
+import type { Snippet } from "../../brief/chunk";
+import * as E from "../../engine";
+import type { EngineWorker, EvolveResult } from "../../engine/worker";
 import * as Sites from "../sites";
+
 
 export type StepId = "site" | "layers" | "rules" | "landform" | "brief" | "evolve" | "explore" | "massing";
 
@@ -11,8 +15,8 @@ export const STEPS: { id: StepId; name: string; built: boolean }[] = [
   { id: "layers", name: "Layers", built: true },
   { id: "rules", name: "Rules", built: true },
   { id: "landform", name: "Landform", built: true },
-  { id: "brief", name: "Brief", built: false },
-  { id: "evolve", name: "Evolve", built: false },
+  { id: "brief", name: "Brief", built: true },
+  { id: "evolve", name: "Evolve", built: true },
   { id: "explore", name: "Explore", built: false },
   { id: "massing", name: "Massing", built: false },
 ];
@@ -73,6 +77,31 @@ class Bench {
   // the Landform step: ridges switched off (by ridge id)
   ridgesOff = $state.raw<ReadonlySet<number>>(new Set());
 
+  // the Brief step: the brief, the passages it cites, and whether it is confirmed
+  brief = $state.raw<E.Brief | null>(null);
+  briefSources = $state.raw<Snippet[]>([]);
+  briefLocked = $state(false);
+
+  // the Evolve step: the run's settings, its progress and its result
+  settings = $state({ search: "auto" as "auto" | "map-elites", generations: 15, pop: 30, seed: 1 });
+  running = $state(false);
+  runGen = $state(0);
+  runStarted = $state(0);
+  history = $state.raw<E.HistoryRow[]>([]);
+  leaders = $state.raw<E.Design[]>([]);
+  result = $state.raw<EvolveResult | null>(null);
+  runSite = $state.raw<E.SiteExport | null>(null);
+  runError = $state("");
+  picked3 = $state(0);   // which leader or family is shown large
+  /** Designs kept in the pen (the tray), with the site they were bred on. */
+  pen = $state.raw<{ name: string; design: E.Design; site: E.SiteExport }[]>([]);
+
+  keep(name: string, design: E.Design) {
+    if (!this.runSite || this.pen.some((p) => p.name === name)) return;
+    this.pen = [...this.pen, { name, design, site: this.runSite }];
+  }
+  private worker: { raw: Worker; api: Comlink.Remote<EngineWorker> } | null = null;
+
   // panels and intros
   railOpen = $state(true);
   inspOpen = $state(true);
@@ -90,7 +119,10 @@ class Bench {
     const s = STEPS.find((x) => x.id === id)!;
     if (!s.built) return "blocked";
     if (id === "site") return this.site ? "done" : "todo";
-    return this.site ? "todo" : "blocked";
+    if (!this.site) return "blocked";
+    if (id === "brief" && this.briefLocked) return "done";
+    if (id === "evolve" && this.result) return "done";
+    return "todo";
   }
 
   go(id: StepId) {
@@ -113,6 +145,8 @@ class Bench {
       this.rules = s.rules ?? null;
       this.past = []; this.future = [];
       this.ridgesOff = new Set();
+      this.brief = null; this.briefLocked = false;
+      this.result = null; this.leaders = []; this.history = [];
       this.step = step;
       this.sync();
     } catch (e) {
@@ -142,6 +176,60 @@ class Bench {
     this.future = this.future.slice(1);
   }
   get edited() { return !!this.site?.rules && !!this.rules && JSON.stringify(this.rules) !== JSON.stringify(this.site.rules); }
+
+  /** The site as a run sees it: its rules as edited, and the brief's targets and rule changes. */
+  underBrief() {
+    if (!this.site || !this.rules) return null;
+    if (this.brief) {
+      const u = Sites.withBrief(this.site, this.rules, this.brief);
+      return { site: u.site, result: u.result, ranges: u.config.ranges };
+    }
+    const u = Sites.withRules(this.site, this.rules);
+    return { site: u.site, result: u.result, ranges: E.DEFAULT_RANGES };
+  }
+
+  async run() {
+    const u = this.underBrief();
+    if (!u || this.running) return;
+    this.runError = "";
+    this.running = true;
+    this.runGen = 0;
+    this.history = [];
+    this.leaders = [];
+    this.result = null;
+    this.runStarted = performance.now();
+    this.runSite = u.site;
+    try {
+      if (!this.worker) {
+        const raw = new Worker(new URL("../../engine/worker.ts", import.meta.url), { type: "module" });
+        this.worker = { raw, api: Comlink.wrap<EngineWorker>(raw) };
+      }
+      const api = this.worker.api;
+      await api.setSite(u.site, [...this.ridgesOff]);
+      const s = this.settings;
+      const r = await api.evolve(
+        { search: s.search, objectives: [], generations: s.generations, pop: s.pop, seed: s.seed, shock: null, locked: null,
+          start: null, ranges: u.ranges, version: 3, weights: this.brief?.objective_weights?.value ?? null },
+        Comlink.proxy((gen: number, row: E.HistoryRow) => { this.runGen = gen; this.history = [...this.history, row]; }),
+        Comlink.proxy((_gen: number, ds: E.Design[]) => { this.leaders = ds; }),
+      );
+      this.result = r;
+      this.picked3 = 0;
+    } catch (e) {
+      if (this.running) this.runError = (e as Error).message;
+    } finally {
+      this.running = false;
+    }
+  }
+
+  /** Stop a run: the worker is ended (it can't be interrupted mid-generation) and made again
+   *  for the next one. */
+  cancel() {
+    if (!this.running) return;
+    this.running = false;
+    this.worker?.raw.terminate();
+    this.worker = null;
+  }
 
   toggleRidge(id: number) {
     const s = new Set(this.ridgesOff);

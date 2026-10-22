@@ -6,6 +6,11 @@
   import Icon from "./Icon.svelte";
   import Inspector from "./Inspector.svelte";
   import LayersMap from "./LayersMap.svelte";
+  import * as Draw from "../draw";
+  import BriefMap from "./BriefMap.svelte";
+  import BriefRail from "./BriefRail.svelte";
+  import EvolveCentre from "./EvolveCentre.svelte";
+  import EvolveRail from "./EvolveRail.svelte";
   import LandformMap from "./LandformMap.svelte";
   import LandformRail from "./LandformRail.svelte";
   import LayersRail from "./LayersRail.svelte";
@@ -14,6 +19,7 @@
   import SiteMap from "./SiteMap.svelte";
   import SiteRail from "./SiteRail.svelte";
 
+  const P = Draw.palette();
   let copied = $state(false);
   let toast = $state("");
   let toastTimer: ReturnType<typeof setTimeout> | undefined;
@@ -39,6 +45,8 @@
     if (id === "site" && bench.site) return `${Math.round(bench.site.meta.design_ha)} ha`;
     if (id === "layers" && bench.site) return `${Object.keys(bench.site.grid.layers ?? {}).length}`;
     if (id === "rules" && bench.rules) return bench.edited ? "changed" : `${bench.rules.list.length}`;
+    if (id === "brief") return bench.briefLocked ? "confirmed" : bench.brief ? "draft" : "";
+    if (id === "evolve") return bench.running ? `${bench.runGen} of ${bench.settings.generations}` : bench.result ? `${bench.result.frontSize} on front` : "";
     if (id === "landform" && bench.site?.meta.landform) return { flat: "flat", gentle: "gentle", pronounced: "hilly" }[bench.site.meta.landform.relief.class];
     return "";
   };
@@ -58,7 +66,7 @@
     <span class="wb-crumb">{bench.site ? bench.site.meta.name : "No site yet"}</span>
     <div class="wb-top-right">
       <!-- COPY: run status -->
-      <span class="wb-pill">No run yet</span>
+      <span class="wb-pill">{bench.running ? `Running: generation ${bench.runGen} of ${bench.settings.generations}` : bench.result ? `Run done: ${bench.result.frontSize} on the front` : "No run yet"}</span>
       <button class="wb-icon-btn" type="button" aria-label="Undo" title="Undo (Ctrl Z)" disabled={!bench.past.length} onclick={() => bench.undo()}><Icon icon={Undo2} /></button>
       <button class="wb-icon-btn" type="button" aria-label="Redo" title="Redo (Ctrl Shift Z)" disabled={!bench.future.length} onclick={() => bench.redo()}><Icon icon={Redo2} /></button>
       <button class="wb-btn" type="button" onclick={share}><Icon icon={Share2} />{copied ? "Copied" : "Share"}</button>
@@ -82,6 +90,8 @@
               {:else if s.id === "layers"}<LayersRail />
               {:else if s.id === "rules"}<RulesRail />
               {:else if s.id === "landform"}<LandformRail />
+              {:else if s.id === "brief"}<BriefRail />
+              {:else if s.id === "evolve"}<EvolveRail />
               {/if}
             </div>
           {/if}
@@ -101,6 +111,10 @@
       <RulesMap site={bench.site} />
     {:else if bench.step === "landform" && bench.site}
       <LandformMap site={bench.site} />
+    {:else if bench.step === "brief" && bench.site && bench.rules}
+      <BriefMap site={bench.site} />
+    {:else if bench.step === "evolve" && bench.site}
+      <EvolveCentre site={bench.site} />
     {/if}
     {#if bench.loading}
       <div class="wb-centre-note"><div class="wb-progress is-indeterminate"><div class="wb-row"><span>Opening the site</span></div><div class="wb-track"><b></b></div></div></div>
@@ -114,10 +128,18 @@
       title="Fold the inspector (])" onclick={() => (bench.inspOpen = !bench.inspOpen)}><Icon icon={bench.inspOpen ? ChevronRight : ChevronLeft} /></button>
   </aside>
 
-  <footer class="wb-tray">
+  <footer class="wb-tray" class:has-pen={bench.pen.length > 0}>
     <span class="wb-label">Pen</span>
-    <!-- COPY: empty pen -->
-    <span class="wb-quiet">Designs you keep appear here, once a run has bred some.</span>
+    {#if bench.pen.length}
+      <div class="wb-pen">
+        {#each bench.pen as p (p.name)}
+          <span class="wb-pen-item" title={p.name}><canvas {@attach (c: HTMLCanvasElement) => { Draw.plan(c, p.site, p.design, P, { aspect: Math.min(1.25, Draw.aspectOf(p.site.design.x, p.site.design.y)) }); }}></canvas><span>{p.name}</span></span>
+        {/each}
+      </div>
+    {:else}
+      <!-- COPY: empty pen -->
+      <span class="wb-quiet">Designs you keep appear here, once a run has bred some.</span>
+    {/if}
   </footer>
 </div>
 

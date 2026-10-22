@@ -161,3 +161,32 @@ a { color: inherit; }
 /* landform */
 .wb-big { font-size: var(--pc-size-title); font-weight: 400; letter-spacing: -.01em; }
 .wb-ridges { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: var(--pc-size-small); }
+
+/* brief */
+.wb-textarea { height: auto; padding: 8px; line-height: 1.45; resize: vertical; font-variant-numeric: normal; }
+.wb-start { justify-self: start; }
+.wb-brief-fields { display: grid; gap: 10px; }
+.wb-brief-row { display: grid; gap: 4px; }
+.wb-brief-row > label { font-size: var(--pc-size-small); color: var(--pc-ink-2); }
+.wb-brief-row .wb-tag { justify-self: start; }
+.wb-num-input { width: 86px; }
+.wb-locked { display: inline-flex; gap: 4px; align-items: center; margin: 0; }
+.wb-link { border: 0; background: none; padding: 0; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font-size: inherit; color: var(--pc-ink); }
+.wb-chips .wb-chip:disabled { cursor: default; opacity: .8; }
+
+/* evolve */
+.wb-centre-empty { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; }
+.wb-centre-empty .wb-state { max-width: 460px; justify-items: center; text-align: center; border: 0; }
+.wb-centre-empty figure { margin: 0; }
+.wb-centre-empty figure svg { max-width: 100%; height: auto; }
+.wb-strip-over { position: absolute; z-index: 3; left: 12px; right: 12px; bottom: 52px; display: grid; gap: 6px; justify-items: center; pointer-events: none; }
+.wb-strip-over .wb-label { background: color-mix(in srgb, var(--pc-surface) 85%, transparent); padding: 2px 8px; border-radius: var(--pc-radius); }
+.wb-strip { display: flex; gap: 8px; overflow-x: auto; max-width: 100%; padding: 4px; pointer-events: auto; }
+.wb-strip .wb-thumb { width: 112px; flex: none; }
+.wb-strip .wb-thumb .wb-pic { aspect-ratio: auto; }
+.wb-thumb .wb-pic canvas { display: block; width: 100%; }
+
+/* the pen */
+.wb-pen { display: flex; gap: 8px; overflow-x: auto; min-width: 0; }
+.wb-pen-item { display: flex; gap: 6px; align-items: center; padding: 3px 8px 3px 3px; border: var(--wb-hair); border-radius: var(--pc-radius); background: var(--pc-surface); flex: none; }
+.wb-pen-item canvas { width: 26px; display: block; border-radius: 3px; }
