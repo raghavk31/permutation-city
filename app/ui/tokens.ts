@@ -55,28 +55,39 @@ export const tokens = {
 export type Tokens = typeof tokens;
 
 /** Dark theme: only the neutrals change; the semantic colours keep their meaning. */
-const dark: Partial<Record<"paper" | "paper2" | "ink" | "ink2" | "muted" | "line", string>> = {
+export const dark: Partial<Record<"paper" | "paper2" | "ink" | "ink2" | "muted" | "line", string>> = {
   paper: "#1b1a18", paper2: "#252421", ink: "#f1efe9", ink2: "#c3c0b7", muted: "#9a968c", line: "#3a3834",
 };
 
-/** The page's custom properties, from the tokens. */
-export function cssVariables(): string {
+/** The page's custom properties, from the tokens. With `followSystem`, a reader whose system is
+ *  dark gets the dark neutrals too (the design system page does; the app follows only an
+ *  explicit data-theme so far). */
+export function cssVariables(followSystem = false): string {
   const t = tokens, v: Record<string, string> = {
     "--pc-surface": t.paper, "--pc-surface-2": t.paper2, "--pc-ink": t.ink, "--pc-ink-2": t.ink2,
     "--pc-muted": t.muted, "--pc-line": t.line,
     "--pc-water": t.water.deep, "--pc-water-flood": t.water.flood, "--pc-water-storage": t.water.storage,
-    "--pc-green": t.green.existing, "--pc-green-proposed": t.green.proposed,
-    "--pc-build": t.building[3], "--pc-existing": t.existing.fill, "--pc-forbidden": t.forbidden,
+    "--pc-green": t.green.existing, "--pc-green-proposed": t.green.proposed, "--pc-green-light": t.green.light,
+    "--pc-build": t.building[3], "--pc-existing": t.existing.fill, "--pc-existing-edge": t.existing.edge,
+    "--pc-forbidden": t.forbidden, "--pc-constrained": t.constrained,
+    "--pc-street": t.street.onDesign, "--pc-street-ground": t.street.onGround,
     "--pc-accent": t.accent, "--pc-sea": t.paper2, "--pc-retained": t.existing.fill,
     "--pc-font": t.font.text, "--pc-mono": t.font.mono,
     "--pc-measure": `linear-gradient(90deg, ${t.measure.join(", ")})`,
+    "--pc-radius": `${t.radius}px`, "--pc-border": `${t.border}px`, "--pc-space": `${t.space}px`,
   };
+  for (const [k, px] of Object.entries(t.size)) v[`--pc-size-${k}`] = `${px}px`;
+  for (const ramp of ["building", "elevation", "heat", "measure"] as const)
+    t[ramp].forEach((c, i) => { v[`--pc-${ramp}-${i}`] = c; });
   const body = (o: Record<string, string>) => Object.entries(o).map(([k, x]) => `${k}: ${x};`).join(" ");
   const d: Record<string, string> = {
     "--pc-surface": dark.paper!, "--pc-surface-2": dark.paper2!, "--pc-ink": dark.ink!, "--pc-ink-2": dark.ink2!,
     "--pc-muted": dark.muted!, "--pc-line": dark.line!, "--pc-sea": dark.paper2!, "--pc-retained": "#34322e",
   };
-  return `:root, .pc { ${body(v)} } :root[data-theme="dark"], :root[data-theme="dark"] .pc { ${body(d)} }`;
+  const system = followSystem
+    ? ` @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { ${body(d)} color-scheme: dark; } }`
+    : "";
+  return `:root, .pc { ${body(v)} }${system} :root[data-theme="dark"], :root[data-theme="dark"] .pc { ${body(d)} color-scheme: dark; }`;
 }
 
 /** Put the tokens on the page (once). */
