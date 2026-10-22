@@ -3,7 +3,8 @@
 import * as Comlink from "comlink";
 import type { Snippet } from "../../brief/chunk";
 import * as E from "../../engine";
-import type { EngineWorker, EvolveResult } from "../../engine/worker";
+import type { EngineWorker, EvolveResult, FamilyLead } from "../../engine/worker";
+import * as Fam from "../families";
 import * as Sites from "../sites";
 
 
@@ -17,7 +18,7 @@ export const STEPS: { id: StepId; name: string; built: boolean }[] = [
   { id: "landform", name: "Landform", built: true },
   { id: "brief", name: "Brief", built: true },
   { id: "evolve", name: "Evolve", built: true },
-  { id: "explore", name: "Explore", built: false },
+  { id: "explore", name: "Explore", built: true },
   { id: "massing", name: "Massing", built: false },
 ];
 
@@ -96,6 +97,66 @@ class Bench {
   /** Designs kept in the pen (the tray), with the site they were bred on. */
   pen = $state.raw<{ name: string; design: E.Design; site: E.SiteExport }[]>([]);
 
+  // the Explore step: the view, the plot, what colours it, the brushes (an axis key to a range
+  // of values), the design selected and pointed at (kept names), the pair compared
+  exView = $state<"tradeoffs" | "compare" | "archive">("tradeoffs");
+  exPlot = $state<"matrix" | "parallel">("matrix");
+  exColour = $state("front");
+  brush = $state.raw<Record<string, [number, number]>>({});
+  exSel = $state<string | null>(null);
+  exHover = $state<string | null>(null);
+  pair = $state<[string | null, string | null]>([null, null]);
+  showAll = $state(false);
+  /** Designs grown whole for drawing, by kept name (a run's leads arrive grown). */
+  grown = $state.raw<Map<string, E.Design>>(new Map());
+  private growing = new Set<string>();
+  private runRanges: E.Ranges = E.DEFAULT_RANGES;
+
+  /** The front's families as a few representatives, the most distinct first, each named for
+   *  what sets it apart (families.ts), with how many designs on the front are like it. */
+  reps = $derived.by(() => {
+    const fams = (this.result?.families ?? []).filter((f) => f.design) as (FamilyLead & { design: E.Design })[];
+    if (!fams.length || !this.runSite) return [];
+    const r = Fam.representatives(fams, 6), n = this.runSite.design.x.length;
+    const why = Fam.apart(r.map((x) => x.item.design), { n, cellArea: this.runSite.meta.cell_area } as E.Ground);
+    // COPY: a representative's name
+    return r.map((x, k) => ({ name: x.item.name, title: `Design ${k + 1} · ${why[k]}`, design: x.item.design,
+      like: x.members.reduce((s, m) => s + m.size, 0), members: x.members.map((m) => m.name) }));
+  });
+  /** Every name the run kept, with its title when it is a representative. */
+  titleOf(name: string | null) {
+    if (!name) return "";
+    return this.reps.find((r) => r.name === name)?.title ?? name;
+  }
+
+  /** Grow many kept designs at once (the archive's thumbnails). */
+  growMany(names: string[]) {
+    const todo = names.filter((n) => !this.grown.has(n) && !this.growing.has(n));
+    const ks = todo.map((n) => this.result?.kept.find((x) => x.name === n)).filter((k) => !!k);
+    if (!ks.length || !this.worker) return;
+    ks.forEach((k) => this.growing.add(k.name));
+    this.worker.api.whole(ks.map((k) => k.genome), this.runRanges).then((ds) => {
+      const m = new Map(this.grown);
+      ks.forEach((k, i) => m.set(k.name, ds[i]));
+      this.grown = m;
+    }).catch(() => {}).finally(() => ks.forEach((k) => this.growing.delete(k.name)));
+  }
+
+  /** A kept design grown whole, or null while it grows (the map redraws when it arrives). */
+  designOf(name: string | null): E.Design | null {
+    if (!name) return null;
+    const d = this.grown.get(name);
+    if (d) return d;
+    const k = this.result?.kept.find((x) => x.name === name);
+    if (k && this.worker && !this.growing.has(name)) {
+      this.growing.add(name);
+      this.worker.api.whole([k.genome], this.runRanges).then(([g]) => {
+        this.grown = new Map(this.grown).set(name, g);
+      }).catch(() => {}).finally(() => this.growing.delete(name));
+    }
+    return null;
+  }
+
   keep(name: string, design: E.Design) {
     if (!this.runSite || this.pen.some((p) => p.name === name)) return;
     this.pen = [...this.pen, { name, design, site: this.runSite }];
@@ -122,6 +183,7 @@ class Bench {
     if (!this.site) return "blocked";
     if (id === "brief" && this.briefLocked) return "done";
     if (id === "evolve" && this.result) return "done";
+    if (id === "explore" && !this.result) return "blocked";
     return "todo";
   }
 
@@ -213,6 +275,17 @@ class Bench {
         Comlink.proxy((gen: number, row: E.HistoryRow) => { this.runGen = gen; this.history = [...this.history, row]; }),
         Comlink.proxy((_gen: number, ds: E.Design[]) => { this.leaders = ds; }),
       );
+      // MAP-Elites leads come back as genomes; grow them whole so every view can draw them
+      const bare = r.families.filter((f) => !f.design);
+      if (bare.length) {
+        const ds = await api.whole(bare.map((f) => f.genome), u.ranges);
+        bare.forEach((f, k) => (f.design = ds[k]));
+      }
+      this.runRanges = u.ranges;
+      this.grown = new Map(r.families.map((f) => [f.name, f.design!]));
+      this.brush = {}; this.pair = [null, null]; this.showAll = false;
+      this.exSel = r.families[0]?.name ?? null;
+      this.exView = r.archive ? "archive" : "tradeoffs";
       this.result = r;
       this.picked3 = 0;
     } catch (e) {

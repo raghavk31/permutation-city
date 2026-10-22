@@ -166,6 +166,13 @@ const api = {
       archive: null, lineage: last.lineage, genomes: Float64Array.from(last.genomes.flat()),
     };
   },
+  /** Version 3 designs grown and scored whole, their plan included: kept designs the page opens
+   *  in Explore, and family leads a MAP-Elites run didn't grow. */
+  async whole(genomes: number[][], ranges: Ranges, locked: number[] | null = null): Promise<Design[]> {
+    if (!siteNow) throw new Error("no site loaded");
+    pool ??= new Pool(poolSize(), siteNow, siteOff);
+    return pool.whole(genomes, { storm: 1, ranges, locked, objectives: [] });
+  },
   /** The kept designs of a run reloaded from a file, so syntaxKept can read them. */
   keep(items: Grown[]) {
     if (!G) throw new Error("no site loaded");

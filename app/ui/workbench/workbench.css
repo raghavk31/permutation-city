@@ -190,3 +190,35 @@ a { color: inherit; }
 .wb-pen { display: flex; gap: 8px; overflow-x: auto; min-width: 0; }
 .wb-pen-item { display: flex; gap: 6px; align-items: center; padding: 3px 8px 3px 3px; border: var(--wb-hair); border-radius: var(--pc-radius); background: var(--pc-surface); flex: none; }
 .wb-pen-item canvas { width: 26px; display: block; border-radius: 3px; }
+
+/* explore */
+.wb-card-pic canvas { display: block; width: 100%; }
+.wb-rep { grid-template-columns: 64px minmax(0, 1fr); align-items: start; }
+.wb-rep .wb-card-pic { width: 64px; height: auto; }
+.wb-rep .pc-glyph { display: block; margin: 3px 0 1px; }
+.wb-rep .pc-glyph rect { fill: var(--pc-ink-2); }
+.wb-rep .pc-glyph line { stroke: var(--pc-line); }
+.wb-ex { position: absolute; inset: 0; display: grid; grid-template-columns: minmax(320px, 44%) minmax(0, 1fr); }
+.wb-ex-side { min-height: 0; overflow: auto; padding: var(--wb-s4); display: grid; gap: var(--wb-s3); align-content: start; border-right: var(--wb-hair); }
+.wb-ex-map { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+.wb-plot canvas { display: block; width: 100%; touch-action: none; cursor: crosshair; }
+.wb-colour-by { gap: 6px; font-size: var(--pc-size-small); }
+.wb-colour-by .wb-input { width: auto; height: 28px; }
+.wb-ex-key { gap: 6px; font-size: var(--pc-size-small); }
+.wb-ex-ramp { width: 72px; height: 8px; border-radius: 2px; background: var(--pc-measure); }
+.wb-dot-key { width: 8px; height: 8px; border-radius: 50%; background: var(--pc-ink); margin-left: 4px; }
+.wb-dot-key.is-off { background: var(--pc-muted); }
+.wb-dot-key.is-ring { background: none; border: 1px solid var(--pc-muted); }
+.wb-ex-compare { position: absolute; inset: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; }
+.wb-ex-pair { display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
+.wb-ex-pair .wb-ex-map + .wb-ex-map { border-left: var(--wb-hair); }
+.wb-pill.is-b { box-shadow: inset 0 0 0 1.5px var(--pc-accent); }
+.wb-ex-diff { display: grid; grid-template-columns: minmax(0, 520px) minmax(0, 1fr); gap: var(--wb-s5); align-items: start; padding: var(--wb-s4); border-top: var(--wb-hair); }
+.wb-archive { display: grid; gap: 3px; align-items: stretch; }
+.wb-archive .wb-cell { padding: 0; border: var(--wb-hair); border-radius: 3px; background: var(--pc-surface-2); cursor: pointer; overflow: hidden; }
+.wb-archive .wb-cell[aria-pressed="true"] { border-color: var(--pc-accent); box-shadow: 0 0 0 1px var(--pc-accent); }
+.wb-archive .wb-cell canvas, .wb-cell-wait { display: block; width: 100%; }
+.wb-archive .wb-cell.is-empty { background: none; border-style: dashed; cursor: default; }
+.wb-ylab { writing-mode: vertical-rl; transform: rotate(180deg); text-align: center; font-size: var(--pc-size-small); color: var(--pc-muted); }
+.wb-xlab { text-align: center; font-size: var(--pc-size-small); color: var(--pc-muted); }
+.wb-rail-panel .wb-seg button { white-space: nowrap; }

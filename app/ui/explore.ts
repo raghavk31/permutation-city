@@ -78,12 +78,16 @@ export function archiveRows(kept: Kept[], bins: number): number[][] {
 }
 
 type Hit = (x: number, y: number) => number;
-interface Marks { selected: number; hover: number }
+/** What the plots mark: the selected and pointed-at designs; optionally a colour per design
+ *  (instead of front membership) and which designs a brush leaves out (drawn faint). */
+interface Marks { selected: number; hover: number; colour?: (k: number) => string; out?: (k: number) => boolean }
 
-function dot(ctx: CanvasRenderingContext2D, p: Palette, d: Kept, x: number, y: number, r: number) {
+function dot(ctx: CanvasRenderingContext2D, p: Palette, d: Kept, x: number, y: number, r: number, fill?: string, out = false) {
   ctx.beginPath(); ctx.arc(x, y, r, 0, 2 * Math.PI);
-  if (!onBrief(d)) { ctx.strokeStyle = p.muted; ctx.lineWidth = 1; ctx.stroke(); return; }
-  ctx.fillStyle = onFront(d) ? p.ink : p.muted; ctx.fill(); // the front in ink; the accent is for the selection
+  ctx.globalAlpha = out ? 0.18 : 1;
+  if (!onBrief(d)) { ctx.strokeStyle = fill ?? p.muted; ctx.lineWidth = 1; ctx.stroke(); ctx.globalAlpha = 1; return; }
+  ctx.fillStyle = fill ?? (onFront(d) ? p.ink : p.muted); ctx.fill(); // the front in ink; the accent is for the selection
+  ctx.globalAlpha = 1;
 }
 
 function ring(ctx: CanvasRenderingContext2D, colour: string, x: number, y: number, r: number) {
@@ -91,7 +95,7 @@ function ring(ctx: CanvasRenderingContext2D, colour: string, x: number, y: numbe
 }
 
 /** Every pair of the five scores, better towards the top and right. */
-export function scatterMatrix(canvas: HTMLCanvasElement, kept: Kept[], p: Palette, { selected, hover }: Marks,
+export function scatterMatrix(canvas: HTMLCanvasElement, kept: Kept[], p: Palette, { selected, hover, colour, out }: Marks,
   axes: Axis[] = SCORE_AXES): Hit {
   const n = axes.length, m = n - 1;
   const { ctx, w } = fitCanvas(canvas, 1);
@@ -106,8 +110,8 @@ export function scatterMatrix(canvas: HTMLCanvasElement, kept: Kept[], p: Palett
     const x0 = L + col * (cell + gap), y0 = T + row * (cell + gap);
     ctx.strokeStyle = p.line; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, y0 + 0.5, cell - 1, cell - 1);
     const pts = kept.map((d) => ({ x: x0 + 5 + sc[i](d) * (cell - 10), y: y0 + cell - 5 - sc[j](d) * (cell - 10) }));
-    kept.forEach((d, k) => { if (!onFront(d)) dot(ctx, p, d, pts[k].x, pts[k].y, 2.2); });
-    kept.forEach((d, k) => { if (onFront(d)) dot(ctx, p, d, pts[k].x, pts[k].y, 2.6); });
+    kept.forEach((d, k) => { if (!onFront(d)) dot(ctx, p, d, pts[k].x, pts[k].y, 2.2, colour?.(k), out?.(k)); });
+    kept.forEach((d, k) => { if (onFront(d)) dot(ctx, p, d, pts[k].x, pts[k].y, 2.6, colour?.(k), out?.(k)); });
     if (hover >= 0) ring(ctx, p.ink2, pts[hover].x, pts[hover].y, 5);
     if (selected >= 0) ring(ctx, p.t.accent, pts[selected].x, pts[selected].y, 6);
     pos.push(pts); panels.push({ x0, y0, i, j });
@@ -128,40 +132,68 @@ export function scatterMatrix(canvas: HTMLCanvasElement, kept: Kept[], p: Palett
   };
 }
 
+/** Where a parallel plot put its axes: the axis under x (or -1), and the value at y on it. */
+export interface ParallelHit { (x: number, y: number): number; axisAt: (x: number) => number; valueAt: (a: number, y: number) => number }
+
 /** One line per design across every measure; each axis better at the top (or higher, for
- *  floor area and storeys). */
-export function parallel(canvas: HTMLCanvasElement, kept: Kept[], p: Palette, { selected, hover }: Marks,
-  axes: Axis[] = AXES): Hit {
-  const { ctx, w, h } = fitCanvas(canvas, 0.42);
+ *  floor area and storeys). Brushes (value ranges by axis key) are drawn as bands. */
+export function parallel(canvas: HTMLCanvasElement, kept: Kept[], p: Palette, { selected, hover, colour, out }: Marks,
+  axes: Axis[] = AXES, brush: Record<string, [number, number]> = {}, aspect = 0.42): ParallelHit {
+  const { ctx, w, h } = fitCanvas(canvas, aspect);
   ctx.fillStyle = p.paper; ctx.fillRect(0, 0, w, h);
-  const L = 48, R = 48, T = 30, B = 26;
+  // axes closer than 80 px take their labels in two staggered rows, so neighbours don't overlap
+  const L = 48, R = 48, tight = (w - L - R) / (axes.length - 1) < 80, T = tight ? 56 : 30, B = tight ? 38 : 26;
   const X = (a: number) => L + (a / (axes.length - 1)) * (w - L - R);
   const sc = axes.map((a) => scaler(a, kept));
   const ys = kept.map((d) => sc.map((s) => T + (1 - s(d)) * (h - T - B)));
   const line = (k: number) => { ctx.beginPath(); ys[k].forEach((y, a) => (a ? ctx.lineTo(X(a), y) : ctx.moveTo(X(a), y))); ctx.stroke(); };
   ctx.lineJoin = "round";
-  ctx.strokeStyle = p.muted; ctx.globalAlpha = 0.35; ctx.lineWidth = 1;
-  kept.forEach((d, k) => { if (!onFront(d)) line(k); });
-  ctx.strokeStyle = p.ink; ctx.globalAlpha = 0.5; ctx.lineWidth = 1.2;
-  kept.forEach((d, k) => { if (onFront(d)) line(k); });
+  ctx.lineWidth = 1;
+  kept.forEach((d, k) => { if (!onFront(d)) { ctx.strokeStyle = colour?.(k) ?? p.muted; ctx.globalAlpha = out?.(k) ? 0.08 : 0.35; line(k); } });
+  ctx.lineWidth = 1.2;
+  kept.forEach((d, k) => { if (onFront(d)) { ctx.strokeStyle = colour?.(k) ?? p.ink; ctx.globalAlpha = out?.(k) ? 0.1 : 0.55; line(k); } });
   ctx.globalAlpha = 1;
+  // a value's height on an axis, for the brushes
+  const range = axes.map((a) => { const vs = kept.map(a.get); let lo = Math.min(...vs), hi = Math.max(...vs); if (hi - lo < 1e-9) { lo -= 0.5; hi += 0.5; } return [lo, hi]; });
+  const yOf = (a: number, v: number) => { const [lo, hi] = range[a], t = (v - lo) / (hi - lo); return T + (1 - (axes[a].up === false ? 1 - t : t)) * (h - T - B); };
+  axes.forEach((a, k) => {
+    const b = brush[a.key];
+    if (!b) return;
+    const y0 = yOf(k, b[0]), y1 = yOf(k, b[1]);
+    ctx.fillStyle = p.t.accent; ctx.globalAlpha = 0.16; ctx.fillRect(X(k) - 7, Math.min(y0, y1), 14, Math.abs(y1 - y0));
+    ctx.globalAlpha = 1; ctx.strokeStyle = p.t.accent; ctx.lineWidth = 1.5; ctx.strokeRect(X(k) - 7, Math.min(y0, y1), 14, Math.abs(y1 - y0));
+  });
   if (hover >= 0) { ctx.strokeStyle = p.ink2; ctx.lineWidth = 2; line(hover); }
   if (selected >= 0) { ctx.strokeStyle = p.t.accent; ctx.lineWidth = 3; line(selected); }
   ctx.font = `11px ${p.t.font.text}`; ctx.textAlign = "center";
   axes.forEach((a, k) => {
     ctx.strokeStyle = p.ink2; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(X(k), T); ctx.lineTo(X(k), h - B); ctx.stroke();
-    ctx.fillStyle = p.ink; ctx.fillText(a.label, X(k), 12, (w - L - R) / (axes.length - 1));
+    const room = ((w - L - R) / (axes.length - 1)) * (tight ? 1.9 : 1), down = tight && k % 2 ? 26 : 0;
+    ctx.fillStyle = p.ink; ctx.fillText(a.label, X(k), 12 + down, room);
     const vs = kept.map(a.get), hi = Math.max(...vs), lo = Math.min(...vs);
     ctx.fillStyle = p.muted;
-    ctx.fillText(a.fmt(a.up === false ? lo : hi), X(k), 25);
-    ctx.fillText(a.fmt(a.up === false ? hi : lo), X(k), h - 10);
+    ctx.fillText(a.fmt(a.up === false ? lo : hi), X(k), 25 + down, room);
+    ctx.fillText(a.fmt(a.up === false ? hi : lo), X(k), h - 10 - (tight && k % 2 ? 14 : 0), room);
   });
-  return (x, y) => {
+  const hit = (x: number, y: number) => {
     if (x < X(0) || x > X(axes.length - 1)) return -1;
     const s = (x - L) / (w - L - R) * (axes.length - 1), a = Math.min(Math.floor(s), axes.length - 2), f = s - a;
     let best = -1, bd = 7;
     ys.forEach((row, k) => { const d = Math.abs(row[a] + (row[a + 1] - row[a]) * f - y); if (d < bd) { bd = d; best = k; } });
     return best;
   };
+  return Object.assign(hit, {
+    axisAt: (x: number) => axes.findIndex((_, k) => Math.abs(x - X(k)) <= 10),
+    valueAt: (a: number, y: number) => {
+      const [lo, hi] = range[a], t = 1 - (Math.min(Math.max(y, T), h - B) - T) / (h - T - B);
+      return lo + (axes[a].up === false ? 1 - t : t) * (hi - lo);
+    },
+  });
+}
+
+/** Which designs every brush keeps (a brush is a value range on one axis). */
+export function brushed(kept: Kept[], axes: Axis[], brush: Record<string, [number, number]>): boolean[] {
+  const on = axes.filter((a) => brush[a.key]);
+  return kept.map((d) => on.every((a) => { const [p, q] = brush[a.key], v = a.get(d); return v >= Math.min(p, q) && v <= Math.max(p, q); }));
 }

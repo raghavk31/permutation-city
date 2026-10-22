@@ -8,15 +8,15 @@
   import * as Draw from "../draw";
   import Icon from "./Icon.svelte";
 
-  let { site, paint, version, label, onhover, tools, children }: {
+  // k, tx, ty (zoom and pan) can be bound, so two maps share one camera (Explore's compare)
+  let { site, paint, version, label, onhover, tools, children, k = $bindable(1), tx = $bindable(0), ty = $bindable(0) }: {
     site: E.SiteExport; paint: (ctx: CanvasRenderingContext2D, v: Draw.View) => void; version: unknown;
-    label: string; onhover?: (i: number) => void; tools?: Snippet; children?: Snippet;
+    label: string; onhover?: (i: number) => void; tools?: Snippet; children?: Snippet; k?: number; tx?: number; ty?: number;
   } = $props();
 
   let wrap: HTMLDivElement;
   let canvas: HTMLCanvasElement;
   let W = $state(0), H = $state(0);
-  let k = $state(1), tx = $state(0), ty = $state(0);
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const P = Draw.palette();
   // svelte-ignore state_referenced_locally
@@ -57,6 +57,12 @@
   $effect(() => {
     void version; void base; void paint;
     requestAnimationFrame(render);
+  });
+
+  // a camera moved from outside (a bound twin) is followed quickly, then redrawn crisply
+  $effect(() => {
+    void k; void tx; void ty;
+    if (last && (last.k !== k || last.tx !== tx || last.ty !== ty)) quick();
   });
 
   let ro: ResizeObserver;

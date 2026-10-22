@@ -11,6 +11,8 @@
   import BriefRail from "./BriefRail.svelte";
   import EvolveCentre from "./EvolveCentre.svelte";
   import EvolveRail from "./EvolveRail.svelte";
+  import ExploreCentre from "./ExploreCentre.svelte";
+  import ExploreRail from "./ExploreRail.svelte";
   import LandformMap from "./LandformMap.svelte";
   import LandformRail from "./LandformRail.svelte";
   import LayersRail from "./LayersRail.svelte";
@@ -47,11 +49,12 @@
     if (id === "rules" && bench.rules) return bench.edited ? "changed" : `${bench.rules.list.length}`;
     if (id === "brief") return bench.briefLocked ? "confirmed" : bench.brief ? "draft" : "";
     if (id === "evolve") return bench.running ? `${bench.runGen} of ${bench.settings.generations}` : bench.result ? `${bench.result.frontSize} on front` : "";
+    if (id === "explore" && bench.result) return `${bench.result.kept.length} kept`;
     if (id === "landform" && bench.site?.meta.landform) return { flat: "flat", gentle: "gentle", pronounced: "hilly" }[bench.site.meta.landform.relief.class];
     return "";
   };
   // COPY: why a step is blocked
-  const blockedWhy = (id: string) => (STEPS.find((s) => s.id === id)!.built ? "Pick a site first" : "Built next, in A3");
+  const blockedWhy = (id: string) => (!STEPS.find((s) => s.id === id)!.built ? "Built next, in A3" : bench.site ? "Run an evolution first" : "Pick a site first");
 </script>
 
 <div class="wb-narrow">
@@ -92,6 +95,7 @@
               {:else if s.id === "landform"}<LandformRail />
               {:else if s.id === "brief"}<BriefRail />
               {:else if s.id === "evolve"}<EvolveRail />
+              {:else if s.id === "explore" && bench.result}<ExploreRail />
               {/if}
             </div>
           {/if}
@@ -115,6 +119,8 @@
       <BriefMap site={bench.site} />
     {:else if bench.step === "evolve" && bench.site}
       <EvolveCentre site={bench.site} />
+    {:else if bench.step === "explore" && bench.result && bench.runSite}
+      <ExploreCentre />
     {/if}
     {#if bench.loading}
       <div class="wb-centre-note"><div class="wb-progress is-indeterminate"><div class="wb-row"><span>Opening the site</span></div><div class="wb-track"><b></b></div></div></div>

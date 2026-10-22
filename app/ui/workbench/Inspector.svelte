@@ -3,6 +3,7 @@
   // (a diagram and one sentence, folded to a line once read) and what the step is looking at.
   import * as E from "../../engine";
   import * as Iso from "../diagrams/iso";
+  import * as X from "../explore";
   import { bench, HILLY } from "./bench.svelte";
   import Thumb from "./Thumb.svelte";
 
@@ -12,7 +13,8 @@
     layers: { title: "Layers: what the land is like", text: "Each map of the site is a layer: ground, water, green, the city. Read together, they show what the land is like in every spot.", svg: () => Iso.layers().svg },
     rules: { title: "Rules: what the land allows", text: "Rules sort the ground: some is never built on, some is built with limits, and the rest is free for designs to use. Change a number and the map follows.", svg: () => Iso.rules().svg },
     brief: { title: "Brief: what to build", text: "The brief says how much to build and how high, and what matters most. Every figure says where it comes from, or that it is assumed.", svg: () => Iso.brief().svg },
-    evolve: { title: "Evolve: breed designs", text: "Designs breed. The better ones become parents, so each generation tends to do a little better. You choose among what it finds.", svg: () => Iso.tradeoff().svg },
+    evolve: { title: "Evolve: breed designs", text: "Designs breed. The better ones become parents, so each generation tends to do a little better. You choose among what it finds.", svg: () => Iso.evolution().svg },
+    explore: { title: "Explore: weigh the trade-offs", text: "No design is best at everything: more water storage can mean more heat. These are the designs nothing else beats on every count; pick the balance you want.", svg: () => Iso.tradeoff().svg },
     landform: { title: "Landform: valleys and ridges", text: "Water gathers in the valleys, so they stay open; the ridges between them are where the main streets go.", svg: () => Iso.landform().svg },
   };
   const intro = $derived(INTRO[bench.step]);
@@ -36,6 +38,16 @@
     const [lo, hi] = span[k] ?? [v, v], t = hi > lo ? (v - lo) / (hi - lo) : 1;
     return Math.round((E.SCORES[k][2] ? t : 1 - t) * 100);
   }
+  // the design selected on the Explore step, among everything the run kept
+  const ex = $derived(bench.step === "explore" && bench.result ? bench.result.kept.find((k) => k.name === bench.exSel) ?? null : null);
+  const exSpan = $derived.by(() => {
+    const all = bench.result?.kept ?? [];
+    return Object.fromEntries(E.SCORE_KEYS.map((k) => [k, [Math.min(...all.map((d) => d.scores[k])), Math.max(...all.map((d) => d.scores[k]))]]));
+  });
+  function exAt(k: E.ScoreKey, v: number) {
+    const [lo, hi] = exSpan[k] ?? [v, v], t = hi > lo ? (v - lo) / (hi - lo) : 1;
+    return Math.round((E.SCORES[k][2] ? t : 1 - t) * 100);
+  }
   const meta = $derived(bench.site?.meta);
   const fmtHa = (v: number) => `${Math.round(v).toLocaleString("en-IN")} ha`;
   const TERRAIN: Record<string, string> = { fabdem: "FABDEM bare earth", "copernicus-surface": "Copernicus surface model (buildings and trees count as ground)" };
@@ -55,7 +67,60 @@
     {/if}
   {/if}
 
-  {#if bench.step === "evolve"}
+  {#if bench.step === "explore"}
+    {#if ex}
+      {@const grown = bench.grown.get(ex.name)}
+      <div class="wb-sub">
+        <span class="wb-label">{X.onFront(ex) ? "On the front" : X.onBrief(ex) ? "Beaten on every count by another" : "Off the brief"}</span>
+        <b class="wb-insp-title">{bench.titleOf(ex.name)}</b>
+        <div class="wb-scores">
+          {#each E.SCORE_KEYS as k}
+            <div class="wb-score"><span>{E.SCORES[k][0]}</span>
+              <span class="wb-track" style="--at: {exAt(k, ex.scores[k])}%"><b></b><i></i></span>
+              <span class="wb-v">{E.SCORES[k][1](ex.scores[k])}</span></div>
+          {/each}
+          <div class="wb-axis"><span>run's worst</span><span>best</span></div>
+        </div>
+        <dl class="wb-facts">
+          <dt>Floor area</dt><dd class="wb-num">{Math.round(ex.floorArea).toLocaleString("en-IN")} ha{grown?.grossFloorArea ? ` net, ${Math.round(grown.grossFloorArea / 1e4).toLocaleString("en-IN")} ha gross` : ""}</dd>
+          <!-- COPY: brief fit -->
+          <dt>Against the brief</dt><dd>{ex.scores.gap <= 0.1 ? "within it" : `${Math.round(ex.scores.gap * 100)}% off`}</dd>
+          <dt>Average storeys</dt><dd class="wb-num">{ex.levels.toFixed(1)}</dd>
+          {#if ex.parents.length}<dt>Bred from</dt><dd>{ex.parents.join(" × ")}</dd>{/if}
+        </dl>
+      </div>
+      <div class="wb-sub">
+        <span class="wb-label">Form</span>
+        <div>
+          {#each X.GROUPS as [g, ks]}
+            {@const shown = ks.filter((k) => ex.metrics[k] !== undefined)}
+            {#if shown.length}
+              <details class="wb-group"><summary>{g}<span class="wb-meta">{shown.length}</span></summary>
+                <dl class="wb-facts wb-metrics">
+                  {#each shown as k}
+                    {@const m = E.METRICS[k] as E.Metric}
+                    <dt title={m.note}>{m.label}</dt><dd class="wb-num">{m.fmt(ex.metrics[k])}</dd>
+                  {/each}
+                </dl>
+              </details>
+            {/if}
+          {/each}
+        </div>
+      </div>
+      <div class="wb-row">
+        <button class="wb-btn is-primary" type="button" disabled={!grown || bench.pen.some((p) => p.name === ex.name)}
+          onclick={() => grown && bench.keep(ex.name, grown)}>{bench.pen.some((p) => p.name === ex.name) ? "In the pen" : "Keep in pen"}</button>
+        <button class="wb-btn" type="button" onclick={() => { bench.pair = [ex.name, bench.pair[1] && bench.pair[1] !== ex.name ? bench.pair[1] : null]; bench.exView = "compare"; }}>Compare with…</button>
+        {#if bench.stateOf("massing") !== "blocked"}<button class="wb-btn" type="button" onclick={() => bench.go("massing")}>Mass a block</button>{/if}
+      </div>
+    {:else}
+      <div class="wb-state">
+        <b>Nothing selected</b>
+        <!-- COPY: inspector empty, explore step -->
+        <span>Click a design in a plot, the list or the archive. Its scores, form and parents show here.</span>
+      </div>
+    {/if}
+  {:else if bench.step === "evolve"}
     {#if chosen}
       <div class="wb-sub">
         <span class="wb-label">{bench.result ? "Design" : "Best so far"}</span>
