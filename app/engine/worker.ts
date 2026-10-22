@@ -4,7 +4,8 @@
 import * as Comlink from "comlink";
 import type { Ranges } from "./config.js";
 import { mapElites, searchOf, type ArchiveInfo, type EliteOptions, type SearchChoice } from "./elites.js";
-import { evolve, frontFamilies, type EvolveOptions, type HistoryRow, type LineageNode } from "./evolve.js";
+import { evolve, evolveAsync, frontFamilies, type EvolveOptions, type HistoryRow, type LineageNode, type Run } from "./evolve.js";
+import { Pool, poolSize } from "./pool.js";
 import { grow, stats } from "./genome.js";
 import { prepare, withSkeleton } from "./ground.js";
 import { measure, METRIC_KEYS, network, SYNTAX_KEYS, type MetricKey, type Metrics } from "./metrics/index.js";
@@ -18,8 +19,10 @@ import type { Design, Ground, Scores, SiteExport } from "./types.js";
 let G: Ground | null = null;
 let siteNow: SiteExport | null = null;
 let lastKept: Design[] = [];   // the designs the last run kept, in the order sent back
+let pool: Pool | null = null;  // workers for version 3 runs, made on the first one
+let siteOff: number[] = [];
 
-export interface FamilyLead { name: string; size: number; genome: number[]; parents: string[] }
+export interface FamilyLead { name: string; size: number; genome: number[]; parents: string[]; design?: Design }  // design: grown whole, for version 3 (so the page needn't regrow it)
 /** A design the run kept (the final population, or MAP-Elites' archive), for the Explore plots. */
 export interface Kept {
   name: string; genome: number[]; parents: string[]; rank: number; scores: Scores;
@@ -36,7 +39,7 @@ export type RunRequest = Omit<EvolveOptions, "progress" | "search"> & Omit<Elite
   search?: SearchChoice;
 };
 /** Piecemeal growth as the page asks for it: the size of each increment, a seed, a scenario. */
-export interface PiecemealRequest { generations: number; pop: number; seed: number; scenario: Scenario; ranges: Ranges }
+export interface PiecemealRequest { generations: number; pop: number; seed: number; scenario: Scenario; ranges: Ranges; version?: 2 | 3 }
 /** One increment, for the page: its year and conditions, and the design it built. */
 export interface IncrementSummary {
   year: number; conditions: Conditions; target: number; share: number; everyone: number; seconds: number;
@@ -61,6 +64,7 @@ export interface SyntaxDetail {
 }
 
 const DRAW_M = 400;  // how much of the buffer the page draws round the site
+const LEADERS = 3;   // designs sent to the page's live strip after each generation
 
 const grownOf = (g: Ground, x: Grown) => grow(x.genome, g, x.locked ? Int8Array.from(x.locked) : null, x.ranges);
 const NON_SYNTAX = METRIC_KEYS.filter((k) => !SYNTAX_KEYS.includes(k));
@@ -70,31 +74,63 @@ const api = {
   setSite(site: SiteExport, off: number[] = []) {
     G = off.length ? withSkeleton(site, prepare(site), new Set(off)) : prepare(site);
     siteNow = site;
+    siteOff = off;
     lastKept = [];
+    pool?.terminate(); pool = null;
   },
-  evolve({ search: asked, axes, bins, weights, ...options }: RunRequest,
-    onProgress?: (gen: number, row: HistoryRow) => void): EvolveResult {
+  /** `onLeaders`: after each generation of a version 3 run, the best few designs on the
+   *  front, grown whole (plan included), for the page's live strip. */
+  async evolve({ search: asked, axes, bins, weights, ...options }: RunRequest,
+    onProgress?: (gen: number, row: HistoryRow) => void,
+    onLeaders?: (gen: number, designs: Design[]) => void): Promise<EvolveResult> {
     if (!G) throw new Error("no site loaded");
     const g = G, search = searchOf({ search: asked, objectives: options.objectives });
-    const progress = (gen: number, r: { history: HistoryRow[] }) => onProgress?.(gen, r.history[r.history.length - 1]);
-    const run = search === "map-elites"
-      ? mapElites(g, { ...options, axes, bins, weights, progress })
-      : { ...evolve(g, { ...options, search, progress }), archive: null };
+    const leaders = (gen: number, r: Run) => {
+      if (!onLeaders || !pool) return;
+      const top = r.pop.filter((i) => i.rank === 1).sort((a, b) => b.crowd - a.crowd).slice(0, LEADERS).map((i) => i.design.genome);
+      pool.whole(top, { storm: 1, ranges: options.ranges!, locked: options.locked ? Array.from(options.locked) : null, objectives: options.objectives ?? [] })
+        .then((ds) => onLeaders(gen, ds)).catch(() => {});
+    };
+    const progress = (gen: number, r: Run) => {
+      onProgress?.(gen, r.history[r.history.length - 1]);
+      if (options.version === 3 && search !== "map-elites") leaders(gen, r);
+    };
+    // Version 3 designs are grown by the pool, a generation at a time.
+    const v3 = options.version === 3 && search !== "map-elites";
+    let run: Run & { archive: ArchiveInfo | null; pop: (Run["pop"][number] & { cell?: number; quality?: number })[] };
+    if (v3) {
+      pool ??= new Pool(poolSize(), siteNow!, siteOff);
+      const p = pool, locked = options.locked ? Array.from(options.locked) : null, ranges = options.ranges!;
+      const r = await evolveAsync(g, { ...options, search, progress },
+        (genomes, storm) => p.grow(genomes, { storm, ranges, locked, objectives: options.objectives ?? [] }));
+      run = { ...r, archive: null };
+    } else {
+      run = search === "map-elites"
+        ? mapElites(g, { ...options, axes, bins, weights, progress })
+        : { ...evolve(g, { ...options, search, progress }), archive: null };
+    }
     lastKept = run.pop.map((i) => i.design);
+    const fams = frontFamilies(run);
+    const leads = v3 ? await pool!.whole(fams.map((f) => f.lead.design.genome), { storm: 1, ranges: options.ranges!,
+      locked: options.locked ? Array.from(options.locked) : null, objectives: options.objectives ?? [] }) : null;
+    const metrics = v3
+      ? await pool!.measure(run.pop.map((i) => i.design.genome), { ranges: options.ranges!, locked: options.locked ? Array.from(options.locked) : null })
+      : run.pop.map((i) => measure(i.design, g, NON_SYNTAX) as Metrics);
     // Send back genomes; the page regrows the designs it draws (fast, and identical).
     return {
       history: run.history,
       everyone: run.everyone,
       frontSize: run.pop.filter((i) => i.rank === 1).length,
-      families: frontFamilies(run).map((f) => ({
+      families: fams.map((f, k) => ({
         name: f.lead.name, size: f.members.length, genome: f.lead.design.genome, parents: f.lead.parents,
+        ...(leads ? { design: leads[k] } : {}),
       })),
-      kept: run.pop.map((i) => {
+      kept: run.pop.map((i, k) => {
         const st = stats(i.design, g);
         return {
           name: i.name, genome: i.design.genome, parents: i.parents, rank: i.rank, scores: i.design.scores!,
           floorArea: st.floor_area_ha, levels: st.mean_levels, cell: i.cell, quality: i.quality,
-          metrics: measure(i.design, g, NON_SYNTAX) as Metrics,
+          metrics: metrics[k],
         };
       }),
       archive: run.archive,
@@ -108,7 +144,7 @@ const api = {
     if (!G) throw new Error("no site loaded");
     const g = G, S = shockSite(siteNow!, g);
     const r = piecemeal(g, S, { generations: o.generations, pop: o.pop, seed: o.seed, scenario: o.scenario, ranges: o.ranges,
-      progress: onProgress ? (k, gen, row) => onProgress(k, gen, row) : null });
+      version: o.version ?? 2, progress: onProgress ? (k, gen, row) => onProgress(k, gen, row) : null });
     const last = r.increments[r.increments.length - 1];
     lastKept = last.pop.map((i) => i.design);
     const run = { pop: last.pop, history: last.history, everyone: last.everyone, lineage: last.lineage, genomes: last.genomes };
@@ -129,6 +165,13 @@ const api = {
       }),
       archive: null, lineage: last.lineage, genomes: Float64Array.from(last.genomes.flat()),
     };
+  },
+  /** Version 3 designs grown and scored whole, their plan included: kept designs the page opens
+   *  in Explore, and family leads a MAP-Elites run didn't grow. */
+  async whole(genomes: number[][], ranges: Ranges, locked: number[] | null = null): Promise<Design[]> {
+    if (!siteNow) throw new Error("no site loaded");
+    pool ??= new Pool(poolSize(), siteNow, siteOff);
+    return pool.whole(genomes, { storm: 1, ranges, locked, objectives: [] });
   },
   /** The kept designs of a run reloaded from a file, so syntaxKept can read them. */
   keep(items: Grown[]) {

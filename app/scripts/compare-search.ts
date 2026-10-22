@@ -1,6 +1,7 @@
 // NSGA-II, NSGA-III and MAP-Elites on the same site, seeds and budget: front quality,
 // diversity and run time. Feeds docs/experiments/search-comparison.md.
-//   npm run compare -- [site] [seeds]        (in app/; default mumbai-ewf, 5 seeds)
+//   npm run compare -- [site] [seeds] [--version 2|3] [--gens 30] [--pop 60]
+//   (in app/; default mumbai-ewf, 5 seeds, version 2, 30 generations of 60)
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
@@ -8,7 +9,10 @@ import {
   TARGET_TOLERANCE, makeRng, type Design, type Ground, type Individual, type Run, type SiteExport,
 } from "../engine";
 
-const [siteId = "mumbai-ewf", nSeeds = "5"] = process.argv.slice(2);
+const argv = process.argv.slice(2), opt = (k: string, d: string) => { const i = argv.indexOf(`--${k}`); return i >= 0 ? argv[i + 1] : d; };
+const flags = new Set(argv.flatMap((a, i) => (a.startsWith("--") ? [i, i + 1] : [])));
+const [siteId = "mumbai-ewf", nSeeds = "5"] = argv.filter((_, i) => !flags.has(i));
+const version = +opt("version", "2") as 2 | 3, generations = +opt("gens", "30"), pop = +opt("pop", "60");
 const site: SiteExport = JSON.parse(readFileSync(join(import.meta.dirname, "..", "public", "sites", `${siteId}.json`), "utf8"));
 const G = prepare(site);
 const SEARCHES = ["nsga2", "nsga3", "map-elites"] as const;
@@ -58,14 +62,15 @@ const nondominated = (inds: Individual[]) => {
 };
 
 interface Row { search: Search; seed: number; secs: number; grown: number; onBrief: number; front: number; families: number;
-  hv: number; share: number; levelsOpen: number; storageVariety: number; spread: number; best: Record<string, number> }
+  hv: number; share: number; levelsOpen: number; storageVariety: number; plan: number; spread: number; best: Record<string, number> }
 
 const rows: Row[] = [];
 for (let seed = 1; seed <= +nSeeds; seed++) {
   const fronts = new Map<Search, Individual[]>();
   for (const search of SEARCHES) {
     const t = performance.now();
-    const run: Run = search === "map-elites" ? mapElites(G, { seed }) : evolve(G, { seed, search });
+    const run: Run = search === "map-elites" ? mapElites(G, { seed, version, generations, pop })
+      : evolve(G, { seed, search, version, generations, pop });
     const secs = (performance.now() - t) / 1000;
     const front = nondominated(run.pop);
     const on = run.pop.filter((i) => i.design.scores!.gap <= TARGET_TOLERANCE).map((i) => i.design);
@@ -75,6 +80,7 @@ for (let seed = 1; seed <= +nSeeds; seed++) {
       families: frontFamilies({ ...run, pop: run.pop.map((i) => ({ ...i, rank: front.includes(i) ? 1 : 2 })) }).length,
       hv: hypervolume(front.map((i) => unit(i.design))), share: 0,
       levelsOpen: coverage(on, "mean_levels", "open_share"), storageVariety: coverage(on, "storage", "height_variety"),
+      plan: version === 3 ? coverage(on, "street_density", "orientation_order") : 0,
       spread: spread(on),
       best: Object.fromEntries(SCORE_KEYS.map((k) => {
         const v = front.map((i) => i.design.scores![k]);
@@ -97,10 +103,11 @@ const cols: [string, (r: Row) => number, number][] = [
   ["on the front", (r) => r.front, 0], ["families on the front", (r) => r.families, 0],
   ["hypervolume (%)", (r) => r.hv * 100, 1], ["share of the joint front (%)", (r) => r.share * 100, 0],
   ["cells: storeys × open ground", (r) => r.levelsOpen, 0], ["cells: storage × height variety", (r) => r.storageVariety, 0],
+  ...(version === 3 ? [["cells: street density × orientation order", (r: Row) => r.plan, 0] as [string, (r: Row) => number, number]] : []),
   ["genome spread", (r) => r.spread, 3],
   ...SCORE_KEYS.map((k): [string, (r: Row) => number, number] => [`best ${SCORES[k][0]}`, (r) => r.best[k], k === "carbon" ? 1 : 3]),
 ];
-console.log(`${site.meta.name}, ${nSeeds} seeds, 30 generations of 60 (MAP-Elites: storeys × open ground, 10 × 10)\n`);
+console.log(`${site.meta.name}, genome version ${version}, ${nSeeds} seeds, ${generations} generations of ${pop} (MAP-Elites: storeys × open ground, 10 × 10)\n`);
 console.log(`| | ${SEARCHES.join(" | ")} |\n|---|${SEARCHES.map(() => "---:").join("|")}|`);
 for (const [label, f, dp] of cols) {
   const cells = SEARCHES.map((s) => {

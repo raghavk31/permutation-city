@@ -6,7 +6,7 @@
 // sources). It can't add fields, genes, rules or patterns: the validator drops anything
 // else, with a warning. The genome schema never changes; a brief only changes how genes are
 // read (gene ranges), the rules' limits, and the targets the designs are judged against.
-import { DEFAULT_RANGES, GLOBAL_GENES, LENGTH, N_ATTRACTORS, ATTRACTOR_GENES, type Ranges } from "./config.js";
+import { DEFAULT_RANGES, GLOBAL_GENES, LENGTH, LENGTH_V3, N_ATTRACTORS, ATTRACTOR_GENES, type Ranges } from "./config.js";
 import { SCORE_KEYS } from "./fitness.js";
 import { roundHalfEven } from "./num.js";
 import { makeRng } from "./rng.js";
@@ -338,7 +338,7 @@ const SEED_JITTER = 0.05;
 
 /** Up to `count` starting genomes, shared out by weight: random attractors, site-wide genes
  *  near each typology's pattern. Labelled as typology seeds wherever they are used. */
-export function typologySeeds(priors: { type: Typology; weight: number }[], count: number, seed: number): number[][] {
+export function typologySeeds(priors: { type: Typology; weight: number }[], count: number, seed: number, version: 2 | 3 = 2): number[][] {
   const total = priors.reduce((s, p) => s + p.weight, 0);
   if (!(total > 0) || count < 1) return [];
   const rng = makeRng(seed);
@@ -346,10 +346,12 @@ export function typologySeeds(priors: { type: Typology; weight: number }[], coun
   for (const p of priors) {
     const k = Math.min(roundHalfEven((count * p.weight) / total), count - out.length);
     for (let j = 0; j < k; j++) {
-      const g = Array.from({ length: LENGTH }, () => rng.random());
+      const g = Array.from({ length: version === 3 ? LENGTH_V3 : LENGTH }, () => rng.random());
       GLOBAL_GENES.forEach((name, i) => {
         const target = TYPOLOGY_GENES[p.type][name];
-        if (target === undefined) return;
+        // The seven site-wide genes sit at the same places in versions 2 and 3; street genes
+        // exist only in version 2.
+        if (target === undefined || (version === 3 && i >= 7)) return;
         g[N_ATTRACTORS * ATTRACTOR_GENES + i] = Math.min(Math.max(target + rng.normal(0, SEED_JITTER), 0), 1);
       });
       out.push(g);

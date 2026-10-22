@@ -20,31 +20,44 @@ streets inside it, which come from genes.
 | Mapped water | Overture water theme (from OSM): streams, drains, canals, rivers, ditches, water bodies | Wins where it disagrees with the DEM. |
 | Roads | Overture transportation segments, every class except footpaths | Used for the skeleton's connections, and as the skeleton on flat land. |
 | Surface temperature | Landsat 8/9 Collection 2 Level-2 `ST_B10`, read from Microsoft Planetary Computer (STAC, no key) | See 4. |
+| Wind (regional) | ERA5 hourly 10 m wind, 0.25° (Hersbach et al. 2023, Copernicus Climate Change Service), through Open-Meteo's historical weather API (`pc/wind.py`) | Data CC BY 4.0, credit "Weather data by Open-Meteo.com" and Copernicus. The free API is for non-commercial use only (under 10,000 calls a day), the same limit as FABDEM's CC BY-NC-SA: a commercial use of this tool would need both replaced or licensed. One call per site. See `docs/streets.md`. |
 
 ## 2. Relief class
 
 Relief is measured on the design ground's land:
 - **relief:** the 5th to 95th percentile of ground height
 - **slope:** the median slope between neighbouring cells
+- **steep share:** the share of cells whose steepest slope to a neighbour is over 8% (the
+  IRC hill road limit, `docs/streets.md`)
 
 | Class | Rule |
 |---|---|
 | flat | relief under 5 m, or median slope under 0.5% |
-| pronounced | relief of 20 m or more, and median slope of 2% or more |
+| pronounced | relief of 20 m or more, and either median slope of 2% or more or a steep share of 15% or more |
 | gentle | anything between |
 
 - **Confidence is low** when a value is within a quarter of a class boundary, or when the
   terrain is the Copernicus surface model.
 - **The surface model is always classed flat, by rule.** The site is marked to rebuild once
   FABDEM is back.
+- **Why the steep share:** hills beside a valley floor. On Guwahati's Bharalu basin half the
+  land is the flat bowl, so the median slope is 0.3% (flat) although the hills rise 90 m.
+  The steep share is 6 to 8% on the four flat and gentle sites (DEM noise over 35 m cells),
+  so 15% is about twice that floor.
 - **Why 5 m:** FABDEM's vertical error in built-up land is roughly 1.5 to 2.5 m. Under about
   twice that, ridges and valleys found in the DEM are mostly noise.
 
-| Site | Relief | Median slope | Class |
-|---|---|---|---|
-| mumbai-ewf | 3.2 m | 0.29% | flat |
-| mumbai-docks | 4.7 m | 0.58% | flat (low confidence) |
-| ahmedabad-wadaj | 7.1 m | 0.58% | gentle (low confidence) |
+| Site | Relief | Median slope | Steep share | Class |
+|---|---|---|---|---|
+| mumbai-ewf | 3.2 m | 0.29% | 6.8% | flat |
+| mumbai-docks | 4.7 m | 0.58% | 6.1% | flat (low confidence) |
+| ahmedabad-wadaj | 7.1 m | 0.58% | 6.4% | gentle (low confidence) |
+| bengaluru-cascade | 31.5 m | 1.15% | 7.8% | gentle |
+| guwahati-bharalu (first 2.4 km box) | 90.0 m | 0.58% | 34.7% | pronounced |
+
+**Cell slope.** Each cell also gets `slope`, rise over run from the least-squares plane through
+it and its neighbours, for rules to test (Guwahati: `steep hillside` over 25% is forbidden,
+`hill slopes` over 10° constrained; the bye-law clauses are in its rules.yaml).
 
 ## 3. Valleys, catchments and ridges
 
@@ -227,6 +240,11 @@ Fixed per site, worked out at export:
   | motorway to tertiary | primary street, 18 m |
   | residential, unclassified, living street | secondary street |
   | service, track, unknown | lane |
+- **The site's choice** (`skeleton` in site.yaml): `auto` (the default) is the above, landform
+  where there are strong ridges and roads otherwise; `roads` takes the existing roads even
+  where there are ridges; `landform` asks for ridges. Guwahati's Bharalu basin is `roads`: a
+  built-up basin whose major roads (GS Road among them) carry the city, where the ridges
+  mostly ran across the flat valley floor.
 - **Forbidden land:** the skeleton never runs between two forbidden cells (those aren't
   design ground). It may run along their edge.
 - **Editing:** the skeleton is exported on design cells and on grid cells, so it maps onto a

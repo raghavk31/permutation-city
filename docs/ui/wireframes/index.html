@@ -1,0 +1,44 @@
+<title>Permutation City Wireframes</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one column, an index of the two wireframe pages and what to review. */
+:root { --paper: #fafaf8; --ink: #1c1b18; --ink-2: #57544d; --muted: #8c887f; --line: #dedbd3; --panel: #f3f2ee;
+  --text: "Inter Tight", "Helvetica Neue", Helvetica, Arial, sans-serif; --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --paper: #1b1a18; --ink: #f1efe9; --ink-2: #c3c0b7; --muted: #9a968c; --line: #3a3834; --panel: #232220; color-scheme: dark; } }
+:root[data-theme="dark"] { --paper: #1b1a18; --ink: #f1efe9; --ink-2: #c3c0b7; --muted: #9a968c; --line: #3a3834; --panel: #232220; color-scheme: dark; }
+body { background: var(--paper); color: var(--ink); font: 15px/1.55 var(--text);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 32px 64px; }
+main { max-width: 760px; margin: 0 auto; display: grid; gap: 20px; }
+h1 { font-size: 30px; font-weight: 500; margin: 0; text-wrap: balance; }
+p { margin: 0; color: var(--ink-2); max-width: 65ch; }
+.mono { font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: .02em; }
+.pages { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.pages a { display: grid; gap: 4px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); text-decoration: none; color: inherit; }
+.pages a:hover, .pages a:focus-visible { border-color: var(--ink-2); outline: none; }
+.pages b { font-weight: 500; font-size: 17px; }
+h2 { font-size: 15px; font-weight: 500; margin: 8px 0 0; }
+ol { margin: 0; padding-left: 20px; color: var(--ink-2); display: grid; gap: 6px; }
+</style>
+<main>
+  <span class="mono">Permutation City v3 · A3 · wireframes for review · 21 October 2026</span>
+  <h1>Wireframes</h1>
+  <p>Low-fidelity layouts of the workbench and the story page, from section 10 of the brief, for review before the design system and the build. Labels are real but short; your copy goes where the grey bars are.</p>
+  <div class="pages">
+    <a href="workbench.html"><b>Workbench</b><span>Eight steps, the inspector, the pen tray, Evolve running, Explore with trade-offs, compare and the archive.</span></a>
+    <a href="story.html"><b>Story page</b><span>Eight sections with a pinned view, at desktop and phone width.</span></a>
+  </div>
+  <h2>Review</h2>
+  <p><b>21 Oct:</b> the desktop workbench layout is approved. On a phone, the workbench opens the story view.</p>
+  <h2>What I asked for your eye on</h2>
+  <ol>
+    <li>Explore: the trade-off chart and the map side by side in the centre, with the representatives in the left rail. The alternative is the chart in a drawer over the map.</li>
+    <li>The inspector order: name, five score bars against the run's range, floor area against the brief, form metrics collapsed, genes with locks, lineage, actions.</li>
+    <li>Evolve while running: a live strip of the best designs above the map, not a modal.</li>
+    <li>Landform as its own step between Rules and Brief. The brief lists seven steps; section 10.5 has eight.</li>
+    <li>The story page's eight sections and what each pinned view shows.</li>
+  </ol>
+  <p class="mono">Dashed boxes marked B are features cut to Milestone B in the approved plan.</p>
+</main>

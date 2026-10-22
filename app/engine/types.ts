@@ -97,6 +97,12 @@ export interface SiteMeta {
     ridge_min_ha: number; ridge_min_consistency: number };
   lst?: { source: string; months: number[]; years: number[]; scenes: { id: string; date: string; clear: number }[];
     median_clear_scenes_per_pixel: number; note: string };
+  /** The regional wind (pc/wind.py): ERA5 via Open-Meteo, per season; streets read the axis
+   *  `bearing_deg` (degrees from north, mod 180) of the season `bearing_from`. */
+  wind?: { source: string; years: number[]; grid_point: [number, number]; grid_point_km: number; regional: true;
+    bearing_deg: number | null; bearing_from: string; credit: string;
+    seasons: Record<string, { hours: number; calm: number; mean_ms?: number; prevailing_from_deg?: number; rose?: number[];
+      axis_deg?: number; consistency?: number }> };
   /** Sites built for someone who drew them: the data used, and anything a person should know. */
   service?: { overture: string | null; layers: number; terrain?: string; warnings?: string[] };
   /** Hours from UTC of local clock time (shade hours, the sun study), and where it came from. */
@@ -161,6 +167,27 @@ export interface Settings {
   street_spacing: number; street_orientation: number; street_pattern: number; street_hierarchy: number;
 }
 
+/** A version 3 genome's site-wide genes (config.ts GENES_V3), as read. */
+export interface SettingsV3 {
+  water_share: number; green_share: number; follow_water: number; coverage: number;
+  peak: number; intensity: number; base: number;
+  detour: number; w_gates: number; w_centres: number; w_transit: number; w_schools: number; w_markets: number;
+  f_landform: number; f_edges: number; f_wind: number; local_spacing: number; pattern: number; plot_depth: number;
+}
+
+/** A version 3 design's vector plan (plan/grow.ts): streets by class with their widths, the
+ *  blocks (faces of the network), the plots, and what the rules repaired or flagged. */
+export interface VectorPlan {
+  family: string;
+  streets: { pts: [number, number][]; cls: number; w: number }[];
+  vx: number[]; vy: number[]; edges: { u: number; v: number; cls: number }[];
+  blocks: [number, number][][];
+  plots: { ring: [number, number][]; block: number; use: number; levels: number; frontage: number }[];
+  repairs: { kind: string; at: [number, number] }[];
+  flags: { rule: string; at: [number, number]; value: number; limit: number }[];
+  destinations: { kind: string; at: [number, number] }[];
+}
+
 export interface Scores {
   storage: number; heat: number; carbon: number; daylight: number; human: number; gap: number;
 }
@@ -181,7 +208,8 @@ export interface Design {
   // ground for now), and the design's wholeness.
   fresh?: Uint8Array; fallow?: Uint8Array; wholeness?: number;
   attractors: Attractor[];
-  settings: Settings;
+  settings: Settings | SettingsV3;
+  plan?: VectorPlan;             // genome version 3: the vector design (rasterised into the arrays above)
   scores: Scores | null;
   floorHa?: number;
 }

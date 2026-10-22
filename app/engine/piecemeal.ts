@@ -3,7 +3,9 @@
 //
 //   fabric      what has been built: per cell its use, storeys, coverage and floor area, fixed
 //               from the increment that built it. The street network is laid out by the first
-//               increment (its four street genes) and later increments build along it.
+//               increment and later increments build along it: in version 2 by its four street
+//               genes, in version 3 by its frame (streets, blocks and plots; plan/grow.ts), whose
+//               plots each later increment fills with its own uses and heights.
 //   increment   designs grow as usual around the fabric (its cells locked to their use, their
 //               buildings kept as built). Each then builds new cells where its attractors pull
 //               hardest, until the fabric reaches the year's share of the floor-area brief
@@ -16,12 +18,14 @@
 //               how much it lowers it: a sixth objective, 0 when wholeness holds or rises.
 //
 // The engine grows, scores and ranks as in a plain run (evolve.ts, with hooks); TS only.
-import { ATTRACTOR_GENES, BUILDING, DEFAULT_RANGES, LANDSCAPE, LENGTH, N_ATTRACTORS, STREET_GENES, TARGET_TOLERANCE, type Ranges } from "./config.js";
+import { ATTRACTOR_GENES, BUILDING, DEFAULT_RANGES, LANDSCAPE, LENGTH, LENGTH_V3, N_ATTRACTORS, STREET_GENES, TARGET_TOLERANCE,
+  type Ranges } from "./config.js";
 import { quality } from "./elites.js";
 import { evolve, frontFamilies, type HistoryRow, type Individual, type LineageNode } from "./evolve.js";
 import { evaluate, floorAreaTarget, storageDepth } from "./fitness.js";
 import { decode, field, grow } from "./genome.js";
 import { measure, METRICS, type Metric, type MetricKey } from "./metrics/index.js";
+import { type Frame, frameOf } from "./plan/grow.js";
 import { roundTo } from "./num.js";
 import { difference } from "./rank.js";
 import { seaRise, type SeaScenario } from "./scenarios.js";
@@ -118,20 +122,21 @@ export function scoreUnder(d: Design, G: Ground, S: ShockSite, c: Conditions, ta
 /** What has been built: per cell. `built` 1 where an increment has built the cell. */
 export interface Fabric {
   built: Uint8Array; use: Int8Array; levels: Int32Array; coverage: Float64Array; floorArea: Float64Array;
-  streets: number[] | null;   // the first increment's four street genes
+  streets: number[] | null;   // the first increment's four street genes (version 2)
   network: Int8Array | null;  // and the network they laid out (a class per side)
+  frame: Frame | null;        // version 3: the first increment's streets, blocks and plots
 }
 
 export const emptyFabric = (G: Ground): Fabric => ({
   built: new Uint8Array(G.n), use: new Int8Array(G.n), levels: new Int32Array(G.n),
-  coverage: new Float64Array(G.n), floorArea: new Float64Array(G.n), streets: null, network: null,
+  coverage: new Float64Array(G.n), floorArea: new Float64Array(G.n), streets: null, network: null, frame: null,
 });
 
 const STREET_AT = N_ATTRACTORS * ATTRACTOR_GENES + 7;   // the four street genes, after the seven site-wide ones
 
-/** A genome with the fabric's street genes (the network is laid out once). */
+/** A version 2 genome with the fabric's street genes (the network is laid out once). */
 export function withStreets(genome: number[], f: Fabric): number[] {
-  if (!f.streets || genome.length < LENGTH) return genome;
+  if (!f.streets || genome.length !== LENGTH) return genome;
   const g = genome.slice();
   for (let k = 0; k < STREET_GENES; k++) g[STREET_AT + k] = f.streets[k];
   return g;
@@ -146,7 +151,7 @@ export function growIncrement(genome: number[], G: Ground, f: Fabric, target: nu
   ranges: Ranges = DEFAULT_RANGES, land = 1): Design {
   const g = withStreets(genome, f);
   const locked = Int8Array.from(f.use, (u, i) => (f.built[i] ? u : 0));
-  const d = grow(g, G, locked, ranges);
+  const d = grow(g, G, locked, ranges, f.frame);
   d.genome = genome.slice();
   if (f.network) d.street = f.network.slice();
   const fresh = new Uint8Array(G.n), fallow = new Uint8Array(G.n);
@@ -181,8 +186,10 @@ export function growIncrement(genome: number[], G: Ground, f: Fabric, target: nu
 export function buildFabric(f: Fabric, d: Design): Fabric {
   const next: Fabric = {
     built: f.built.slice(), use: f.use.slice(), levels: f.levels.slice(), coverage: f.coverage.slice(),
-    floorArea: f.floorArea.slice(), streets: f.streets ?? d.genome.slice(STREET_AT, STREET_AT + STREET_GENES),
+    floorArea: f.floorArea.slice(),
+    streets: f.streets ?? (d.genome.length === LENGTH ? d.genome.slice(STREET_AT, STREET_AT + STREET_GENES) : null),
     network: f.network ?? (d.street ? d.street.slice() : null),
+    frame: f.frame ?? frameOf(d),
   };
   for (let i = 0; i < d.use.length; i++) if (d.fresh?.[i]) {
     next.built[i] = 1; next.use[i] = d.use[i]; next.levels[i] = d.levels[i]; next.coverage[i] = d.coverage[i]; next.floorArea[i] = d.floorArea[i];
@@ -218,6 +225,7 @@ export const growLast = (genome: number[], G: Ground, before: Fabric, ranges: Ra
 export interface PiecemealOptions {
   generations?: number; pop?: number; seed?: number; scenario?: Scenario; ranges?: Ranges;
   years?: number[]; shares?: number[];
+  version?: 2 | 3;                   // genome version bred (2 unless asked)
   progress?: ((step: number, gen: number, row: HistoryRow) => void) | null;
 }
 
@@ -245,15 +253,16 @@ export const penaltyOf = (d: Design) => -((d.scores as unknown as Record<string,
 /** Grow a site in increments. Each increment is a run of `generations` × `pop` (seed + k). */
 export function piecemeal(G: Ground, S: ShockSite, opts: PiecemealOptions = {}): { increments: Increment[]; fabric: Fabric } {
   const { generations = 15, pop = 40, seed = 1, scenario = "ssp245", ranges = DEFAULT_RANGES, years = YEARS, shares = SHARES,
-    progress = null } = opts;
+    progress = null, version = 2 } = opts;
   const total = floorAreaTarget(G), increments: Increment[] = [];
-  let fabric = emptyFabric(G), before = wholeness(fabricDesign(fabric, G, Array(LENGTH).fill(0.5), ranges), G);
+  const blank = Array(version === 3 ? LENGTH_V3 : LENGTH).fill(0.5);
+  let fabric = emptyFabric(G), before = wholeness(fabricDesign(fabric, G, blank, ranges), G);
   for (let k = 0; k < years.length; k++) {
     const t0 = Date.now(), year = years[k], c = conditionsFor(G.meta, year, scenario), target = total * shares[k];
     const depth = c.sea !== null && S.coastal ? seaDepth(S, c.sea) : null, last = k === years.length - 1, f = fabric, was = before;
     const free = f.built.reduce((n, v) => n + (v ? 0 : 1), 0);
     const run = evolve(G, {
-      search: "nsga3", generations, pop, seed: seed + k, ranges,
+      search: "nsga3", generations, pop, seed: seed + k, ranges, version,
       progress: progress ? (gen, r) => progress(k, gen, r.history[r.history.length - 1]) : null,
       hooks: {
         grow: (g) => growIncrement(g, G, f, target, last, ranges, shares[k]),

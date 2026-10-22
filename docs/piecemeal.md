@@ -22,8 +22,14 @@ increments, 2025, 2035 and 2050. Choose "growth: piecemeal" in the run form.
    the land, whichever comes first. The 2050 increment builds every cell that is left.
 4. **Unbuilt cells for now.** Cells not built yet are open ground, marked fallow. They count
    as landscape when an increment is scored.
-5. **Streets.** The first increment lays out the street network from its four street genes.
-   Later increments keep that network and build along it.
+5. **Streets.** The first increment lays out the street network. Later increments keep it
+   and build along it.
+   - Version 2: from the first increment's four street genes.
+   - Version 3 (A2, 2026-10-22): the first increment's whole frame (its streets, blocks and
+     plots; `Frame` in `engine/plan/grow.ts`). A later design claims its own uses, which
+     reclassify the frame's plots, and takes its own heights; its street genes do nothing.
+     In version 3 the network depends on the attractors too (routes run between the cores
+     and the gates), so fixing the street genes alone would not fix the streets.
 6. **What is built.** At the end of an increment, the design that gets built is chosen from
    its front, from the designs within the brief when there are any. It is the one with the
    best unweighted mean of the five scores (`quality`), less its wholeness penalty.

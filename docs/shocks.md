@@ -83,6 +83,7 @@ There are no drains: in a storm this rare they are full. Mumbai's are designed f
 | Mumbai (Docks, EWF) | 19.0° N 72.75° E | 307 mm | 392 | 465 | 549 | 528 mm, 5 July 1974 |
 | Ahmedabad (Wadaj) | 23.0° N 72.5° E | 192 | 254 | 309 | 372 | 323 mm, 14 July 2000 |
 | Bengaluru (cascade) | 13.0° N 77.75° E | 103 | 121 | 134 | 147 | 173 mm, 19 November 2021 |
+| Guwahati (Bharalu) | 26.25° N 91.75° E | 110 | 141 | 168 | 199 | 247 mm, 6 October 1979 |
 
 **How they were computed.** The data is IMD's 0.25° gridded daily rainfall (Pai et al. 2014),
 1951–2024, 74 years. For each year, the wettest day in the nearest grid cell with land; then a
@@ -94,7 +95,8 @@ IMD's day is the 24 hours to 08:30 IST, so a date is the morning the rain was re
 below a rain gauge. On 26 July 2005 the Santacruz gauge recorded 944 mm; the grid cell over
 the docks recorded 492 mm, and the wettest cell nearby 733 mm. The table's levels are for an
 area, not a point; the gauge figure is a preset of its own. Bengaluru's 100-year day (147 mm)
-is close to its design storm (150 mm).
+is close to its design storm (150 mm). Guwahati's design storm is the 10-year day (110 mm).
+Its cell's centre is about 10 km from the site.
 
 ## 3. Heatwave
 

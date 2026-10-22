@@ -3,6 +3,9 @@
 import { mount } from "svelte";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "../style.css";
+import { applyTokens } from "../tokens";
+
+applyTokens();
 import "./new.css";
 import App from "./App.svelte";
 

@@ -104,6 +104,33 @@ Per plot:
     whole site.
 - **The ground the shade and sky scores read** is the street bands plus landscape cells.
 
+## Version 3 designs: envelopes from the vector plots
+
+A version 3 design is drawn as streets, blocks and plots (docs/architecture-v3.md), so its
+massing reads those instead of cells (`app/engine/massing/vector.ts`; `envelope` and
+`blocksOf` hand a design with a plan to it). The rest (representations, scores, meshes,
+downloads, the viewer) is unchanged: it reads the same `Envelope`.
+
+- Blocks: the faces of the street network that hold building plots. Their area is the plots'
+  area, net of streets.
+- Plots: the plan's building plots in the block, as drawn. They are already set back half a
+  street's width from the centrelines, so nothing is split or merged here.
+- Setbacks, per plot edge: front where the edge lies within half a street's width plus 2 m of
+  a centreline, or faces landscape or water 3 m out; side where it meets a front edge; rear
+  otherwise.
+- Street bands: columns within half a street's width of a centreline.
+- Height cap and most cover: the rules' cap and least permeable share of the cell under each
+  column, as before. The target: the floor area the design put on the cells under the plot,
+  in proportion to the plot's columns.
+- Context: the design's other building plots at their storeys, shrunk about their middles to
+  their cover for the 3D view; existing buildings as before.
+- The 3D ground is painted from the plan (streets as strokes, plots as polygons) at about
+  3 px a metre, over the column ground smoothed.
+
+Measured on random version 3 designs (Node, a block of 0.1 to 0.2 ha with 4 or 5 plots):
+preparing a block takes 70 to 360 ms, and 12 massings by 3 generations under a second, on
+Mumbai Docks, Guwahati and Bengaluru. Tested in `test/ui/massing-vector.test.ts`.
+
 ## Three representations, one interface
 
 `context.ts` defines `Representation<G>`: `random`, `mutate`, `cross` (the better parent

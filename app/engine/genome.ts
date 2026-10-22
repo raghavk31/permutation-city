@@ -1,12 +1,13 @@
 // Genome → design (pc/genome.py). See that file for the body plan and the growth steps.
 import {
-  ATTRACTOR_GENES, BUILDING, DEFAULT_RANGES, GLOBAL_GENES, KINDS, LANDSCAPE, LENGTH, N_ATTRACTORS, PRE_STREET_LENGTH,
-  STREET_FRONT_RISE, STREET_GENE_DEFAULT, WATER, WATER_FIELD_REACH_M, type Ranges,
+  ATTRACTOR_GENES, BUILDING, DEFAULT_RANGES, GENES_V3, GLOBAL_GENES, KINDS, LANDSCAPE, LENGTH, LENGTH_V3, N_ATTRACTORS,
+  PRE_STREET_LENGTH, RANGES_V3, STREET_FRONT_RISE, STREET_GENE_DEFAULT, WATER, WATER_FIELD_REACH_M, type Ranges,
 } from "./config.js";
+import { type Frame, growV3 } from "./plan/grow.js";
 import { sides, streets } from "./streets.js";
 import { passes } from "./graph.js";
 import { lerp, norm, roundHalfEven, smooth } from "./num.js";
-import type { Attractor, Design, Ground, Kind, Rng, Settings, Stats } from "./types.js";
+import type { Attractor, Design, Ground, Kind, Rng, Settings, SettingsV3, Stats } from "./types.js";
 
 export function decode(genome: number[], bounds: Ground["bounds"], ranges: Ranges = DEFAULT_RANGES) {
   const [xmin, ymin, xmax, ymax] = bounds;
@@ -27,7 +28,20 @@ export function decode(genome: number[], bounds: Ground["bounds"], ranges: Range
   return { attractors, settings };
 }
 
-export const randomGenome = (rng: Rng): number[] => Array.from({ length: LENGTH }, () => rng.random());
+/** Decode a version 3 genome (LENGTH_V3 numbers): the attractors as before, then GENES_V3. */
+export function decodeV3(genome: number[], bounds: Ground["bounds"], ranges: Ranges = DEFAULT_RANGES) {
+  const { attractors } = decode(genome, bounds, ranges);
+  const settings = {} as SettingsV3;
+  GENES_V3.forEach((name, i) => {
+    const r = (ranges as unknown as Record<string, readonly [number, number]>)[name] ?? RANGES_V3[name as keyof typeof RANGES_V3];
+    (settings as unknown as Record<string, number>)[name] = lerp(genome[N_ATTRACTORS * ATTRACTOR_GENES + i], ...r);
+  });
+  return { attractors, settings };
+}
+
+/** A random genome: version 2 (LENGTH numbers) unless version 3 is asked for. */
+export const randomGenome = (rng: Rng, version: 2 | 3 = 2): number[] =>
+  Array.from({ length: version === 3 ? LENGTH_V3 : LENGTH }, () => rng.random());
 
 /** Sum of attractor fields of one kind (or all kinds): weight × (1 - d/r)² inside the radius. */
 export function field(G: Ground, attractors: Attractor[], kind: Kind | null): Float64Array {
@@ -46,18 +60,15 @@ export function field(G: Ground, attractors: Attractor[], kind: Kind | null): Fl
 /** A genome at the current length: a pre-street genome (47 numbers) gets the default street
  *  genes. Says which it was. */
 export function upgrade(genome: number[]): [number[], boolean] {
-  if (genome.length >= LENGTH) return [genome, false];
+  if (genome.length >= LENGTH) return [genome, false];  // version 2, or version 3 (grown elsewhere)
   if (genome.length !== PRE_STREET_LENGTH) throw new Error(`a genome has ${LENGTH} numbers (this one has ${genome.length})`);
   return [[...genome, ...Array(LENGTH - PRE_STREET_LENGTH).fill(STREET_GENE_DEFAULT)], true];
 }
 
-/** Grow a design. `locked` (optional): a use code per cell, 0 = free. */
-export function grow(genome: number[], G: Ground, locked: ArrayLike<number> | null = null,
-  ranges: Ranges = DEFAULT_RANGES): Design {
-  const [full, preStreet] = upgrade(genome);
-  genome = full;
-  const { attractors, settings: s } = decode(genome, G.bounds, ranges);
-  const st = streets(G, s);
+/** Where water, green and building go: water and green claim their shares of the cells where
+ *  their fields are strongest, the rest is building (pc/genome.py). Shared by every version. */
+export function claimUses(G: Ground, attractors: Attractor[], s: Pick<Settings, "water_share" | "green_share" | "follow_water">,
+  locked: ArrayLike<number> | null): { use: Int8Array; core: Float64Array } {
   const n = G.n;
   const core = norm(field(G, attractors, "core"));
   const greenF = norm(field(G, attractors, "green"));
@@ -97,6 +108,21 @@ export function grow(genome: number[], G: Ground, locked: ArrayLike<number> | nu
     if (!free[i]) continue;
     use[i] = G.canBuild[i] ? BUILDING : G.canGreen[i] ? LANDSCAPE : WATER;
   }
+  return { use, core };
+}
+
+/** Grow a design. `locked` (optional): a use code per cell, 0 = free. A version 3 genome
+ *  (LENGTH_V3 numbers) grows a vector plan (plan/grow.ts), in `frame`'s streets and plots when
+ *  given; versions 1 and 2 grow as before. */
+export function grow(genome: number[], G: Ground, locked: ArrayLike<number> | null = null,
+  ranges: Ranges = DEFAULT_RANGES, frame: Frame | null = null): Design {
+  if (genome.length === LENGTH_V3) return growV3(genome, G, locked, ranges, frame);
+  const [full, preStreet] = upgrade(genome);
+  genome = full;
+  const { attractors, settings: s } = decode(genome, G.bounds, ranges);
+  const st = streets(G, s);
+  const n = G.n;
+  const { use, core } = claimUses(G, attractors, s, locked);
 
   // No street between two water cells the genes made (it would be a causeway to nowhere).
   const sd = sides(G);

@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   applyRules, BUILDING, grow, LENGTH, makeRng, measure, prepare, prepareFromRules, PRE_STREET_LENGTH, randomGenome,
-  withSkeleton, type Ground, type SiteExport,
+  withSkeleton, type Ground, type Settings, type SiteExport,
 } from "../../app/engine";
 import { sides, streets } from "../../app/engine/streets";
 
@@ -77,7 +77,7 @@ describe("streets", () => {
     for (const d of designs) {
       const net = d.floorArea.reduce((a, b) => a + b, 0);
       expect(net).toBeLessThan(d.grossFloorArea!);
-      expect(streets(G, d.settings).share.every((v) => v <= 0.6)).toBe(true);
+      expect(streets(G, d.settings as Settings).share.every((v) => v <= 0.6)).toBe(true);
     }
   });
 

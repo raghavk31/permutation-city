@@ -4,6 +4,7 @@
     terrain.tif    FABDEM bare earth (30 m; free for non-commercial research)
     landcover.tif  ESA WorldCover 2021 (10 m)
     lst.tif        hot-season land surface temperature (Landsat 8/9, Planetary Computer; pc/lst.py)
+    wind.json      regional wind, ERA5 via Open-Meteo, seasons and the hot-afternoon axis (pc/wind.py)
     heights.tif    building heights (Google Open Buildings 2.5D Temporal, 2023, 2 m; where covered)
     overture/      Overture Maps: buildings (Google Open Buildings + OSM + Microsoft),
                    roads and rail, land use, water, place names,
@@ -161,6 +162,11 @@ def fetch_streets(site: Site, tries=5, release: str | None = None):
     raise RuntimeError(f"Overture streets for space syntax failed: {r.stderr[-300:]}")
 
 
+def fetch_wind(site: Site):
+    from pc.wind import fetch_wind as run
+    run(site)
+
+
 def fetch_lst(site: Site):
     from pc.lst import fetch_lst as run
     run(site)
@@ -241,7 +247,8 @@ def fetch_heights(site: Site):
 
 
 STEPS = {"dem": fetch_dem, "terrain": fetch_terrain, "landcover": fetch_landcover,
-         "overture": fetch_overture, "streets": fetch_streets, "lst": fetch_lst, "heights": fetch_heights}
+         "overture": fetch_overture, "streets": fetch_streets, "lst": fetch_lst, "heights": fetch_heights,
+         "wind": fetch_wind}
 
 
 def fetch(site: Site, only=None):

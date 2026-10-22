@@ -309,7 +309,10 @@ function roadsOn(G: Ground): number[][] {
 
 export function network(d: Design, G: Ground): Network {
   const B = new Builder();
-  for (const [xs, ys] of d.street ? streetStrokes(G, d.street) : []) {
+  // A version 3 design's streets are its plan's; earlier designs' run on cell sides.
+  const strokes: [number[], number[]][] = d.plan ? d.plan.streets.map((st) => [st.pts.map((p) => p[0]), st.pts.map((p) => p[1])])
+    : d.street ? streetStrokes(G, d.street) : [];
+  for (const [xs, ys] of strokes) {
     for (let k = 1; k < xs.length; k++) B.segment(B.vertex(xs[k - 1], ys[k - 1]), B.vertex(xs[k], ys[k]));
   }
   for (const [x0, y0, x1, y1] of roadsOn(G)) B.segment(B.vertex(x0, y0), B.vertex(x1, y1));

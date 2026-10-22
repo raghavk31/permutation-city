@@ -132,10 +132,11 @@ export function readLink(q: URLSearchParams, n: number): RunLink | null {
 /** What to tell people about a link or file made with another engine. */
 export function versionNotes(genomeVersion: number, build: string | null): string[] {
   const out: string[] = [];
+  // COPY: the note on runs saved with an older genome.
   if (genomeVersion < E.GENOME_VERSION) {
-    out.push(`Saved with genome version ${genomeVersion} (${genomeVersion === 1 ? `${E.PRE_STREET_LENGTH} numbers, before streets` : "older"});`
-      + ` this page breeds version ${E.GENOME_VERSION} (${E.LENGTH} numbers), so a run grown again won't match the original.`
-      + " Its saved designs are grown with the default street genes and labelled pre-street.");
+    out.push(`Saved with genome version ${genomeVersion} (${genomeVersion === 1 ? `${E.PRE_STREET_LENGTH} numbers, before streets`
+      : `${E.LENGTH} numbers, streets on the cells' edges`}). It grows as it did then; this page breeds version ${E.GENOME_VERSION}`
+      + ` (${E.LENGTH_V3} numbers, vector streets and plots), and the two can't be bred together.`);
   } else if (genomeVersion > E.GENOME_VERSION) {
     out.push(`Saved with genome version ${genomeVersion}, newer than this page's (${E.GENOME_VERSION}).`);
   }
@@ -187,7 +188,7 @@ export function base64ToF64(text: string): Float64Array {
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const genomeOk = (g: unknown): g is number[] =>
-  Array.isArray(g) && (g.length === E.LENGTH || g.length === E.PRE_STREET_LENGTH) && g.every((v) => typeof v === "number" && v >= 0 && v <= 1);
+  Array.isArray(g) && [E.LENGTH, E.PRE_STREET_LENGTH, E.LENGTH_V3].includes(g.length) && g.every((v) => typeof v === "number" && v >= 0 && v <= 1);
 
 /** JSON writes NaN as null: put NaN back in a kept design's metrics and scores. */
 function revive(k: Kept): Kept {

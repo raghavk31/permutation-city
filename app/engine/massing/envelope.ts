@@ -19,6 +19,7 @@ import { links, network } from "../metrics/network.js";
 import { sides } from "../streets.js";
 import { cellAt } from "../syntax.js";
 import type { Design, Ground } from "../types.js";
+import { vectorBlocks, vectorEnvelope } from "./vector.js";
 
 export const RES_M = 2.0;            // raster column size
 export const MARGIN_M = 60.0;        // context kept round the block
@@ -117,8 +118,9 @@ function split(G: Ground, cells: number[], front: (i: number) => boolean): numbe
   return parts;
 }
 
-/** The blocks of a design that can be massed: their cells, area and floor area. */
-export function blocksOf(d: Design, G: Ground): { id: number; cells: number[]; ha: number; floorHa: number }[] {
+/** The blocks of a design that can be massed (version 3: vector.ts, from its plots): their cells, area and floor area. */
+export function blocksOf(d: Design, G: Ground): { id: number; cells: number[]; ha: number; floorHa: number; plots?: number }[] {
+  if (d.plan) return vectorBlocks(d, G);
   const net = network(d, G);
   return net.blocks.map((cells, id) => ({
     id, cells, ha: (cells.length * G.cellArea) / 1e4,
@@ -126,8 +128,9 @@ export function blocksOf(d: Design, G: Ground): { id: number; cells: number[]; h
   }));
 }
 
-/** The envelope of one block of a design. */
+/** The envelope of one block of a design (version 3: vector.ts). */
 export function envelope(d: Design, G: Ground, block: number, setbacks: Setbacks = DEFAULT_SETBACKS): Envelope {
+  if (d.plan) return vectorEnvelope(d, G, block, setbacks);
   const net = network(d, G), L = links(G), sd = sides(G), D = G.deg;
   const cells = net.blocks[block];
   if (!cells) throw new Error(`no block ${block}`);

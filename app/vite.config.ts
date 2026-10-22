@@ -46,8 +46,9 @@ export default defineConfig({
   worker: { format: "es" },
   build: {
     target: "es2022",
-    // Two pages: the six chapters (index.html) and the site picker with the layer cake (new.html).
-    rolldownOptions: { input: { main: resolve(__dirname, "index.html"), new: resolve(__dirname, "new.html") } },
+    // Three pages: the six chapters (index.html), the site picker with the layer cake (new.html), and the
+    // workbench (workbench.html, served at /workbench).
+    rolldownOptions: { input: { main: resolve(__dirname, "index.html"), new: resolve(__dirname, "new.html"), workbench: resolve(__dirname, "workbench.html") } },
   },
   server: { fs: { allow: [".."] } },
   // MapLibre loads its own worker by URL; pre-bundling breaks that URL in dev.

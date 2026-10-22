@@ -7,6 +7,7 @@ site's whole grid (design area plus its context margin):
     mapped_channel  cells a mapped stream, drain, canal or river runs through (Overture water)
     flow_acc_ha     upstream area draining through each cell (ha), on the conditioned ground
     flow_to_row/col the cell it drains to (-1: an outlet)
+    slope           each cell's slope (rise over run), from the plane through it and its neighbours
     valley_order    Strahler order of drainage lines (0: not a valley)
     valley_buffer   1 within the buffer of a valley (width by order; provisional)
     catchment_id    the valley segment (or outlet) each cell drains to
@@ -39,6 +40,7 @@ from pc.site import Site
 # Relief classes, on the design ground's land (docs/landform.md)
 RELIEF_FLAT_M, SLOPE_FLAT = 5.0, 0.005             # flat: relief under 5 m or median slope under 0.5%
 RELIEF_PRONOUNCED_M, SLOPE_PRONOUNCED = 20.0, 0.02  # pronounced: 20 m or more and 2% or more
+STEEP, STEEP_SHARE = 0.08, 0.15  # ... or 20 m or more with 15% of the land steeper than 8% (hills over a valley floor)
 BURN_M = 3.0                  # mapped channels are lowered this much before filling
 VALLEY_BUFFER_M = {1: 0.0, 2: 20.0, 3: 40.0}        # each side, by stream order (3: 3 and up); provisional
 MAPPED_RIVER_ORDER = 3        # a mapped river or canal is at least order 3
@@ -59,22 +61,47 @@ def terrain_source(site: Site) -> str:
     return "fabdem"
 
 
+def slope(grid, nbrs) -> np.ndarray:
+    """Each cell's slope (rise over run): the least-squares plane through it and its
+    neighbours. Steadier than the steepest single neighbour, which picks up DEM noise."""
+    c = grid.centroid
+    x, y, z = c.x.to_numpy(), c.y.to_numpy(), grid["ground"].to_numpy().astype(float)
+    out = np.zeros(len(grid))
+    for i, nb in enumerate(nbrs):
+        if len(nb) < 2:
+            continue
+        dx, dy, dz = x[nb] - x[i], y[nb] - y[i], z[nb] - z[i]
+        a = np.array([[dx @ dx, dx @ dy], [dx @ dy, dy @ dy]])
+        if abs(np.linalg.det(a)) < 1e-9:
+            continue
+        gx, gy = np.linalg.solve(a, [dx @ dz, dy @ dz])
+        out[i] = math.hypot(gx, gy)
+    return out
+
+
 def relief(grid, nbrs, spacing: float, source: str) -> dict:
     """Relief class of the design ground's land: the 5th to 95th percentile of ground height,
-    and the median slope between neighbouring cells."""
+    the median slope between neighbouring cells, and the share of cells steeper than 8% (a
+    cell's steepest slope to a neighbour). The steep share catches hills beside a valley
+    floor, where the flat half holds the median slope down."""
     z = grid["ground"].to_numpy()
     on = (~grid["water"].to_numpy()) & grid["in_design"].to_numpy()
     zs = z[on]
-    slopes = [abs(z[i] - z[j]) / spacing for i in np.flatnonzero(on) for j in nbrs[i] if on[j]]
+    cell_slopes = [[abs(z[i] - z[j]) / spacing for j in nbrs[i] if on[j]] for i in np.flatnonzero(on)]
+    slopes = [v for row in cell_slopes for v in row]
     r = float(np.percentile(zs, 95) - np.percentile(zs, 5)) if len(zs) else 0.0
     s = float(np.median(slopes)) if slopes else 0.0
-    cls = ("flat" if r < RELIEF_FLAT_M or s < SLOPE_FLAT
-           else "pronounced" if r >= RELIEF_PRONOUNCED_M and s >= SLOPE_PRONOUNCED else "gentle")
+    steep = float(np.mean([max(row, default=0.0) > STEEP for row in cell_slopes])) if cell_slopes else 0.0
+    hilly = r >= RELIEF_PRONOUNCED_M and (s >= SLOPE_PRONOUNCED or steep >= STEEP_SHARE)
+    cls = "pronounced" if hilly else "flat" if r < RELIEF_FLAT_M or s < SLOPE_FLAT else "gentle"
     # Low confidence: a surface model (heights include buildings and trees), or within a
-    # quarter of a class boundary.
-    near = (abs(r - RELIEF_FLAT_M) < 0.25 * RELIEF_FLAT_M or abs(s - SLOPE_FLAT) < 0.25 * SLOPE_FLAT
-            or abs(r - RELIEF_PRONOUNCED_M) < 0.25 * RELIEF_PRONOUNCED_M)
-    out = {"class": cls, "relief_m": round(r, 1), "median_slope": round(s, 4), "source": source,
+    # quarter of a class boundary (for a pronounced site, only the boundaries that made it so).
+    near_pronounced = (abs(r - RELIEF_PRONOUNCED_M) < 0.25 * RELIEF_PRONOUNCED_M
+                       or (r >= RELIEF_PRONOUNCED_M and abs(steep - STEEP_SHARE) < 0.25 * STEEP_SHARE))
+    near = near_pronounced if cls == "pronounced" else (
+        near_pronounced or abs(r - RELIEF_FLAT_M) < 0.25 * RELIEF_FLAT_M or abs(s - SLOPE_FLAT) < 0.25 * SLOPE_FLAT)
+    out = {"class": cls, "relief_m": round(r, 1), "median_slope": round(s, 4),
+           "steep_share": round(steep, 3), "source": source,
            "confidence": "low" if near else "high", "rebuild": False}
     if source != "fabdem":
         out.update({"class": "flat", "confidence": "low", "rebuild": True,
@@ -148,6 +175,7 @@ def analyse(site: Site, grid, nbrs: list, graph) -> tuple[gpd.GeoDataFrame, dict
     source = terrain_source(site)
     rel = relief(grid, nbrs, graph.spacing, source)
     flat = rel["class"] == "flat"
+    grid["slope"] = slope(grid, nbrs).round(4)
 
     channel = mapped_channels(site, grid) & ~water
     z = grid["ground"].to_numpy().astype(float)

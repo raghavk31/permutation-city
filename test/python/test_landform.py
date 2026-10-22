@@ -26,6 +26,13 @@ def test_relief_classes():
     assert landform.relief(grid, nbrs, 35.0, "fabdem")["class"] == "pronounced"     # 60 m, ~6% slope
 
 
+def test_hills_beside_a_valley_floor_are_pronounced():
+    # 70 flat cells and 30 climbing 120 m (12%): the median slope is ~0, but 30% of the land is steep.
+    grid, nbrs = _line([0.0] * 70 + list(np.linspace(4, 120, 30)))
+    r = landform.relief(grid, nbrs, 35.0, "fabdem")
+    assert r["median_slope"] < landform.SLOPE_FLAT and r["class"] == "pronounced"
+
+
 def test_a_surface_model_is_flat_by_rule_and_marked_to_rebuild():
     grid, nbrs = _line(list(np.linspace(0, 60, 30)))
     r = landform.relief(grid, nbrs, 35.0, "copernicus-surface")
@@ -50,3 +57,28 @@ def test_pre_street_genomes_take_the_default_street_genes():
     assert not old2 and same is not None
     with pytest.raises(ValueError, match="numbers"):
         genome.upgrade(g[:20])
+
+
+def test_cell_slope_reads_a_plane():
+    import geopandas as gpd
+    from shapely.geometry import Point
+    # a 5 x 5 square of points 30 m apart on a 10% slope rising to the east
+    pts = [(i * 30.0, j * 30.0) for j in range(5) for i in range(5)]
+    grid = gpd.GeoDataFrame({"ground": [0.1 * x for x, _ in pts]},
+                            geometry=[Point(x, y).buffer(1) for x, y in pts], crs=32643)
+    idx = {p: k for k, p in enumerate(pts)}
+    nbrs = [[idx[(x + dx, y + dy)] for dx, dy in ((30, 0), (-30, 0), (0, 30), (0, -30)) if (x + dx, y + dy) in idx]
+            for x, y in pts]
+    s = landform.slope(grid, nbrs)
+    assert np.allclose(s, 0.1, atol=1e-6)
+
+
+def test_a_site_can_choose_its_skeleton(tmp_path, monkeypatch):
+    from pc import site as site_mod
+    monkeypatch.setattr(site_mod, "SITES", tmp_path)
+    (tmp_path / "x").mkdir()
+    box = "name: x\nbbox: [91.7, 26.1, 91.8, 26.2]\n"
+    (tmp_path / "x" / "site.yaml").write_text(box + "skeleton: roads\n")
+    assert site_mod.load("x").skeleton == "roads"
+    (tmp_path / "x" / "site.yaml").write_text(box)
+    assert site_mod.load("x").skeleton == "auto"

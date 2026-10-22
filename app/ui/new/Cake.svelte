@@ -5,7 +5,7 @@
   import * as Draw from "../draw";
   import * as Sites from "../sites";
   import * as Cake from "./cake";
-  import { cellAt, layerMap, rulesMap, STATE_COLOURS } from "./draw-cake";
+  import { cellAt, layerMap, rulesMap, STATE_SWATCHES } from "./draw-cake";
 
   let { id, site, initialRules, onback, onbrief }: {
     id: string; site: E.SiteExport; initialRules: E.RuleSet | null; onback: () => void; onbrief: (rules: E.RuleSet) => void;
@@ -131,7 +131,7 @@
           onpointerleave={() => (hover = -1)}></canvas>
         <p class="pc-legend">
           {#each [0, 2, 3, 1] as s}
-            <span><i style="background:{STATE_COLOURS(P)[s]}"></i>{E.STATES[s]}: {Cake.STATE_NOTES[s]} · {fmtHa(totals.states[s])}</span>
+            <span><i style="{STATE_SWATCHES[s]}"></i>{E.STATES[s]}: {Cake.STATE_NOTES[s]} · {fmtHa(totals.states[s])}</span>
           {/each}
           {#if totals.conflict > 0}<span><i class="pcn-dot"></i>conflict: its rules allow no common use · {fmtHa(totals.conflict)}</span>{/if}
         </p>

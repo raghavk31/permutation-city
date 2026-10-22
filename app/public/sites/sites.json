@@ -2,31 +2,574 @@
  "mumbai-ewf": {
   "name": "Mumbai Eastern Waterfront",
   "design_ha": 168.7,
-  "target_ha": 337.3
+  "target_ha": 337.3,
+  "origin": [
+   72.84162,
+   18.954519
+  ],
+  "cells": 1623,
+  "relief": "flat",
+  "relief_m": 3.2,
+  "confidence": "high",
+  "terrain": "fabdem",
+  "outline": [
+   [
+    72.84392,
+    18.964
+   ],
+   [
+    72.862,
+    18.964
+   ],
+   [
+    72.862,
+    18.945
+   ],
+   [
+    72.83963,
+    18.945
+   ],
+   [
+    72.84414,
+    18.96328
+   ],
+   [
+    72.84392,
+    18.964
+   ]
+  ],
+  "thumb": [
+   "ccccccccccddddddddddwwwwwwwwwwwwwwww",
+   "ccccccccccdddddddddddwwwwwwwwwwwwwww",
+   "cccccccccccddddddddddwwwwwwwwwwwwwww",
+   "cccccccccccddddddddddwwwwwwwwwwwwwww",
+   "cccccccccccddddddddddwwwwwwwwwwwwwww",
+   "ccccwddcccdddddddddwwwwwwwwwwwwwwwww",
+   "ccccccccccdddddddddwwwwwwwwwwwwwwwww",
+   "ccccccccccddddddddddwwwwwwwwwwwwwwww",
+   "ccccccccccdddddddddcwwwwwwwwwwwwwwww",
+   "cccccccccddddddddwwwwwwwwwwwwwwwwwww",
+   "cccccccccddddddddwwwwwwwwwwwwwwwwwww",
+   "cccccccccddddddddwwwwwwwwwwwwwwwwwww",
+   "cccccccccdddddddwddwwwwwwwwwwwwwwwww",
+   "cccccccccdddddddwwwwwwwwwwwwwwwwwwww",
+   "cccccccccdddddddddwwwwwwwwwwwwwwwwww",
+   "cccccccccdddddddddwwwwwwwwwwwwwwwwww",
+   "cccccccccddddddddddwwwwwwwwwwwwwwwww",
+   "cccccccccddddddddddwwwwwwwwwwwwwwwww",
+   "ccccccccddddddddwwdwwwwwwwwwwwwwwwww",
+   "ccccccccddddddddwwwwwwwwwwwwwwwwwwww",
+   "cccccccdddddddddwwwwwwwwwwwwwwwwwwww",
+   "ccccccdddddddwwdwwwwwwwwwwwwwwwwwwww"
+  ]
  },
  "ahmedabad-wadaj": {
   "name": "Ahmedabad: Gandhi Ashram and Wadaj",
   "design_ha": 374.9,
-  "target_ha": 389.0
+  "target_ha": 389.0,
+  "origin": [
+   72.581075,
+   23.061041
+  ],
+  "cells": 3607,
+  "relief": "gentle",
+  "relief_m": 7.1,
+  "confidence": "low",
+  "terrain": "fabdem",
+  "outline": [
+   [
+    72.592,
+    23.052
+   ],
+   [
+    72.592,
+    23.07
+   ],
+   [
+    72.57,
+    23.07
+   ],
+   [
+    72.57,
+    23.052
+   ],
+   [
+    72.592,
+    23.052
+   ]
+  ],
+  "thumb": [
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "ddddddddddddddddddddddddddddddddddww",
+   "dddddddddddddddddddddddddddddddddwww",
+   "dddddddddddddddddddddddddddddddwwwww",
+   "dddddddddddddddddddddddddddddwwwwwww",
+   "dddddddddddddddddddddddddddwwwwwwwww",
+   "ddddddddddddddddddddddddddwwwwwwwwww",
+   "dddddddddddddddddddddddwwwwwwwwwwwwd",
+   "ddddddddddddddddddddddwwwwwwwwwwwddd",
+   "ddddddddddddddddddddwwwwwwwwwwwddddd",
+   "dddddddddddddddddddwwwwwwwwwdddddddd",
+   "ddddddddddddddddddwwwwwwwwdddddddddd",
+   "dddddddddddddddddwwwwwwwdddddddddddd",
+   "ddddddddddddddddwwwwwwwddddddddddddd",
+   "dddddddddddddddwwwwwwwdddddddddddddd",
+   "ddddddddddddddwwwwwwwwdddddddddddddd",
+   "dddddddddddddwwwwwwwdwdddddddddddddd",
+   "ddddddddddddwwwwwwwddddddddddddddddd",
+   "dddddddddddwwwwwwwdddddddddddddddddd",
+   "dddddddddddwwwwwwddddddddddddddddddd",
+   "ddddddddddwwwwwwdddddddddddddddddddd",
+   "ddddddddddwwwwwddddddddddddddddddddd",
+   "dddddddddwwwwwwddddddddddddddddddddd",
+   "dddddddddwwwwwdddddddddddddddddddddd",
+   "ddddddddwwwwwwdddddddddddddddddddddd"
+  ]
  },
  "mumbai-docks": {
   "name": "Mumbai Docks (test polygon)",
   "design_ha": 68.7,
-  "target_ha": 137.4
+  "target_ha": 137.4,
+  "origin": [
+   72.844261,
+   18.954865
+  ],
+  "cells": 661,
+  "relief": "flat",
+  "relief_m": 4.7,
+  "confidence": "low",
+  "terrain": "fabdem",
+  "outline": [
+   [
+    72.8405,
+    18.9485
+   ],
+   [
+    72.847,
+    18.948
+   ],
+   [
+    72.8495,
+    18.9545
+   ],
+   [
+    72.848,
+    18.961
+   ],
+   [
+    72.8425,
+    18.9615
+   ],
+   [
+    72.841,
+    18.955
+   ],
+   [
+    72.8405,
+    18.9485
+   ]
+  ],
+  "thumb": [
+   "........dddddddd.ddd.ddd............",
+   "........d.dddd.ddd.dd.dddd.ddd......",
+   ".......d.ddd.ddd.ddd.ddd.ddd.dd.....",
+   ".......dd.dddd.ddd.dd.dddd.ddd.c....",
+   ".......d.ddd.ddd.ddd.ddd.ddd.cc.....",
+   ".......dd.dddd.ddd.dd.dddd.ddc.c....",
+   "......dd.ddd.ddd.ddd.ddd.ddc.ccw....",
+   ".......dd.dddd.ddd.dd.ddcc.dcc.c....",
+   "......dd.ddd.ddd.ddd.ddc.wcc.ccw....",
+   ".....d.dd.dddd.ddd.dd.dcww.www.ww...",
+   "......dd.ddd.ddd.ddd.ddc.ccc.www....",
+   ".....d.dd.dddd.ddd.dd.dddc.ccc.ww...",
+   ".....ddd.ddd.ddd.ddd.ddd.dcc.cww.w..",
+   "....dd.dd.dddd.ddd.dd.dccc.ccc.ww...",
+   ".....ddd.ddd.ddd.ddd.dcc.ccc.cww.w..",
+   "....dd.dd.dddd.ddd.dd.dccc.ccw.www..",
+   "...d.ddd.ddd.ddd.ddd.dcc.ccc.cww.w..",
+   "....dd.dd.dddd.ddd.dd.dccc.ccw.www..",
+   "...d.ddd.ddd.ddc.ccd.ddd.cdc.www.ww.",
+   "...ddd.dd.dddd.cww.cc.cccd.cww.www..",
+   "...d.ddd.ddd.ddc.cwc.www.ccc.www.ww.",
+   "...ddd.dd.dddd.ddc.cc.wwwc.cww.www.w",
+   "..dd.ddd.ddd.ddd.cww.www.ccw.www.ww.",
+   "...ddd.dd.dddd.ddc.ww.wwcc.cww.www.w",
+   "..dd.ddd.ddd.ddd.cww.wcc.cww.www.www",
+   ".d.ddd.dd.dddd.dcw.ww.wccw.www.www.w",
+   "..dd.ddd.ddd.ddd.ccc.wcd.cww.www.ww.",
+   ".d.ddd.dd.dddd.ddd.dc.cdcw.www.www.w",
+   "..dd.ddd.ddd.ddd.ddd.ddd.cww.www.ww.",
+   ".d.ddd.dd.ddcc.ddd.dd.ddcw.www.www..",
+   "..dd.ddd.ddc.wcc.cdd.ccd.cww.www.w..",
+   ".d.ddd.dd.ddcc.cwc.cc.wccw.www.ww...",
+   ".ddd.ddd.ddd.dcw.www.wwc.www.www....",
+   ".d.ddd.dd.dddd.cww.ww.wcww.www.ww...",
+   ".ddd.ddd.ddd.ddc.cww.ccc.www.www....",
+   ".d.ddd.dd.dddd.ddc.cc.ccww.www.w....",
+   ".ddd.ddd.ddd.ddd.ddd.ccw.www.ww.....",
+   ".d.ddd.dd.dddd.ddd.dd.ccww.www......",
+   ".ddd.ddd.ddd.ddd.ddd.dcw.www.w......",
+   "dd.ddd.dd.dddd.ddd.dd.cwww.www......",
+   ".ddd.ddd.ddd.ddd.ddd.dcc.www.w......",
+   "dd.ddd.dd.dddd.ddd.dd.ccww.ww.......",
+   ".ddd.ddd.ddd.ddd.ddd.dcc.www........",
+   "dd.ddd.dd.dddd.ddd.dd.ccww.w........",
+   "dddd.ddd.ddd.ddd.ddd.dcc.www........",
+   "dd.ddd.dd.dddd.ddd.dd.ccww.w........",
+   "dddd.ddd.ddd.ddc.cdd.cdc.ww.........",
+   "........d.dddd.cwc.cccddcw.........."
+  ]
  },
  "mumbai-docks-quad": {
   "name": "Mumbai Docks (test polygon, squares)",
   "design_ha": 70.0,
-  "target_ha": 139.9
+  "target_ha": 139.9,
+  "origin": [
+   72.844279,
+   18.954775
+  ],
+  "cells": 1749,
+  "relief": "flat",
+  "relief_m": 4.6,
+  "confidence": "low",
+  "terrain": "fabdem",
+  "outline": [
+   [
+    72.8405,
+    18.9485
+   ],
+   [
+    72.847,
+    18.948
+   ],
+   [
+    72.8495,
+    18.9545
+   ],
+   [
+    72.848,
+    18.961
+   ],
+   [
+    72.8425,
+    18.9615
+   ],
+   [
+    72.841,
+    18.955
+   ],
+   [
+    72.8405,
+    18.9485
+   ]
+  ],
+  "thumb": [
+   "........dddddddddd..................",
+   ".......dddddddddddddddddddddddc.....",
+   ".......dddddddddddddddddddddddc.....",
+   ".......ddddddddddddddddddddddddc....",
+   ".......dddddddddddddddddddddddcc....",
+   ".......ddddddddddddddddddddddccc....",
+   ".......ddddddddddddddddddddddcccc...",
+   "......ddddddddddddddddddddddccccw...",
+   "......ddddddddddddddddddcccdccccw...",
+   "......dddddddddddddddddcwwwwwwwww...",
+   ".....ddddddddddddddddddccwwwwwwww...",
+   ".....dddddddddddddddddddcwddcwwww...",
+   "....ddddddddddddddddddddddccccwwww..",
+   "....ddddddddddddddddddddddccccwwww..",
+   "....dddddddddddddddddddcccccccwwww..",
+   "...dddddddddddddddddddccccccccwwww..",
+   "...dddddddddddddddddddcccccccwwwwww.",
+   "...dddddddddddddddddddcccccccwwwwww.",
+   "...ddddddddddddddddddddddccdwwwwwww.",
+   "...ddddddddddddcwwccccdccccdwwwwwwww",
+   "...dddddddddddddcwwccwwwwwdcwwwwwwww",
+   "..dddddddddddddddccccwwwwcdcwwwwwwww",
+   "..dddddddddddddddwwwwwwwwddcwwwwwwww",
+   "..dddddddddddddddwwwwwwwwddcwwwwwwww",
+   "..ddddddddddddcwcwwwwwcddcwwwwwwwwww",
+   ".dddddddddddddwwcwwwwwcddwwwwwwwwwww",
+   ".dddddddddddddddccccwwcddcwwwwwwwwww",
+   ".dddddddddddddddddddddddddwwwwwwwwww",
+   ".ddddddddddddddddddddddddwwwwwwwwwww",
+   ".ddddddddddddddddddddddddwwwwwwwwww.",
+   ".dddddddddddcwcccddddddddwwwwwwwww..",
+   ".dddddddddddcwwwwwwcdwwccwwwwwwwww..",
+   ".ddddddddddddddcwwwcwwwccwwwwwwww...",
+   "dddddddddddddddcwwwwwwcccwwwwwwww...",
+   "dddddddddddddddccwwwwwcccwwwwwwww...",
+   "dddddddddddddddddddddcccwwwwwwwww...",
+   "ddddddddddddddddddddddccwwwwwwww....",
+   "ddddddddddddddddddddddcwwwwwwww.....",
+   "ddddddddddddddddddddddcwwwwwwww.....",
+   "ddddddddddddddddddddddccwwwwww......",
+   "dddddddddddddddddddddddcwwwwww......",
+   "ddddddddddddddddddddddcccwwww.......",
+   "ddddddddddddddddddddddcccwwww.......",
+   "ddddddddddddddddddddddcccwwww.......",
+   "ddddddddddddddddddddddcdcwww........",
+   "ddddddddddddddddddccddcdcwww........",
+   "ddddddddddddddddddwcddddcww.........",
+   "............dddcwwwwcdddcww........."
+  ]
  },
  "ahmedabad-wadaj-quad": {
   "name": "Ahmedabad: Gandhi Ashram and Wadaj (squares)",
   "design_ha": 373.1,
-  "target_ha": 389.0
+  "target_ha": 389.0,
+  "origin": [
+   72.58096,
+   23.06104
+  ],
+  "cells": 4146,
+  "relief": "gentle",
+  "relief_m": 7.1,
+  "confidence": "high",
+  "terrain": "fabdem",
+  "outline": [
+   [
+    72.592,
+    23.052
+   ],
+   [
+    72.592,
+    23.07
+   ],
+   [
+    72.57,
+    23.07
+   ],
+   [
+    72.57,
+    23.052
+   ],
+   [
+    72.592,
+    23.052
+   ]
+  ],
+  "thumb": [
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddw",
+   "ddddddddddddddddddddddddddddddddddww",
+   "ddddddddddddddddddddddddddddddddwwww",
+   "ddddddddddddddddddddddddddddddwwwwww",
+   "ddddddddddddddddddddddddddddwwwwwwww",
+   "ddddddddddddddddddddddddddwwwwwwwwww",
+   "ddddddddddddddddddddddddwwwwwwwwwwww",
+   "dddddddddddddddddddddddwwwwwwwwwwwdd",
+   "dddddddddddddddddddddwwwwwwwwwwddddd",
+   "ddddddddddddddddddddwwwwwwwwwwdddddd",
+   "dddddddddddddddddddwwwwwwwwddddddddd",
+   "ddddddddddddddddddwwwwwwwwdddddddddd",
+   "dddddddddddddddddwwwwwwwdddddddddddd",
+   "ddddddddddddddddwwwwwwwddddddddddddd",
+   "ddddddddddddddwwwwwwwwdddddddddddddd",
+   "dddddddddddddwwwwwwwwwdddddddddddddd",
+   "ddddddddddddwwwwwwwwdddddddddddddddd",
+   "ddddddddddddwwwwwwdddddddddddddddddd",
+   "dddddddddddwwwwwwwdddddddddddddddddd",
+   "dddddddddddwwwwwwddddddddddddddddddd",
+   "ddddddddddwwwwwwdddddddddddddddddddd",
+   "ddddddddddwwwwwddddddddddddddddddddd",
+   "dddddddddwwwwwdddddddddddddddddddddd",
+   "dddddddddwwwwwdddddddddddddddddddddd",
+   "ddddddddwwwwwddddddddddddddddddddddd"
+  ]
  },
  "bengaluru-cascade": {
   "name": "Bengaluru: Haralur to Saul Kere tank cascade",
   "design_ha": 295.5,
-  "target_ha": 590.9
+  "target_ha": 590.9,
+  "origin": [
+   77.670937,
+   12.907003
+  ],
+  "cells": 2843,
+  "relief": "gentle",
+  "relief_m": 31.5,
+  "confidence": "high",
+  "terrain": "fabdem",
+  "outline": [
+   [
+    77.657,
+    12.89574
+   ],
+   [
+    77.66897,
+    12.91555
+   ],
+   [
+    77.67701,
+    12.9218
+   ],
+   [
+    77.67799,
+    12.92293
+   ],
+   [
+    77.68501,
+    12.91707
+   ],
+   [
+    77.68299,
+    12.91491
+   ],
+   [
+    77.67622,
+    12.90985
+   ],
+   [
+    77.665,
+    12.89126
+   ],
+   [
+    77.657,
+    12.89574
+   ]
+  ],
+  "thumb": [
+   "..........................ddd.......",
+   ".........................ddddd......",
+   ".......................dddwdddd.....",
+   "......................ddddwwwwwww...",
+   ".....................dddddwwwwwww...",
+   "....................dddddddwwwwwwdd.",
+   "..................ddddddddwdwwwwwddd",
+   ".................ddddddddddddwwwwddd",
+   "................dddddwdddddddwwwdddd",
+   "...............ddddddwdwdddddwddddd.",
+   "..............ddddddwwwwdddddddddd..",
+   "..............dddddwwwwwwdddddddd...",
+   ".............dddddwwwwwwddddddd.....",
+   "............dddddwwwwwwdddddddd.....",
+   "............ddddwwwwwwddddwdd.......",
+   "...........dddwdwwwwwddddddd........",
+   "...........ddddddwdddddddd..........",
+   "..........ddddddddddddddd...........",
+   "..........ddddddddddddddd...........",
+   ".........ddddddddddddddd............",
+   "........dddwwddddddddddd............",
+   "........dddwwdddddddddd.............",
+   ".......ddddwwwwwdddddd..............",
+   ".......dddddwwwwwddddd..............",
+   "......dddddwwwwwwdddd...............",
+   "......ddddddwwwwddddd...............",
+   ".....dddddddwwwwdddd................",
+   "....dddddddddwwddddd................",
+   "....ddddddddddddddd.................",
+   "...ddddddddddddddd..................",
+   "...ddddddddddddddd..................",
+   "..ddddwwddddddddd...................",
+   ".dddddwdddddddddd...................",
+   ".dddddwwdddddddd....................",
+   "ddddddwwwwdddddd....................",
+   "ddddddwwwwwdddd.....................",
+   "ddddddwwwddddd......................",
+   ".dddddwwdddddd......................",
+   "...dddddddddd.......................",
+   ".....dddddddd.......................",
+   ".......ddddd........................",
+   ".........dd........................."
+  ]
+ },
+ "guwahati-bharalu": {
+  "name": "Guwahati: Bharalu basin",
+  "design_ha": 278.3,
+  "target_ha": 417.5,
+  "origin": [
+   91.784989,
+   26.159984
+  ],
+  "cells": 2678,
+  "relief": "pronounced",
+  "relief_m": 84.7,
+  "confidence": "high",
+  "terrain": "fabdem",
+  "outline": [
+   [
+    91.778,
+    26.15
+   ],
+   [
+    91.792,
+    26.15
+   ],
+   [
+    91.792,
+    26.17
+   ],
+   [
+    91.778,
+    26.17
+   ],
+   [
+    91.778,
+    26.15
+   ]
+  ],
+  "thumb": [
+   "ddddddddddddddddddddddddddddddddddcc",
+   "dddddddddddddddddddddddddddddddddccc",
+   "ddddddddddddddddddddddddddddddcccccc",
+   "dddddddddddddddddddddddddddddccccccc",
+   "dddddddddddddddddddccccdcccccccccccc",
+   "dddddddddddddddddddccccccccccccccccd",
+   "dddddddddddddddddcccdccccdcccccccddd",
+   "dddddddddddddddddccdddcccddcdddddddd",
+   "dddddddddddddddddccddcccddccdddcdddd",
+   "ddddddddddddddddddcdccdddddddddddccd",
+   "dddddddddddddddddddccddddddddddddddc",
+   "ddddddddddddddddddccddcddddddddddddc",
+   "ddddddddddddddddddccddccddddddddddcc",
+   "dddddddddddddddddddcddcccdddccddddcc",
+   "cwcdddddddddddddddddddcccddddccccccc",
+   "ddddddddddddddddddddddddddddcccccccd",
+   "ddddddddddddddddddddddddddcccccccccd",
+   "ddddddddddddddddddddddddccccdddddddd",
+   "ddddddddddddddddcddddccccddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "dddddddddddddddddddddddddddddddddddd",
+   "ccdddddddddddddddddddddddddddddddddd",
+   "ddccdddddddddddddddddddddddddddddddd",
+   "cccdcddddddddddddddddddddddddddddddd",
+   "ddccdddddddddddddddddddddddddddddddd",
+   "ddccccdddddddddddddddddddddddddddddd"
+  ]
  }
 }

@@ -55,8 +55,24 @@ export function perimeters(net: Net): number[] {
   });
 }
 
-/** Share of building cells in blocks with a perimeter of 400 m or less. */
+/** Share of building cells in blocks with a perimeter of 400 m or less. A version 3 design
+ *  reads its own blocks: the share of its building plots' area in blocks with a perimeter of
+ *  400 m or less. */
 export function blockSize(net: Net): number {
+  const plan = net.d.plan;
+  if (plan) {
+    const per = plan.blocks.map((r) => { let s2 = 0; for (let k = 0; k < r.length; k++) { const a = r[k], b = r[(k + 1) % r.length]; s2 += Math.hypot(b[0] - a[0], b[1] - a[1]); } return s2; });
+    let all = 0, small = 0;
+    for (const p of plan.plots) {
+      if (p.use !== BUILDING) continue;
+      let a = 0;
+      for (let k = 0; k < p.ring.length; k++) { const u = p.ring[k], v = p.ring[(k + 1) % p.ring.length]; a += u[0] * v[1] - v[0] * u[1]; }
+      a = Math.abs(a) / 2;
+      all += a;
+      if (per[p.block] <= BLOCK_PERIMETER_M) small += a;
+    }
+    return all ? small / all : 0;
+  }
   const per = perimeters(net);
   let all = 0, small = 0;
   net.blocks.forEach((cells, b) => { all += cells.length; if (per[b] <= BLOCK_PERIMETER_M) small += cells.length; });

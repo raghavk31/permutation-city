@@ -155,6 +155,22 @@ export class Viewer {
     this.render();
   }
 
+  /** Camera presets: aerial (from the south-west, above), plan (straight down) and street (eye
+   *  height at the block's south-west corner, looking at its middle). */
+  preset(kind: "aerial" | "plan" | "street") {
+    const d = this.data;
+    if (!d) return;
+    const E = d.E, w = E.nx * E.res, h = E.ny * E.res, cx = E.ox + w / 2, cy = E.oy + h / 2, r = Math.max(w, h) * 0.75;
+    const ps = E.plots, px = ps.length ? ps.reduce((s, p) => s + p.cx, 0) / ps.length : cx, py = ps.length ? ps.reduce((s, p) => s + p.cy, 0) / ps.length : cy;
+    const span = ps.length ? Math.max(...ps.map((p) => Math.hypot(p.cx - px, p.cy - py) + Math.max(...p.half))) : 40;
+    if (kind === "aerial") { this.controls.target.set(cx, cy, 0); this.camera.position.set(cx - r * 0.6, cy - r * 0.9, r * 0.7); }
+    if (kind === "plan") { this.controls.target.set(px, py, 0); this.camera.position.set(px, py - 0.01, r * 1.4); }
+    if (kind === "street") { this.controls.target.set(px, py, 8); this.camera.position.set(px - span - 18, py - span - 18, 1.7); }
+    this.controls.update();
+    this.render();
+    this.sync();
+  }
+
   /** Two viewers: moving one moves the other. */
   link(other: Viewer | null) { this.partner = other; if (other) other.partner = this; this.sync(); }
 
