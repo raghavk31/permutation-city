@@ -14,6 +14,7 @@ import { corners } from "../graph.js";
 import type { Design, Ground } from "../types.js";
 import type { Envelope } from "./envelope.js";
 import type { Box, Massing } from "./voxels.js";
+import { vectorContext } from "./vector.js";
 
 export interface Mesh { positions: Float32Array; indices: Uint32Array; groups: { name: string; start: number; count: number }[] }
 
@@ -166,6 +167,12 @@ export const massingMesh = (E: Envelope, m: Massing): Mesh => (m.boxes ? boxesMe
 /** The design's other buildings in the envelope's frame, as cell prisms (a little inset, so
  *  the streets between them read). */
 export function contextMesh(E: Envelope, G: Ground, d: Design): Mesh {
+  if (d.plan) {
+    const b = new Builder();
+    for (const { ring, h } of vectorContext(E, G, d)) prism(b, ring, 0, h);
+    b.group("context", 0);
+    return b.done();
+  }
   const b = new Builder(), shape = corners(G.grid), inBlock = new Set(E.cells), R = G.grid.size;
   const x0 = E.ox, y0 = E.oy, x1 = E.ox + E.nx * E.res, y1 = E.oy + E.ny * E.res;
   for (let i = 0; i < G.n; i++) {

@@ -97,6 +97,35 @@ export function groundCanvas(Env: M.Envelope, G: E.Ground, d: E.Design, P: Draw.
   return c;
 }
 
+/** The ground under the 3D view for a version 3 design, drawn from its vector plan at about
+ *  3 px a metre: the column ground (groundCanvas) smoothed underneath, then the design's plots
+ *  (this block's in the plot colour) and the streets on top. */
+export function vectorGround(Env: M.Envelope, G: E.Ground, d: E.Design, P: Draw.Palette): HTMLCanvasElement {
+  const base = groundCanvas(Env, G, d, P), plan = d.plan!;
+  const W = Env.nx * Env.res, H = Env.ny * Env.res, k = Math.min(3, 4096 / Math.max(W, H));
+  const c = document.createElement("canvas");
+  c.width = Math.round(W * k); c.height = Math.round(H * k);
+  const ctx = c.getContext("2d")!;
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(base, 0, 0, c.width, c.height);
+  const X = (x: number) => (x - Env.ox) * k, Y = (y: number) => (Env.oy + H - y) * k;
+  const path = (r: [number, number][]) => { ctx.beginPath(); r.forEach(([x, y], j) => (j ? ctx.lineTo(X(x), Y(y)) : ctx.moveTo(X(x), Y(y)))); ctx.closePath(); };
+  const t = P.t;
+  for (const p of plan.plots) {
+    if (p.block === Env.block && p.use === E.BUILDING && p.levels > 0) continue;
+    path(p.ring);
+    ctx.fillStyle = p.use === E.BUILDING ? t.existing.fill : p.use === E.LANDSCAPE ? t.green.proposed : p.use === E.WATER ? t.water.storage : P.paper;
+    ctx.fill();
+  }
+  for (const p of plan.plots) if (p.block === Env.block && p.use === E.BUILDING && p.levels > 0) { path(p.ring); ctx.fillStyle = t.building[0]; ctx.fill(); }
+  ctx.strokeStyle = t.street.onGround; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  for (const s of plan.streets) {
+    ctx.lineWidth = s.w * k;
+    ctx.beginPath(); s.pts.forEach(([x, y], j) => (j ? ctx.lineTo(X(x), Y(y)) : ctx.moveTo(X(x), Y(y)))); ctx.stroke();
+  }
+  return c;
+}
+
 /** A small plan of a massing's heights, for the gallery. */
 export function thumb(canvas: HTMLCanvasElement, Env: M.Envelope, m: M.Massing, P: Draw.Palette) {
   const { ctx, w, h } = Draw.fitCanvas(canvas, 1);

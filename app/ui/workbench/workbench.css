@@ -222,3 +222,19 @@ a { color: inherit; }
 .wb-ylab { writing-mode: vertical-rl; transform: rotate(180deg); text-align: center; font-size: var(--pc-size-small); color: var(--pc-muted); }
 .wb-xlab { text-align: center; font-size: var(--pc-size-small); color: var(--pc-muted); }
 .wb-rail-panel .wb-seg button { white-space: nowrap; }
+
+/* massing */
+.wb-mass-3d { position: absolute; inset: 0; }
+.wb-mass-3d canvas { display: block; width: 100%; height: 100%; }
+.wb-mass-tools { align-items: center; }
+.wb-setback { display: grid; gap: 2px; font-size: var(--pc-size-small); color: var(--pc-ink-2); }
+.wb-setback .wb-num-input { width: 64px; }
+.wb-mass-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.wb-mass-list canvas { display: block; width: 100%; }
+.wb-mass-list .wb-pic { aspect-ratio: 1; }
+.wb-table { width: 100%; border-collapse: collapse; font-size: var(--pc-size-small); }
+.wb-table th { text-align: right; font-weight: 500; color: var(--pc-muted); padding: 2px 4px; border-bottom: var(--wb-hair); }
+.wb-table td { text-align: right; padding: 3px 4px; border-bottom: var(--wb-hair); }
+.wb-table th:first-child, .wb-table td:first-child { text-align: left; }
+.wb-app.is-presenting { grid-template: "centre" 1fr / 1fr; }
+.wb-app.is-presenting > :not(.wb-centre) { display: none; }

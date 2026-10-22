@@ -13,6 +13,8 @@
   import EvolveRail from "./EvolveRail.svelte";
   import ExploreCentre from "./ExploreCentre.svelte";
   import ExploreRail from "./ExploreRail.svelte";
+  import MassingCentre from "./MassingCentre.svelte";
+  import MassingRail from "./MassingRail.svelte";
   import LandformMap from "./LandformMap.svelte";
   import LandformRail from "./LandformRail.svelte";
   import LayersRail from "./LayersRail.svelte";
@@ -50,6 +52,7 @@
     if (id === "brief") return bench.briefLocked ? "confirmed" : bench.brief ? "draft" : "";
     if (id === "evolve") return bench.running ? `${bench.runGen} of ${bench.settings.generations}` : bench.result ? `${bench.result.frontSize} on front` : "";
     if (id === "explore" && bench.result) return `${bench.result.kept.length} kept`;
+    if (id === "massing" && bench.mass.source && bench.mass.block >= 0) return bench.mass.running ? `${bench.mass.gen} of ${bench.mass.generations}` : `block ${bench.mass.block + 1}`;
     if (id === "landform" && bench.site?.meta.landform) return { flat: "flat", gentle: "gentle", pronounced: "hilly" }[bench.site.meta.landform.relief.class];
     return "";
   };
@@ -63,7 +66,7 @@
   <a class="wb-btn is-primary" href="./">Read the story</a>
 </div>
 
-<div class="wb-app" class:no-rail={!bench.railOpen} class:no-insp={!bench.inspOpen}>
+<div class="wb-app" class:no-rail={!bench.railOpen} class:no-insp={!bench.inspOpen} class:is-presenting={bench.step === "massing" && bench.mass.presenting}>
   <header class="wb-top">
     <a class="wb-brand" href="./">Permutation City</a>
     <span class="wb-crumb">{bench.site ? bench.site.meta.name : "No site yet"}</span>
@@ -96,6 +99,7 @@
               {:else if s.id === "brief"}<BriefRail />
               {:else if s.id === "evolve"}<EvolveRail />
               {:else if s.id === "explore" && bench.result}<ExploreRail />
+              {:else if s.id === "massing" && bench.result}<MassingRail />
               {/if}
             </div>
           {/if}
@@ -121,6 +125,8 @@
       <EvolveCentre site={bench.site} />
     {:else if bench.step === "explore" && bench.result && bench.runSite}
       <ExploreCentre />
+    {:else if bench.step === "massing" && bench.mass.source}
+      <MassingCentre />
     {/if}
     {#if bench.loading}
       <div class="wb-centre-note"><div class="wb-progress is-indeterminate"><div class="wb-row"><span>Opening the site</span></div><div class="wb-track"><b></b></div></div></div>

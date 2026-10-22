@@ -6,6 +6,7 @@ import * as E from "../../engine";
 import type { EngineWorker, EvolveResult, FamilyLead } from "../../engine/worker";
 import * as Fam from "../families";
 import * as Sites from "../sites";
+import { MassStep } from "./mass.svelte";
 
 
 export type StepId = "site" | "layers" | "rules" | "landform" | "brief" | "evolve" | "explore" | "massing";
@@ -19,7 +20,7 @@ export const STEPS: { id: StepId; name: string; built: boolean }[] = [
   { id: "brief", name: "Brief", built: true },
   { id: "evolve", name: "Evolve", built: true },
   { id: "explore", name: "Explore", built: true },
-  { id: "massing", name: "Massing", built: false },
+  { id: "massing", name: "Massing", built: true },
 ];
 
 /** A ready-made site, as sites.json lists it (pc/export.py `index_entry`). */
@@ -110,6 +111,28 @@ class Bench {
   /** Designs grown whole for drawing, by kept name (a run's leads arrive grown). */
   grown = $state.raw<Map<string, E.Design>>(new Map());
   private growing = new Set<string>();
+  /** The Massing step; its design is set by massDesign. */
+  mass = new MassStep();
+  private runOff: number[] = [];
+  private runCount = 0;
+  private ground: { site: E.SiteExport; G: E.Ground } | null = null;
+
+  /** Open a kept design in the Massing step (it must have grown). */
+  massDesign(name: string) {
+    const site = this.runSite, d = this.grown.get(name);
+    const genome = this.result?.kept.find((k) => k.name === name)?.genome ?? this.result?.families.find((f) => f.name === name)?.genome;
+    if (!site || !d || !genome) return false;
+    if (this.ground?.site !== site) {
+      const G = E.prepare(site);
+      this.ground = { site, G: this.runOff.length ? E.withSkeleton(site, G, new Set(this.runOff)) : G };
+    }
+    this.mass.open({
+      src: { siteId: `${this.siteId}-run${this.runCount}`, site, G: this.ground.G, skeletonOff: this.runOff, name, genome,
+        locks: null, ranges: this.runRanges, brief: this.briefLocked ? this.brief : null },
+      design: d, title: this.titleOf(name),
+    });
+    return true;
+  }
   private runRanges: E.Ranges = E.DEFAULT_RANGES;
 
   /** The front's families as a few representatives, the most distinct first, each named for
@@ -183,12 +206,14 @@ class Bench {
     if (!this.site) return "blocked";
     if (id === "brief" && this.briefLocked) return "done";
     if (id === "evolve" && this.result) return "done";
-    if (id === "explore" && !this.result) return "blocked";
+    if ((id === "explore" || id === "massing") && !this.result) return "blocked";
     return "todo";
   }
 
   go(id: StepId) {
     if (this.stateOf(id) === "blocked") return;
+    // Massing opens on the design open in Explore (the first family's lead before that)
+    if (id === "massing") { const name = this.exSel ?? this.result?.families[0]?.name; if (name && this.mass.source?.src.name !== name) this.massDesign(name); }
     this.step = id;
     this.sync();
   }
@@ -282,6 +307,8 @@ class Bench {
         bare.forEach((f, k) => (f.design = ds[k]));
       }
       this.runRanges = u.ranges;
+      this.runOff = [...this.ridgesOff];
+      this.runCount++;
       this.grown = new Map(r.families.map((f) => [f.name, f.design!]));
       this.brush = {}; this.pair = [null, null]; this.showAll = false;
       this.exSel = r.families[0]?.name ?? null;

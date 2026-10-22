@@ -9,9 +9,11 @@
   import Icon from "./Icon.svelte";
 
   // k, tx, ty (zoom and pan) can be bound, so two maps share one camera (Explore's compare)
-  let { site, paint, version, label, onhover, tools, children, k = $bindable(1), tx = $bindable(0), ty = $bindable(0) }: {
+  // onpick: a click (not a drag) on the map, in site metres
+  let { site, paint, version, label, onhover, onpick, tools, children, k = $bindable(1), tx = $bindable(0), ty = $bindable(0) }: {
     site: E.SiteExport; paint: (ctx: CanvasRenderingContext2D, v: Draw.View) => void; version: unknown;
-    label: string; onhover?: (i: number) => void; tools?: Snippet; children?: Snippet; k?: number; tx?: number; ty?: number;
+    label: string; onhover?: (i: number) => void; onpick?: (x: number, y: number) => void; tools?: Snippet; children?: Snippet;
+    k?: number; tx?: number; ty?: number;
   } = $props();
 
   let wrap: HTMLDivElement;
@@ -84,7 +86,14 @@
     if (drag) { tx = drag.tx + e.clientX - drag.x; ty = drag.ty + e.clientY - drag.y; quick(); return; }
     if (view && onhover) onhover(Draw.cellAt(view, site.grid.x, site.grid.y, e.offsetX, e.offsetY, shape.r));
   }
-  function onUp() { drag = null; }
+  function onUp(e?: PointerEvent) {
+    if (e && drag && onpick && view && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 4) {
+      // the view is linear in each axis: invert it from two points
+      const ax = view.px(1) - view.px(0), ay = view.py(1) - view.py(0);
+      onpick((e.offsetX - view.px(0)) / ax, (e.offsetY - view.py(0)) / ay);
+    }
+    drag = null;
+  }
   function fit() { k = 1; tx = 0; ty = 0; render(); }
   function onKey(e: KeyboardEvent) {
     const step = 40;

@@ -4,6 +4,8 @@
   import * as E from "../../engine";
   import * as Iso from "../diagrams/iso";
   import * as X from "../explore";
+  import * as M from "../../engine/massing";
+  import * as Mass from "../mass/massing";
   import { bench, HILLY } from "./bench.svelte";
   import Thumb from "./Thumb.svelte";
 
@@ -14,6 +16,7 @@
     rules: { title: "Rules: what the land allows", text: "Rules sort the ground: some is never built on, some is built with limits, and the rest is free for designs to use. Change a number and the map follows.", svg: () => Iso.rules().svg },
     brief: { title: "Brief: what to build", text: "The brief says how much to build and how high, and what matters most. Every figure says where it comes from, or that it is assumed.", svg: () => Iso.brief().svg },
     evolve: { title: "Evolve: breed designs", text: "Designs breed. The better ones become parents, so each generation tends to do a little better. You choose among what it finds.", svg: () => Iso.evolution().svg },
+    massing: { title: "Massing: buildings in a block", text: "Pick a block of the design. Its plots, setbacks and height limits make an envelope, and buildings breed inside it, scored on sun, shade and sky.", svg: () => Iso.massing().svg },
     explore: { title: "Explore: weigh the trade-offs", text: "No design is best at everything: more water storage can mean more heat. These are the designs nothing else beats on every count; pick the balance you want.", svg: () => Iso.tradeoff().svg },
     landform: { title: "Landform: valleys and ridges", text: "Water gathers in the valleys, so they stay open; the ridges between them are where the main streets go.", svg: () => Iso.landform().svg },
   };
@@ -48,6 +51,24 @@
     const [lo, hi] = exSpan[k] ?? [v, v], t = hi > lo ? (v - lo) / (hi - lo) : 1;
     return Math.round((E.SCORES[k][2] ? t : 1 - t) * 100);
   }
+  // the massing shown on the Massing step, against the rest of its run
+  const mass = bench.mass;
+  const mEnv = $derived(bench.step === "massing" ? mass.prepared?.E ?? null : null);
+  const mk = $derived(bench.step === "massing" ? mass.chosen : null);
+  const mSpan = $derived.by(() => {
+    const all = mass.result?.kept ?? [];
+    return Object.fromEntries(M.MASS_SCORE_KEYS.map((k) => [k, [Math.min(...all.map((d) => d.scores[k])), Math.max(...all.map((d) => d.scores[k]))]]));
+  });
+  const mAt = (k: M.MassScoreKey, v: number) => {
+    const [lo, hi] = mSpan[k] ?? [v, v], t = hi > lo ? (v - lo) / (hi - lo) : 1;
+    return Math.round((M.MASS_SCORES[k][2] ? t : 1 - t) * 100);
+  };
+  const mRead = $derived.by(() => {
+    if (!mk || !mEnv) return null;
+    const ms = mass.massingOf(mk), mesh = mass.meshOf(mk);
+    return ms && mesh ? M.readouts(mEnv, ms, mesh) : null;
+  });
+  const lowHeights = $derived(mEnv && mass.prepared ? Mass.heightsLow(mEnv, mass.prepared.G) : false);
   const meta = $derived(bench.site?.meta);
   const fmtHa = (v: number) => `${Math.round(v).toLocaleString("en-IN")} ha`;
   const TERRAIN: Record<string, string> = { fabdem: "FABDEM bare earth", "copernicus-surface": "Copernicus surface model (buildings and trees count as ground)" };
@@ -67,7 +88,53 @@
     {/if}
   {/if}
 
-  {#if bench.step === "explore"}
+  {#if bench.step === "massing" && mEnv}
+    {#if mk}
+      <div class="wb-sub">
+        <span class="wb-label">{mk.rank === 1 ? "On the front" : "Beaten on every count by another"}</span>
+        <b class="wb-insp-title">Massing {mk.name}</b>
+        <div class="wb-scores">
+          {#each M.MASS_SCORE_KEYS as k}
+            <div class="wb-score"><span>{M.MASS_SCORES[k][0]}{lowHeights && Mass.HEIGHT_SCORES.includes(k) ? " *" : ""}</span>
+              <span class="wb-track" style="--at: {mAt(k, mk.scores[k])}%"><b></b><i></i></span>
+              <span class="wb-v">{M.MASS_SCORES[k][1](mk.scores[k])}</span></div>
+          {/each}
+          <div class="wb-axis"><span>run's worst</span><span>best</span></div>
+        </div>
+        <!-- COPY: low-confidence heights -->
+        {#if lowHeights}<p class="wb-hint">* Most neighbouring buildings' heights are guessed, so these are low confidence.</p>{/if}
+        <dl class="wb-facts">
+          <dt>Floor area</dt><dd class="wb-num">{Math.round(mk.floor).toLocaleString("en-IN")} m², {Math.round((mk.floor / Math.max(1, mEnv.target)) * 100)}% of what the block should fit</dd>
+          <dt>Envelope</dt><dd>{mk.rejected ?? M.describeRepairs(mk.repairs, mEnv.plots.length)}</dd>
+        </dl>
+      </div>
+      {#if mRead}
+        <details class="wb-group"><summary>Readouts, not bred on<span class="wb-meta">{Object.keys(M.READOUTS).length}</span></summary>
+          <dl class="wb-facts wb-metrics">
+            {#each Object.keys(M.READOUTS) as r}
+              {@const key = r as keyof M.MassReadouts}
+              <dt>{M.READOUTS[key][0]}</dt><dd class="wb-num">{M.READOUTS[key][1](mRead[key])}</dd>
+            {/each}
+          </dl>
+        </details>
+      {/if}
+    {:else}
+      <div class="wb-sub">
+        <span class="wb-label">Block {mass.block + 1}: its plots</span>
+        <table class="wb-table wb-num">
+          <thead><tr><th>plot</th><th>m²</th><th>storeys</th><th>cover</th><th>to fit</th></tr></thead>
+          <tbody>
+            {#each mEnv.plots as p}
+              <tr><td>{p.id + 1}</td><td>{Math.round(p.area)}</td><td>{p.capLevels}</td><td>{Math.round(p.maxCover * 100)}%</td><td>{Math.round(p.target)}</td></tr>
+            {/each}
+          </tbody>
+        </table>
+        <!-- COPY: block notes -->
+        <p class="wb-hint">Storeys and cover are the most the rules allow; "to fit" is the floor area the design put on the plot. {Mass.neighbourLine(mEnv, mass.prepared!.G)}</p>
+        {#if mEnv.note.length}<p class="wb-hint">{mEnv.note.join("; ")}.</p>{/if}
+      </div>
+    {/if}
+  {:else if bench.step === "explore"}
     {#if ex}
       {@const grown = bench.grown.get(ex.name)}
       <div class="wb-sub">
