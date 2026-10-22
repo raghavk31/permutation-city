@@ -15,6 +15,10 @@ better on wholeness.**
 - **Docks.** On Mumbai Docks the method failed in every seed: no 2050 design got within the
   floor-area brief (the doubts below explain why).
 
+**Version 3 (vector streets, 2026-10-22) gives the same answer**, with two changes: Docks now
+meets the brief, and piecemeal growth now leads on daylight on all four sites. See
+[Version 3](#version-3-vector-streets-blocks-and-plots) at the end.
+
 Piecemeal growth earns its place as a way of working: a phased plan, with what each phase
 adds scored under its own year. It doesn't earn it as a better optimiser.
 
@@ -185,3 +189,113 @@ room left to repair.
 - **Run time:** piecemeal took 6–13 minutes per run against 9–35 seconds for one-shot.
   Almost all of it is reading wholeness on every design. (Four runs show about 30,000 s:
   the laptop slept during one increment.)
+
+## Version 3: vector streets, blocks and plots
+
+Rerun 2026-10-22 on genome version 3 (`--version 3`): 15 generations of 30, seeds 1 and 2,
+the same four sites, so each mode grows 1,440 designs. In piecemeal, the first increment's
+streets, blocks and plots are the frame the later increments fill (`docs/piecemeal.md`).
+Each cell is the median of the two seeds. The judging is unchanged from the set-up above.
+The run file is not in the repository; `pm-table.mjs` made the tables from it.
+
+**The answer holds: piecemeal growth is not a better optimiser.**
+- **Heat:** the piecemeal 2050 front is hotter on all four sites, by 0.4 to 0.6 °C on three,
+  and more of its public ground overheats in a heatwave on all four.
+- **Storage:** worse on three sites. Docks drops to 0.07 against 0.28 and 0.31.
+- **Wholeness of the design built:** higher than either one-shot choice on three sites. On
+  Bengaluru it is level with one-shot today and below one-shot 2050.
+- **Daylight:** better on all four sites, and carbon better or level. With the 2025 frame
+  fixed, later increments fill plots between streets that already exist, which may keep
+  buildings lower and apart. I haven't checked this.
+- **Diversity:** much lower, by construction, as in version 2.
+
+**What changed from version 2:**
+- **Docks meets the brief.** All of the front is within it in both seeds (26.5 designs on
+  the front, median). In version 2 no 2050 design got within 10%.
+- **The penalty was paid 3 times in 24 increments:** 2035 on Docks seed 1 (0.006), and 2050
+  on Eastern Waterfront seed 2 (0.026) and Wadaj seed 2 (0.053). Version 2 paid it 6 times
+  in 36.
+
+#### Mumbai Docks (coastal)
+
+| | piecemeal | one-shot today | one-shot 2050 |
+|---|---:|---:|---:|
+| front (on brief) | 26.5 (26.5) | 30 (30) | 30 (30) |
+| wholeness, front ↑ | **0.490** | 0.462 | 0.461 |
+| wholeness, built ↑ | **0.506** | 0.459 | 0.442 |
+| storage, 2050 ↑ | 0.07 | 0.28 | **0.31** |
+| heat, 2050 (°C) ↓ | 2.43 | **1.84** | 2.13 |
+| carbon (kg/m²) ↓ | **412** | 427 | 419 |
+| daylight ↑ | **0.64** | 0.52 | 0.58 |
+| human scale ↑ | **0.57** | 0.36 | 0.53 |
+| gap to brief ↓ | 0.060 | 0.082 | **0.057** |
+| spread / families | 0.09 / 1.5 | 0.38 / 18 | 0.39 / 21 |
+| sea 2100: floor lost ↓ | 0.073 | **0.055** | 0.067 |
+| 100-year rain: failed ↓ | 0.070 | 0.051 | **0.039** |
+| heatwave: public ground overheated ↓ | 0.62 | **0.60** | 0.64 |
+| run time (s) | 269 | 77 | 92 |
+
+
+#### Mumbai Eastern Waterfront (coastal)
+
+| | piecemeal | one-shot today | one-shot 2050 |
+|---|---:|---:|---:|
+| front (on brief) | 30 (30) | 27 (27) | 30 (30) |
+| wholeness, front ↑ | 0.479 | 0.449 | **0.481** |
+| wholeness, built ↑ | **0.546** | 0.457 | 0.451 |
+| storage, 2050 ↑ | 0.51 | 0.43 | **0.58** |
+| heat, 2050 (°C) ↓ | 2.17 | **1.62** | 1.91 |
+| carbon (kg/m²) ↓ | 407 | 407 | 407 |
+| daylight ↑ | **0.75** | 0.73 | 0.72 |
+| human scale ↑ | 0.63 | **0.75** | 0.69 |
+| gap to brief ↓ | 0.068 | 0.083 | **0.057** |
+| spread / families | 0.10 / 2.5 | 0.24 / 10.5 | 0.35 / 18 |
+| sea 2100: floor lost ↓ | 0.032 | **0.012** | 0.021 |
+| 100-year rain: failed ↓ | 0.067 | 0.132 | **0.059** |
+| heatwave: public ground overheated ↓ | 0.42 | **0.36** | 0.44 |
+| run time (s) | 1091 | 201 | 185 |
+
+
+#### Ahmedabad Wadaj (inland)
+
+| | piecemeal | one-shot today | one-shot 2050 |
+|---|---:|---:|---:|
+| front (on brief) | 28.5 (28.5) | 26 (26) | 29 (29) |
+| wholeness, front ↑ | **0.480** | 0.400 | 0.411 |
+| wholeness, built ↑ | **0.514** | 0.383 | 0.457 |
+| storage, 2050 ↑ | 2.14 | 2.13 | **2.17** |
+| heat, 2050 (°C) ↓ | 0.98 | 0.99 | **0.89** |
+| carbon (kg/m²) ↓ | **402** | 403 | 404 |
+| daylight ↑ | **0.91** | 0.88 | 0.84 |
+| human scale ↑ | 0.74 | 0.77 | 0.77 |
+| gap to brief ↓ | 0.076 | **0.060** | 0.061 |
+| spread / families | 0.10 / 1.5 | 0.39 / 17.5 | 0.38 / 21 |
+| 100-year rain: failed ↓ | 0.074 | **0.060** | 0.081 |
+| heatwave: public ground overheated ↓ | 0.34 | 0.29 | **0.28** |
+| run time (s) | 4135 | 313 | 316 |
+
+
+#### Bengaluru tank cascade (inland)
+
+| | piecemeal | one-shot today | one-shot 2050 |
+|---|---:|---:|---:|
+| front (on brief) | 19 (19) | 27 (27) | 28.5 (28.5) |
+| wholeness, front ↑ | 0.428 | 0.429 | **0.439** |
+| wholeness, built ↑ | 0.429 | 0.429 | **0.498** |
+| storage, 2050 ↑ | 1.58 | **2.00** | 1.85 |
+| heat, 2050 (°C) ↓ | 2.19 | **1.69** | 1.82 |
+| carbon (kg/m²) ↓ | **407** | 413 | 412 |
+| daylight ↑ | **0.74** | 0.64 | 0.66 |
+| human scale ↑ | 0.70 | 0.73 | **0.74** |
+| gap to brief ↓ | 0.087 | 0.082 | **0.058** |
+| spread / families | 0.08 / 1 | 0.27 / 11.5 | 0.28 / 11.5 |
+| 100-year rain: failed ↓ | **0.027** | 0.036 | 0.034 |
+| heatwave: public ground overheated ↓ | 0.52 | **0.45** | 0.47 |
+| run time (s) | 2831 | 369 | 405 |
+
+**Doubts, version 3**
+- **Two seeds, not three.** Seed noise is larger than in version 2; treat single-site
+  differences under about 0.05 (scores) or 0.03 (wholeness) as level.
+- **Guwahati is not in this run.** It was added as the hilly site after the run started.
+- **Run time:** piecemeal took 4.5 to 70 minutes per run against 1 to 7 minutes for
+  one-shot, almost all of it exact wholeness. Wadaj is the slowest.
