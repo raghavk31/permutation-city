@@ -239,3 +239,12 @@ a { color: inherit; }
 .wb-table th:first-child, .wb-table td:first-child { text-align: left; }
 .wb-app.is-presenting { grid-template: "centre" 1fr / 1fr; }
 .wb-app.is-presenting > :not(.wb-centre) { display: none; }
+
+/* genes and the family tree */
+.wb-genes { display: grid; gap: 2px; padding: 4px 0 8px; }
+.wb-gene-group { font-size: var(--pc-size-small); color: var(--pc-muted); margin-top: 6px; }
+.wb-gene { display: grid; grid-template-columns: minmax(0, 1fr) auto 24px; gap: 8px; align-items: center; font-size: var(--pc-size-small); }
+.wb-gene > span { color: var(--pc-ink-2); }
+.wb-gene > b { font-weight: 500; text-align: right; }
+.wb-tree { max-height: calc(100vh - 290px); overflow: auto; }
+.wb-tree canvas { cursor: pointer; }

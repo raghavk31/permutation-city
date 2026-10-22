@@ -54,6 +54,12 @@
     <span class="wb-hint">The same number gives the same run.</span>
   </div>
 
+  {#if Object.keys(bench.geneLocks).length}
+    <!-- COPY: locked genes note -->
+    <p class="wb-hint">{Object.keys(bench.geneLocks).length} gene{Object.keys(bench.geneLocks).length === 1 ? "" : "s"} locked from a design in Explore.
+      <button class="wb-link" type="button" disabled={bench.running} onclick={() => (bench.geneLocks = {})}>Free them</button></p>
+  {/if}
+
   <div class="wb-sub">
     <span class="wb-label">Scored on</span>
     <div class="wb-chips">{#each E.SCORE_KEYS as k}<span class="wb-tag">{E.SCORES[k][0]}</span>{/each}</div>

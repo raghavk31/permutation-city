@@ -100,7 +100,7 @@ class Bench {
 
   // the Explore step: the view, the plot, what colours it, the brushes (an axis key to a range
   // of values), the design selected and pointed at (kept names), the pair compared
-  exView = $state<"tradeoffs" | "compare" | "archive">("tradeoffs");
+  exView = $state<"tradeoffs" | "compare" | "archive" | "tree">("tradeoffs");
   exPlot = $state<"matrix" | "parallel">("matrix");
   exColour = $state("front");
   brush = $state.raw<Record<string, [number, number]>>({});
@@ -108,6 +108,30 @@ class Bench {
   exHover = $state<string | null>(null);
   pair = $state<[string | null, string | null]>([null, null]);
   showAll = $state(false);
+  /** Genes locked for the next run, at their decoded values (a lock narrows the gene's range to
+   *  one value, so decoding needs no change and designs stay reproducible). */
+  geneLocks = $state.raw<Record<string, number>>({});
+  lockGene(gene: string, value: number | null) {
+    const { [gene]: _, ...rest } = this.geneLocks;
+    this.geneLocks = value === null ? rest : { ...rest, [gene]: value };
+  }
+  /** Ranges with the locked genes pinned. */
+  private pinned(r: E.Ranges): E.Ranges {
+    return { ...r, ...Object.fromEntries(Object.entries(this.geneLocks).map(([g, v]) => [g, [v, v]])) } as E.Ranges;
+  }
+
+  /** Any design the run made, by name: a kept design's genome, else its genome in the lineage. */
+  genomeOf(name: string): number[] | null {
+    const r = this.result;
+    if (!r) return null;
+    const k = r.kept.find((x) => x.name === name);
+    if (k) return k.genome;
+    const i = r.lineage.findIndex((n) => n.name === name);
+    if (i < 0) return null;
+    const len = r.genomes.length / r.lineage.length;
+    return Array.from(r.genomes.subarray(i * len, (i + 1) * len));
+  }
+
   /** Designs grown whole for drawing, by kept name (a run's leads arrive grown). */
   grown = $state.raw<Map<string, E.Design>>(new Map());
   private growing = new Set<string>();
@@ -120,7 +144,7 @@ class Bench {
   /** Open a kept design in the Massing step (it must have grown). */
   massDesign(name: string) {
     const site = this.runSite, d = this.grown.get(name);
-    const genome = this.result?.kept.find((k) => k.name === name)?.genome ?? this.result?.families.find((f) => f.name === name)?.genome;
+    const genome = this.genomeOf(name);
     if (!site || !d || !genome) return false;
     if (this.ground?.site !== site) {
       const G = E.prepare(site);
@@ -170,10 +194,10 @@ class Bench {
     if (!name) return null;
     const d = this.grown.get(name);
     if (d) return d;
-    const k = this.result?.kept.find((x) => x.name === name);
-    if (k && this.worker && !this.growing.has(name)) {
+    const genome = this.genomeOf(name);
+    if (genome && this.worker && !this.growing.has(name)) {
       this.growing.add(name);
-      this.worker.api.whole([k.genome], this.runRanges).then(([g]) => {
+      this.worker.api.whole([genome], this.runRanges).then(([g]) => {
         this.grown = new Map(this.grown).set(name, g);
       }).catch(() => {}).finally(() => this.growing.delete(name));
     }
@@ -269,10 +293,10 @@ class Bench {
     if (!this.site || !this.rules) return null;
     if (this.brief) {
       const u = Sites.withBrief(this.site, this.rules, this.brief);
-      return { site: u.site, result: u.result, ranges: u.config.ranges };
+      return { site: u.site, result: u.result, ranges: this.pinned(u.config.ranges) };
     }
     const u = Sites.withRules(this.site, this.rules);
-    return { site: u.site, result: u.result, ranges: E.DEFAULT_RANGES };
+    return { site: u.site, result: u.result, ranges: this.pinned(E.DEFAULT_RANGES) };
   }
 
   async run() {
