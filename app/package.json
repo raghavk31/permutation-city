@@ -18,6 +18,7 @@
     "massing-shade": "vite-node scripts/massing-shade.ts --",
     "shock-survey": "vite-node scripts/shock-survey.ts --",
     "piecemeal-vs-oneshot": "vite-node scripts/piecemeal-vs-oneshot.ts --",
+    "wiggle": "vite-node scripts/wiggle.ts --",
     "colour-check": "vite-node scripts/colour-check.ts"
   },
   "dependencies": {

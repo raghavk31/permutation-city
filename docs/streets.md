@@ -146,8 +146,33 @@ These shape the geometry, not the city. They are listed so nothing is hidden:
 
 - Skeleton cleaning (`SKELETON` in `ground.ts`): 4 m raster, merge 14 m (20 m for roads, so a
   dual carriageway's two sides merge), holes under 4,000 m² filled, spurs under 30 m pruned,
-  9 m simplification, 6 m spline step, ends within 20 m joined.
+  smoothing over 1.25 cell spacings (43 m on 20 m hexes), 6 m spline step, ends within 20 m
+  joined.
 - Tensor field streamlines (`FIELD` in `field.ts`): 8 m step, sources' pull halves at about
-  120 m, streamlines under 30 m dropped, 4 m snap.
+  120 m, streamlines under 30 m dropped, 4 m snap, smoothing over 12 m. Organic (Voronoi)
+  streets are simplified to their cells' straight edges and each corner made a 15 m arc.
+- Otto routes (`ROUTE` in `route.ts`): smoothing over 30 m on the 50 m lattice.
+
+### Streets don't snake
+
+A line traced through cells (the skeleton on hex sides, routes on the lattice, Voronoi edges on
+pixels) carries the grid's zigzag. Douglas-Peucker and a spline alone keep the zigzag's
+corners, and the spline swings through them, so the street snakes. Every such line goes
+through `smoothTrace` (`geom.ts`): resampled, smoothed with a Gaussian along its length (ends
+mirrored, so they stay put and keep their direction), then simplified and splined.
+
+`snakesPerKm` measures it: short bends one way then the other (each at least 15° and no longer
+than 60 m) per km. A road's long S-bend doesn't count. `test/ui/smoothness.test.ts` runs on
+every exported site, so a new site is checked as soon as it is exported:
+- skeleton lines: none may snake
+- routes: at most 10% of lines (or 2), from junction repairs
+- local streets: at most 5%, from contours that really wind
+
+`npm run wiggle` prints the same survey. Before the change (2026-10-22), 1 to 14 skeleton lines
+per site snaked (14 of 25 at Guwahati), and 5 to 10% of local streets (35-46% of organic
+ones); after it, no skeleton line, and 1 to 2% of local streets. Routes were about the same
+before and after (0 to 2 lines per site). A new way of
+drawing streets from cells, rasters or lattices should use `smoothTrace`, not
+`spline(simplify(...))`.
 - Network (`RULES` in `network.ts`): ends within 8 m snap, vertices within 1.5 m merge, a loose
   end may be carried 120 m to meet a street, routes within 25 m of the skeleton fold onto it.

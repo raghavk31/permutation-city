@@ -14,7 +14,7 @@
 import { BUILDING, FAMILIES, HILL_LOCAL_SPACING, LANDSCAPE, RANGES_V3, type Family } from "../config.js";
 import type { Design, Ground } from "../types.js";
 import { dayOfYear, solarHour, sunAt } from "../massing/sun.js";
-import { dist, length, resample, SegIndex, simplify, spline, type Line, type Pt } from "./geom.js";
+import { dist, fillet, length, resample, SegIndex, simplify, smoothTrace, type Line, type Pt } from "./geom.js";
 import { locator, outline, skeletonLines, thinAndTrace } from "./ground.js";
 import { makeRng } from "../rng.js";
 import { planTimes } from "./grow.js";
@@ -26,6 +26,8 @@ export const FIELD = {
   MAX_LEN_M: 1500,
   MIN_LEN_M: 30,        // shorter streamlines are dropped
   SNAP_M: 4,            // a streamline this close to a street meets it
+  SMOOTH_M: 12,         // Gaussian smoothing of a streamline along its length (smoothTrace): the tracer's wobble
+  CORNER_R_M: 15,       // an organic street's corners become arcs of this radius (the local street's least)
   TEST: 0.5,            // stop when a parallel street of the same family is this share of the spacing away
 };
 
@@ -279,7 +281,7 @@ export function infill(G: Ground, d: Design, g: FieldGenes, existing: Line[], ro
       if (!ok(sp) || fams[minor].nearest(sp, gap)) continue;
       const line = traceOne(sp, minor, gap);
       if (!line) continue;
-      const sm = spline(simplify(line, 1.5), 8);
+      const sm = smoothTrace(line, FIELD.SMOOTH_M, 8);
       out.push(sm);
       fams[minor].addLine(sm, minor);
       streets.addLine(sm, out.length - 1);
@@ -290,7 +292,8 @@ export function infill(G: Ground, d: Design, g: FieldGenes, existing: Line[], ro
 }
 
 /** Organic: the edges of Voronoi cells round seed points jittered about a hexagonal lattice at
- *  the block length, inside the ground streets may use, traced like the skeleton. */
+ *  the block length, inside the ground streets may use, traced like the skeleton. The traced
+ *  pixels are simplified back to the cells' straight edges, and each corner becomes an arc. */
 function voronoi(G: Ground, ok: (p: Pt) => boolean, existing: Line[], gap: number, seed: number): Line[] {
   const rng = makeRng(seed), [x0, y0, x1, y1] = G.bounds, seeds: Pt[] = [];
   const row = gap * Math.sqrt(3) / 2;
@@ -324,5 +327,5 @@ function voronoi(G: Ground, ok: (p: Pt) => boolean, existing: Line[], gap: numbe
   }
   const lines = thinAndTrace(img, W, H, 0).map((l) => l.map((p) => [x0 + ((p % W) + 0.5) * res, y0 + (Math.floor(p / W) + 0.5) * res] as Pt));
   void existing;
-  return lines.filter((l) => length(l) >= FIELD.MIN_LEN_M).map((l) => spline(simplify(l, 3), 8));
+  return lines.filter((l) => length(l) >= FIELD.MIN_LEN_M).map((l) => fillet(simplify(l, res), FIELD.CORNER_R_M));
 }

@@ -16,11 +16,12 @@
 // (millimetres) and ties break on node index, so the Python port (Milestone B) can match it.
 import { RIDGE_MIN_HA, WATER, LANDSCAPE } from "../config.js";
 import type { Design, Ground } from "../types.js";
-import { dist, simplify, spline, type Line, type Pt } from "./geom.js";
+import { dist, smoothTrace, type Line, type Pt } from "./geom.js";
 import { locator, outline, skeletonLines } from "./ground.js";
 
 export const ROUTE = {
   LATTICE_M: 50,
+  SMOOTH_M: 30,         // Gaussian smoothing of a route along its length (smoothTrace): the lattice's steps go
   SLOPE_W: 20,          // cost × (1 + 20 × slope): a 5% slope doubles it
   HEAT_W: 0.5,          // cost × (1 + 0.5 × surface heat, 0..1 over the site)
   CROSSING: 6,          // crossing a valley or its buffer costs six times as much
@@ -308,7 +309,7 @@ function chains(L: Lattice, used: Map<number, number>): Line[] {
         seen.add(key(cur, nx)); chain.push(nx); prev = cur; cur = nx;
       }
       const pts: Line = chain.map((v) => [L.x[v], L.y[v]]);
-      out.push(pts.length > 2 ? spline(simplify(pts, 12), 8) : pts);
+      out.push(pts.length > 2 ? smoothTrace(pts, ROUTE.SMOOTH_M, 8) : pts);
     }
   }
   return out;

@@ -3,7 +3,7 @@
 import { corners } from "../graph.js";
 import { sides } from "../streets.js";
 import type { Ground } from "../types.js";
-import { area, dist, simplify, spline, type Line, type Pt } from "./geom.js";
+import { area, dist, smoothTrace, type Line, type Pt } from "./geom.js";
 
 /** Nearest design cell to a point, within a cell radius (-1: off the design ground). */
 const LOC_RES = 3;
@@ -126,7 +126,8 @@ export const SKELETON = {
   ROAD_MERGE_M: 20, // wider for road skeletons, so a dual carriageway's two sides merge
   HOLE_M2: 4000,   // gaps enclosed by the paint smaller than this are filled (no ladder of loops)
   SPUR_M: 30,      // spurs shorter than this left by thinning are pruned
-  SIMPLIFY_M: 9,   // takes out the hex zigzag thinning leaves (about ± 8 m)
+  SMOOTH_CELLS: 1.25, // Gaussian smoothing along a line, in cell spacings (smoothTrace): takes out
+                      // the hex zigzag and the cell-to-cell wander. Roads too: they are traced on cell sides
   SPLINE_STEP_M: 6,
   SNAP_M: 20,      // an end this close to another line joins it
 };
@@ -137,7 +138,7 @@ const skCache = new WeakMap<Ground, SkeletonLine[]>();
 
 /** The site's skeleton as clean centrelines: its sides painted thick, so the two carriageways
  *  of a road and the zigzag of hex sides merge, thinned to one pixel (Zhang and Suen 1984),
- *  traced, spurs pruned, simplified (Douglas-Peucker) and fitted with splines; loose ends
+ *  traced, spurs pruned, smoothed (smoothTrace) and fitted with splines; loose ends
  *  snapped to the nearest line. Each line keeps the highest class painted under it. */
 export function skeletonLines(G: Ground): SkeletonLine[] {
   const hit = skCache.get(G);
@@ -188,7 +189,7 @@ export function skeletonLines(G: Ground): SkeletonLine[] {
   });
   for (const l of kept) {
     let pts: Line = l.map((p) => [x0 + ((p % W) + 0.5) * res, y0 + (Math.floor(p / W) + 0.5) * res]);
-    pts = spline(simplify(pts, S.SIMPLIFY_M), S.SPLINE_STEP_M);
+    pts = smoothTrace(pts, S.SMOOTH_CELLS * G.grid.spacing, S.SPLINE_STEP_M);
     let c = 0;
     for (const p of l) c = Math.max(c, cls[p]);
     out.push({ cls: c || 3, points: pts });

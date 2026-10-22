@@ -80,6 +80,51 @@ export function simplify(l: Line, tol: number): Line {
   return l.filter((_, k) => keep[k]);
 }
 
+/** A line traced through cells (hex sides, lattice nodes) made into a street centreline. It is
+ *  resampled, smoothed with a Gaussian along its length (`sigma` m), then simplified and
+ *  splined. The ends stay put: the line is mirrored through each end point before smoothing,
+ *  which keeps the end's direction too. Simplifying and splining alone keeps the cell
+ *  zigzag's corners, and the spline swings through them, so the street snakes. Every
+ *  cell-traced street goes through here; test/ui/smoothness.test.ts holds them to it. */
+export function smoothTrace(l: Line, sigma: number, step = 6): Line {
+  if (l.length < 3 || length(l) < 2 * sigma) return spline(simplify(l, 1), step);
+  const h = Math.max(1, sigma / 4), r = resample(l, h), n = r.length;
+  const k = Math.ceil((2.5 * sigma) / h), w = Array.from({ length: k + 1 }, (_, j) => Math.exp(-((j * h) ** 2) / (2 * sigma * sigma)));
+  // Index i outside 0..n-1 reflects through the end point: p(-j) = 2 p(0) - p(j).
+  const at = (i: number, c: number) => i < 0 ? 2 * r[0][c] - r[Math.min(-i, n - 1)][c]
+    : i >= n ? 2 * r[n - 1][c] - r[Math.max(2 * (n - 1) - i, 0)][c] : r[i][c];
+  const out: Line = r.map((p, i) => {
+    if (i === 0 || i === n - 1) return p;
+    let sx = 0, sy = 0, sw = 0;
+    for (let j = -k; j <= k; j++) { const g = w[Math.abs(j)]; sx += g * at(i + j, 0); sy += g * at(i + j, 1); sw += g; }
+    return [sx / sw, sy / sw];
+  });
+  return spline(simplify(out, Math.max(1, sigma / 8)), step);
+}
+
+/** How much a line snakes: short bends one way then the other, per km. The line is read
+ *  every 10 m and turns in one direction are summed into a bend. A snake is a pair of
+ *  neighbouring opposite bends, each at least 15° and no longer than 60 m. A real road's long,
+ *  gentle S-bend doesn't count; the swing of a spline through a cell zigzag does. */
+export function snakesPerKm(l: Line): number {
+  const len = length(l);
+  if (len < 50) return 0;
+  const r = resample(l, 10), bends: { a: number; n: number }[] = [];
+  let a = 0, n = 0;
+  for (let i = 1; i < r.length - 1; i++) {
+    const h0 = Math.atan2(r[i][1] - r[i - 1][1], r[i][0] - r[i - 1][0]);
+    const h1 = Math.atan2(r[i + 1][1] - r[i][1], r[i + 1][0] - r[i][0]);
+    const turn = Math.atan2(Math.sin(h1 - h0), Math.cos(h1 - h0));
+    if (a && turn && Math.sign(turn) !== Math.sign(a)) { bends.push({ a, n }); a = 0; n = 0; }
+    a += turn; n++;
+  }
+  bends.push({ a, n });
+  const sharp = (b: { a: number; n: number }) => Math.abs(b.a) >= (15 * Math.PI) / 180 && b.n * 10 <= 60;
+  let s = 0;
+  for (let k = 1; k < bends.length; k++) if (sharp(bends[k]) && sharp(bends[k - 1])) s++;
+  return (s / len) * 1000;
+}
+
 /** A centripetal Catmull-Rom spline through the points, `step` metres between samples (ends kept). */
 export function spline(l: Line, step = 6): Line {
   if (l.length < 3) return l.slice();
