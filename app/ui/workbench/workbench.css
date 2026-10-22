@@ -25,13 +25,14 @@ a { color: inherit; }
 .wb-pill { font-size: var(--pc-size-small); padding: 3px 10px; border-radius: 999px; background: var(--wb-fill); color: var(--pc-ink-2); margin-right: var(--wb-s2); }
 
 /* rail */
-.wb-rail { grid-area: rail; position: relative; min-height: 0; overflow: auto; padding: var(--wb-s2); background: var(--pc-surface-2); border-right: var(--wb-hair); }
-.wb-rail .wb-steps { padding-bottom: 40px; }
+.wb-rail { grid-area: rail; position: relative; min-height: 0; overflow: hidden; display: grid; grid-template-rows: minmax(0, 1fr) auto; background: var(--pc-surface-2); border-right: var(--wb-hair); }
+.wb-rail .wb-steps { min-height: 0; overflow: hidden auto; padding: var(--wb-s2); }
 .wb-rail-panel { padding: var(--wb-s2) var(--wb-s1) var(--wb-s4) 6px; }
 .wb-app.no-rail .wb-rail .wb-steps { display: none; }
-.wb-fold { position: absolute; bottom: var(--wb-s2); }
-.wb-rail .wb-fold { right: var(--wb-s2); }
-.wb-insp .wb-fold { left: var(--wb-s2); }
+/* the fold buttons sit in their panel's foot, below what scrolls */
+.wb-fold { align-self: end; margin: var(--wb-s1) var(--wb-s2) var(--wb-s2); }
+.wb-rail .wb-fold { justify-self: end; }
+.wb-insp .wb-fold { justify-self: start; }
 .wb-panel { display: grid; gap: var(--wb-s4); }
 .wb-sub { display: grid; gap: var(--wb-s2); min-width: 0; }
 .wb-row { display: flex; gap: var(--wb-s2); align-items: center; flex-wrap: wrap; }
@@ -109,8 +110,8 @@ a { color: inherit; }
 @media (prefers-reduced-motion: reduce) { .wb-stack.is-playing .wb-plane { animation: none; } }
 
 /* inspector */
-.wb-insp { grid-area: insp; position: relative; min-height: 0; overflow: auto; border-left: var(--wb-hair); }
-.wb-insp-body { display: grid; gap: var(--wb-s5); padding: var(--wb-s4) var(--wb-s4) 56px; }
+.wb-insp { grid-area: insp; position: relative; min-height: 0; overflow: hidden; display: grid; grid-template-rows: minmax(0, 1fr) auto; border-left: var(--wb-hair); }
+.wb-insp-body { min-height: 0; overflow: auto; display: grid; align-content: start; gap: var(--wb-s5); padding: var(--wb-s4) var(--wb-s4) var(--wb-s3); }
 .wb-app.no-insp .wb-insp-body { display: none; }
 .wb-insp-title { font-size: var(--pc-size-body); font-weight: 500; }
 .wb-insp-thumb { height: 120px; border-radius: var(--pc-radius); background: var(--pc-surface-2); padding: 8px; display: grid; }
@@ -248,3 +249,14 @@ a { color: inherit; }
 .wb-gene > b { font-weight: 500; text-align: right; }
 .wb-tree { max-height: calc(100vh - 290px); overflow: auto; }
 .wb-tree canvas { cursor: pointer; }
+
+/* shortcuts */
+.wb-dialog { border: var(--wb-hair); border-radius: var(--pc-radius); padding: 0; background: var(--pc-surface); color: var(--pc-ink); max-width: 420px; }
+.wb-dialog::backdrop { background: color-mix(in srgb, var(--pc-ink) 25%, transparent); }
+.wb-dialog-body { display: grid; gap: var(--wb-s3); padding: var(--wb-s4); }
+.wb-dialog form { justify-self: end; margin: 0; }
+.wb-keys { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; margin: 0; font-size: var(--pc-size-small); align-items: center; }
+.wb-keys dd { margin: 0; color: var(--pc-ink-2); }
+kbd { font: 500 11px / 1 var(--pc-mono); padding: 3px 5px; border: var(--wb-hair); border-bottom-width: 2px; border-radius: 4px; background: var(--pc-surface-2); }
+button.wb-pen-item { cursor: pointer; font: inherit; color: inherit; }
+button.wb-pen-item:hover { border-color: var(--wb-fill-2); }

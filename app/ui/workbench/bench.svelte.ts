@@ -204,6 +204,51 @@ class Bench {
     return null;
   }
 
+  /** The designs J and K step through on this step, in order (names; Evolve: by position). */
+  private order(): string[] {
+    if (this.step === "explore" && this.result) {
+      const all = this.result.families.filter((f) => f.design).map((f) => f.name);
+      return this.showAll ? all : this.reps.map((r) => r.name);
+    }
+    return [];
+  }
+  /** Next (1) or previous (-1) design on the open step. */
+  nextDesign(dir: 1 | -1) {
+    if (this.step === "evolve") {
+      const n = this.result ? this.result.families.filter((f) => f.design).length : this.leaders.length;
+      if (n) this.picked3 = (this.picked3 + dir + n) % n;
+    } else if (this.step === "explore") {
+      const list = this.order();
+      if (!list.length) return;
+      const i = list.indexOf(this.exView === "compare" ? this.pair[1] ?? "" : this.exSel ?? "");
+      const next = list[i < 0 ? 0 : (i + dir + list.length) % list.length];
+      if (this.exView === "compare") this.pair = [this.pair[0] ?? this.exSel, next];
+      this.exSel = next;
+    } else if (this.step === "massing" && this.mass.result && !this.mass.stale) {
+      const r = this.mass.result, ord = r.kept.map((_, i) => i).sort((a, b) => r.kept[a].rank - r.kept[b].rank || a - b);
+      const i = ord.indexOf(this.mass.pick);
+      this.mass.pick = ord[i < 0 ? 0 : (i + dir + ord.length) % ord.length];
+    }
+  }
+  /** Keep the design open on this step in the pen (P). */
+  keepCurrent() {
+    if (this.step === "explore" && this.exSel) {
+      const d = this.grown.get(this.exSel);
+      if (d) this.keep(this.exSel, d);
+    } else if (this.step === "evolve") {
+      const f = this.result?.families.filter((x) => x.design)[this.picked3];
+      if (f) this.keep(f.name, f.design!);
+      else if (this.leaders[this.picked3]) this.keep(`Best now ${this.picked3 + 1}`, this.leaders[this.picked3]);
+    }
+  }
+  /** Open a pen item in Explore, when it is from the current run. */
+  openPen(name: string) {
+    if (!this.result || !this.genomeOf(name)) return false;
+    this.exSel = name;
+    this.go("explore");
+    return true;
+  }
+
   keep(name: string, design: E.Design) {
     if (!this.runSite || this.pen.some((p) => p.name === name)) return;
     this.pen = [...this.pen, { name, design, site: this.runSite }];
