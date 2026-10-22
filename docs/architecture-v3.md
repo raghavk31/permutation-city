@@ -582,3 +582,24 @@ Unsure about, or left open:
 - **The hero is a capture,** not yet made by a script. It will be one in A4's figure script.
 - **Shadows are thin from the default aerial view.** They read well closer in. The camera
   presets in A3 will help.
+
+## A2 log (2026-10-22): speed, measured
+
+Risk R4 guessed 5-15 ms per version 3 design. The real cost is higher, so the default run
+shrank (your call, 21 October: 15 generations of 30, 480 designs, with the live strip).
+
+- **Per design, Node, one thread:** Docks 66 ms, Eastern Waterfront 160 ms, Bengaluru
+  213 ms, Wadaj 298 ms, Guwahati 321 ms.
+- **The default run in the browser:** production workbench, headless Edge on the
+  development laptop, worker pool:
+
+| site | whole run | first generation shown | worst page response while running |
+|---|---:|---:|---:|
+| Mumbai Docks | 14 s | 3.6 s | 113 ms |
+| Bengaluru tank cascade | 59 s | 10.1 s | 190 ms |
+| Ahmedabad Wadaj | 69 s | 11.6 s | 50 ms |
+| Guwahati Bharalu | 61 s | 10.3 s | 75 ms |
+
+The page stays responsive throughout (the run is in workers), and the live strip shows the
+best designs from the first generation on. A run is over the 10 s you asked about on every
+site but Docks. The Evolve step shows its time estimate before a run starts.
