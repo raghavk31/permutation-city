@@ -11,7 +11,7 @@
 //               the block length (local_spacing). A streamline stops on meeting a street, which
 //               makes a T junction, or on leaving the ground streets may use.
 //   organic     no field: the edges of Voronoi cells round jittered seed points.
-import { BUILDING, FAMILIES, LANDSCAPE, type Family } from "../config.js";
+import { BUILDING, FAMILIES, HILL_LOCAL_SPACING, LANDSCAPE, RANGES_V3, type Family } from "../config.js";
 import type { Design, Ground } from "../types.js";
 import { dayOfYear, solarHour, sunAt } from "../massing/sun.js";
 import { dist, length, resample, SegIndex, simplify, spline, type Line, type Pt } from "./geom.js";
@@ -183,7 +183,10 @@ export interface Infill { lines: Line[]; theta: (p: Pt) => number }
 export function infill(G: Ground, d: Design, g: FieldGenes, existing: Line[], routes: Line[], centres: Pt[], seed: number): Infill {
   const fam = familyOf(g.pattern);
   const depth = fam.depth[0] + (fam.depth[1] - fam.depth[0]) * g.plot_depth;
-  const majorGap = 2 * depth + fam.local_w, minorGap = g.local_spacing * fam.spacing;
+  const [lo, hi] = RANGES_V3.local_spacing;
+  const spacing = G.meta.landform?.relief.class === "pronounced"
+    ? lo + (g.local_spacing - lo) * (HILL_LOCAL_SPACING - lo) / (hi - lo) : g.local_spacing;
+  const majorGap = 2 * depth + fam.local_w, minorGap = spacing * fam.spacing;
   const loc = locator(G);
   const ok = (p: Pt) => { const c = loc.cell(p); return c >= 0 && (d.use[c] === BUILDING || d.use[c] === LANDSCAPE); };
   const { lines: srcs, own, windTheta, windSteady, sf } = sources(G, g, fam, routes, centres);

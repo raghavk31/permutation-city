@@ -150,9 +150,66 @@ What changed:
   The box the hypervolume is measured in is unchanged, so absolute values aren't comparable
   with the earlier tables; the ranking within each table is.
 
+## Re-run on version 3 (A2, 2026-10-22)
+
+The vector street plan (genome version 3, 59 genes) with the v3 default budget: 15 generations
+of 30, so 480 designs grown, seeds 1 to 3. Run with
+`npm run compare -- <site> 3 --version 3 --gens 15 --pop 30`. A third trait pair, street
+density × orientation order, is read from the street plan.
+
+**Mumbai Eastern Waterfront:**
+
+| | nsga2 | nsga3 | map-elites |
+|---|---:|---:|---:|
+| run time (s, Node, one thread) | 67.1 ± 6.0 | 63.9 ± 8.1 | 52.3 ± 5.4 |
+| kept, on brief | 30 ± 0 | 30 ± 0 | 18 ± 4 |
+| on the front | 21 ± 3 | 19 ± 3 | 8 ± 3 |
+| families on the front | 14 ± 4 | 12 ± 3 | 8 ± 2 |
+| hypervolume (%) | 11.7 ± 5.4 | 11.3 ± 3.3 | 7.2 ± 1.2 |
+| share of the joint front (%) | 39 ± 13 | 47 ± 11 | 15 ± 3 |
+| cells: storeys × open ground | 10 ± 2 | 9 ± 1 | **18 ± 4** |
+| cells: storage × height variety | 13 ± 1 | 12 ± 1 | 14 ± 1 |
+| cells: street density × orientation order | 15 ± 4 | 15 ± 3 | 15 ± 3 |
+| genome spread | 0.224 ± 0.015 | 0.232 ± 0.014 | **0.306 ± 0.012** |
+| best heat (°C) | 1.543 ± 0.116 | 1.460 ± 0.086 | 1.593 ± 0.260 |
+| best daylight | 0.796 ± 0.060 | 0.841 ± 0.115 | 0.848 ± 0.060 |
+| best human scale | 0.749 ± 0.019 | 0.750 ± 0.009 | 0.712 ± 0.045 |
+
+**Ahmedabad: Gandhi Ashram and Wadaj:**
+
+| | nsga2 | nsga3 | map-elites |
+|---|---:|---:|---:|
+| run time (s, Node, one thread) | 134.3 ± 1.5 | 133.9 ± 7.8 | 151.6 ± 14.9 |
+| kept, on brief | 30 ± 0 | 30 ± 0 | 28 ± 4 |
+| on the front | 18 ± 6 | 11 ± 2 | 10 ± 0 |
+| families on the front | 15 ± 3 | 9 ± 3 | 10 ± 1 |
+| hypervolume (%) | 44.9 ± 5.3 | 48.6 ± 4.6 | 42.7 ± 6.4 |
+| share of the joint front (%) | 29 ± 8 | 52 ± 15 | 19 ± 14 |
+| cells: storeys × open ground | 9 ± 2 | 8 ± 2 | **28 ± 4** |
+| cells: storage × height variety | 8 ± 2 | 8 ± 3 | **17 ± 0** |
+| cells: street density × orientation order | 11 ± 3 | 14 ± 3 | 15 ± 2 |
+| genome spread | 0.228 ± 0.024 | 0.221 ± 0.025 | **0.317 ± 0.005** |
+| best heat (°C) | 1.023 ± 0.145 | 0.997 ± 0.109 | 0.927 ± 0.159 |
+| best human scale | 0.748 ± 0.014 | 0.768 ± 0.022 | 0.744 ± 0.015 |
+
+What changed:
+- **NSGA-II and NSGA-III swap places, inside the noise.** NSGA-III now supplies more of the
+  pooled front on both sites (47 against 39%; 52 against 29%), and at Wadaj a higher
+  hypervolume; at Mumbai NSGA-II's hypervolume is a shade higher. Three seeds can't separate
+  them. NSGA-II keeps more families on the front, as before. The default stays as it is
+  ("auto": NSGA-II at five objectives, NSGA-III past five).
+- **MAP-Elites is closer than before.** With a quarter of the budget its front is less far
+  behind (Wadaj hypervolume 42.7 against 44.9), and it still reaches two to three times the
+  storeys × open ground cells. It doesn't reach more street density × orientation order
+  cells than the NSGAs: the street plan's variety comes from the genes, not from the search.
+- **Hypervolume is lower than the 6b tables**, from a quarter of the designs and the vector
+  plan's own scores; the box is the same, so only the ranking within a table compares.
+- **Run time is growth.** About 140 ms (Mumbai) and 280 ms (Wadaj) per design in Node, one
+  thread; the page spreads it over a worker pool.
+
 ## Caveats
 
-- Five seeds per site. The NSGA-II vs NSGA-III gaps are inside the noise. The gap between
+- Five seeds per site (three for version 3). The NSGA-II vs NSGA-III gaps are inside the noise. The gap between
   NSGA and MAP-Elites is not.
 - Hypervolume is clamped to the quality ranges. At Wadaj, flood storage goes past the top of
   its range (1.8), so differences there don't count. Embodied carbon and daylight reach their

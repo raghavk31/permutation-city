@@ -15,6 +15,7 @@ SITES = {  # site origin (lat, lon), from the exports' meta.origin
     "mumbai": (18.9549, 72.8443),
     "ahmedabad": (23.0610, 72.5811),
     "bengaluru": (12.9070, 77.6709),
+    "guwahati": (26.1590, 91.7800),
 }
 RPS = [10, 25, 50, 100]
 

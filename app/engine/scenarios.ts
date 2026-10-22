@@ -72,6 +72,8 @@ export const RAIN: RainTable[] = [
     levels: [{ years: 10, mm: 192 }, { years: 25, mm: 254 }, { years: 50, mm: 309 }, { years: 100, mm: 372 }] },
   { cell: [13.0, 77.75], years: [1951, 2024], record: { mm: 173.1, date: "2021-11-19" },
     levels: [{ years: 10, mm: 103 }, { years: 25, mm: 121 }, { years: 50, mm: 134 }, { years: 100, mm: 147 }] },
+  { cell: [26.25, 91.75], years: [1951, 2024], record: { mm: 246.8, date: "1979-10-06" },
+    levels: [{ years: 10, mm: 110 }, { years: 25, mm: 141 }, { years: 50, mm: 168 }, { years: 100, mm: 199 }] },
 ];
 
 /** One rain gauge's record near a site (a point, so above the gridded levels). */

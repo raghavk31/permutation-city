@@ -97,6 +97,9 @@ export const RANGES_V3: Record<Exclude<GeneV3, keyof Settings>, Range> = {
   pattern: [0, 1],          // five bands: the block pattern family (FAMILIES)
   plot_depth: [0, 1],       // where plot depth sits inside the family's range
 };
+// On a site whose relief is pronounced, local_spacing maps onto 50-80 m instead
+// (IRC:SP:118 3.2: in hilly areas a walking route at least every 80 m).
+export const HILL_LOCAL_SPACING = 80;
 
 /** Block pattern families (the `pattern` gene's five bands). Widths and ranges in metres;
  *  docs/streets.md gives the source of each, or says it is a design value. */

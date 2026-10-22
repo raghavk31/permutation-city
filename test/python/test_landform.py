@@ -26,6 +26,13 @@ def test_relief_classes():
     assert landform.relief(grid, nbrs, 35.0, "fabdem")["class"] == "pronounced"     # 60 m, ~6% slope
 
 
+def test_hills_beside_a_valley_floor_are_pronounced():
+    # 70 flat cells and 30 climbing 120 m (12%): the median slope is ~0, but 30% of the land is steep.
+    grid, nbrs = _line([0.0] * 70 + list(np.linspace(4, 120, 30)))
+    r = landform.relief(grid, nbrs, 35.0, "fabdem")
+    assert r["median_slope"] < landform.SLOPE_FLAT and r["class"] == "pronounced"
+
+
 def test_a_surface_model_is_flat_by_rule_and_marked_to_rebuild():
     grid, nbrs = _line(list(np.linspace(0, 60, 30)))
     r = landform.relief(grid, nbrs, 35.0, "copernicus-surface")

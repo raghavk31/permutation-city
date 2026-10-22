@@ -1,0 +1,13 @@
+name: 'Guwahati: Bharalu basin'
+grid:
+  type: hex
+  size: 20.0
+# IMD gridded rainfall, 10-year one-day level at 26.25 N 91.75 E (docs/shocks.md)
+design_storm_mm: 110
+# assumed: a mid value for the city; check against the Guwahati Master Plan 2025 and the GMDA bye-laws
+target_far: 1.5
+bbox:
+- 91.768
+- 26.148
+- 91.792
+- 26.17

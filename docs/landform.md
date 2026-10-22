@@ -27,25 +27,32 @@ streets inside it, which come from genes.
 Relief is measured on the design ground's land:
 - **relief:** the 5th to 95th percentile of ground height
 - **slope:** the median slope between neighbouring cells
+- **steep share:** the share of cells whose steepest slope to a neighbour is over 8% (the
+  IRC hill road limit, `docs/streets.md`)
 
 | Class | Rule |
 |---|---|
 | flat | relief under 5 m, or median slope under 0.5% |
-| pronounced | relief of 20 m or more, and median slope of 2% or more |
+| pronounced | relief of 20 m or more, and either median slope of 2% or more or a steep share of 15% or more |
 | gentle | anything between |
 
 - **Confidence is low** when a value is within a quarter of a class boundary, or when the
   terrain is the Copernicus surface model.
 - **The surface model is always classed flat, by rule.** The site is marked to rebuild once
   FABDEM is back.
+- **Why the steep share:** hills beside a valley floor. On Guwahati's Bharalu basin half the
+  land is the flat bowl, so the median slope is 0.3% (flat) although the hills rise 90 m.
+  The steep share is 6 to 8% on the four flat and gentle sites (DEM noise over 35 m cells),
+  so 15% is about twice that floor.
 - **Why 5 m:** FABDEM's vertical error in built-up land is roughly 1.5 to 2.5 m. Under about
   twice that, ridges and valleys found in the DEM are mostly noise.
 
-| Site | Relief | Median slope | Class |
-|---|---|---|---|
-| mumbai-ewf | 3.2 m | 0.29% | flat |
-| mumbai-docks | 4.7 m | 0.58% | flat (low confidence) |
-| ahmedabad-wadaj | 7.1 m | 0.58% | gentle (low confidence) |
+| Site | Relief | Median slope | Steep share | Class |
+|---|---|---|---|---|
+| mumbai-ewf | 3.2 m | 0.29% | 6.8% | flat |
+| mumbai-docks | 4.7 m | 0.58% | 6.1% | flat (low confidence) |
+| ahmedabad-wadaj | 7.1 m | 0.58% | 6.4% | gentle (low confidence) |
+| bengaluru-cascade | 31.5 m | 1.15% | 7.8% | gentle |
 
 ## 3. Valleys, catchments and ridges
 
