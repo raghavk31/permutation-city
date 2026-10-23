@@ -1,13 +1,14 @@
 <script lang="ts">
   // The Site step's controls: find a place, pick a ready-made site, or draw one and build its
   // layers (the same builder as new.html: ui/new/service.ts).
-  import { PenTool, Search, X } from "lucide";
+  import { FolderOpen, PenTool, Search, X } from "lucide";
   import { onMount } from "svelte";
   import { estimatedCells, polygonKm2 } from "../../sites/geo";
   import { search, type Place } from "../new/search";
   import * as Service from "../new/service";
   import { bench, HILLY } from "./bench.svelte";
   import Icon from "./Icon.svelte";
+  import RunFile from "./RunFile.svelte";
   import Thumb from "./Thumb.svelte";
 
   let query = $state("");
@@ -132,6 +133,12 @@
     </div>
   </div>
 
+  <div class="wb-sub">
+    <span class="wb-label">Or open a saved run</span>
+    <!-- COPY: open a run on the Site step -->
+    <span class="wb-hint">A run file saved from the Evolve step, or from the classic page.</span>
+    <RunFile><Icon icon={FolderOpen} />Open a run file</RunFile>
+  </div>
   <div class="wb-sub">
     <span class="wb-label">Or draw your own</span>
     <div class="wb-row">

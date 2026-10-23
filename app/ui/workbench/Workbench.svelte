@@ -24,6 +24,8 @@
   import SiteRail from "./SiteRail.svelte";
 
   const P = Draw.palette();
+  // the address bar follows the workbench: step, rules, brief, the run, the open design, the pen
+  $effect(() => { bench.sync(); });
   let copied = $state(false);
   let keys = $state<HTMLDialogElement>();
   let toast = $state("");
@@ -37,9 +39,10 @@
 
   async function share() {
     try {
-      await navigator.clipboard.writeText(location.href);
+      await navigator.clipboard.writeText(new URL(bench.link(), location.href).href);
       copied = true;
-      say("Link copied");
+      // COPY: link copied
+      say(bench.result ? "Link copied: it breeds this run again when opened" : "Link copied");
       setTimeout(() => (copied = false), 1500);
     } catch {
       say("Copy the address bar to share this view");
@@ -161,12 +164,12 @@
 
 <svelte:window onkeydown={(e) => {
   if (keys?.open) { if (e.key === "Escape") keys.close(); return; }
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !(e.target as HTMLElement).closest("input, textarea")) {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !(e.target as HTMLElement).closest?.("input, textarea")) {
     e.preventDefault();
     if (e.shiftKey) bench.redo(); else bench.undo();
     return;
   }
-  if ((e.target as HTMLElement).closest("input, select, textarea") || e.ctrlKey || e.metaKey || e.altKey) return;
+  if ((e.target as HTMLElement).closest?.("input, select, textarea") || e.ctrlKey || e.metaKey || e.altKey) return;
   const k = e.key.toLowerCase();
   if (e.key === "[") bench.railOpen = !bench.railOpen;
   else if (e.key === "]") bench.inspOpen = !bench.inspOpen;
