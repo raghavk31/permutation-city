@@ -29,7 +29,7 @@ export function siteMean(S: Syntax, v: ArrayLike<number>): number {
   return w ? s / w : 0;
 }
 
-const at = (S: Syntax, r: number): Measures => (r === Infinity ? S.rn : S.local.find((m) => m.radius === r)!);
+const at = (S: Syntax, r: number): Measures => (r === Infinity ? S.rn : S.at(r));
 
 export const nainMean = (r: number) => (net: Net, estimate = false) => {
   const S = syntaxOf(net.d, net.G, estimate);

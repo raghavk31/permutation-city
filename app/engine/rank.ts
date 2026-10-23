@@ -32,15 +32,24 @@ function fronts(f: number[][]): Int32Array {
   return rank;
 }
 
-/** Rank 1 = Pareto front of designs on brief; designs off brief come after, by closeness. */
-export function paretoRanks(scores: Scores[], tol = TARGET_TOLERANCE, obj: Objective[] = SCORE_OBJECTIVES): Int32Array {
+/** Rank 1 = Pareto front of designs on brief; designs off brief come after, by closeness.
+ *  `banded`: off-brief designs come in bands of `tol` of gap (over the brief by up to two
+ *  tolerances, up to three, ...), Pareto-ranked within each band, so that when no design is on
+ *  brief the other objectives still steer (piecemeal runs). */
+export function paretoRanks(scores: Scores[], tol = TARGET_TOLERANCE, obj: Objective[] = SCORE_OBJECTIVES, banded = false): Int32Array {
   const n = scores.length, rank = new Int32Array(n);
-  const on: number[] = [], off: number[] = [];
-  scores.forEach((s, i) => (s.gap <= tol ? on : off).push(i));
+  const bands = new Map<number, number[]>(), off: number[] = [];
+  scores.forEach((s, i) => {
+    if (s.gap <= tol || banded) {
+      const b = s.gap <= tol ? 0 : Math.ceil(s.gap / tol - 1e-9) - 1;
+      if (!bands.has(b)) bands.set(b, []);
+      bands.get(b)!.push(i);
+    } else off.push(i);
+  });
   let top = 0;
-  if (on.length) {
-    const r = fronts(on.map((i) => asMin(scores[i], obj)));
-    on.forEach((i, k) => { rank[i] = r[k]; if (r[k] > top) top = r[k]; });
+  for (const b of [...bands.keys()].sort((x, y) => x - y)) {
+    const idx = bands.get(b)!, r = fronts(idx.map((i) => asMin(scores[i], obj))), base = top;
+    idx.forEach((i, k) => { rank[i] = base + r[k]; if (base + r[k] > top) top = base + r[k]; });
   }
   off.sort((a, b) => scores[a].gap - scores[b].gap);
   off.forEach((i, k) => { rank[i] = top + 1 + k; });

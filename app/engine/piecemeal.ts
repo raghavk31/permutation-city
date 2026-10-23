@@ -226,6 +226,8 @@ export interface PiecemealOptions {
   generations?: number; pop?: number; seed?: number; scenario?: Scenario; ranges?: Ranges;
   years?: number[]; shares?: number[];
   version?: 2 | 3;                   // genome version bred (2 unless asked)
+  foresight?: boolean;               // each increment also scored under the last year's conditions (scoreAhead)
+  wholenessObjective?: boolean;      // the wholeness penalty as an objective (default); false for the ablation
   progress?: ((step: number, gen: number, row: HistoryRow) => void) | null;
 }
 
@@ -238,13 +240,32 @@ export interface Increment {
   seconds: number;
 }
 
+/** Foresight: score an increment's design under its own year and under the last year, and keep
+ *  the worse of each (storage, heat, gap), so a step is chosen for the site it will stand in by
+ *  the end as well as for its own year. Starts from the plain scores, as scoreUnder does. */
+export function scoreAhead(d: Design, G: Ground, S: ShockSite, now: Conditions, end: Conditions, target: number,
+  depthNow: Float64Array | null, depthEnd: Depth) {
+  const plain = { ...(d.scores ?? evaluate(d, G)) };
+  d.scores = { ...plain };
+  scoreUnder(d, G, S, end, target, depthEnd);
+  const later = d.scores;
+  d.scores = { ...plain };
+  scoreUnder(d, G, S, now, target, depthNow);
+  const s = d.scores;
+  s.storage = Math.min(s.storage, later.storage);
+  s.heat = Math.max(s.heat, later.heat);
+  s.gap = Math.max(s.gap, later.gap);
+}
+type Depth = Float64Array | null;
+
 /** Which design of an increment's front gets built: the best mean of the five scores
- *  (elites.quality), less its wholeness penalty. Off-brief designs only if nothing is on it. */
-export function chooseBuilt(pop: Individual[]): Individual {
+ *  (elites.quality), less its wholeness penalty (unless `penalised` is off, the ablation).
+ *  Off-brief designs only if nothing is on it. */
+export function chooseBuilt(pop: Individual[], penalised = true): Individual {
   const front = pop.filter((i) => i.rank === 1);
   const on = front.filter((i) => i.design.scores!.gap <= TARGET_TOLERANCE);
   const pool = on.length ? on : front.length ? front : pop;
-  const value = (i: Individual) => quality(i.design.scores!) - penaltyOf(i.design);
+  const value = (i: Individual) => quality(i.design.scores!) - (penalised ? penaltyOf(i.design) : 0);
   return pool.reduce((b, i) => (value(i) > value(b) ? i : b));
 }
 
@@ -253,8 +274,10 @@ export const penaltyOf = (d: Design) => -((d.scores as unknown as Record<string,
 /** Grow a site in increments. Each increment is a run of `generations` × `pop` (seed + k). */
 export function piecemeal(G: Ground, S: ShockSite, opts: PiecemealOptions = {}): { increments: Increment[]; fabric: Fabric } {
   const { generations = 15, pop = 40, seed = 1, scenario = "ssp245", ranges = DEFAULT_RANGES, years = YEARS, shares = SHARES,
-    progress = null, version = 2 } = opts;
+    progress = null, version = 2, foresight = false, wholenessObjective = true } = opts;
   const total = floorAreaTarget(G), increments: Increment[] = [];
+  const end = conditionsFor(G.meta, years[years.length - 1], scenario);
+  const depthEnd = end.sea !== null && S.coastal ? seaDepth(S, end.sea) : null;
   const blank = Array(version === 3 ? LENGTH_V3 : LENGTH).fill(0.5);
   let fabric = emptyFabric(G), before = wholeness(fabricDesign(fabric, G, blank, ranges), G);
   for (let k = 0; k < years.length; k++) {
@@ -267,11 +290,13 @@ export function piecemeal(G: Ground, S: ShockSite, opts: PiecemealOptions = {}):
       hooks: {
         grow: (g) => growIncrement(g, G, f, target, last, ranges, shares[k]),
         score: (d) => {
-          scoreUnder(d, G, S, c, target, depth);
+          if (foresight && !last) scoreAhead(d, G, S, c, end, target, depth, depthEnd);
+          else scoreUnder(d, G, S, c, target, depth);
           if (d.wholeness === undefined) d.wholeness = wholeness(d, G);
           (d.scores as unknown as Record<string, number>).wholeness_kept = roundTo(-Math.max(0, was - d.wholeness), 4);
         },
-        objectives: [["wholeness_kept", true]],
+        objectives: wholenessObjective ? [["wholeness_kept", true]] : [],
+        banded: true,
         // Near-copies are judged on what the increment adds: the cells not built yet.
         copies: (p, q) => {
           let diff = 0;
@@ -280,7 +305,7 @@ export function piecemeal(G: Ground, S: ShockSite, opts: PiecemealOptions = {}):
         },
       },
     });
-    const chosen = chooseBuilt(run.pop);
+    const chosen = chooseBuilt(run.pop, wholenessObjective);
     fabric = buildFabric(fabric, chosen.design);
     before = chosen.design.wholeness!;
     increments.push({

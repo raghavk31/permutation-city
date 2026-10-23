@@ -94,6 +94,30 @@ describe("conditions and wholeness", () => {
   });
 });
 
+describe("ranking and foresight", () => {
+  const sc = (gap: number, storage: number) => ({ storage, heat: 1, carbon: 410, daylight: 0.5, human: 0.5, gap }) as E.Scores;
+  it("ranks off-brief designs in bands of the tolerance, best scores first within a band", () => {
+    // gaps 0.12 and 0.15 share a band, so the better storage leads; 0.25 is a band behind.
+    const s = [sc(0.15, 2), sc(0.12, 1), sc(0.25, 3), sc(0.05, 0.5)];
+    expect(Array.from(E.paretoRanks(s, 0.1, undefined, true))).toEqual([2, 3, 4, 1]);
+    expect(Array.from(E.paretoRanks(s, 0.1))).toEqual([3, 2, 4, 1]);
+  });
+  it("scores a step with foresight no better than under its own year or the last", () => {
+    const rng = E.makeRng(6), f0 = E.emptyFabric(G);
+    const now = E.conditionsFor(docks.meta, 2025), end = E.conditionsFor(docks.meta, 2050);
+    const dNow = E.seaDepth(S, now.sea!), dEnd = E.seaDepth(S, end.sea!);
+    for (let k = 0; k < 4; k++) {
+      const d = E.growIncrement(E.randomGenome(rng, 3), G, f0, total * 0.4, false, E.DEFAULT_RANGES, 0.4);
+      const under = (c: E.Conditions, depth: Float64Array) => { const x: E.Design = { ...d, scores: null }; E.evaluate(x, G); E.scoreUnder(x, G, S, c, total * 0.4, depth); return x.scores!; };
+      const a = under(now, dNow), b = under(end, dEnd);
+      const x: E.Design = { ...d, scores: null }; E.evaluate(x, G); E.scoreAhead(x, G, S, now, end, total * 0.4, dNow, dEnd);
+      expect(x.scores!.storage).toBe(Math.min(a.storage, b.storage));
+      expect(x.scores!.heat).toBe(Math.max(a.heat, b.heat));
+      expect(x.scores!.gap).toBe(Math.max(a.gap, b.gap));
+    }
+  });
+});
+
 describe("a piecemeal run", () => {
   const r = E.piecemeal(G, S, { generations: 1, pop: 8, seed: 2 });
   it("builds three increments, each penalised only by a drop in wholeness", () => {

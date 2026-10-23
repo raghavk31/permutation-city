@@ -7,7 +7,12 @@
 // Each mode's 2050 front (rank 1 of the final population) is judged the same way: the plain
 // scores, the scores under 2050's conditions, exact wholeness, diversity, and the shocks.
 //
-//   npm run piecemeal-vs-oneshot [-- <site> ... --seeds 1,2 --gens 15 --pop 40 --version 2 --out file.json]
+// Two more piecemeal arms for H4 (docs/research/claim.md): "piecemeal foresight" (each step
+// also scored under 2050, piecemeal.scoreAhead) and "piecemeal no wholeness" (no wholeness
+// objective or penalty).
+//
+//   npm run piecemeal-vs-oneshot [-- <site> ... --seeds 1,2 --gens 15 --pop 40 --version 2 --out file.json
+//     --modes piecemeal,piecemeal foresight,piecemeal no wholeness,one-shot today,one-shot 2050]
 import { readFileSync, writeFileSync } from "node:fs";
 import * as E from "../engine/index.js";
 
@@ -18,6 +23,10 @@ const sites = ids.length ? ids : ["mumbai-docks", "mumbai-ewf", "ahmedabad-wadaj
 const seeds = opt("seeds", "1,2").split(",").map(Number), gens = +opt("gens", "15"), pop = +opt("pop", "40");
 const version = +opt("version", "2") as 2 | 3;
 const out = opt("out", "piecemeal-vs-oneshot.json");
+const modes = new Set(opt("modes", "piecemeal,one-shot today,one-shot 2050").split(","));
+const PIECEMEAL: Record<string, E.PiecemealOptions> = {
+  "piecemeal": {}, "piecemeal foresight": { foresight: true }, "piecemeal no wholeness": { wholenessObjective: false },
+};
 
 const med = (v: number[]) => { const s = v.filter(Number.isFinite).sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : NaN; };
 const clone = (d: E.Design): E.Design => ({ ...d, scores: null });
@@ -27,7 +36,7 @@ interface Judged {
   plain: Record<string, number>; y2050: Record<string, number>; wholeness: number; chosen: Record<string, number>;
   spread: number; families: number;
   shocks: { seaFlooded: number | null; seaFloorLost: number | null; seaStorage: number | null; rainFailed: number; rainStorage: number; heatOverheated: number };
-  increments?: { year: number; penalty: number; before: number; after: number; built: number; chosen: string; seconds: number }[];
+  increments?: { year: number; penalty: number; before: number; after: number; built: number; chosen: string; seconds: number; gap: number }[];
 }
 
 function judge(mode: string, site: string, seed: number, seconds: number, designs: number, front: E.Design[], G: E.Ground,
@@ -73,27 +82,36 @@ for (const id of sites) {
   const oneGens = 3 * (gens + 1) - 1;
   for (const seed of seeds) {
     let t = Date.now();
-    const pm = E.piecemeal(G, S, { generations: gens, pop, seed, version });
-    const last = pm.increments[pm.increments.length - 1];
-    const pmFront = last.pop.filter((i) => i.rank === 1).map((i) => i.design);
-    const j = judge("piecemeal", id, seed, (Date.now() - t) / 1000, pm.increments.reduce((s, x) => s + x.everyone, 0), pmFront, G, S, c2050, depth, last.chosen.design);
-    j.increments = pm.increments.map((x) => ({ year: x.year, penalty: x.penalty, before: x.wholeness.before, after: x.wholeness.after,
-      built: x.chosen.design.fresh!.reduce((s, v) => s + v, 0), chosen: x.chosen.name, seconds: x.seconds }));
-    results.push(j); console.error(`${id} seed ${seed} piecemeal ${j.seconds.toFixed(0)} s`);
+    for (const [mode, extra] of Object.entries(PIECEMEAL)) {
+      if (!modes.has(mode)) continue;
+      t = Date.now();
+      const pm = E.piecemeal(G, S, { generations: gens, pop, seed, version, ...extra });
+      const last = pm.increments[pm.increments.length - 1];
+      const pmFront = last.pop.filter((i) => i.rank === 1).map((i) => i.design);
+      const j = judge(mode, id, seed, (Date.now() - t) / 1000, pm.increments.reduce((s, x) => s + x.everyone, 0), pmFront, G, S, c2050, depth, last.chosen.design);
+      j.increments = pm.increments.map((x) => ({ year: x.year, penalty: x.penalty, before: x.wholeness.before, after: x.wholeness.after,
+        built: x.chosen.design.fresh!.reduce((s, v) => s + v, 0), chosen: x.chosen.name, seconds: x.seconds,
+        gap: x.chosen.design.scores!.gap }));
+      results.push(j); console.error(`${id} seed ${seed} ${mode} ${j.seconds.toFixed(0)} s`);
+    }
 
+    if (modes.has("one-shot today")) {
     t = Date.now();
     const today = E.evolve(G, { generations: oneGens, pop, seed, version });
     const tFront = today.pop.filter((i) => i.rank === 1);
     results.push(judge("one-shot today", id, seed, (Date.now() - t) / 1000, today.everyone, tFront.map((i) => i.design), G, S, c2050, depth,
       E.chooseBuilt(today.pop).design));
     console.error(`${id} seed ${seed} one-shot today`);
+    }
 
+    if (modes.has("one-shot 2050")) {
     t = Date.now();
     const y = E.evolve(G, { generations: oneGens, pop, seed, version, hooks: { score: (d) => E.scoreUnder(d, G, S, c2050, target, depth) } });
     const yFront = y.pop.filter((i) => i.rank === 1);
     results.push(judge("one-shot 2050", id, seed, (Date.now() - t) / 1000, y.everyone, yFront.map((i) => i.design), G, S, c2050, depth,
       E.chooseBuilt(y.pop).design));
     console.error(`${id} seed ${seed} one-shot 2050`);
+    }
     writeFileSync(out, JSON.stringify(results, null, 1));
   }
 }

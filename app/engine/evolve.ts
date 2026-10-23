@@ -91,6 +91,7 @@ export interface Hooks {
   score?: (d: Design, storm: number) => void;
   objectives?: Objective[];
   copies?: (a: Design, b: Design) => number;   // how different two designs are (0..1), for the near-copy rule
+  banded?: boolean;                            // off-brief designs ranked in gap bands (rank.paretoRanks)
 }
 
 export function crossover(a: number[], b: number[], rng: Rng, pA = 0.6): number[] {
@@ -113,9 +114,9 @@ export function breed(a: number[], b: number[], rng: Rng, n = 6): number[][] {
 }
 
 export function rank(inds: Individual[], obj: Objective[] = SCORE_OBJECTIVES,
-  copies: (a: Design, b: Design) => number = (a, b) => difference(a.use, b.use, DUPLICATE)) {
+  copies: (a: Design, b: Design) => number = (a, b) => difference(a.use, b.use, DUPLICATE), banded = false) {
   const scores = inds.map((i) => i.design.scores!);
-  const r = paretoRanks(scores, TARGET_TOLERANCE, obj);
+  const r = paretoRanks(scores, TARGET_TOLERANCE, obj, banded);
   for (const level of new Set(r)) {
     const idx = [...r.keys()].filter((i) => r[i] === level);
     const c = crowding(scores, idx, obj);
@@ -219,7 +220,7 @@ export function* evolveSteps(G: Ground, { search = "nsga2", objectives = [], gen
     everyone: 0, lineage: [], genomes: [] };
   run.pop.forEach((i, k) => note(run, i, 0, k < nStart ? "start" : "first"));
   run.everyone = run.pop.length;
-  const order = (p: Individual[]) => (hooks.copies ? rank(p, obj, hooks.copies) : rank(p, obj));
+  const order = (p: Individual[]) => rank(p, obj, hooks.copies, hooks.banded);
   order(run.pop);
   record(run, 0, storm, obj);
   progress?.(0, run);
