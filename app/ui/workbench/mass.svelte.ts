@@ -54,15 +54,14 @@ export class MassStep {
   stale = $derived(!!this.result && this.resultKey !== this.key);
   chosen = $derived(this.result && this.pick >= 0 && !this.stale ? this.result.kept[this.pick] : null);
 
-  /** Mass a design: start on a mid-sized block, with the brief's setbacks. */
+  /** Mass a design: start on a typical block near its middle, with the brief's setbacks. */
   open(s: MassSource) {
     this.cancel();
     this.source = s;
     this.result = null; this.pick = -1; this.error = ""; this.view = "plan";
     const sb = Mass.setbacksOf(s.src.brief);
     this.setbacks = sb.value; this.setbacksFrom = sb.from;
-    const pool = this.blocks.filter((b) => b.ha >= 0.1).sort((a, b) => b.ha - a.ha || a.id - b.id);
-    this.block = pool.length ? pool[Math.floor(pool.length / 3)].id : this.blocks[0]?.id ?? -1;
+    this.block = typicalBlock(this.blocks, s.src.G);
   }
 
   async breed() {
@@ -111,4 +110,26 @@ export class MassStep {
     const d = DATES[this.date], doy = M.dayOfYear(d.month, d.day);
     return M.sunAt(this.where.lat, doy, M.solarHour(this.hour, this.where.lon, this.where.utc, doy));
   });
+}
+
+/** A block worth massing first: built on, with a few plots, of middling size among the built
+ *  blocks, and the nearest such to the middle of the design's floor area (not one at an edge). */
+function typicalBlock(blocks: ReturnType<typeof M.blocksOf>, G: E.Ground): number {
+  const built = blocks.filter((b) => b.floorHa > 0 && b.ha >= 0.1 && b.cells.length > 0);
+  if (!built.length) return blocks[0]?.id ?? -1;
+  const sizes = built.map((b) => b.ha).sort((a, b) => a - b);
+  const lo = sizes[Math.floor(sizes.length * 0.4)], hi = sizes[Math.floor(sizes.length * 0.9)];
+  let pool = built.filter((b) => b.ha >= lo && b.ha <= hi && (b.plots ?? 4) >= 3);
+  if (!pool.length) pool = built;
+  const mid = (b: { cells: number[] }) => {
+    let x = 0, y = 0;
+    for (const i of b.cells) { x += G.x[i]; y += G.y[i]; }
+    return [x / b.cells.length, y / b.cells.length];
+  };
+  let cx = 0, cy = 0, w = 0;
+  for (const b of built) { const [x, y] = mid(b); cx += x * b.floorHa; cy += y * b.floorHa; w += b.floorHa; }
+  cx /= w; cy /= w;
+  let best = pool[0], bd = Infinity;
+  for (const b of pool) { const [x, y] = mid(b), d = (x - cx) ** 2 + (y - cy) ** 2; if (d < bd || (d === bd && b.id < best.id)) { best = b; bd = d; } }
+  return best.id;
 }

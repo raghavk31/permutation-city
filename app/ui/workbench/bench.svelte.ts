@@ -170,6 +170,13 @@ class Bench {
     return r.map((x, k) => ({ name: x.item.name, title: `Design ${k + 1} · ${why[k]}`, design: x.item.design,
       like: x.members.reduce((s, m) => s + m.size, 0), members: x.members.map((m) => m.name) }));
   });
+  /** The designs the Evolve step shows: while a run goes, the best so far; afterwards, the same
+   *  representatives as Explore, under the same names. */
+  evolveShown = $derived.by((): { name: string; title: string; note: string; d: E.Design }[] => {
+    // COPY: names in the strip
+    if (this.result) return this.reps.map((r) => ({ name: r.name, title: r.title, note: `${r.like} like it`, d: r.design }));
+    return this.leaders.map((d, k) => ({ name: `Best now ${k + 1}`, title: `Best now ${k + 1}`, note: `gen. ${this.runGen}`, d }));
+  });
   /** Every name the run kept, with its title when it is a representative. */
   titleOf(name: string | null) {
     if (!name) return "";
@@ -215,7 +222,7 @@ class Bench {
   /** Next (1) or previous (-1) design on the open step. */
   nextDesign(dir: 1 | -1) {
     if (this.step === "evolve") {
-      const n = this.result ? this.result.families.filter((f) => f.design).length : this.leaders.length;
+      const n = this.evolveShown.length;
       if (n) this.picked3 = (this.picked3 + dir + n) % n;
     } else if (this.step === "explore") {
       const list = this.order();
@@ -236,9 +243,8 @@ class Bench {
       const d = this.grown.get(this.exSel);
       if (d) this.keep(this.exSel, d);
     } else if (this.step === "evolve") {
-      const f = this.result?.families.filter((x) => x.design)[this.picked3];
-      if (f) this.keep(f.name, f.design!);
-      else if (this.leaders[this.picked3]) this.keep(`Best now ${this.picked3 + 1}`, this.leaders[this.picked3]);
+      const f = this.evolveShown[this.picked3];
+      if (f) this.keep(f.name, f.d);
     }
   }
   /** Open a pen item in Explore, when it is from the current run. */

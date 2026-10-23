@@ -52,7 +52,7 @@
     if (id === "rules" && bench.rules) return bench.edited ? "changed" : `${bench.rules.list.length}`;
     if (id === "brief") return bench.briefLocked ? "confirmed" : bench.brief ? "draft" : "";
     if (id === "evolve") return bench.running ? `${bench.runGen} of ${bench.settings.generations}` : bench.result ? `${bench.result.frontSize} on front` : "";
-    if (id === "explore" && bench.result) return `${bench.result.kept.length} kept`;
+    if (id === "explore" && bench.result) return `${bench.result.kept.length} designs`;
     if (id === "massing" && bench.mass.source && bench.mass.block >= 0) return bench.mass.running ? `${bench.mass.gen} of ${bench.mass.generations}` : `block ${bench.mass.block + 1}`;
     if (id === "landform" && bench.site?.meta.landform) return { flat: "flat", gentle: "gentle", pronounced: "hilly" }[bench.site.meta.landform.relief.class];
     return "";

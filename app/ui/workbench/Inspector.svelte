@@ -32,9 +32,8 @@
 
   // the design shown large on the Evolve step, and where each score sits in the run
   const chosen = $derived.by(() => {
-    if (bench.result) { const f = bench.result.families.filter((x) => x.design)[bench.picked3]; return f ? { name: f.name, d: f.design! } : null; }
-    const d = bench.leaders[bench.picked3];
-    return d ? { name: `Best now ${bench.picked3 + 1}`, d } : null;
+    const f = bench.evolveShown[bench.picked3];
+    return f ? { name: f.name, title: f.title, d: f.d } : null;
   });
   const span = $derived.by(() => {
     const all = bench.result ? bench.result.kept.map((k) => k.scores) : bench.leaders.map((d) => d.scores!).filter(Boolean);
@@ -234,7 +233,7 @@
     {#if chosen}
       <div class="wb-sub">
         <span class="wb-label">{bench.result ? "Design" : "Best so far"}</span>
-        <b class="wb-insp-title">{chosen.name}</b>
+        <b class="wb-insp-title">{chosen.title}</b>
         {#if chosen.d.scores}
           <div class="wb-scores">
             {#each E.SCORE_KEYS as k}
