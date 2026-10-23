@@ -148,5 +148,5 @@ export function query(id: string, rules: E.RuleSet | null, base: E.RuleSet | und
 
 export function evolveLink(id: string, rules: E.RuleSet | null, base: E.RuleSet | undefined,
   brief: LinkedBrief | null = null): string {
-  return `${import.meta.env.BASE_URL}${query(id, rules, base, brief)}#pc-evolve`;
+  return `${import.meta.env.BASE_URL}classic.html${query(id, rules, base, brief)}#pc-evolve`;
 }

@@ -1,0 +1,50 @@
+/* The story page (ui/story). Type and ground match raghavkohli.xyz through the tokens; the
+   display size is the system's fifth (42 px, story page only). */
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; background: var(--pc-surface); color: var(--pc-ink); font: 400 var(--pc-size-body) / 1.6 var(--pc-font); }
+a { color: inherit; }
+
+.st-top {
+  position: sticky; top: 0; z-index: 3; height: 56px; padding: 0 var(--wb-s5);
+  display: flex; align-items: center; justify-content: space-between; gap: var(--wb-s4);
+  background: color-mix(in srgb, var(--pc-surface) 92%, transparent); border-bottom: var(--wb-hair);
+  backdrop-filter: blur(6px);
+}
+.st-mark { font-weight: 500; text-decoration: none; letter-spacing: .01em; }
+.st-top nav { display: flex; gap: var(--wb-s2); }
+.st-top .wb-btn, .st-sec .wb-btn { text-decoration: none; }
+
+.st-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); }
+.st-text { padding: 0 clamp(24px, 4vw, 64px); }
+.st-sec {
+  min-height: 92vh; padding: 18vh 0 10vh; display: grid; align-content: start; gap: var(--wb-s4);
+  border-bottom: var(--wb-hair); max-width: 36rem;
+}
+.st-sec.is-first { padding-top: 10vh; }
+.st-sec:last-child { border-bottom: 0; min-height: 80vh; }
+.st-sec p { margin: 0; color: var(--pc-ink-2); }
+.st-sec h1, .st-sec h2 { margin: 0; font-weight: 400; letter-spacing: -.01em; text-wrap: balance; line-height: 1.15; }
+.st-sec h1 { font-size: var(--pc-size-display); }
+.st-sec h2 { font-size: calc(var(--pc-size-title) * 1.25); }
+.st-sec .st-lead { color: var(--pc-ink); font-size: calc(var(--pc-size-body) * 1.125); }
+.st-n { color: var(--pc-muted); }
+.st-small { font-size: var(--pc-size-small); }
+.st-diagram { margin: var(--wb-s2) 0 0; display: grid; gap: var(--wb-s2); }
+.st-diagram svg { width: 100%; height: auto; max-height: 300px; }
+.st-diagram figcaption { font-size: var(--pc-size-small); color: var(--pc-ink-2); }
+
+.st-pin { position: sticky; top: 56px; height: calc(100vh - 56px); border-left: var(--wb-hair); background: var(--pc-surface-2); overflow: hidden; }
+
+/* A phone: the view sits above the text and changes with the section. */
+@media (max-width: 860px) {
+  .st-top { padding: 0 var(--wb-s4); }
+  .st-top .is-quiet { display: none; }
+  .st-grid { grid-template-columns: 1fr; }
+  .st-pin { order: -1; top: 56px; height: 44vh; z-index: 2; border-left: 0; border-bottom: var(--wb-hair); }
+  .st-text { padding: 0 var(--wb-s4); }
+  .st-sec { min-height: 70vh; padding: var(--wb-s6) 0 var(--wb-s6); }
+  .st-sec.is-first { padding-top: var(--wb-s5); }
+  .st-sec h1 { font-size: 32px; }
+  .st-sec h2 { font-size: var(--pc-size-title); }
+}
