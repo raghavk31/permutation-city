@@ -534,6 +534,110 @@ PRs:
    Milestone B comparison figure?
 10. **The claim.** See the three questions at the end of `docs/research/claim.md`.
 
+## 11. The final stretch (approved 25 October)
+
+The brief for the last four weeks of Milestone A added drawn constraints and direct
+editing, a programme, score maps, the context box and three workbench additions from the
+classic page. Approved on 25 October with cuts C1-C3.
+
+**Dates.** Feature freeze 20 November; 21-25 November polish, video and fixes only. No
+checkpoints 13-16 November (you are away for reviews; build days continue). Features are
+finished by 17 November so the hallway test on 18-20 November runs on the finished golden
+path.
+
+**Two findings behind the estimate**
+- Reserve cuts 11, 12, 13 and 15 are for things that are now built. Only cut 14 (C3 below)
+  still saves time.
+- The day unit is the one in section 7, kept for comparison. A1-A3 (17 estimated days) were
+  mostly committed on 21-23 October; the time moved into review rounds, the design review
+  and performance, so this plan keeps a buffer.
+
+### 11.1 Estimate
+
+| Item | Days |
+|---|---:|
+| **1. Close what's open** | **3.0** |
+| H4 write-up, both result sets merged | 0.5 |
+| v3-a2 PR, merge, deploy, smoke test of /, /workbench and /classic | 0.25 |
+| Performance pass: measure, fix anything over budget (interactions under 100 ms, UI never blocked) | 0.75 |
+| Assamese font, IRC:SP:118 hill spacing on Guwahati, Guwahati FAR | 0.75 |
+| Finish the 23 October workbench audit, fix the top findings, park the rest | 0.75 |
+| **2. Drawn constraints and direct editing** | **5.25** |
+| Drawing tools, data model, saved in runs and links | 1.0 |
+| Engine: street constraints join the skeleton before connectivity, polygons override rules, a conflict blocks the run | 1.25 |
+| Street edits rebuild blocks and plots, repair, re-score | 1.5 |
+| Building delete and height edits | 0.25 |
+| Edits locked for the next run (a locked edit becomes a constraint) | 0.5 |
+| Undo and redo, tests | 0.75 |
+| **A4: harness, ablations, runs, statistics, figure script, masterplan report, video script, demo mode** | **2.0** |
+| Stress tests in the workbench | 0.75 |
+| **4. Score maps, click-through, area statement and CSV** | **2.25** |
+| Growing over time in the workbench | 1.0 |
+| **5. Context box: place-tied overrides, confirmation, "set by you" list, keep / repair / replace, sites re-exported with street names** | **3.25** |
+| **3. Programme: brief mix, uses on plots by rules (C2), population, URDPFI check** | **1.5** |
+| Plan export: GeoJSON (C1) | 0.25 |
+| **Quality before the freeze:** browsers, performance budget in CI, hallway script and observation sheet | **0.75** |
+| Review rounds and surprises | 1.5 |
+| **Total before 17 November** | **21.5** |
+| Paper draft (moved to 21-25 November) | 0.75 |
+
+24 days are available from 25 October to 17 November, so about 2.5 days of margin.
+
+### 11.2 Cuts
+
+Approved:
+
+| # | Cut | Saves | Damage |
+|---|---|---:|---|
+| C1 | DXF moves to B; A exports GeoJSON and the area statement CSV | 0.5 | CAD users import GeoJSON |
+| C2 | Uses go on plots by rules after growth (commercial on the busiest streets by integration, schools within walking distance of housing, shares from the brief), not by new genes | 0.5 | search doesn't vary the land-use mix; genome v3 and the five scores stay fixed, so the A4 runs stay valid |
+| C3 | Reserve 14: demo mode plays a saved-run link | 0.25 | a slightly less smooth video |
+
+Ready if anything slips, in this order:
+- C4: walking times to green and schools only; transit only where a site has stop data (0.25).
+- C5: keep / repair / replace defaults from heritage tags only, no age data (0.25).
+
+### 11.3 Schedule
+
+| Dates | Work | Checkpoint |
+|---|---|---|
+| 25-27 Oct | Section 1 | **27 Oct:** H4 results, live smoke test, performance report, audit findings |
+| 28 Oct-2 Nov | Section 2 | look at the drawing tools about 30 Oct; **2 Nov:** constraints and editing |
+| 3-4 Nov | A4 harness; scores and genome frozen; overnight runs, 10 seeds | |
+| 5-8 Nov | Stress tests, score maps, area statement | **8 Nov:** first A4 numbers, stress tests, score maps |
+| 9-12 Nov | Growing over time, section 5 | **12 Nov:** context box; hallway task script and observation sheet |
+| 13-16 Nov | Section 3, GeoJSON, A4 statistics and the figure script, masterplan report, demo mode, performance budget in CI | none |
+| 17 Nov | Figure script run on the A4 results; golden path complete | **17 Nov:** feature complete |
+| 18-20 Nov | Hallway tests, Chrome / Safari / Firefox, fixes | **20 Nov:** freeze |
+| 21-25 Nov | Paper draft, video from the shot list, polish, fixes | **25 Nov:** Milestone A |
+
+One PR per item.
+
+### 11.4 Decisions (25 October)
+
+- Golden path: Bengaluru tank cascade. Guwahati only for a short shot of a constraint
+  conflict on steep ground.
+- "Keep building" (drawn constraint) and the "keep" status (context box) are one control.
+- Edits re-score at once with an estimated whole-network syntax, labelled as an estimate;
+  the exact value fills in in the background.
+- Occupancy from Census 2011 household size, with its source, until the URDPFI 2014
+  Guidelines are in `corpus/`.
+- Guwahati FAR stays 1.5, marked "assumed", unless the Bye-laws and the Master Plan settle
+  the site's zone.
+- Run time on camera: demo mode or a jump cut, whichever is more honest. No faked speed.
+- Safari: Playwright WebKit for my checks; a real device pass if you have one.
+
+### 11.5 Risks
+
+- **Re-scoring within a second.** Growth is 66-321 ms per design, exact Rn syntax 0.3-0.8 s;
+  handled by the estimate-then-exact rule above.
+- **Drawn streets against Otto connectivity.** Forced streets can fight route merging; the
+  conflict report covers the network, not only forbidden ground.
+- **A4 validity.** Any change to the genome or the five scores after 4 November means
+  re-running the experiments.
+- **Place matching** depends on street names in the site exports (re-export approved).
+- **Sources.** URDPFI arrives from you; Guwahati FAR may stay assumed.
+
 ---
 
 ## A1 log (2026-10-21): quick visual fixes
