@@ -83,6 +83,7 @@ Components and the ablation that tests each:
 |---|---|---|
 | `docs/experiments/search-comparison.md` | MAP-Elites finds about four times as many kinds of design as NSGA-II, with a weaker front | for quality-diversity search widening the range; against it giving better designs |
 | `docs/experiments/piecemeal-vs-oneshot.md` | Steps without foresight: hotter at 2050 on 3 of 4 sites, far less diverse, mixed on storage; the built design is more whole. On Mumbai Docks the brief can't be met. | against H4 as worded, without foresight |
+| `docs/experiments/piecemeal-vs-oneshot.md`, H4 (v3, 5 sites, 2 seeds) | Steps with foresight: hotter at 2050 than one-shot on all five sites, worse on storage on three and rain on four, far less diverse; more whole on three. Foresight barely differs from plain steps. Without the wholeness objective, less whole on four sites | against H4; for the wholeness objective |
 | `docs/landform.md` | LST and the heat score's own model correlate weakly (r -0.10 to +0.32) | a limit on H3's heat part |
 
 ## Threats to validity

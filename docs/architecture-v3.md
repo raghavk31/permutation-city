@@ -707,3 +707,20 @@ shrank (your call, 21 October: 15 generations of 30, 480 designs, with the live 
 The page stays responsive throughout (the run is in workers), and the live strip shows the
 best designs from the first generation on. A run is over the 10 s you asked about on every
 site but Docks. The Evolve step shows its time estimate before a run starts.
+
+## A2 log (2026-10-25): H4 results
+
+The H4 runs (five modes, five sites, seeds 1 and 2, 1,440 designs per mode) finished across
+two sessions and were merged; the tables are in `docs/experiments/piecemeal-vs-oneshot.md`
+under "H4".
+- **Against H4.** Steps with foresight end hotter at 2050 than the better one-shot mode on
+  all five sites (by 0.12 to 0.81 °C), worse on flood storage on three, worse under the
+  100-year rain on four, and far less diverse on all five. They are ahead on wholeness of
+  the design built on three sites, on carbon on three and on daylight on two.
+- **Foresight, as built (`scoreAhead`), changes little.** It helps clearly on Eastern
+  Waterfront and hurts on Docks, including more floor lost to the 2100 sea.
+- **The wholeness objective works.** Without it the design built is less whole on four sites
+  (by 0.06 to 0.12) and no other score gains consistently.
+- **Two seeds.** These are directions across sites, not tested effects; the A4 protocol's
+  10 seeds and tests are not applied to H4 in Milestone A unless you ask for it.
+
