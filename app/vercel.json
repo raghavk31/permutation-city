@@ -31,6 +31,10 @@
     {
       "source": "/workbench",
       "destination": "/workbench.html"
+    },
+    {
+      "source": "/classic",
+      "destination": "/classic.html"
     }
   ]
 }

@@ -24,7 +24,7 @@
   function metricAxes() { return X.GROUPS.flatMap(([, ks]) => X.metricAxes(ks.filter((k) => k in (r.kept[0]?.metrics ?? {})))); }
 
   // COPY: view names
-  const VIEWS = $derived([["tradeoffs", "Trade-offs"], ["compare", "Compare"], ...(r.archive ? [["archive", "Every kind"]] : [])] as [typeof bench.exView, string][]);
+  const VIEWS = $derived([["tradeoffs", "Trade-offs"], ["compare", "Compare"], ...(r.archive ? [["archive", "Every kind"]] : []), ["tree", "Family tree"]] as [typeof bench.exView, string][]);
 
   function pick(name: string) {
     if (bench.exView === "compare") bench.pair = [bench.pair[0] ?? bench.exSel, name];

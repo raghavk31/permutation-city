@@ -666,7 +666,8 @@ export interface Measures {
 
 export interface Syntax {
   N: Network; D: Dual;
-  local: Measures[];   // R400, R800
+  local: Measures[];   // R400, R800 (reading it computes any not yet computed; localAt computes one)
+  at: (radius: number) => Measures;
   rn: Measures;        // Rn within the 1 km buffer
   estimate: boolean;   // Rn integration on the condensed network, and no choice (a run's view)
 }
@@ -709,10 +710,26 @@ function measures(radius: number, site: number, nc: ArrayLike<number>, td: Array
   return m;
 }
 
-const cache = new WeakMap<Design, { G: Ground; exact?: Syntax; estimate?: Syntax; choice?: Measures }>();
+type Entry = { G: Ground; exact?: Syntax; estimate?: Syntax; choice?: Measures };
+const cache = new WeakMap<Design, Entry>();
+// Syntax depends only on the streets (and the ground), so designs with the same streets share
+// it: in piecemeal growth every design after the first increment keeps the first's frame.
+const byStreets = new WeakMap<Ground, Map<string, Entry>>();
+export const SHARED_SYNTAX = 64;   // networks remembered per ground, most recent kept
+const streetsKey = (d: Design) => d.plan ? d.plan.streets.map((st) => st.pts.join(";")).join("|")
+  : d.street ? `v2:${d.street.join("")}` : "";
 function entry(d: Design, G: Ground) {
   let e = cache.get(d);
-  if (!e || e.G !== G) cache.set(d, (e = { G }));
+  if (e && e.G === G) return e;
+  let m = byStreets.get(G);
+  if (!m) byStreets.set(G, (m = new Map()));
+  const k = streetsKey(d);
+  e = m.get(k);
+  if (e) m.delete(k);
+  else e = { G };
+  m.set(k, e);
+  if (m.size > SHARED_SYNTAX) m.delete(m.keys().next().value!);
+  cache.set(d, e);
   return e;
 }
 
@@ -729,13 +746,20 @@ export function syntaxOf(d: Design, G: Ground, estimate = false): Syntax {
   const base = e.exact ?? e.estimate;
   const N = base?.N ?? network(d, G), D = base?.D ?? dual(N);
   const site = Int32Array.from({ length: N.site }, (_, k) => k);
+  // Each radius is analysed when first read: a run's wholeness needs R400 and Rn, not R800.
   // Choice at a radius needs every origin within reach; integration needs only the site's.
-  const local = RADII.filter((r) => r !== Infinity).map((r) => {
-    const res = analyse(N, D, r, estimate ? site : reach(N, r));
-    return measures(r, N.site, res.nc, res.td, estimate ? null : res.ch);
-  });
+  const radii = RADII.filter((r) => r !== Infinity), done = new Map<number, Measures>();
+  const at = (r: number) => {
+    let m = done.get(r);
+    if (!m) {
+      const res = analyse(N, D, r, estimate ? site : reach(N, r));
+      done.set(r, (m = measures(r, N.site, res.nc, res.td, estimate ? null : res.ch)));
+    }
+    return m;
+  };
   const rn = estimate && G.syntaxStreets?.length ? integrationRnCondensed(N, D, G) : integrationRn(N, D, site);
-  const out: Syntax = { N, D, local, rn: measures(Infinity, N.site, rn.nc, rn.td, null), estimate };
+  const out = { N, D, at, rn: measures(Infinity, N.site, rn.nc, rn.td, null), estimate } as Syntax;
+  Object.defineProperty(out, "local", { get: () => radii.map(at), enumerable: true });
   if (estimate) e.estimate = out; else e.exact = out;
   return out;
 }

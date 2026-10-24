@@ -5,6 +5,10 @@
   import * as Iso from "../diagrams/iso";
   import * as X from "../explore";
   import * as M from "../../engine/massing";
+  import type { Kept } from "../../engine/worker";
+  import { Lock, LockOpen } from "lucide";
+  import Icon from "./Icon.svelte";
+  import { GENE_GROUPS } from "./words";
   import * as Mass from "../mass/massing";
   import { bench, HILLY } from "./bench.svelte";
   import Thumb from "./Thumb.svelte";
@@ -28,9 +32,8 @@
 
   // the design shown large on the Evolve step, and where each score sits in the run
   const chosen = $derived.by(() => {
-    if (bench.result) { const f = bench.result.families.filter((x) => x.design)[bench.picked3]; return f ? { name: f.name, d: f.design! } : null; }
-    const d = bench.leaders[bench.picked3];
-    return d ? { name: `Best now ${bench.picked3 + 1}`, d } : null;
+    const f = bench.evolveShown[bench.picked3];
+    return f ? { name: f.name, title: f.title, d: f.d } : null;
   });
   const span = $derived.by(() => {
     const all = bench.result ? bench.result.kept.map((k) => k.scores) : bench.leaders.map((d) => d.scores!).filter(Boolean);
@@ -42,7 +45,22 @@
     return Math.round((E.SCORES[k][2] ? t : 1 - t) * 100);
   }
   // the design selected on the Explore step, among everything the run kept
-  const ex = $derived(bench.step === "explore" && bench.result ? bench.result.kept.find((k) => k.name === bench.exSel) ?? null : null);
+  // (or any design from the family tree: its scores from the lineage, its form unmeasured)
+  const ex = $derived.by((): Kept | null => {
+    const r = bench.result;
+    if (bench.step !== "explore" || !r || !bench.exSel) return null;
+    const k = r.kept.find((x) => x.name === bench.exSel);
+    if (k) return k;
+    const n = r.lineage.find((x) => x.name === bench.exSel), d = bench.grown.get(bench.exSel);
+    if (!n) return null;
+    const [storage, heat, carbon, daylight, human, gap] = n.scores;
+    const built = d ? [...d.use].map((u, i) => (u === E.BUILDING ? d.levels[i] : 0)).filter((v) => v > 0) : [];
+    return { name: n.name, genome: [], parents: n.how === "bred" ? n.parents : [], rank: 0, scores: { storage, heat, carbon, daylight, human, gap },
+      floorArea: d ? d.floorArea.reduce((a, b) => a + b, 0) / 1e4 : NaN, levels: built.length ? built.reduce((a, b) => a + b, 0) / built.length : NaN,
+      metrics: {} as Kept["metrics"] };
+  });
+  const inLineage = (name: string) => !!bench.result?.lineage.some((n) => n.name === name);
+  const genOf = (name: string) => bench.result?.lineage.find((n) => n.name === name)?.gen;
   const exSpan = $derived.by(() => {
     const all = bench.result?.kept ?? [];
     return Object.fromEntries(E.SCORE_KEYS.map((k) => [k, [Math.min(...all.map((d) => d.scores[k])), Math.max(...all.map((d) => d.scores[k]))]]));
@@ -138,7 +156,7 @@
     {#if ex}
       {@const grown = bench.grown.get(ex.name)}
       <div class="wb-sub">
-        <span class="wb-label">{X.onFront(ex) ? "On the front" : X.onBrief(ex) ? "Beaten on every count by another" : "Off the brief"}</span>
+        <span class="wb-label">{ex.rank === 0 ? `Generation ${genOf(ex.name)}, not kept` : X.onFront(ex) ? "On the front" : X.onBrief(ex) ? "Beaten on every count by another" : "Off the brief"}</span>
         <b class="wb-insp-title">{bench.titleOf(ex.name)}</b>
         <div class="wb-scores">
           {#each E.SCORE_KEYS as k}
@@ -149,16 +167,40 @@
           <div class="wb-axis"><span>run's worst</span><span>best</span></div>
         </div>
         <dl class="wb-facts">
-          <dt>Floor area</dt><dd class="wb-num">{Math.round(ex.floorArea).toLocaleString("en-IN")} ha{grown?.grossFloorArea ? ` net, ${Math.round(grown.grossFloorArea / 1e4).toLocaleString("en-IN")} ha gross` : ""}</dd>
+          <dt>Floor area</dt><dd class="wb-num">{Number.isFinite(ex.floorArea) ? Math.round(ex.floorArea).toLocaleString("en-IN") : "…"} ha{grown?.grossFloorArea ? ` net, ${Math.round(grown.grossFloorArea / 1e4).toLocaleString("en-IN")} ha gross` : ""}</dd>
           <!-- COPY: brief fit -->
           <dt>Against the brief</dt><dd>{ex.scores.gap <= 0.1 ? "within it" : `${Math.round(ex.scores.gap * 100)}% off`}</dd>
-          <dt>Average storeys</dt><dd class="wb-num">{ex.levels.toFixed(1)}</dd>
-          {#if ex.parents.length}<dt>Bred from</dt><dd>{ex.parents.join(" × ")}</dd>{/if}
+          <dt>Average storeys</dt><dd class="wb-num">{Number.isFinite(ex.levels) ? ex.levels.toFixed(1) : "…"}</dd>
+          <dt>Bred from</dt><dd>
+            {#if ex.parents.length}
+              {#each ex.parents as p, i}{#if i} × {/if}{#if inLineage(p)}<button class="wb-link" type="button" onclick={() => (bench.exSel = p)}>{p}</button>{:else}{p}{/if}{/each}
+            {:else}<span class="wb-quiet">a newcomer, not bred</span>{/if}
+            <button class="wb-link" type="button" onclick={() => (bench.exView = "tree")}>family tree</button></dd>
         </dl>
       </div>
+      {#if grown?.plan}
+        {@const s = grown.settings as unknown as Record<string, number>}
+        <details class="wb-group" open><summary>Genes, in plain words<span class="wb-meta">{Object.keys(bench.geneLocks).length ? `${Object.keys(bench.geneLocks).length} locked` : ""}</span></summary>
+          <div class="wb-genes">
+            {#each GENE_GROUPS as [g, genes]}
+              <span class="wb-gene-group">{g}</span>
+              {#each genes as w}
+                {@const locked = w.gene in bench.geneLocks}
+                <div class="wb-gene"><span>{w.label}</span><b>{w.fmt(locked ? bench.geneLocks[w.gene] : s[w.gene])}</b>
+                  <button class="wb-lock" type="button" aria-pressed={locked} aria-label="{locked ? 'Unlock' : 'Lock'} {w.label}"
+                    title={locked ? "Locked for the next run: click to free it" : "Lock at this value for the next run"}
+                    onclick={() => bench.lockGene(w.gene, locked ? null : s[w.gene])}><Icon icon={locked ? Lock : LockOpen} /></button></div>
+              {/each}
+            {/each}
+          </div>
+          <!-- COPY: gene lock note -->
+          <p class="wb-hint">A locked gene keeps its value in the next run; the rest still breed.</p>
+        </details>
+      {/if}
       <div class="wb-sub">
         <span class="wb-label">Form</span>
         <div>
+          {#if ex.rank === 0}<p class="wb-hint">Form is measured on the designs the run kept.</p>{/if}
           {#each X.GROUPS as [g, ks]}
             {@const shown = ks.filter((k) => ex.metrics[k] !== undefined)}
             {#if shown.length}
@@ -191,7 +233,7 @@
     {#if chosen}
       <div class="wb-sub">
         <span class="wb-label">{bench.result ? "Design" : "Best so far"}</span>
-        <b class="wb-insp-title">{chosen.name}</b>
+        <b class="wb-insp-title">{chosen.title}</b>
         {#if chosen.d.scores}
           <div class="wb-scores">
             {#each E.SCORE_KEYS as k}

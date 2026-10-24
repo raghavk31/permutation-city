@@ -17,6 +17,7 @@
     "syntax-survey": "vite-node scripts/syntax-survey.ts --",
     "massing-shade": "vite-node scripts/massing-shade.ts --",
     "shock-survey": "vite-node scripts/shock-survey.ts --",
+    "story-prepare": "vite-node scripts/story-prepare.ts --",
     "piecemeal-vs-oneshot": "vite-node scripts/piecemeal-vs-oneshot.ts --",
     "wiggle": "vite-node scripts/wiggle.ts --",
     "system": "vite-node scripts/system-page.ts",

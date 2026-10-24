@@ -7,6 +7,7 @@
   import type { Kept } from "../../engine/worker";
   import * as Draw from "../draw";
   import * as X from "../explore";
+  import * as Tree from "../tree";
   import { tokens as T } from "../tokens";
   import { bench } from "./bench.svelte";
   import MapCanvas from "./MapCanvas.svelte";
@@ -105,6 +106,26 @@
   const aspect = $derived(Math.min(1.25, Draw.aspectOf(site.design.x, site.design.y)));
   $effect(() => { if (bench.exView === "archive") bench.growMany(kept.map((k) => k.name)); });
   const fmt = (v: number) => String(+v.toFixed(2));
+
+  // the family tree: the kept designs and their ancestors (or every design), by generation
+  let treeAll = $state(false);
+  let treeCanvas = $state<HTMLCanvasElement>();
+  let treeHover = $state(-1);
+  let treeHit: ((x: number, y: number) => number) | null = null;
+  const layout = $derived.by(() => {
+    if (bench.exView !== "tree") return null;
+    const front = new Set(kept.filter((k) => r.archive || k.rank === 1).map((k) => k.name));
+    return Tree.layoutTree(r.lineage, new Set(kept.map((k) => k.name)), front, treeAll);
+  });
+  const placedOf = (name: string | null) => (layout && name ? layout.placed.findIndex((p) => r.lineage[p.k].name === name) : -1);
+  $effect(() => {
+    if (!layout || !treeCanvas || !width) return;
+    treeHit = Tree.drawTree(treeCanvas, layout, r.lineage, P, { selected: placedOf(bench.exSel), hover: treeHover, shock: null });
+  });
+  const nameAt = (e: PointerEvent) => {
+    const i = treeHit?.(e.offsetX, e.offsetY) ?? -1;
+    return i >= 0 && layout ? r.lineage[layout.placed[i].k].name : null;
+  };
 </script>
 
 {#if bench.exView === "compare"}
@@ -139,7 +160,21 @@
 {:else}
   <div class="wb-ex">
     <div class="wb-ex-side">
-      {#if bench.exView === "archive" && r.archive}
+      {#if bench.exView === "tree"}
+        <div class="wb-row wb-between">
+          <!-- COPY: tree summary -->
+          <span class="wb-quiet wb-num">{r.lineage.length.toLocaleString("en-IN")} designs; {layout?.placed.length.toLocaleString("en-IN")} shown</span>
+          <label class="wb-row wb-colour-by"><input type="checkbox" bind:checked={treeAll} /> every design</label>
+        </div>
+        <div class="wb-plot wb-tree" bind:this={plotBox}>
+          <canvas bind:this={treeCanvas} aria-label="The family tree of the run, Generation 0 at the top"
+            onpointermove={(e) => { const n = nameAt(e); treeHover = n ? placedOf(n) : -1; bench.exHover = n; }}
+            onpointerleave={() => { treeHover = -1; bench.exHover = null; }}
+            onclick={(e) => { const n = nameAt(e); if (n) choose(n); }}></canvas>
+        </div>
+        <!-- COPY: tree legend -->
+        <p class="wb-hint">Each row is a generation. Lines run from parents to children, heavier from the parent that gave more. Orange: on the front; dark: kept. A ring: changed by mutation; a square: a newcomer. Click any design to open it.</p>
+      {:else if bench.exView === "archive" && r.archive}
         <!-- COPY: archive note -->
         <p class="wb-hint">Each square holds the best design of its kind. An empty one is a kind the run never found.</p>
         <div class="wb-archive" style="grid-template-columns: 1.4em repeat({r.archive.bins}, 1fr)">

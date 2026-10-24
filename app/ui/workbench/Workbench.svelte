@@ -1,7 +1,7 @@
 <script lang="ts">
   // The workbench frame (brief 10.4): top bar; the steps on the left, the active one open with
   // its controls; the map in the centre; the inspector on the right; the pen below.
-  import { ChevronLeft, ChevronRight, CircleHelp, Redo2, Share2, Undo2 } from "lucide";
+  import { ChevronLeft, ChevronRight, CircleHelp, Keyboard, Redo2, Share2, Undo2 } from "lucide";
   import { bench, STEPS } from "./bench.svelte";
   import Icon from "./Icon.svelte";
   import Inspector from "./Inspector.svelte";
@@ -24,7 +24,10 @@
   import SiteRail from "./SiteRail.svelte";
 
   const P = Draw.palette();
+  // the address bar follows the workbench: step, rules, brief, the run, the open design, the pen
+  $effect(() => { bench.sync(); });
   let copied = $state(false);
+  let keys = $state<HTMLDialogElement>();
   let toast = $state("");
   let toastTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -36,9 +39,10 @@
 
   async function share() {
     try {
-      await navigator.clipboard.writeText(location.href);
+      await navigator.clipboard.writeText(new URL(bench.link(), location.href).href);
       copied = true;
-      say("Link copied");
+      // COPY: link copied
+      say(bench.result ? "Link copied: it breeds this run again when opened" : "Link copied");
       setTimeout(() => (copied = false), 1500);
     } catch {
       say("Copy the address bar to share this view");
@@ -51,7 +55,7 @@
     if (id === "rules" && bench.rules) return bench.edited ? "changed" : `${bench.rules.list.length}`;
     if (id === "brief") return bench.briefLocked ? "confirmed" : bench.brief ? "draft" : "";
     if (id === "evolve") return bench.running ? `${bench.runGen} of ${bench.settings.generations}` : bench.result ? `${bench.result.frontSize} on front` : "";
-    if (id === "explore" && bench.result) return `${bench.result.kept.length} kept`;
+    if (id === "explore" && bench.result) return `${bench.result.kept.length} designs`;
     if (id === "massing" && bench.mass.source && bench.mass.block >= 0) return bench.mass.running ? `${bench.mass.gen} of ${bench.mass.generations}` : `block ${bench.mass.block + 1}`;
     if (id === "landform" && bench.site?.meta.landform) return { flat: "flat", gentle: "gentle", pronounced: "hilly" }[bench.site.meta.landform.relief.class];
     return "";
@@ -76,6 +80,8 @@
       <button class="wb-icon-btn" type="button" aria-label="Undo" title="Undo (Ctrl Z)" disabled={!bench.past.length} onclick={() => bench.undo()}><Icon icon={Undo2} /></button>
       <button class="wb-icon-btn" type="button" aria-label="Redo" title="Redo (Ctrl Shift Z)" disabled={!bench.future.length} onclick={() => bench.redo()}><Icon icon={Redo2} /></button>
       <button class="wb-btn" type="button" onclick={share}><Icon icon={Share2} />{copied ? "Copied" : "Share"}</button>
+      <button class="wb-icon-btn" type="button" aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)"
+        onclick={() => keys?.showModal()}><Icon icon={Keyboard} /></button>
       <button class="wb-icon-btn" type="button" aria-label="Help" title="What this step does"
         onclick={() => bench.seen(bench.step, false)}><Icon icon={CircleHelp} /></button>
     </div>
@@ -145,7 +151,8 @@
     {#if bench.pen.length}
       <div class="wb-pen">
         {#each bench.pen as p (p.name)}
-          <span class="wb-pen-item" title={p.name}><canvas {@attach (c: HTMLCanvasElement) => { Draw.plan(c, p.site, p.design, P, { aspect: Math.min(1.25, Draw.aspectOf(p.site.design.x, p.site.design.y)) }); }}></canvas><span>{p.name}</span></span>
+          <button class="wb-pen-item" type="button" title="Open {p.name} in Explore"
+            onclick={() => { if (!bench.openPen(p.name)) say("This design is from an earlier run"); }}><canvas {@attach (c: HTMLCanvasElement) => { Draw.plan(c, p.site, p.design, P, { aspect: Math.min(1.25, Draw.aspectOf(p.site.design.x, p.site.design.y)) }); }}></canvas><span>{bench.titleOf(p.name)}</span></button>
         {/each}
       </div>
     {:else}
@@ -156,12 +163,40 @@
 </div>
 
 <svelte:window onkeydown={(e) => {
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !(e.target as HTMLElement).closest("input, textarea")) {
+  if (keys?.open) { if (e.key === "Escape") keys.close(); return; }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !(e.target as HTMLElement).closest?.("input, textarea")) {
     e.preventDefault();
     if (e.shiftKey) bench.redo(); else bench.undo();
     return;
   }
-  if ((e.target as HTMLElement).closest("input, select, textarea")) return;
+  if ((e.target as HTMLElement).closest?.("input, select, textarea") || e.ctrlKey || e.metaKey || e.altKey) return;
+  const k = e.key.toLowerCase();
   if (e.key === "[") bench.railOpen = !bench.railOpen;
-  if (e.key === "]") bench.inspOpen = !bench.inspOpen;
+  else if (e.key === "]") bench.inspOpen = !bench.inspOpen;
+  else if (k === "j") bench.nextDesign(1);
+  else if (k === "k") bench.nextDesign(-1);
+  else if (k === "p") bench.keepCurrent();
+  else if (e.key === "2" && bench.step === "massing") bench.mass.view = "plan";
+  else if (e.key === "3" && bench.step === "massing" && bench.mass.chosen) bench.mass.view = "3d";
+  else if (e.key === "?") keys?.showModal();
+  else return;
+  e.preventDefault();
 }} />
+
+<dialog class="wb-dialog" bind:this={keys} aria-labelledby="wb-keys-title" onclick={(e) => { if (e.target === keys) keys.close(); }}>
+  <div class="wb-dialog-body">
+    <b id="wb-keys-title">Keyboard shortcuts</b>
+    <!-- COPY: shortcuts -->
+    <dl class="wb-keys">
+      <dt><kbd>J</kbd> <kbd>K</kbd></dt><dd>next and previous design</dd>
+      <dt><kbd>P</kbd></dt><dd>keep the open design in the pen</dd>
+      <dt><kbd>2</kbd> <kbd>3</kbd></dt><dd>plan or 3D, on the Massing step</dd>
+      <dt><kbd>Ctrl</kbd> <kbd>Z</kbd></dt><dd>undo a rule change; with <kbd>Shift</kbd>, redo</dd>
+      <dt><kbd>[</kbd> <kbd>]</kbd></dt><dd>fold the steps, fold the inspector</dd>
+      <dt><kbd>+</kbd> <kbd>-</kbd> <kbd>0</kbd></dt><dd>zoom the map in, out, and fit it (arrows pan)</dd>
+      <dt><kbd>Esc</kbd></dt><dd>leave presentation, or close this</dd>
+      <dt><kbd>?</kbd></dt><dd>this list</dd>
+    </dl>
+    <form method="dialog"><button class="wb-btn">Close</button></form>
+  </div>
+</dialog>

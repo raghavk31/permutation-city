@@ -127,6 +127,15 @@ describe("the run's estimate", () => {
     expect(exact.local[0].nach).not.toBeNull();
     expect(est.local[0].nach).toBeNull();
   });
+  it("is shared by designs with the same streets, and computes a radius only when read", () => {
+    const a = grow(randomGenome(makeRng(11), 3), G, null, DEFAULT_RANGES), b = { ...a, use: a.use.slice() };
+    const sa = syntaxOf(a, G, true);
+    expect(syntaxOf(b, G, true)).toBe(sa);
+    const c = grow(randomGenome(makeRng(12), 3), G, null, DEFAULT_RANGES);
+    expect(syntaxOf(c, G, true)).not.toBe(sa);
+    expect(sa.at(800)).toBe(sa.local[1]);
+    expect(sa.at(400)).toBe(sa.local[0]);
+  });
 });
 
 describe("legibility", () => {

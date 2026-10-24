@@ -93,8 +93,74 @@ Two further changes from a plain run:
   late increment would be a "copy", since they all share most of the site.
 - **What doesn't apply:** locks, the pen, the timed shock and MAP-Elites.
 
+## Foresight
+
+Added 2026-10-23 (the Phase 9 carry-over; H4 in `research/claim.md`). Without it, each
+increment is chosen for its own year only, and the version 2 and 3 experiments found the
+finished site hotter at 2050 than a one-shot design.
+
+With foresight on (`foresight: true`, `scoreAhead`), each increment before the last is scored
+twice: under its own year and under the last year (2050). It keeps the worse of each:
+
+| score | kept |
+|---|---|
+| storage | the lower |
+| heat | the higher |
+| gap to the brief | the larger (floors under the 2050 sea are lost) |
+
+Carbon, daylight and human scale don't change with the year. The last increment is scored
+under 2050 either way. With today's scenarios the 2050 value is always the worse one, since
+the sea, the storm and the heat only rise. The rule is written as "the worse of the two" so it
+still holds for conditions that don't rise steadily.
+
+This is a narrow kind of foresight: a step is judged by how its own buildings fare in 2050,
+not by what it leaves open for later steps. The experiment tests whether that is enough.
+
+## Ranking when nothing meets the brief
+
+In a plain run, designs off the floor-area brief rank after those on it, strictly by how far
+off they are. In an increment, where the fabric already fixes much of the floor area, a whole
+population can be off the brief for some generations, and then only the gap steers.
+
+Piecemeal runs rank in bands instead (`paretoRanks(..., banded)`). Designs within the
+tolerance come first, then those over it by up to two tolerances, then up to three, and so
+on. Within each band, designs are ranked by Pareto fronts on all the objectives, so the five
+scores and wholeness still steer while the run closes in on the brief. Plain runs are
+unchanged, so saved links still give the same runs.
+
+## The ablation
+
+`wholenessObjective: false` drops the wholeness penalty, both as an objective and when
+choosing what to build. Wholeness is still measured and reported. This is the "steps without
+wholeness" arm of H4.
+
+## The open-ground split (not built)
+
+In version 2, Mumbai Docks could not meet the brief under piecemeal growth: the early
+increments reached their share of the land before their share of the floor area, at low
+density, and the last increment had too little land left. The planned fix let the land cap
+bind only once a step's floor area was met. In version 3, Docks meets the brief in every
+increment (`experiments/piecemeal-vs-oneshot.md`, version 3 rerun), so the split isn't built.
+If the A4 runs show the land cap binding again, it comes back.
+
 ## Cost
 
-Wholeness is read on every design grown, and legibility's estimate is the expensive part.
-On this laptop, a piecemeal run of 3 × 16 generations of 40 took 6–13 minutes. The same
-number of designs in a plain run took 10–35 seconds. The page says to expect minutes.
+Wholeness is read on every design grown. Nearly all its cost is space syntax (legibility and
+intelligibility need integration at 400 m and Rn). Version 3 streets are smooth curves with
+many vertices, so an estimate takes 0.3 s per design on Mumbai Docks and 3-4 s on Wadaj,
+against 30 ms to grow and score the design.
+
+Two savings, 2026-10-23:
+- **Shared syntax.** Syntax depends only on the streets. From the second increment on, every
+  design keeps the first increment's frame, so they all share one analysis
+  (`syntax.ts`, keyed by the streets). Copies in the first increment share theirs too. On
+  Wadaj, a small test run's second and third increments fell from about 170 s each to under
+  2 s.
+- **Radii on demand.** The 800 m radius is analysed only when something reads it. Wholeness
+  doesn't, which saves about a quarter of an estimate on Wadaj.
+
+Simplifying the curved streets before the analysis was tried and rejected: it saved about
+half the time but moved intelligibility too far (r 0.58 against the unsimplified value
+across designs on Bengaluru, at 2 m tolerance).
+
+The first increment is now the whole cost: each of its designs has its own streets.

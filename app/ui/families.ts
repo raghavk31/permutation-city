@@ -40,7 +40,7 @@ const TRAITS: { key: string; up: boolean; phrase: string; get: (d: Design, G: Gr
     get: (d: Design) => (d.scores as unknown as Record<string, number>)[k],
   })),
   { key: "tall", up: true, phrase: "tallest", get: (d, G) => stats(d, G).mean_levels },
-  { key: "low", up: false, phrase: "lowest", get: (d, G) => stats(d, G).mean_levels },
+  { key: "low", up: false, phrase: "lowest-rise", get: (d, G) => stats(d, G).mean_levels },
 ];
 
 /** One plain phrase per design: the trait on which it stands out most among `designs`, each

@@ -1,5 +1,6 @@
 // The workbench's state: which step is open, the site, and what each step's panels share.
-// The URL carries the step and the site (?site=…&step=…), so any view can be shared.
+// The URL carries the site, the step, the rules and brief and, once a run is done, what it was
+// bred from (saved.ts), so the address bar always opens the same view and the same run.
 import * as Comlink from "comlink";
 import type { Snippet } from "../../brief/chunk";
 import * as E from "../../engine";
@@ -7,6 +8,7 @@ import type { EngineWorker, EvolveResult, FamilyLead } from "../../engine/worker
 import * as Fam from "../families";
 import * as Sites from "../sites";
 import { MassStep } from "./mass.svelte";
+import * as Saved from "./saved";
 
 
 export type StepId = "site" | "layers" | "rules" | "landform" | "brief" | "evolve" | "explore" | "massing";
@@ -94,13 +96,21 @@ class Bench {
   result = $state.raw<EvolveResult | null>(null);
   runSite = $state.raw<E.SiteExport | null>(null);
   runError = $state("");
+  /** What the run on show was bred from (the link and the file save these). */
+  runInputs = $state.raw<Saved.RunInputs | null>(null);
+  /** Rebuilding a run from a link, or opening a file: what is happening, for the Evolve rail. */
+  restoring = $state("");
+  /** Notes on a link or file opened (older builds, things the workbench doesn't do yet). */
+  notes = $state.raw<string[]>([]);
+  /** While a link is being opened, the address bar keeps it (so a reload starts it again). */
+  private booting = false;
   picked3 = $state(0);   // which leader or family is shown large
   /** Designs kept in the pen (the tray), with the site they were bred on. */
   pen = $state.raw<{ name: string; design: E.Design; site: E.SiteExport }[]>([]);
 
   // the Explore step: the view, the plot, what colours it, the brushes (an axis key to a range
   // of values), the design selected and pointed at (kept names), the pair compared
-  exView = $state<"tradeoffs" | "compare" | "archive">("tradeoffs");
+  exView = $state<"tradeoffs" | "compare" | "archive" | "tree">("tradeoffs");
   exPlot = $state<"matrix" | "parallel">("matrix");
   exColour = $state("front");
   brush = $state.raw<Record<string, [number, number]>>({});
@@ -108,6 +118,30 @@ class Bench {
   exHover = $state<string | null>(null);
   pair = $state<[string | null, string | null]>([null, null]);
   showAll = $state(false);
+  /** Genes locked for the next run, at their decoded values (a lock narrows the gene's range to
+   *  one value, so decoding needs no change and designs stay reproducible). */
+  geneLocks = $state.raw<Record<string, number>>({});
+  lockGene(gene: string, value: number | null) {
+    const { [gene]: _, ...rest } = this.geneLocks;
+    this.geneLocks = value === null ? rest : { ...rest, [gene]: value };
+  }
+  /** Ranges with the locked genes pinned. */
+  private pinned(r: E.Ranges): E.Ranges {
+    return { ...r, ...Object.fromEntries(Object.entries(this.geneLocks).map(([g, v]) => [g, [v, v]])) } as E.Ranges;
+  }
+
+  /** Any design the run made, by name: a kept design's genome, else its genome in the lineage. */
+  genomeOf(name: string): number[] | null {
+    const r = this.result;
+    if (!r) return null;
+    const k = r.kept.find((x) => x.name === name);
+    if (k) return k.genome;
+    const i = r.lineage.findIndex((n) => n.name === name);
+    if (i < 0) return null;
+    const len = r.genomes.length / r.lineage.length;
+    return Array.from(r.genomes.subarray(i * len, (i + 1) * len));
+  }
+
   /** Designs grown whole for drawing, by kept name (a run's leads arrive grown). */
   grown = $state.raw<Map<string, E.Design>>(new Map());
   private growing = new Set<string>();
@@ -120,7 +154,7 @@ class Bench {
   /** Open a kept design in the Massing step (it must have grown). */
   massDesign(name: string) {
     const site = this.runSite, d = this.grown.get(name);
-    const genome = this.result?.kept.find((k) => k.name === name)?.genome ?? this.result?.families.find((f) => f.name === name)?.genome;
+    const genome = this.genomeOf(name);
     if (!site || !d || !genome) return false;
     if (this.ground?.site !== site) {
       const G = E.prepare(site);
@@ -146,6 +180,13 @@ class Bench {
     return r.map((x, k) => ({ name: x.item.name, title: `Design ${k + 1} · ${why[k]}`, design: x.item.design,
       like: x.members.reduce((s, m) => s + m.size, 0), members: x.members.map((m) => m.name) }));
   });
+  /** The designs the Evolve step shows: while a run goes, the best so far; afterwards, the same
+   *  representatives as Explore, under the same names. */
+  evolveShown = $derived.by((): { name: string; title: string; note: string; d: E.Design }[] => {
+    // COPY: names in the strip
+    if (this.result) return this.reps.map((r) => ({ name: r.name, title: r.title, note: `${r.like} like it`, d: r.design }));
+    return this.leaders.map((d, k) => ({ name: `Best now ${k + 1}`, title: `Best now ${k + 1}`, note: `gen. ${this.runGen}`, d }));
+  });
   /** Every name the run kept, with its title when it is a representative. */
   titleOf(name: string | null) {
     if (!name) return "";
@@ -170,19 +211,64 @@ class Bench {
     if (!name) return null;
     const d = this.grown.get(name);
     if (d) return d;
-    const k = this.result?.kept.find((x) => x.name === name);
-    if (k && this.worker && !this.growing.has(name)) {
+    const genome = this.genomeOf(name);
+    if (genome && this.worker && !this.growing.has(name)) {
       this.growing.add(name);
-      this.worker.api.whole([k.genome], this.runRanges).then(([g]) => {
+      this.worker.api.whole([genome], this.runRanges).then(([g]) => {
         this.grown = new Map(this.grown).set(name, g);
       }).catch(() => {}).finally(() => this.growing.delete(name));
     }
     return null;
   }
 
+  /** The designs J and K step through on this step, in order (names; Evolve: by position). */
+  private order(): string[] {
+    if (this.step === "explore" && this.result) {
+      const all = this.result.families.filter((f) => f.design).map((f) => f.name);
+      return this.showAll ? all : this.reps.map((r) => r.name);
+    }
+    return [];
+  }
+  /** Next (1) or previous (-1) design on the open step. */
+  nextDesign(dir: 1 | -1) {
+    if (this.step === "evolve") {
+      const n = this.evolveShown.length;
+      if (n) this.picked3 = (this.picked3 + dir + n) % n;
+    } else if (this.step === "explore") {
+      const list = this.order();
+      if (!list.length) return;
+      const i = list.indexOf(this.exView === "compare" ? this.pair[1] ?? "" : this.exSel ?? "");
+      const next = list[i < 0 ? 0 : (i + dir + list.length) % list.length];
+      if (this.exView === "compare") this.pair = [this.pair[0] ?? this.exSel, next];
+      this.exSel = next;
+    } else if (this.step === "massing" && this.mass.result && !this.mass.stale) {
+      const r = this.mass.result, ord = r.kept.map((_, i) => i).sort((a, b) => r.kept[a].rank - r.kept[b].rank || a - b);
+      const i = ord.indexOf(this.mass.pick);
+      this.mass.pick = ord[i < 0 ? 0 : (i + dir + ord.length) % ord.length];
+    }
+  }
+  /** Keep the design open on this step in the pen (P). */
+  keepCurrent() {
+    if (this.step === "explore" && this.exSel) {
+      const d = this.grown.get(this.exSel);
+      if (d) this.keep(this.exSel, d);
+    } else if (this.step === "evolve") {
+      const f = this.evolveShown[this.picked3];
+      if (f) this.keep(f.name, f.d);
+    }
+  }
+  /** Open a pen item in Explore, when it is from the current run. */
+  openPen(name: string) {
+    if (!this.result || !this.genomeOf(name)) return false;
+    this.exSel = name;
+    this.go("explore");
+    return true;
+  }
+
   keep(name: string, design: E.Design) {
     if (!this.runSite || this.pen.some((p) => p.name === name)) return;
     this.pen = [...this.pen, { name, design, site: this.runSite }];
+    this.sync();
   }
   private worker: { raw: Worker; api: Comlink.Remote<EngineWorker> } | null = null;
 
@@ -194,8 +280,8 @@ class Bench {
   constructor() {
     if (typeof window === "undefined") return;
     fetch(`${Sites.DATA}sites.json`).then((r) => r.json()).then((s) => (this.index = s)).catch(() => {});
-    const q = new URLSearchParams(location.search), id = q.get("site"), step = q.get("step") as StepId | null;
-    if (id) this.open(id, step && step !== "site" ? step : "layers");
+    const q = new URLSearchParams(location.search), id = q.get("site");
+    if (id) this.openLink(id, q);
   }
 
   stateOf(id: StepId): "done" | "now" | "todo" | "blocked" {
@@ -233,7 +319,7 @@ class Bench {
       this.past = []; this.future = [];
       this.ridgesOff = new Set();
       this.brief = null; this.briefLocked = false;
-      this.result = null; this.leaders = []; this.history = [];
+      this.result = null; this.leaders = []; this.history = []; this.runInputs = null; this.notes = [];
       this.step = step;
       this.sync();
     } catch (e) {
@@ -269,10 +355,10 @@ class Bench {
     if (!this.site || !this.rules) return null;
     if (this.brief) {
       const u = Sites.withBrief(this.site, this.rules, this.brief);
-      return { site: u.site, result: u.result, ranges: u.config.ranges };
+      return { site: u.site, result: u.result, ranges: this.pinned(u.config.ranges) };
     }
     const u = Sites.withRules(this.site, this.rules);
-    return { site: u.site, result: u.result, ranges: E.DEFAULT_RANGES };
+    return { site: u.site, result: u.result, ranges: this.pinned(E.DEFAULT_RANGES) };
   }
 
   async run() {
@@ -286,14 +372,11 @@ class Bench {
     this.result = null;
     this.runStarted = performance.now();
     this.runSite = u.site;
+    const inputs: Saved.RunInputs = { settings: { ...this.settings }, rules: this.edited ? this.rules : null, brief: this.brief,
+      off: [...this.ridgesOff], geneLocks: { ...this.geneLocks } };
     try {
-      if (!this.worker) {
-        const raw = new Worker(new URL("../../engine/worker.ts", import.meta.url), { type: "module" });
-        this.worker = { raw, api: Comlink.wrap<EngineWorker>(raw) };
-      }
-      const api = this.worker.api;
-      await api.setSite(u.site, [...this.ridgesOff]);
-      const s = this.settings;
+      const api = await this.engine(u.site, inputs.off);
+      const s = inputs.settings;
       const r = await api.evolve(
         { search: s.search, objectives: [], generations: s.generations, pop: s.pop, seed: s.seed, shock: null, locked: null,
           start: null, ranges: u.ranges, version: 3, weights: this.brief?.objective_weights?.value ?? null },
@@ -306,19 +389,134 @@ class Bench {
         const ds = await api.whole(bare.map((f) => f.genome), u.ranges);
         bare.forEach((f, k) => (f.design = ds[k]));
       }
-      this.runRanges = u.ranges;
-      this.runOff = [...this.ridgesOff];
-      this.runCount++;
-      this.grown = new Map(r.families.map((f) => [f.name, f.design!]));
-      this.brush = {}; this.pair = [null, null]; this.showAll = false;
-      this.exSel = r.families[0]?.name ?? null;
-      this.exView = r.archive ? "archive" : "tradeoffs";
-      this.result = r;
-      this.picked3 = 0;
+      this.adopt(r, u.ranges, inputs);
     } catch (e) {
       if (this.running) this.runError = (e as Error).message;
     } finally {
       this.running = false;
+    }
+  }
+
+  /** The engine worker, made if need be, set to a site with some ridges off. */
+  private async engine(site: E.SiteExport, off: number[]) {
+    if (!this.worker) {
+      const raw = new Worker(new URL("../../engine/worker.ts", import.meta.url), { type: "module" });
+      this.worker = { raw, api: Comlink.wrap<EngineWorker>(raw) };
+    }
+    await this.worker.api.setSite(site, off);
+    return this.worker.api;
+  }
+
+  /** Show a finished run (bred here, or opened from a file), its leads already grown. */
+  private adopt(r: EvolveResult, ranges: E.Ranges, inputs: Saved.RunInputs) {
+    this.runRanges = ranges;
+    this.runOff = inputs.off;
+    this.runInputs = inputs;
+    this.runCount++;
+    this.grown = new Map(r.families.map((f) => [f.name, f.design!]));
+    this.brush = {}; this.pair = [null, null]; this.showAll = false;
+    this.exSel = r.families[0]?.name ?? null;
+    this.exView = r.archive ? "archive" : "tradeoffs";
+    this.result = r;
+    this.picked3 = 0;
+    this.sync();
+  }
+
+  /** Put a run's inputs back on the steps: rules, brief, ridges, locked genes, settings. */
+  private applyInputs(x: { rules: E.RuleSet | null; brief: E.Brief | null; off: number[]; geneLocks: Record<string, number>; settings: Saved.Settings }) {
+    if (x.rules) { this.rules = x.rules; this.past = []; this.future = []; }
+    if (x.brief) { this.brief = x.brief; this.briefLocked = true; }
+    this.ridgesOff = new Set(x.off);
+    this.geneLocks = x.geneLocks;
+    Object.assign(this.settings, x.settings);
+  }
+
+  /** Designs of the run on show, grown, into the pen. */
+  private async penFrom(entries: { name: string; genome: number[] }[]) {
+    if (!entries.length || !this.worker || !this.runSite) return;
+    const ds = await this.worker.api.whole(entries.map((e) => e.genome), this.runRanges);
+    const site = this.runSite;
+    this.pen = [...this.pen.filter((p) => !entries.some((e) => e.name === p.name)), ...entries.map((e, k) => ({ name: e.name, design: ds[k], site }))];
+  }
+
+  /** Open a link: the site, then its rules and brief; then, if it has a run, breed it again and
+   *  go back to the design and step it showed. */
+  private async openLink(id: string, q: URLSearchParams) {
+    this.booting = true;
+    try { await this.restoreLink(id, q); } finally { this.booting = false; this.sync(); }
+  }
+  private async restoreLink(id: string, q: URLSearchParams) {
+    const want = (q.get("step") as StepId | null) ?? "layers";
+    await this.open(id, want === "site" ? "layers" : want === "explore" || want === "massing" ? "evolve" : want);
+    if (!this.site) return;
+    let r: Saved.Restore;
+    try { r = Saved.readLink(q, this.site); } catch (e) { this.runError = (e as Error).message; this.step = "evolve"; return; }
+    this.notes = r.notes;
+    if (!r.run) {
+      this.applyInputs({ rules: r.rules, brief: r.brief, off: [], geneLocks: {}, settings: { ...this.settings } });
+      return;
+    }
+    this.applyInputs(r.run);
+    this.step = "evolve";
+    // COPY: rebuilding a run from a link
+    this.restoring = "Breeding this run again from the link: the same inputs give the same designs.";
+    await this.run();
+    this.restoring = "";
+    if (!this.result) return;
+    if (r.sel && this.genomeOf(r.sel)) this.exSel = r.sel;
+    await this.penFrom(r.keep.map((name) => ({ name, genome: this.genomeOf(name) })).filter((e): e is { name: string; genome: number[] } => !!e.genome));
+    const step = (r.step as StepId | null) ?? "explore";
+    if (STEPS.some((x) => x.id === step)) this.go(step);
+  }
+
+  /** The run on show as a file to download (the result too, so it opens without breeding). */
+  saveFile(): { text: string; name: string } | null {
+    if (!this.result || !this.runInputs || !this.siteId || !this.site) return null;
+    const pen = this.pen.flatMap((p) => { const g = this.genomeOf(p.name); return g ? [{ name: p.name, genome: g, title: this.titleOf(p.name) }] : []; });
+    const text = Saved.toFile({
+      site: { id: this.siteId, name: this.site.meta.name }, base: this.site.rules, run: this.runInputs, ranges: this.runRanges,
+      result: this.result, pen, sel: this.exSel, step: this.step,
+    });
+    return { text, name: `${this.siteId}-run-${this.runInputs.settings.seed}.json` };
+  }
+
+  /** Open a saved run file: its site, inputs and result, the leads grown again on this page. */
+  async openFile(text: string) {
+    this.runError = "";
+    let f: ReturnType<typeof Saved.readFile>;
+    try { f = Saved.readFile(text); } catch (e) { this.runError = (e as Error).message; this.go("evolve"); return; }
+    if (this.running) this.cancel();
+    await this.open(f.siteId, "evolve");
+    if (!this.site) return;
+    // COPY: opening a run file
+    this.restoring = "Opening the saved run";
+    try {
+      const own = this.site.rules;
+      const rules = f.rulesText && own ? Sites.decodeRules(f.rulesText, own) : null;
+      const base = rules ?? own;
+      const brief = f.briefText && base ? Sites.recheck(Sites.decodeBrief(f.briefText).brief, base).brief : null;
+      const inputs: Saved.RunInputs = { ...f.run, rules, brief };
+      this.applyInputs(inputs);
+      const u = this.underBrief();
+      if (!u || !f.result) throw new Error("The file has no finished run in it.");
+      const ranges = f.ranges ?? u.ranges;
+      const api = await this.engine(u.site, inputs.off);
+      const ds = await api.whole(f.result.families.map((x) => x.genome), ranges);
+      f.result.families.forEach((x, k) => (x.design = ds[k]));
+      this.runSite = u.site;
+      this.history = f.result.history;
+      this.adopt(f.result, ranges, inputs);
+      this.notes = f.notes;
+      if (f.sel && this.genomeOf(f.sel)) this.exSel = f.sel;
+      this.pen = [];
+      await this.penFrom(f.pen.filter((p) => this.genomeOf(p.name)));
+      // a file is saved from the Evolve step; it opens on the designs (or where else it was saved)
+      const step = f.step && f.step !== "evolve" ? (f.step as StepId) : "explore";
+      this.go(STEPS.some((x) => x.id === step) ? step : "explore");
+    } catch (e) {
+      this.runError = (e as Error).message;
+    } finally {
+      this.restoring = "";
     }
   }
 
@@ -342,12 +540,20 @@ class Bench {
     store.set("pc-wb-intro", JSON.stringify(this.introSeen));
   }
 
-  private sync() {
-    const q = new URLSearchParams();
-    if (this.siteId) q.set("site", this.siteId);
-    if (this.step !== "site") q.set("step", this.step);
-    const s = q.toString();
-    history.replaceState(null, "", s ? `?${s}` : location.pathname);
+  /** The address of the workbench as it stands (saved.ts): open it and the same view returns. */
+  link(): string {
+    if (!this.siteId) return location.pathname;
+    const run = this.result ? this.runInputs : null;
+    return `${location.pathname}${Saved.writeLink({
+      site: this.siteId, base: this.site?.rules, step: this.step, rules: this.edited ? this.rules : null,
+      brief: this.briefLocked ? this.brief : null, run, sel: run ? this.exSel : null,
+      keep: run ? this.pen.filter((p) => this.genomeOf(p.name)).map((p) => p.name) : [],
+    })}`;
+  }
+
+  sync() {
+    const at = this.link();   // read first, so an effect calling this keeps following the state
+    if (!this.booting) history.replaceState(null, "", at);
   }
 }
 

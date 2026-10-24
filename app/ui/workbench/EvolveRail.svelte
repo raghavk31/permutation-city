@@ -1,11 +1,12 @@
 <script lang="ts">
   // The Evolve step's controls: how to search, how long, which run; then run it, with progress,
   // time left and a way to stop. The map stays usable while it runs.
-  import { Dice5, Play, Square } from "lucide";
+  import { Dice5, Download, FolderOpen, Play, Square } from "lucide";
   import * as E from "../../engine";
   import { poolSize } from "../../engine/pool";
   import { bench } from "./bench.svelte";
   import Icon from "./Icon.svelte";
+  import RunFile from "./RunFile.svelte";
 
   const s = bench.settings;
   const cells = $derived(bench.site?.design.x.length ?? 0);
@@ -17,9 +18,24 @@
   const fmtTime = (t: number) => (t < 60 ? `${t} s` : `${Math.floor(t / 60)} min ${t % 60 ? `${t % 60} s` : ""}`);
   // COPY: search names
   const SEARCH = { auto: "Best trade-offs", "map-elites": "One of every kind" };
+
+  function save() {
+    const f = bench.saveFile();
+    if (!f) return;
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([f.text], { type: "application/json" }));
+    a.download = f.name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+  const sizeKB = $derived(bench.result && !bench.running ? Math.max(1, Math.round((bench.saveFile()?.text.length ?? 0) / 1024)) : 0);
 </script>
 
 <div class="wb-panel">
+  {#if bench.restoring}
+    <div class="wb-progress is-indeterminate" aria-live="polite"><div class="wb-row"><span>{bench.restoring}</span></div><div class="wb-track"><b></b></div></div>
+  {/if}
+  {#each bench.notes as n (n)}<p class="wb-hint">{n}</p>{/each}
   {#if !bench.briefLocked}
     <!-- COPY: no brief note -->
     <p class="wb-hint">No confirmed brief: the run uses the site's own figures. <button class="wb-link" type="button" onclick={() => bench.go("brief")}>Set a brief</button></p>
@@ -54,6 +70,12 @@
     <span class="wb-hint">The same number gives the same run.</span>
   </div>
 
+  {#if Object.keys(bench.geneLocks).length}
+    <!-- COPY: locked genes note -->
+    <p class="wb-hint">{Object.keys(bench.geneLocks).length} gene{Object.keys(bench.geneLocks).length === 1 ? "" : "s"} locked from a design in Explore.
+      <button class="wb-link" type="button" disabled={bench.running} onclick={() => (bench.geneLocks = {})}>Free them</button></p>
+  {/if}
+
   <div class="wb-sub">
     <span class="wb-label">Scored on</span>
     <div class="wb-chips">{#each E.SCORE_KEYS as k}<span class="wb-tag">{E.SCORES[k][0]}</span>{/each}</div>
@@ -72,5 +94,16 @@
   {#if bench.result && !bench.running}
     <!-- COPY: run summary -->
     <p class="wb-hint wb-num">{bench.result.everyone.toLocaleString("en-IN")} designs bred; {bench.result.frontSize} on the front, in {bench.result.families.length} kinds.</p>
+    <div class="wb-sub">
+      <span class="wb-label">Keep this run</span>
+      <!-- COPY: saving a run -->
+      <span class="wb-hint">Share (top right) copies a link that breeds this run again. A file opens it as it is, with no wait.</span>
+      <div class="wb-row">
+        <button class="wb-btn" type="button" onclick={save}><Icon icon={Download} />Save the run · {sizeKB} KB</button>
+        <RunFile><Icon icon={FolderOpen} />Open a run</RunFile>
+      </div>
+    </div>
+  {:else if !bench.running}
+    <RunFile quiet><Icon icon={FolderOpen} />Open a saved run</RunFile>
   {/if}
 </div>

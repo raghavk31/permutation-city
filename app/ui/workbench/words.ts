@@ -1,6 +1,7 @@
 // Rules in plain words (design system, "Plain words"): a rule's condition as a sentence whose
 // numbers are the parts a person can change ("Never built where the hillside is steeper than 25%").
 import type * as E from "../../engine";
+import { FAMILIES } from "../../engine/config";
 import * as Cake from "../new/cake";
 
 /** A piece of a sentence: words, or a number someone can edit (in the units shown). */
@@ -71,4 +72,47 @@ export function limits(r: E.Rule): string[] {
   if (r.limits.uses?.length) out.push(`only ${r.limits.uses.join(", ")}`);
   if (r.limits.raised_ground) out.push("on raised ground");
   return out;
+}
+
+// Genes in plain words (inspector): version 3's site-wide genes, grouped, each with how its
+// decoded value reads. The attractors are drawn on the plan instead.
+const pctOf = (v: number) => `${Math.round(v * 100)}%`;
+const weight = (v: number) => (v < 0.05 ? "off" : v < 0.35 ? "a little" : v < 0.7 ? "some" : "strongly");
+export interface GeneWords { gene: E.GeneV3; label: string; fmt: (v: number) => string }
+// COPY: gene groups and labels
+export const GENE_GROUPS: [string, GeneWords[]][] = [
+  ["Land", [
+    { gene: "water_share", label: "water", fmt: pctOf },
+    { gene: "green_share", label: "green", fmt: pctOf },
+    { gene: "follow_water", label: "water follows the streams", fmt: pctOf },
+  ]],
+  ["Buildings", [
+    { gene: "coverage", label: "ground covered", fmt: pctOf },
+    { gene: "intensity", label: "height, against the limit", fmt: pctOf },
+    { gene: "peak", label: "heights peak at the centres", fmt: (v) => (v < 1 ? "gently" : v < 2 ? "clearly" : "sharply") },
+    { gene: "base", label: "height away from the centres", fmt: pctOf },
+  ]],
+  ["Streets and plots", [
+    { gene: "pattern", label: "block pattern", fmt: (v) => familyName(v) },
+    { gene: "local_spacing", label: "local streets every", fmt: (v) => `${Math.round(v)} m` },
+    { gene: "plot_depth", label: "plot depth", fmt: (v) => `${Math.round(v * 100)}% of the pattern's range` },
+    { gene: "detour", label: "routes detour to share a street", fmt: (v) => `up to ${pctOf(v)}` },
+  ]],
+  ["Main routes go to", [
+    { gene: "w_gates", label: "the site's gates", fmt: weight },
+    { gene: "w_centres", label: "centres", fmt: weight },
+    { gene: "w_transit", label: "transit stops", fmt: weight },
+    { gene: "w_schools", label: "schools", fmt: weight },
+    { gene: "w_markets", label: "markets", fmt: weight },
+  ]],
+  ["Local streets follow", [
+    { gene: "f_landform", label: "the land", fmt: weight },
+    { gene: "f_edges", label: "water edges and roads", fmt: weight },
+    { gene: "f_wind", label: "the wind", fmt: weight },
+  ]],
+];
+
+/** The block pattern family a `pattern` gene value picks (its five bands). */
+function familyName(v: number): string {
+  return FAMILIES[Math.min(Math.floor(v * FAMILIES.length), FAMILIES.length - 1)].name;
 }
