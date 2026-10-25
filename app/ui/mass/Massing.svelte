@@ -58,7 +58,7 @@
   });
 
   const key = $derived(src ? `${src.name}|${block}|${setbacks.front},${setbacks.side},${setbacks.rear}|${JSON.stringify(heights)}` : "");
-  const prepared = $derived(src && block >= 0 ? M.prepareBlock(src.G, Mass.setupOf(src, block, setbacks, heights)) : null);
+  const prepared = $derived(src && block >= 0 ? M.prepareBlock(src.G, Mass.setupOf(src, block, setbacks, heights), design ?? undefined) : null);
   const env = $derived(prepared?.E ?? null);
   const stale = $derived(!!result && resultKey !== key);
   const lowHeights = $derived(env && prepared ? Mass.heightsLow(env, prepared.G) : false);

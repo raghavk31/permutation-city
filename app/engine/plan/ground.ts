@@ -13,35 +13,23 @@ const locCache = new WeakMap<Ground, Locator>();
 export function locator(G: Ground): Locator {
   const hit = locCache.get(G);
   if (hit) return hit;
-  const s = G.grid.spacing, R = G.grid.size, buckets = new Map<number, number[]>();
-  const key = (i: number, j: number) => (i + 32768) * 65536 + (j + 32768);
-  for (let c = 0; c < G.n; c++) {
-    const k = key(Math.floor(G.x[c] / s), Math.floor(G.y[c] / s)), b = buckets.get(k);
-    if (b) b.push(c); else buckets.set(k, [c]);
-  }
-  const exact = ([x, y]: Pt) => {
-    const i0 = Math.floor(x / s), j0 = Math.floor(y / s);
-    let best = -1, bd = R * R;
-    for (let i = i0 - 1; i <= i0 + 1; i++) for (let j = j0 - 1; j <= j0 + 1; j++) {
-      for (const c of buckets.get(key(i, j)) ?? []) {
-        const d = (G.x[c] - x) ** 2 + (G.y[c] - y) ** 2;
-        if (d < bd || (d === bd && c < best)) { bd = d; best = c; }
-      }
-    }
-    return best;
-  };
+  const R = G.grid.size;
   // A raster of the answer, LOC_RES metres a pixel, read at the pixel a point falls in (so a
   // point within about LOC_RES of a cell edge may get the neighbour: fine for growth, which
   // samples, and the metrics read the cells themselves).
   const [bx0, by0, bx1, by1] = G.bounds, pad = 2 * R, res = LOC_RES;
   const ox = bx0 - pad, oy = by0 - pad, W = Math.ceil((bx1 - bx0 + 2 * pad) / res), H = Math.ceil((by1 - by0 + 2 * pad) / res);
-  // Filled cell by cell: only the pixels within a cell radius of its centre are asked.
-  const ras = new Int32Array(W * H).fill(-1), k = Math.ceil(R / res) + 1;
+  // Each cell paints the pixels within a cell radius of its centre where it is the nearest so
+  // far (ties to the lower cell): the nearest cell within R, or -1.
+  const ras = new Int32Array(W * H).fill(-1), dist2 = new Float64Array(W * H).fill(R * R), k = Math.ceil(R / res) + 1;
   for (let c = 0; c < G.n; c++) {
-    const ci = Math.floor((G.x[c] - ox) / res), cj = Math.floor((G.y[c] - oy) / res);
-    for (let j = Math.max(0, cj - k); j <= Math.min(H - 1, cj + k); j++) for (let i = Math.max(0, ci - k); i <= Math.min(W - 1, ci + k); i++) {
-      if (ras[j * W + i] !== -1) continue;
-      ras[j * W + i] = exact([ox + (i + 0.5) * res, oy + (j + 0.5) * res]);
+    const cx = G.x[c], cy = G.y[c], ci = Math.floor((cx - ox) / res), cj = Math.floor((cy - oy) / res);
+    for (let j = Math.max(0, cj - k); j <= Math.min(H - 1, cj + k); j++) {
+      const dy2 = (cy - (oy + (j + 0.5) * res)) ** 2;
+      for (let i = Math.max(0, ci - k); i <= Math.min(W - 1, ci + k); i++) {
+        const p = j * W + i, d = (cx - (ox + (i + 0.5) * res)) ** 2 + dy2;
+        if (d < dist2[p] || (d === dist2[p] && ras[p] !== -1 && c < ras[p])) { dist2[p] = d; ras[p] = c; }
+      }
     }
   }
   const loc: Locator = {

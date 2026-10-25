@@ -33,9 +33,11 @@ export function withHeights(G: Ground, heights: Record<number, number> | null | 
   return { ...G, buildings: { ...B, h, src, sources } };
 }
 
-export function prepareBlock(G0: Ground, s: MassSetup): { d: Design; E: Envelope; ctx: MassContext; G: Ground } {
+// grown: the design as already grown from this setup on G0 (the page has it), to skip growing
+// it again; used only when no heights are overridden, since those change the ground
+export function prepareBlock(G0: Ground, s: MassSetup, grown?: Design): { d: Design; E: Envelope; ctx: MassContext; G: Ground } {
   const G = withHeights(G0, s.heights);
-  const d = s.fabric ? growLast(s.genome, G, s.fabric, s.ranges) : grow(s.genome, G, s.locks ? Int8Array.from(s.locks) : null, s.ranges);
+  const d = grown && G === G0 ? grown : s.fabric ? growLast(s.genome, G, s.fabric, s.ranges) : grow(s.genome, G, s.locks ? Int8Array.from(s.locks) : null, s.ranges);
   const E = envelope(d, G, s.block, s.setbacks ?? DEFAULT_SETBACKS);
   return { d, E, ctx: massContext(E, whereOf(G.meta), s.narrowWings ?? false, s.typeWeights ?? null), G };
 }

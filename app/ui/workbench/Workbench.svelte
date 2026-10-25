@@ -26,6 +26,11 @@
   const P = Draw.palette();
   // the address bar follows the workbench: step, rules, brief, the run, the open design, the pen
   $effect(() => { bench.sync(); });
+  // The Site map stays alive once the Site step is shown with a site open: building MapLibre
+  // again cost about 2 s per visit. Not before: a link opens on Site, then moves on as the site
+  // loads, and a hidden map still loading its tiles cost about 1.5 s of the page load.
+  let siteMapOn = $state(false);
+  $effect(() => { if (bench.step === "site" && bench.site) siteMapOn = true; });
   let copied = $state(false);
   let keys = $state<HTMLDialogElement>();
   let toast = $state("");
@@ -117,9 +122,10 @@
   </aside>
 
   <main class="wb-centre">
-    {#if bench.step === "site"}
-      <SiteMap />
-    {:else if bench.step === "layers" && bench.site}
+    {#if siteMapOn || bench.step === "site"}
+      <div style:display={bench.step === "site" ? "contents" : "none"}><SiteMap active={bench.step === "site"} /></div>
+    {/if}
+    {#if bench.step === "layers" && bench.site}
       <LayersMap site={bench.site} />
     {:else if bench.step === "rules" && bench.site && bench.rules}
       <RulesMap site={bench.site} />
