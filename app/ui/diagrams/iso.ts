@@ -459,7 +459,7 @@ export function evolution(): Diagram {
   const svg = series([
     { scene: smallPlan(0, 4), num: "01", title: "Start", note: "random designs" },
     { scene: smallPlan(.5, 8, [2, 5, 9]), num: "02", title: "Breed", note: "the best become parents" },
-    { scene: smallPlan(1, 12), num: "03", title: "Settle", note: "after 15 generations" },
+    { scene: smallPlan(1, 12), num: "03", title: "Settle", note: "generations later" },
   ], "Three small plans: scattered, then tidier with a few changed buildings in black, then settled with a park.");
   return { id: "evolution", title: "Evolution", caption: "Designs breed. The better ones become parents, so each generation tends to do a little better than the last.", svg };
 }

@@ -11,6 +11,8 @@
 
   let { site }: { site: E.SiteExport } = $props();
   const P = Draw.palette();
+  // the strip's height, so the plan is fitted above it
+  let stripH = $state(0);
   const runSite = $derived(bench.runSite ?? site);
 
   const shown = $derived(bench.evolveShown);
@@ -39,9 +41,9 @@
   </div>
 {:else}
   {#key runSite}
-    <MapCanvas site={runSite} {paint} {version} onhover={(i) => (bench.hover = i)} label="Plan of the design shown: {shown[bench.picked3]?.title ?? ''}" />
+    <MapCanvas site={runSite} {paint} {version} bottom={stripH ? stripH + 40 : 0} onhover={(i) => (bench.hover = i)} label="Plan of the design shown: {shown[bench.picked3]?.title ?? ''}" />
   {/key}
-  <div class="wb-strip-over" aria-live="polite">
+  <div class="wb-strip-over" aria-live="polite" bind:clientHeight={stripH}>
     <span class="wb-label">{bench.result ? "The most distinct" : `Best so far · generation ${bench.runGen}`}</span>
     <div class="wb-strip">
       {#each shown as s, k (s.name + k)}

@@ -28,7 +28,8 @@
       </div>
       <dl class="wb-facts">
         {#if relief.relief_m !== undefined}<dt>Rise</dt><dd class="wb-num">{Math.round(relief.relief_m)} m, lowest to highest</dd>{/if}
-        {#if relief.median_slope !== undefined}<dt>Typical slope</dt><dd class="wb-num">{pct(relief.median_slope)}</dd>{/if}
+        {#if relief.median_slope !== undefined}<!-- COPY: the median slope; "typical" read as wrong on a hill site with a flat valley floor -->
+          <dt>Half the ground</dt><dd class="wb-num">flatter than {pct(relief.median_slope)}</dd>{/if}
         {#if steep !== undefined}<dt>Steeper than 8%</dt><dd class="wb-num">{pct(steep)} of the ground</dd>{/if}
         <dt>Valleys</dt><dd class="wb-num">{Math.round(valleyHa)} ha, kept open for water</dd>
       </dl>
@@ -46,15 +47,26 @@
     {:else}
       <p class="wb-hint">Follow the strong ridges, joined to the existing roads. Every design keeps the ones switched on.
         {#if sk.crossings?.length}They cross a valley {sk.crossings.length} time{sk.crossings.length === 1 ? "" : "s"} (rings on the map).{/if}</p>
-      <ul class="wb-ridges">
-        {#each sk.ridges ?? [] as r, k (r.id)}
-          {@const on = !bench.ridgesOff.has(r.id)}
-          <li class="wb-toggle-row">
-            <button class="wb-switch" type="button" role="switch" aria-checked={on} aria-label="Ridge street {k + 1}" onclick={() => bench.toggleRidge(r.id)}></button>
-            <span>Ridge {k + 1} <span class="wb-hint">divides {Math.round(r.strength_ha)} ha</span></span>
-          </li>
-        {/each}
-      </ul>
+      {#snippet ridgeList()}
+        <ul class="wb-ridges">
+          {#each sk.ridges ?? [] as r, k (r.id)}
+            {@const on = !bench.ridgesOff.has(r.id)}
+            <li class="wb-toggle-row">
+              <button class="wb-switch" type="button" role="switch" aria-checked={on} aria-label="Ridge street {k + 1}" onclick={() => bench.toggleRidge(r.id)}></button>
+              <span>Ridge {k + 1} <span class="wb-hint">divides {Math.round(r.strength_ha)} ha</span></span>
+            </li>
+          {/each}
+        </ul>
+      {/snippet}
+      <!-- A long list (Bengaluru has 41) is folded, so the steps below stay in reach -->
+      {#if (sk.ridges?.length ?? 0) > 8}
+        {@const n = sk.ridges?.length ?? 0}
+        <details class="wb-group"><summary>{n} ridge streets<span class="wb-meta">{n - bench.ridgesOff.size} on</span></summary>
+          {@render ridgeList()}
+        </details>
+      {:else}
+        {@render ridgeList()}
+      {/if}
     {/if}
   </div>
 </div>

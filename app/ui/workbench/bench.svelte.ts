@@ -187,7 +187,11 @@ class Bench {
   /** Every name the run kept, with its title when it is a representative. */
   titleOf(name: string | null) {
     if (!name) return "";
-    return this.reps.find((r) => r.name === name)?.title ?? name;
+    const rep = this.reps.find((r) => r.name === name)?.title;
+    if (rep) return rep;
+    // COPY: a design with no family title, by its generation ("G3.12" is generation 3, no. 12)
+    const m = /^G(\d+)\.(\d+)$/.exec(name);
+    return m ? `generation ${+m[1]}, no. ${+m[2]}` : name;
   }
 
   /** Grow many kept designs at once (the archive's thumbnails). */

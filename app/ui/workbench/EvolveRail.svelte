@@ -11,8 +11,10 @@
   const s = bench.settings;
   const cells = $derived(bench.site?.design.x.length ?? 0);
   const designs = $derived(s.pop * (s.generations + 1));
-  // about 0.11 ms of growing per design cell (the A2 timings), shared over the workers
-  const seconds = $derived(Math.round((designs * 0.11 * cells) / 1000 / poolSize()));
+  // Whole browser runs took 0.040-0.048 ms per design cell with 8 workers on all four timed sites
+  // (the A2 timings): about 0.35 ms per cell shared over the workers. Growing alone is 0.11 ms
+  // a cell, but the workers don't scale evenly and scoring and breeding add to it.
+  const seconds = $derived(Math.round((designs * 0.35 * cells) / 1000 / poolSize()));
   const elapsed = $derived(bench.running && bench.runGen > 0 ? (performance.now() - bench.runStarted) / 1000 : 0);
   const left = $derived(bench.runGen > 0 ? Math.max(0, Math.round((elapsed / bench.runGen) * (s.generations - bench.runGen))) : seconds);
   const fmtTime = (t: number) => (t < 60 ? `${t} s` : `${Math.floor(t / 60)} min ${t % 60 ? `${t % 60} s` : ""}`);
