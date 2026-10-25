@@ -10,10 +10,11 @@
 
   // k, tx, ty (zoom and pan) can be bound, so two maps share one camera (Explore's compare)
   // onpick: a click (not a drag) on the map, in site metres
-  let { site, paint, version, label, onhover, onpick, tools, children, k = $bindable(1), tx = $bindable(0), ty = $bindable(0) }: {
+  // bottom: pixels along the bottom that something sits over (Evolve's strip), left out of the fit
+  let { site, paint, version, label, onhover, onpick, tools, children, k = $bindable(1), tx = $bindable(0), ty = $bindable(0), bottom = 0 }: {
     site: E.SiteExport; paint: (ctx: CanvasRenderingContext2D, v: Draw.View) => void; version: unknown;
     label: string; onhover?: (i: number) => void; onpick?: (x: number, y: number) => void; tools?: Snippet; children?: Snippet;
-    k?: number; tx?: number; ty?: number;
+    k?: number; tx?: number; ty?: number; bottom?: number;
   } = $props();
 
   let wrap: HTMLDivElement;
@@ -24,7 +25,7 @@
   // svelte-ignore state_referenced_locally
   const shape = Draw.shapeOf(site);
 
-  const base = $derived(W && H ? Draw.view(site.design.x, site.design.y, W, H, 28, Draw.marginOf(site)) : null);
+  const base = $derived(W && H ? Draw.view(site.design.x, site.design.y, W, Math.max(H / 2, H - bottom), 28, Draw.marginOf(site)) : null);
   const view = $derived.by((): Draw.View | null => base
     ? { s: base.s * k, px: (x) => base.px(x) * k + tx, py: (y) => base.py(y) * k + ty, bounds: base.bounds } : null);
 

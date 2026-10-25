@@ -14,6 +14,12 @@ a { color: inherit; }
 }
 .wb-app.no-rail { grid-template-columns: 44px minmax(0, 1fr) 340px; }
 .wb-app.no-insp { grid-template-columns: 280px minmax(0, 1fr) 44px; }
+/* 900-1199 px (a small laptop, a tablet across): narrower panels, so the page never scrolls sideways */
+@media (max-width: 1199px) {
+  .wb-app { min-width: 900px; grid-template-columns: 240px minmax(0, 1fr) 280px; }
+  .wb-app.no-rail { grid-template-columns: 44px minmax(0, 1fr) 280px; }
+  .wb-app.no-insp { grid-template-columns: 240px minmax(0, 1fr) 44px; }
+}
 .wb-app.no-rail.no-insp { grid-template-columns: 44px minmax(0, 1fr) 44px; }
 
 /* top bar */

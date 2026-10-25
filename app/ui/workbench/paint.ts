@@ -62,13 +62,27 @@ export function landform(ctx: Ctx, v: Draw.View, site: E.SiteExport, G: E.Ground
     ctx.strokeStyle = G.skeleton?.source === "roads" ? P.t.ink2 : P.ink; ctx.lineWidth = l.cls >= 3 ? 3.4 : 2.2; ctx.stroke();
   }
   ctx.restore();
-  // crossings: where the skeleton has to cross a valley, a ring on the side between two cells
-  const cr = site.skeleton?.crossings ?? [];
-  ctx.save(); ctx.strokeStyle = P.t.water.deep; ctx.fillStyle = P.paper; ctx.lineWidth = 2;
-  for (const [i, a] of cr) {
-    const j = G.nbr[i * G.deg + a];
+  // crossings: where the skeleton has to cross a valley, a ring on the side between two cells.
+  // Crossings next to each other are one ring, at the middle one: a road that runs along a
+  // valley (Guwahati's) crosses it at every cell, and a ring for each was a chain of dozens.
+  const pts: [number, number][] = [];
+  for (const [i, a] of site.skeleton?.crossings ?? []) {
     if (i >= G.n) continue;
-    const x = j >= 0 ? (G.x[i] + G.x[j]) / 2 : G.x[i], y = j >= 0 ? (G.y[i] + G.y[j]) / 2 : G.y[i];
+    const j = G.nbr[i * G.deg + a];
+    pts.push(j >= 0 ? [(G.x[i] + G.x[j]) / 2, (G.y[i] + G.y[j]) / 2] : [G.x[i], G.y[i]]);
+  }
+  const near = (1.6 * G.grid.spacing) ** 2, group = pts.map((_, k) => k);
+  const root = (k: number): number => (group[k] === k ? k : (group[k] = root(group[k])));
+  for (let a = 0; a < pts.length; a++) for (let b = a + 1; b < pts.length; b++) {
+    if ((pts[a][0] - pts[b][0]) ** 2 + (pts[a][1] - pts[b][1]) ** 2 < near) group[root(a)] = root(b);
+  }
+  const groups = new Map<number, [number, number][]>();
+  pts.forEach((p, k) => { const r = root(k); const g = groups.get(r); if (g) g.push(p); else groups.set(r, [p]); });
+  ctx.save(); ctx.strokeStyle = P.t.water.deep; ctx.fillStyle = P.paper; ctx.lineWidth = 2;
+  for (const g of groups.values()) {
+    // the member nearest the group's centre
+    const cx = g.reduce((s, p) => s + p[0], 0) / g.length, cy = g.reduce((s, p) => s + p[1], 0) / g.length;
+    const [x, y] = g.reduce((b, p) => ((p[0] - cx) ** 2 + (p[1] - cy) ** 2 < (b[0] - cx) ** 2 + (b[1] - cy) ** 2 ? p : b));
     ctx.beginPath(); ctx.arc(v.px(x), v.py(y), 5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
   }
   ctx.restore();

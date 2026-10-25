@@ -173,7 +173,7 @@
           <dt>Average storeys</dt><dd class="wb-num">{Number.isFinite(ex.levels) ? ex.levels.toFixed(1) : "…"}</dd>
           <dt>Bred from</dt><dd>
             {#if ex.parents.length}
-              {#each ex.parents as p, i}{#if i} × {/if}{#if inLineage(p)}<button class="wb-link" type="button" onclick={() => (bench.exSel = p)}>{p}</button>{:else}{p}{/if}{/each}
+              {#each ex.parents as p, i}{#if i} × {/if}{#if inLineage(p)}<button class="wb-link" type="button" onclick={() => (bench.exSel = p)}>{bench.titleOf(p)}</button>{:else}{bench.titleOf(p)}{/if}{/each}
             {:else}<span class="wb-quiet">a newcomer, not bred</span>{/if}
             <button class="wb-link" type="button" onclick={() => (bench.exView = "tree")}>family tree</button></dd>
         </dl>
