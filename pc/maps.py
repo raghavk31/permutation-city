@@ -23,7 +23,13 @@ MAJOR_ROADS = ["motorway", "trunk", "primary", "secondary"]
 
 
 def _name(n):
-    return n.get("primary") if isinstance(n, dict) else None
+    """The English name where Overture has one, else the primary name: labels are drawn in
+    the page's Latin font, and a name in another script (Guwahati's are in Assamese) showed
+    as empty boxes."""
+    if not isinstance(n, dict):
+        return None
+    common = dict(n.get("common") or [])
+    return common.get("en") or n.get("primary")
 
 
 def context(site: Site):

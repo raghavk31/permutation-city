@@ -623,7 +623,9 @@ One PR per item.
 - Occupancy from Census 2011 household size, with its source, until the URDPFI 2014
   Guidelines are in `corpus/`.
 - Guwahati FAR stays 1.5, marked "assumed", unless the Bye-laws and the Master Plan settle
-  the site's zone.
+  the site's zone. (25 October: the Bye-laws 2014 give 1.5 for the design's plots and
+  streets in a High or Medium Intensity Zone; only the zone is still assumed, since the
+  zone map isn't in the published PDF. See `sites/guwahati-bharalu/site.yaml`.)
 - Run time on camera: demo mode or a jump cut, whichever is more honest. No faked speed.
 - Safari: Playwright WebKit for my checks; a real device pass if you have one.
 

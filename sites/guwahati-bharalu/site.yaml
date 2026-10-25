@@ -4,7 +4,11 @@ grid:
   size: 20.0
 # IMD gridded rainfall, 10-year one-day level at 26.25 N 91.75 E (docs/shocks.md)
 design_storm_mm: 110
-# assumed: a mid value for the city; check against the Guwahati Master Plan 2025 and the GMDA bye-laws
+# Guwahati Building Construction (Regulation) Bye-laws 2014, cl. 26(1)(a) (repeated in cl. 88):
+# in a High or Medium Intensity Zone, a plot up to 670 m² on a road above 6.6 m and up to 15 m
+# wide (the design's 7.5-12 m local streets) gets FAR 1.5, and premium FAR starts above 670 m²
+# (1.6-2.25). Low intensity allows 1.0-1.5. The zone map (bye-laws Appendix-II) isn't in the
+# published PDF; this built-up centre (GS Road, Ganeshguri) is taken as High or Medium: assumed.
 target_far: 1.5
 # The eastern half of the first 2.4 km box (3.1 km²): the valley floor, GS Road and the
 # north-eastern hill. The whole box was 5.8 km² and 563 ms a design.
