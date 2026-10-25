@@ -156,10 +156,7 @@ class Bench {
     const site = this.runSite, d = this.grown.get(name);
     const genome = this.genomeOf(name);
     if (!site || !d || !genome) return false;
-    if (this.ground?.site !== site) {
-      const G = E.prepare(site);
-      this.ground = { site, G: this.runOff.length ? E.withSkeleton(site, G, new Set(this.runOff)) : G };
-    }
+    if (this.ground?.site !== site) this.ground = { site, G: Sites.groundOf(site, this.runOff) };
     this.mass.open({
       src: { siteId: `${this.siteId}-run${this.runCount}`, site, G: this.ground.G, skeletonOff: this.runOff, name, genome,
         locks: null, ranges: this.runRanges, brief: this.briefLocked ? this.brief : null },
@@ -311,6 +308,7 @@ class Bench {
       const s = await Sites.fetchSite(id);
       if (!s.grid.layers) throw new Error("This site file is from an older export and has no layers to show.");
       this.site = s;
+      Sites.warmGround(() => Sites.groundOf(s));
       this.siteId = id;
       this.picked = id;
       this.layerOn = {};
@@ -411,6 +409,8 @@ class Bench {
   private adopt(r: EvolveResult, ranges: E.Ranges, inputs: Saved.RunInputs) {
     this.runRanges = ranges;
     this.runOff = inputs.off;
+    const site = this.runSite;
+    if (site) Sites.warmGround(() => Sites.groundOf(site, inputs.off));
     this.runInputs = inputs;
     this.runCount++;
     this.grown = new Map(r.families.map((f) => [f.name, f.design!]));

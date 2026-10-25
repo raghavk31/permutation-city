@@ -4,15 +4,14 @@
   import * as E from "../../engine";
   import * as Draw from "../draw";
   import * as Cake from "../new/cake";
+  import { groundOf } from "../sites";
   import { bench } from "./bench.svelte";
   import MapCanvas from "./MapCanvas.svelte";
   import * as Paint from "./paint";
 
   let { site }: { site: E.SiteExport } = $props();
   const P = Draw.palette();
-  // svelte-ignore state_referenced_locally
-  const base = E.prepare(site);
-  const G = $derived(bench.ridgesOff.size ? E.withSkeleton(site, base, bench.ridgesOff) : base);
+  const G = $derived(groundOf(site, bench.ridgesOff));
   const paint = $derived((ctx: CanvasRenderingContext2D, v: Draw.View) => Paint.landform(ctx, v, site, G, P));
   const version = $derived([...bench.ridgesOff].join(","));
 

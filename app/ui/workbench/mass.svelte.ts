@@ -50,7 +50,7 @@ export class MassStep {
   key = $derived(this.source ? `${this.source.src.name}|${this.block}|${this.setbacks.front},${this.setbacks.side},${this.setbacks.rear}` : "");
   /** The block ready to mass, on the page (the worker prepares the same). */
   prepared = $derived(this.source && this.block >= 0
-    ? M.prepareBlock(this.source.src.G, Mass.setupOf(this.source.src, this.block, $state.snapshot(this.setbacks))) : null);
+    ? M.prepareBlock(this.source.src.G, Mass.setupOf(this.source.src, this.block, $state.snapshot(this.setbacks)), this.source.design) : null);
   stale = $derived(!!this.result && this.resultKey !== this.key);
   chosen = $derived(this.result && this.pick >= 0 && !this.stale ? this.result.kept[this.pick] : null);
 

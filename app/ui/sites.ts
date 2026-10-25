@@ -8,6 +8,7 @@
 // so a link reproduces the same ground and stays short. A confirmed brief travels the same
 // way (&brief=<base64url JSON>), and is checked and applied again when the link is opened.
 import * as E from "../engine";
+import { locator, skeletonLines } from "../engine/plan/ground";
 
 export const DATA = `${import.meta.env.BASE_URL}sites/`;
 export const SERVICE: string | null = (import.meta.env.VITE_SERVICE_URL as string | undefined)?.replace(/\/$/, "")
@@ -68,9 +69,51 @@ export function decodeRules(text: string, base: E.RuleSet): E.RuleSet {
   return { ...base, list: base.list.map((r) => (byId.has(r.id) ? { ...r, ...byId.get(r.id)! } : r)) };
 }
 
+const grounds = new WeakMap<E.SiteExport, Map<string, E.Ground>>();
+
+/** The site's design ground with these ridges switched off. The same object each time for
+ *  the same site and ridges, so what the engine keeps on a ground (its skeleton lines, about
+ *  110 ms to make) lasts between visits to a step. */
+export function groundOf(site: E.SiteExport, off: Iterable<number> = []): E.Ground {
+  const ids = [...off].sort((a, b) => a - b), key = ids.join(",");
+  let seen = grounds.get(site);
+  if (!seen) grounds.set(site, (seen = new Map()));
+  let G = seen.get(key);
+  if (!G) {
+    G = key ? E.withSkeleton(site, groundOf(site), new Set(ids)) : E.prepare(site);
+    seen.set(key, G);
+    if (seen.size > 8) seen.delete(seen.keys().next().value!);
+  }
+  return G;
+}
+
+/** Make what the steps will ask of this ground (its skeleton lines for Landform, its cell
+ *  locator for Massing) while the page is idle, so the first visit doesn't wait for them. */
+export function warmGround(ground: () => E.Ground) {
+  const idle = (f: () => void) => (window.requestIdleCallback ? window.requestIdleCallback(f, { timeout: 2000 }) : setTimeout(f, 300));
+  idle(() => { const G = ground(); idle(() => { skeletonLines(G); idle(() => locator(G)); }); });
+}
+
+// The Rules map, the rail, the brief and a run all ask for the same rules on the same site,
+// and each step visit asked again (70-100 ms): the last few answers per site are kept.
+const ruled = new WeakMap<E.SiteExport, Map<string, { site: E.SiteExport; result: E.RuleResult }>>();
+
 /** The site as these rules leave it: rule states and reasons on the grid, and the design
  *  ground rebuilt (what the engine grows on). The site file itself is not changed. */
 export function withRules(site: E.SiteExport, rules: E.RuleSet): { site: E.SiteExport; result: E.RuleResult } {
+  const key = JSON.stringify(rules);
+  let seen = ruled.get(site);
+  if (!seen) ruled.set(site, (seen = new Map()));
+  const hit = seen.get(key);
+  if (hit) { seen.delete(key); seen.set(key, hit); return hit; }
+  // a plain copy: the caller's rules may be edited later
+  const out = applied(site, JSON.parse(key));
+  seen.set(key, out);
+  if (seen.size > 6) seen.delete(seen.keys().next().value!);
+  return out;
+}
+
+function applied(site: E.SiteExport, rules: E.RuleSet): { site: E.SiteExport; result: E.RuleResult } {
   const result = E.applyRules(rules, site.grid.layers!, site.grid.x.length);
   const design = E.designFromRules(site, result);
   const n = design.x.length, cellArea = site.meta.cell_area;

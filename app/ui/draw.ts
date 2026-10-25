@@ -142,6 +142,11 @@ function meshOf(xs: ArrayLike<number>, ys: ArrayLike<number>, shape: [number, nu
   return m;
 }
 
+// The last few dissolves per grid, by their colours: a map draws the same ones again after a
+// pan or zoom, and a rule change alters only some of its layers (about 30 ms each on Bengaluru).
+// Callers share the outlines, so they read them and never change them.
+const dissolved = new WeakMap<ArrayLike<number>, Map<string, Map<string, [number, number][][]>>>();
+
 /**
  * Dissolve cells into regions, one set of closed outlines per colour, in metres.
  *  - A cell side is on an outline when the cell across it has another colour (or none).
@@ -154,6 +159,20 @@ function meshOf(xs: ArrayLike<number>, ys: ArrayLike<number>, shape: [number, nu
  */
 export function regions(xs: ArrayLike<number>, ys: ArrayLike<number>, colours: Colour[], shape: [number, number][],
   smooth = 2, cut: ((i: number, k: number) => boolean) | null = null): Map<string, [number, number][][]> {
+  if (cut) return dissolve(xs, ys, colours, shape, smooth, cut);
+  const key = `${smooth}|${shape.flat().join(",")}|${colours.map((c) => c ?? "").join(";")}`;
+  let seen = dissolved.get(xs);
+  if (!seen) dissolved.set(xs, (seen = new Map()));
+  let out = seen.get(key);
+  if (out) { seen.delete(key); seen.set(key, out); return out; }
+  out = dissolve(xs, ys, colours, shape, smooth, null);
+  seen.set(key, out);
+  if (seen.size > 24) seen.delete(seen.keys().next().value!);
+  return out;
+}
+
+function dissolve(xs: ArrayLike<number>, ys: ArrayLike<number>, colours: Colour[], shape: [number, number][],
+  smooth: number, cut: ((i: number, k: number) => boolean) | null): Map<string, [number, number][][]> {
   const m = meshOf(xs, ys, shape), deg = m.deg;
   // The colour on each directed side, keyed by its two corners. Side k of cell i runs from
   // corner k to corner k + 1. `cut` makes a side an outline even between cells of one colour
@@ -376,18 +395,29 @@ export function dots(ctx: Ctx, v: View, xs: ArrayLike<number>, ys: ArrayLike<num
 
 // --- context ----------------------------------------------------------------------------
 
+// The footprints as one path in metres, made once per site: tracing Bengaluru's thousands of
+// buildings again was most of every map's draw. Views are affine, so the path is drawn
+// through the view's transform.
+const footprintPaths = new WeakMap<SiteExport, Path2D>();
+
 /** The existing city round the design: building footprints in light grey with an edge. */
 export function footprints(ctx: Ctx, v: View, site: SiteExport) {
   const b = site.context.buildings;
   if (!b?.rings?.length) return;
-  ctx.save();
-  ctx.beginPath();
-  for (const r of b.rings) {
-    for (let k = 0; k < r.length; k += 2) (k ? ctx.lineTo(v.px(r[k]), v.py(r[k + 1])) : ctx.moveTo(v.px(r[k]), v.py(r[k + 1])));
-    ctx.closePath();
+  let path = footprintPaths.get(site);
+  if (!path) {
+    path = new Path2D();
+    for (const r of b.rings) {
+      for (let k = 0; k < r.length; k += 2) (k ? path.lineTo(r[k], r[k + 1]) : path.moveTo(r[k], r[k + 1]));
+      path.closePath();
+    }
+    footprintPaths.set(site, path);
   }
-  ctx.fillStyle = T.existing.fill; ctx.fill();
-  ctx.strokeStyle = T.existing.edge; ctx.lineWidth = 0.5; ctx.stroke();
+  const e = v.px(0), f = v.py(0), a = v.px(1) - e, d = v.py(1) - f;
+  ctx.save();
+  ctx.transform(a, 0, 0, d, e, f);
+  ctx.fillStyle = T.existing.fill; ctx.fill(path);
+  ctx.strokeStyle = T.existing.edge; ctx.lineWidth = 0.5 / Math.abs(a); ctx.stroke(path);
   ctx.restore();
 }
 
@@ -533,6 +563,29 @@ function ground(ctx: Ctx, v: View, site: SiteExport, p: Palette, w: number, h: n
   context(ctx, v, site.context, p, { boundary: false });
 }
 
+/** The ground drawn once per site, size and palette and copied under each plan: on a site with
+ *  many existing buildings (Bengaluru) drawing their footprints was half of every plan, and
+ *  Explore draws a dozen plans at once. */
+const grounds = new WeakMap<SiteExport, Map<string, HTMLCanvasElement>>();
+
+function groundUnder(site: SiteExport, p: Palette, canvas: HTMLCanvasElement, v: View, w: number, h: number,
+  shape: [number, number][]): HTMLCanvasElement {
+  const key = `${canvas.width}x${canvas.height}|${w}x${h}|${p.paper}|${p.ink}`;
+  let seen = grounds.get(site);
+  if (!seen) grounds.set(site, (seen = new Map()));
+  let under = seen.get(key);
+  if (!under) {
+    under = document.createElement("canvas");
+    under.width = canvas.width; under.height = canvas.height;
+    const uctx = under.getContext("2d")!;
+    uctx.setTransform(canvas.width / w, 0, 0, canvas.width / w, 0, 0);
+    ground(uctx, v, site, p, w, h, shape);
+    seen.set(key, under);
+    if (seen.size > 12) seen.delete(seen.keys().next().value!);
+  }
+  return under;
+}
+
 /** A design in plan, framed to the design ground: the ground, the design dissolved into
  *  shapes, its streets, then the boundary (and the attractors, when asked). */
 export function plan(canvas: HTMLCanvasElement, site: SiteExport, d: Design, p: Palette,
@@ -540,7 +593,7 @@ export function plan(canvas: HTMLCanvasElement, site: SiteExport, d: Design, p: 
   const D = site.design, { corners: shape } = shapeOf(site);
   const { ctx, w, h } = fitCanvas(canvas, aspect);
   const v = view(D.x, D.y, w, h, 4, marginOf(site));
-  ground(ctx, v, site, p, w, h, shape);
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(groundUnder(site, p, canvas, v, w, h, shape), 0, 0); ctx.restore();
   if (d.plan) vectorPlan(ctx, v, d);
   else { fillRegions(ctx, v, D.x, D.y, designColours(d), shape, DESIGN_STYLES); streets(ctx, v, roads, p); }
   if (locked) dots(ctx, v, D.x, D.y, (i) => !!locked[i], p.ink, 1.4);
@@ -549,19 +602,14 @@ export function plan(canvas: HTMLCanvasElement, site: SiteExport, d: Design, p: 
   return v;
 }
 
-/** Many small plans of one size (galleries, the archive): the ground is drawn once and copied
- *  under each design. */
+/** Many small plans of one size (galleries, the archive), each over the same drawn ground. */
 export function plans(canvases: HTMLCanvasElement[], site: SiteExport, designs: Design[], p: Palette, aspect: number,
   roads: (StreetLines | null)[] = []) {
   if (!canvases.length) return;
   const D = site.design, { corners: shape } = shapeOf(site);
   const first = fitCanvas(canvases[0], aspect), { w, h } = first;
   const v = view(D.x, D.y, w, h, 4, marginOf(site));
-  const under = document.createElement("canvas");
-  under.width = canvases[0].width; under.height = canvases[0].height;
-  const uctx = under.getContext("2d")!;
-  uctx.setTransform(under.width / w, 0, 0, under.width / w, 0, 0);
-  ground(uctx, v, site, p, w, h, shape);
+  const under = groundUnder(site, p, canvases[0], v, w, h, shape);
   canvases.forEach((canvas, k) => {
     const { ctx } = k ? fitCanvas(canvas, aspect) : first;
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(under, 0, 0); ctx.restore();

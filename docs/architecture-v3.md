@@ -724,3 +724,37 @@ under "H4".
 - **Two seeds.** These are directions across sites, not tested effects; the A4 protocol's
   10 seeds and tests are not applied to H4 in Milestone A unless you ask for it.
 
+
+## Final stretch log (2026-10-25): performance pass
+
+Measured with real pointer input in headless Edge (production build, development laptop,
+Intel UHD 630, 1440 x 900), main against this branch in one session. Times are Event Timing
+durations: click to the next frame on screen.
+
+| interaction | Bengaluru, main | Bengaluru, now | Docks, main | Docks, now |
+|---|---:|---:|---:|---:|
+| first visit to Massing | 1,160 ms | 224 ms | 600 ms | 200 ms |
+| Explore | 1,152 ms | 1,080 ms | 360 ms | 376 ms |
+| step Rules | 312 ms | 232 ms | 208 ms | 128 ms |
+| step Site again | 288 ms | 216 ms | 336 ms | 368 ms |
+| page load, long tasks | 3 (818 ms) | 4 (843 ms) | 3 (464 ms) | 4 (603 ms) |
+| long tasks during the run | 34 (5.2 s) | 20 (3.5 s) | 6 (0.5 s) | 1 (0.1 s) |
+
+What changed:
+- **The cell locator** (point to nearest cell, used by growth, plots and massing) fills its
+  raster by painting distances cell by cell instead of a bucket search per pixel: the same
+  answer at every point on all five sites, 10 to 35 times faster (Wadaj 403 to 11 ms).
+- **Massing reuses the design already grown** instead of growing it again on the page.
+- **Grounds, rule results, dissolved regions and the existing-building footprints are kept**
+  per site, so a step visited again doesn't redo them; the ground under a plan is drawn once
+  per site and size.
+- **The Site map stays alive** once the Site step has been shown with a site open (MapLibre
+  cost about 2 s to build again). A link that opens on Site and moves on doesn't keep it.
+- **Skeleton lines and the locator are made while the page is idle**, after a site opens and
+  after a run.
+
+Still over the 100 ms budget: step changes (130 to 370 ms) and Explore on Bengaluru. The
+main thread is mostly free in them: Explore reaches its next frame about 150 ms after the
+click (111 ms of script for a dozen plans) and the rest is the frame being shown, slow on
+this GPU in headless Edge. Check these in a real browser before more work on them. The
+whole run is unchanged (Bengaluru 59 s, Docks 14 s): growth in workers is the cost there.

@@ -12,6 +12,9 @@
   import { bench } from "./bench.svelte";
   import Icon from "./Icon.svelte";
 
+  // active: the Site step is showing (the workbench hides this map on other steps, not destroys it)
+  let { active = true }: { active?: boolean } = $props();
+
   setWorkerUrl(mapWorker);
   const IMAGERY = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
 
@@ -102,6 +105,12 @@
   $effect(() => {
     const data = outlines;
     if (ready) (map?.getSource("sites") as GeoJSONSource | undefined)?.setData(data);
+  });
+
+  // shown again: the container was hidden, so MapLibre measures it afresh; hidden: stop drawing
+  $effect(() => {
+    if (active) map?.resize();
+    else if (bench.drawing) { draw?.setMode("select"); bench.drawing = false; }
   });
 
   onDestroy(() => { draw?.stop(); map?.remove(); bench.map = null; bench.drawing = false; });
