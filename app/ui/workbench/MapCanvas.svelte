@@ -72,8 +72,10 @@
   onMount(() => {
     ro = new ResizeObserver(() => { W = wrap.clientWidth; H = wrap.clientHeight; });
     ro.observe(wrap);
+    // a font that arrives later (Noto Sans Bengali for place names) needs a fresh drawing
+    document.fonts.addEventListener("loadingdone", render);
   });
-  onDestroy(() => { ro?.disconnect(); clearTimeout(idle); });
+  onDestroy(() => { ro?.disconnect(); clearTimeout(idle); document.fonts.removeEventListener("loadingdone", render); });
 
   function onWheel(e: WheelEvent) {
     e.preventDefault();
