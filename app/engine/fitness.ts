@@ -1,4 +1,5 @@
 // Scores (pc/fitness.py). See that file for what each score means and where it comes from.
+import { capacityOf } from "./capacity.js";
 import {
   BUILDING, CARBON_BASE, CARBON_FREE_LEVELS, CARBON_PER_LEVEL, DAYLIGHT_REACH_M, DAYLIGHT_TAN, HEAT,
   HEAT_PER_LEVEL, HEAT_REACH_M, HUMAN_MAX_LEVELS, LANDSCAPE, PLOT_STORAGE, STOREY_M, STORAGE_LANDSCAPE, STORAGE_WATER,
@@ -18,10 +19,18 @@ export const SCORES: Record<ScoreKey, [string, (v: number) => string, boolean]> 
 };
 export const SCORE_KEYS = Object.keys(SCORES) as ScoreKey[];
 
-export function floorAreaTarget(G: Ground): number {
+/** The floor area the brief asks for (m²): its own figure, else its FAR over the design ground. */
+export function briefFloorArea(G: Ground): number {
   const m = G.meta;
   if (m.target_floor_area_ha) return m.target_floor_area_ha * 1e4;
   return m.target_far * G.cellArea * G.n;
+}
+
+/** The floor area designs aim for (m²): the lesser of the brief and what the site's plot rules
+ *  let its plans hold, where those are known and measured on this ground (capacity.ts). */
+export function floorAreaTarget(G: Ground): number {
+  const brief = briefFloorArea(G), c = capacityOf(G);
+  return c ? Math.min(brief, c.floor_m2) : brief;
 }
 
 function dilateMax(v: Float64Array, nbr: Int32Array, deg: number): Float64Array {

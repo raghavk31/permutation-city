@@ -15,6 +15,8 @@
     "massing-bench": "vite-node scripts/massing-bench.ts",
     "syntax-estimate": "vite-node scripts/syntax-estimate.ts --",
     "syntax-survey": "vite-node scripts/syntax-survey.ts --",
+    "capacity": "vite-node scripts/capacity.ts --",
+    "capacity-survey": "vite-node scripts/capacity-survey.ts --",
     "massing-shade": "vite-node scripts/massing-shade.ts --",
     "shock-survey": "vite-node scripts/shock-survey.ts --",
     "story-prepare": "vite-node scripts/story-prepare.ts --",

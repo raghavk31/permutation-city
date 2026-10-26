@@ -57,6 +57,9 @@ const BRIEF_CASES = JSON.parse(readFileSync(join(__dirname, "brief-cases.json"),
 for (const file of readdirSync(FIXTURES).filter((f) => f.endsWith(".json"))) {
   const fx: Fixture = JSON.parse(readFileSync(join(FIXTURES, file), "utf8"));
   const site: SiteExport = JSON.parse(readFileSync(join(ROOT, "app", "public", "sites", `${fx.site}.json`), "utf8"));
+  // Python has no plot rules (version 3 generation is TypeScript only in Milestone A), so the
+  // engines are compared on the brief's own target.
+  site.meta.capacity = null;
 
   describe(fx.site, () => {
     const G = prepare(site);

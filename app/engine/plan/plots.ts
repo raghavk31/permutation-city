@@ -23,7 +23,9 @@ const SAME_LINE = Math.sin(25 * Math.PI / 180);
 /** Corner splays: block corners under 30° are cut back to a 4 m chord. */
 const SPLAY_BELOW = 30 * Math.PI / 180, SPLAY_M = 4;
 
-export interface Plot { ring: Line; block: number; use: number; frontage: number }
+/** road: the width of the widest street the plot fronts (m; 0: none), which sets its FAR
+ *  under the site's plot rules (engine/regs.ts). */
+export interface Plot { ring: Line; block: number; use: number; frontage: number; road: number }
 
 export function plots(G: Ground, d: Design, faces: Face[], edges: Edge[], widthOf: (cls: number) => number,
   fam: Family, depthGene: number, rng: Rng): Plot[] {
@@ -42,14 +44,14 @@ export function plots(G: Ground, d: Design, faces: Face[], edges: Edge[], widthO
     const ring0 = inset > 0.1 ? offsetRing(f.ring, inset) : f.ring;
     if (!ring0 || area(ring0) < minFront * depth * 0.5) return;
     // The inset keeps one point per point, so the street flags carry over; acute corners are splayed.
-    const ring = splay({ pts: ring0, flag: f.street.slice() });
+    const ring = splay({ pts: ring0, flag: f.cls.slice() });
     const frontage = (r: FlaggedRing) => {
       let s2 = 0;
       for (let k = 0; k < r.pts.length; k++) if (r.flag[k]) s2 += dist(r.pts[k], r.pts[(k + 1) % r.pts.length]);
       return s2;
     };
     // A block that is mostly open ground (water or green) stays one piece.
-    const first = classify(ring.pts, bi, frontage(ring));
+    const first = classify(ring);
     if (first.use !== BUILDING) { out.push(first); return; }
     /** The direction of a piece's main street frontage (mod 180°), or null: the longest street
      *  edge, averaged with the street edges within 25° of it. A corner piece takes one street's
@@ -98,7 +100,7 @@ export function plots(G: Ground, d: Design, faces: Face[], edges: Edge[], widthO
       }
       const wide = u1 - u0, deep = v1 - v0;
       const wantDeep = deep > 2.3 * depth, wantWide = wide > maxFront;
-      if ((!wantDeep && !wantWide) || a < minFront * depth) { out.push(classify(r.pts, bi, frontage(r))); continue; }
+      if ((!wantDeep && !wantWide) || a < minFront * depth) { out.push(classify(r)); continue; }
       const jitter = (rng.random() - 0.5) * 0.2;
       // Splits: across the frontage (a cut running back from the street) to narrow a wide
       // piece; along it (parallel to the street) to make two rows of a deep one. Each is tried
@@ -121,10 +123,12 @@ export function plots(G: Ground, d: Design, faces: Face[], edges: Edge[], widthO
         if (done) break;
       }
       if (!done && best && a > OVERSIZE * maxFront * depth) { queue.push(...best); done = true; }
-      if (!done) out.push(classify(r.pts, bi, frontage(r)));
+      if (!done) out.push(classify(r));
     }
-    function classify(r: Line, block: number, front: number): Plot {
-      return { ring: r, block, use: plotUse(loc, d.use, r), frontage: front };
+    function classify(r: FlaggedRing): Plot {
+      let road = 0;
+      for (const c of r.flag) if (c > 0) road = Math.max(road, widthOf(c));
+      return { ring: r.pts, block: bi, use: plotUse(loc, d.use, r.pts), frontage: frontage(r), road };
     }
   });
   return out;
@@ -133,7 +137,7 @@ export function plots(G: Ground, d: Design, faces: Face[], edges: Edge[], widthO
 /** A block's corners sharper than 30° cut back to a 4 m chord (a corner splay), so no plot
  *  starts from a spike. The cut runs along neither street, so it isn't frontage. */
 function splay(r: FlaggedRing): FlaggedRing {
-  const n = r.pts.length, pts: Line = [], flag: boolean[] = [];
+  const n = r.pts.length, pts: Line = [], flag: number[] = [];
   for (let k = 0; k < n; k++) {
     const a = r.pts[(k - 1 + n) % n], b = r.pts[k], c = r.pts[(k + 1) % n];
     const la = dist(a, b), lc = dist(b, c);
@@ -141,7 +145,7 @@ function splay(r: FlaggedRing): FlaggedRing {
     const th = Math.acos(Math.max(-1, Math.min(1, cos)));
     if (th >= SPLAY_BELOW || n < 4) { pts.push(b); flag.push(r.flag[k]); continue; }
     const t = Math.min(SPLAY_M / (2 * Math.sin(th / 2)), 0.45 * Math.min(la, lc));
-    pts.push([b[0] + (a[0] - b[0]) * t / la, b[1] + (a[1] - b[1]) * t / la]); flag.push(false);
+    pts.push([b[0] + (a[0] - b[0]) * t / la, b[1] + (a[1] - b[1]) * t / la]); flag.push(0);
     pts.push([b[0] + (c[0] - b[0]) * t / lc, b[1] + (c[1] - b[1]) * t / lc]); flag.push(r.flag[k]);
   }
   return { pts, flag };

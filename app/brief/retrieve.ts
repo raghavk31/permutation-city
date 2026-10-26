@@ -112,5 +112,6 @@ export function placeOf(origin: [number, number]): string {
   const [lon, lat] = origin;
   if (lon > 72.7 && lon < 73.1 && lat > 18.85 && lat < 19.35) return "mumbai";
   if (lon > 72.4 && lon < 72.8 && lat > 22.9 && lat < 23.25) return "ahmedabad";
+  if (lon > 77.3 && lon < 77.9 && lat > 12.7 && lat < 13.2) return "bengaluru";
   return "other";
 }

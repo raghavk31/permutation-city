@@ -25,7 +25,7 @@ describe("corpus", () => {
   it("every file states its source and place, and every snippet has text", () => {
     for (const s of CORPUS) {
       expect(s.source, s.id).not.toBe("");
-      expect(["mumbai", "ahmedabad", "any"], s.id).toContain(s.place);
+      expect(["mumbai", "ahmedabad", "bengaluru", "any"], s.id).toContain(s.place);
       expect(s.text.length, s.id).toBeGreaterThan(40);
     }
   });
@@ -79,6 +79,7 @@ describe("retrieval", () => {
   it("knows where the sites are", () => {
     expect(placeOf(site.meta.origin)).toBe("mumbai");
     expect(placeOf([72.58, 23.06])).toBe("ahmedabad");
+    expect(placeOf([77.67, 12.91])).toBe("bengaluru");
     expect(placeOf([77.2, 28.6])).toBe("other");
   });
 });

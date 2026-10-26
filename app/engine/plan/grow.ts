@@ -14,14 +14,15 @@
 // Steps 2-7 are the design's frame. Grown with another design's frame (piecemeal growth: the
 // streets are laid out once, by the first increment), a design only claims its uses, which
 // reclassify the frame's plots, and takes its heights.
-import { BUILDING, DEFAULT_RANGES, type Family, PRIMARY_W_M, SECONDARY_W_M, STREET_FRONT_RISE, STREET_SHARE_MAX, type Ranges } from "../config.js";
+import { BUILDING, DEFAULT_RANGES, type Family, LANDSCAPE, PRIMARY_W_M, SECONDARY_W_M, STREET_FRONT_RISE, STREET_SHARE_MAX, type Ranges } from "../config.js";
 import { claimUses, decodeV3 } from "../genome.js";
 import { roundHalfEven } from "../num.js";
+import { coverageFor, farFor, plotRulesOf, roadStoreys } from "../regs.js";
 import { makeRng } from "../rng.js";
 import { sides } from "../streets.js";
 import type { Design, Ground, SettingsV3, VectorPlan } from "../types.js";
 import { familyOf, infill } from "./field.js";
-import { simplify, type Line, type Pt } from "./geom.js";
+import { area, simplify, type Line, type Pt } from "./geom.js";
 import { locator, skeletonLines } from "./ground.js";
 import { applyBlockRepairs, blockRepairs, type Edge, type Face, faces, type Flag, foldOntoSkeleton, node, outlineLines, repair,
   type Repair } from "./network.js";
@@ -95,6 +96,7 @@ export function growV3(genome: number[], G: Ground, locked: ArrayLike<number> | 
     floorArea[i] = G.cellArea * coverage[i] * levels[i];
     gross += G.cellArea * open * levels[i];
   }
+  const rules = plotRules(G, use, ps, ras.plotOf, share, plotLevels, levels, coverage, floorArea);
   t = tick("heights", t);
 
   const plan: VectorPlan = {
@@ -105,12 +107,65 @@ export function growV3(genome: number[], G: Ground, locked: ArrayLike<number> | 
     plots: ps.map((p, k) => ({ ring: p.ring, block: p.block, use: p.use, levels: plotLevels[k], frontage: p.frontage })),
     repairs: frame.repairs, flags: frame.flags,
     destinations: frame.dests,
+    ...(rules ? { rules } : {}),
   };
+  plan.plots.forEach((p, k) => { p.road = ps[k].road; });
   const widths: [number, number, number, number] = [0, widthOf(1), widthOf(2), widthOf(3)];
   const d: Design = { genome: Array.from(genome), use, levels, coverage, floorArea, attractors, settings: s, scores: null,
     grossFloorArea: gross, street: ras.sides, streetWidths: widths, plan };
   frames.set(d, frame);
   return d;
+}
+
+/** The site's plot rules (regs.ts), where it has them, applied to a grown design in place:
+ *  each building plot keeps to the height its road allows, the coverage its size allows and
+ *  the FAR its road allows (storeys come off first, then coverage). Building cells outside
+ *  any plot are held to the narrowest road's band. Returns the plan's rule summary. */
+function plotRules(G: Ground, use: Int8Array, ps: Plot[], plotOf: Int32Array, share: Float64Array, plotLevels: number[],
+  levels: Int32Array, coverage: Float64Array, floorArea: Float64Array): VectorPlan["rules"] | null {
+  const R = plotRulesOf(G.meta.id);
+  if (!R) return null;
+  const n = G.n, cellsOf: number[][] = ps.map(() => []), free: number[] = [];
+  for (let i = 0; i < n; i++) if (use[i] === BUILDING) (plotOf[i] >= 0 ? cellsOf[plotOf[i]] : free).push(i);
+  let before = 0, after = 0, capacity = 0, plotLand = 0, land = 0, park = 0;
+  for (let i = 0; i < n; i++) {
+    before += floorArea[i];
+    if (!G.canWater[i] || G.canBuild[i] || G.canGreen[i]) land += G.cellArea;
+    if (use[i] === LANDSCAPE) park += G.cellArea * (1 - share[i]);
+  }
+  const hold = (cells: number[], roadM: number, areaM2: number) => {
+    if (!cells.length) return;
+    const storeys = roadStoreys(R, roadM), cov = coverageFor(R, areaM2), most = farFor(R, roadM) * areaM2;
+    let fa = 0;
+    for (const i of cells) {
+      if (levels[i] > storeys) levels[i] = storeys;
+      if (coverage[i] > cov) coverage[i] = cov;
+      fa += G.cellArea * coverage[i] * levels[i];
+    }
+    // Over its FAR: fewer storeys, evenly, then less cover.
+    if (fa > most) {
+      const f = most / fa;
+      fa = 0;
+      for (const i of cells) { levels[i] = Math.max(1, Math.floor(levels[i] * f + 1e-9)); fa += G.cellArea * coverage[i] * levels[i]; }
+      if (fa > most) for (const i of cells) coverage[i] *= most / fa;
+    }
+    for (const i of cells) floorArea[i] = G.cellArea * coverage[i] * levels[i];
+  };
+  ps.forEach((p, k) => {
+    // A plot mostly open ground can still hold a few building cells: they keep its rules too.
+    if (p.use === BUILDING) {
+      const a = Math.abs(area(p.ring));
+      plotLand += a; capacity += farFor(R, p.road) * a;
+    }
+    // The plot's land as its cells see it, so FAR compares like with like.
+    let cellLand = 0;
+    for (const i of cellsOf[k]) cellLand += G.cellArea * (1 - share[i]);
+    hold(cellsOf[k], p.road, cellLand);
+    if (cellsOf[k].length) plotLevels[k] = levels[cellsOf[k][0]];
+  });
+  for (const i of free) hold([i], 0, G.cellArea * (1 - share[i]));
+  for (let i = 0; i < n; i++) after += floorArea[i];
+  return { capacity, plotShare: land ? plotLand / land : 0, parkShare: land ? park / land : 0, trimmed: before - after };
 }
 
 /** Steps 2-7: the streets, blocks and plots a genome lays out, and their raster. */

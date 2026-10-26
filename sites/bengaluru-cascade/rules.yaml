@@ -25,7 +25,11 @@
 # Edit, then run `pc rules <site>` to see the map change.
 
 defaults:
-  max_levels: 15         # 0 to 15 levels
+  # Four storeys (Pattern 21, Four-Story Limit; built form decision 8, 2026-10-26). The RMP 2015
+  # sets no height table: height follows FAR, coverage and setbacks, and from ground plus four
+  # floors a building is high-rise (Bye-laws 2003, 2.46). Taller only where a building type
+  # justifies it (engine/regs.ts, docs/built-form.md).
+  max_levels: 4
   min_permeable: 0.2     # share of ground that must stay unsealed
   uses: [water, wetland, landscape, building, street]
 
@@ -37,9 +41,14 @@ forbidden:
     when: flood_surge_2050 > 1.5
     why: more than 1.5 m of water in a 2050 surge; give it back to the sea
 
-  - name: water's edge
+  - name: lake buffer (the law)
     when: edge_dist < 30
-    why: a continuous public edge and room for wetland
+    why: "RMP 2015 zoning regulations 4.12.2 ii: a 30 m no development zone round each lake (stricter than Karnataka Act 19 of 2026's 24 m for tanks of 25-100 acres). Measured from the mapped water edge, not the revenue boundary"
+    roles: [public_edge]
+
+  - name: lake buffer (design choice)
+    when: edge_dist < 75
+    why: "a design choice beyond the legal 30 m: 75 m, the NGT's 2016 figure (set aside in general by the Supreme Court in 2019), for wetland, a public edge and flood room"
     roles: [public_edge]
 
 retained:
