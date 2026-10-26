@@ -36,13 +36,13 @@ export async function fetchSite(id: string): Promise<E.SiteExport> {
 
 type Patch = [number, E.Condition, E.RuleLimits][];
 
-function toBase64Url(text: string): string {
+export function toBase64Url(text: string): string {
   let s = "";
   for (const b of new TextEncoder().encode(text)) s += String.fromCharCode(b);
   return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-function fromBase64Url(text: string): string {
+export function fromBase64Url(text: string): string {
   const s = atob(text.replace(/-/g, "+").replace(/_/g, "/"));
   return new TextDecoder().decode(Uint8Array.from(s, (c) => c.charCodeAt(0)));
 }

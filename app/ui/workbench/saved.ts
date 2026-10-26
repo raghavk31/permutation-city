@@ -1,6 +1,6 @@
 // Saving and opening the workbench's runs. A link holds a run's inputs: the engine is
 // deterministic, so the same site, rules, brief, ridges, locked genes, settings and run number
-// breed the same designs again. A file holds the result as well, so it opens as it was, with
+// breed the same designs again (moves drawn on the map included). A file holds the result as well, so it opens as it was, with
 // no wait. Both use the classic page's format (ui/runs.ts), so links and files move between
 // the two pages; the workbench adds its own keys (step, genes, sel, keep) that the classic
 // page ignores.
@@ -15,17 +15,17 @@ export interface Settings { search: Search; generations: number; pop: number; se
 /** What a run was bred from (rules null: the site's own; brief null: none confirmed). */
 export interface RunInputs {
   settings: Settings; rules: E.RuleSet | null; brief: E.Brief | null;
-  off: number[]; geneLocks: Record<string, number>;
+  off: number[]; geneLocks: Record<string, number>; moves: E.Move[];
 }
 
 /** Everything a link or file restores. */
 export interface Restore {
-  rules: E.RuleSet | null; brief: E.Brief | null; run: RunInputs | null;
+  rules: E.RuleSet | null; brief: E.Brief | null; moves: E.Move[]; run: RunInputs | null;
   step: string | null; sel: string | null; keep: string[]; notes: string[];
 }
 
 const GENES = new Set<string>(E.GENES_V3);
-const WB_KEYS = ["step", "genes", "sel", "keep"];
+const WB_KEYS = ["step", "genes", "sel", "keep", "moves"];
 
 export function encodeGenes(locks: Record<string, number>): string {
   return Object.entries(locks).map(([g, v]) => `${g}:${v}`).join(",");
@@ -43,18 +43,54 @@ export function decodeGenes(text: string): Record<string, number> {
   return out;
 }
 
+// Moves in a link or file: [kind, points flat in metres to a decimetre, its parameter], as
+// base64url JSON. A kept building is its index; its footprint comes from the site file.
+const KINDS: E.MoveKind[] = ["spine", "street", "plaza", "nobuild", "keep"];
+const dm = (v: number) => Math.round(v * 10) / 10;
+
+export function encodeMoves(moves: E.Move[]): string {
+  return Sites.toBase64Url(JSON.stringify(moves.map((m) => [KINDS.indexOf(m.kind),
+    m.kind === "keep" ? [] : m.pts.flatMap(([x, y]) => [dm(x), dm(y)]),
+    m.kind === "spine" ? m.width ?? E.SPINE_WIDTH_M.default : m.kind === "street" ? m.cls ?? 3 : m.kind === "keep" ? m.building ?? -1 : 0])));
+}
+
+export function decodeMoves(text: string, site: E.SiteExport): E.Move[] {
+  // COPY: a link's moves can't be read
+  const bad = () => new Error("The moves drawn in this link can't be read.");
+  let raw: unknown;
+  try { raw = JSON.parse(Sites.fromBase64Url(text)); } catch { throw bad(); }
+  if (!Array.isArray(raw)) throw bad();
+  const ground = site.context.buildings?.ground;
+  return raw.map((r, k): E.Move => {
+    if (!Array.isArray(r) || r.length !== 3 || !Array.isArray(r[1])) throw bad();
+    const kind = KINDS[r[0]], flat = r[1] as unknown[], p = Number(r[2]);
+    if (!kind || flat.some((v) => typeof v !== "number" || !Number.isFinite(v)) || flat.length % 2) throw bad();
+    const pts = Array.from({ length: flat.length / 2 }, (_, i): [number, number] => [flat[2 * i] as number, flat[2 * i + 1] as number]);
+    if (kind === "keep") {
+      const ring = ground?.rings[p];
+      if (!ring) throw new Error("A building kept in this link isn't in this site's file.");
+      return { id: k + 1, kind, building: p, pts: Array.from({ length: ring.length / 2 }, (_, i): [number, number] => [ring[2 * i], ring[2 * i + 1]]) };
+    }
+    if (pts.length < 2 || (kind !== "street" && kind !== "spine" && pts.length < 3)) throw bad();
+    if (kind === "spine") return { id: k + 1, kind, pts, width: Math.min(Math.max(p || E.SPINE_WIDTH_M.default, E.SPINE_WIDTH_M.min), E.SPINE_WIDTH_M.max) };
+    if (kind === "street") return { id: k + 1, kind, pts, cls: p === 2 ? 2 : 3 };
+    return { id: k + 1, kind, pts };
+  });
+}
+
 const classicSettings = (s: Settings): Runs.RunSettings =>
   ({ search: s.search, gens: s.generations, pop: s.pop, seed: s.seed, objectives: [], axes: null, bins: null, shock: null });
 
 /** The query string for the workbench as it stands: the site, step, rules and brief; and when
  *  a run is done, the inputs it was bred from, the design open and the pen's designs. */
 export function writeLink(o: {
-  site: string; base: E.RuleSet | undefined; step: string; rules: E.RuleSet | null; brief: E.Brief | null;
+  site: string; base: E.RuleSet | undefined; step: string; rules: E.RuleSet | null; brief: E.Brief | null; moves: E.Move[];
   run: RunInputs | null; sel: string | null; keep: string[];
 }): string {
-  const rules = o.run ? o.run.rules : o.rules, brief = o.run ? o.run.brief : o.brief;
+  const rules = o.run ? o.run.rules : o.rules, brief = o.run ? o.run.brief : o.brief, moves = o.run ? o.run.moves : o.moves;
   const q = new URLSearchParams(Sites.query(o.site, rules, o.base, brief ? { brief, seeds: false } : null).slice(1));
   if (o.step !== "site") q.set("step", o.step);
+  if (moves.length) q.set("moves", encodeMoves(moves));
   if (o.run) {
     Runs.writeLink(q, { settings: classicSettings(o.run.settings), off: o.run.off, locks: null, pen: 0,
       genomeVersion: E.GENOME_VERSION, build: Runs.BUILD });
@@ -74,6 +110,7 @@ export function readLink(q: URLSearchParams, site: E.SiteExport): Restore {
   const b = q.get("brief");
   const base = rules ?? own;
   const brief = b && base ? Sites.recheck(Sites.decodeBrief(b).brief, base).brief : null;
+  const moves = q.get("moves") ? decodeMoves(q.get("moves")!, site) : [];
   const link = Runs.readLink(q, site.design.x.length);
   const notes: string[] = [];
   let run: RunInputs | null = null;
@@ -88,11 +125,11 @@ export function readLink(q: URLSearchParams, site: E.SiteExport): Restore {
     if (s.objectives.length || s.shock || s.growth) notes.push("Promoted metrics, climate shocks and growth over time aren't in the workbench yet; the run is bred without them.");
     run = {
       settings: { search: s.search === "map-elites" ? "map-elites" : "auto", generations: s.gens, pop: s.pop, seed: s.seed },
-      rules, brief, off: link.off, geneLocks: q.get("genes") ? decodeGenes(q.get("genes")!) : {},
+      rules, brief, off: link.off, geneLocks: q.get("genes") ? decodeGenes(q.get("genes")!) : {}, moves,
     };
   }
   return {
-    rules, brief, run, step: q.get("step"), sel: run ? q.get("sel") : null,
+    rules, brief, moves, run, step: q.get("step"), sel: run ? q.get("sel") : null,
     keep: run ? (q.get("keep") ?? "").split(",").filter(Boolean) : [], notes,
   };
 }
@@ -103,7 +140,7 @@ export const hasState = (q: URLSearchParams) => ["rules", "brief", "seed", ...WB
 // --- the file ---------------------------------------------------------------------------
 
 /** The workbench's own fields in a saved file (the classic page ignores them). */
-interface WbFields { geneLocks?: Record<string, number>; step?: string }
+interface WbFields { geneLocks?: Record<string, number>; step?: string; moves?: string }
 
 export function toFile(o: {
   site: { id: string; name: string }; base: E.RuleSet | undefined; run: RunInputs; ranges: E.Ranges;
@@ -123,6 +160,7 @@ export function toFile(o: {
       genomes: Runs.f64ToBase64(r.genomes), genomeLength: r.lineage.length ? r.genomes.length / r.lineage.length : E.LENGTH_V3,
     },
     selected: o.sel, heights: null, geneLocks: o.run.geneLocks, step: o.step,
+    ...(o.run.moves.length ? { moves: encodeMoves(o.run.moves) } : {}),
   };
   return JSON.stringify(saved);
 }
@@ -130,7 +168,8 @@ export function toFile(o: {
 /** A saved file, read and checked; its result has no grown designs yet (the page grows the
  *  families' leads). */
 export function readFile(text: string): {
-  siteId: string; rulesText: string | null; briefText: string | null; run: Omit<RunInputs, "rules" | "brief">; ranges: E.Ranges | null;
+  siteId: string; rulesText: string | null; briefText: string | null; movesText: string | null;
+  run: Omit<RunInputs, "rules" | "brief" | "moves">; ranges: E.Ranges | null;
   result: EvolveResult | null; pen: Runs.PenEntry[]; sel: string | null; step: string | null; notes: string[];
 } {
   const s = Runs.readSaved(text) as Runs.SavedRun & WbFields;
@@ -140,7 +179,7 @@ export function readFile(text: string): {
   const st = s.settings;
   const r = s.result;
   return {
-    siteId: s.site.id, rulesText: s.site.rules, briefText: s.site.brief,
+    siteId: s.site.id, rulesText: s.site.rules, briefText: s.site.brief, movesText: typeof s.moves === "string" ? s.moves : null,
     run: {
       settings: { search: st?.search === "map-elites" ? "map-elites" : "auto", generations: st?.gens ?? 15, pop: st?.pop ?? 30, seed: st?.seed ?? 1 },
       off: s.off, geneLocks: s.geneLocks && typeof s.geneLocks === "object" ? decodeGenes(encodeGenes(s.geneLocks)) : {},

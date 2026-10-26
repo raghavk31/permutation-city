@@ -22,6 +22,7 @@
     evolve: { title: "Evolve: breed designs", text: "Designs breed. The better ones become parents, so each generation tends to do a little better. You choose among what it finds.", svg: () => Iso.evolution().svg },
     massing: { title: "Massing: buildings in a block", text: "Pick a block of the design. Its plots, setbacks and height limits make an envelope, and buildings breed inside it, scored on sun, shade and sky.", svg: () => Iso.massing().svg },
     explore: { title: "Explore: weigh the trade-offs", text: "No design is best at everything: more water storage can mean more heat. These are the designs nothing else beats on every count; pick the balance you want.", svg: () => Iso.tradeoff().svg },
+    draw: { title: "Draw: your moves", text: "Draw what you are sure of: a main street, a green spine, a square, ground to leave unbuilt, a building to keep. Every design keeps them; evolution explores the rest.", svg: () => Iso.moves().svg },
     landform: { title: "Landform: valleys and ridges", text: "Water gathers in the valleys, so they stay open; the ridges between them are where the main streets go.", svg: () => Iso.landform().svg },
   };
   const intro = $derived(INTRO[bench.step]);

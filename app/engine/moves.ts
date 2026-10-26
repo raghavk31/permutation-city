@@ -43,6 +43,8 @@ export interface SiteMoves {
   streets: { pts: Line; cls: number }[];
   /** kept buildings: indexes into context.buildings.ground */
   kept: number[];
+  /** the moves as drawn, for outlining them over a design */
+  shapes: Move[];
 }
 
 export interface Conflict { move: number; text: string }
@@ -139,7 +141,7 @@ export function applyMoves(site: SiteExport, moves: Move[], state: ArrayLike<num
       if (off * step > spacing) conflicts.push({ move: m.id, text: `${name} runs off the site.` });
       if (bad.length) {
         const why = reasonOf(bad, reasons, never);
-        conflicts.push({ move: m.id, text: `${name} runs ${Math.round(longest * spacing)} m over ground the rules never build on${why ? ` (${why})` : ""}; a crossing may be ${CROSSING_CELLS * Math.round(spacing)} m.` });
+        conflicts.push({ move: m.id, text: `${name} runs ${Math.round(longest * spacing)} m over ground the rules never build on${why ? ` (${why})` : ""}; a crossing may be up to ${CROSSING_CELLS * Math.round(spacing)} m.` });
       }
       streets.push({ pts: m.pts, cls: m.cls ?? 3 });
       continue;
@@ -167,7 +169,10 @@ export function applyMoves(site: SiteExport, moves: Move[], state: ArrayLike<num
     cells.set(m.id, mine);
     if (m.kind === "keep" && m.building !== undefined) kept.push(m.building);
   }
-  const moved: SiteMoves = { forced, streets, kept };
+  // plain copies: the site is posted to workers
+  const copy = (l: Line): Line => l.map(([x, y]): Pt => [x, y]);
+  const moved: SiteMoves = { forced, streets: streets.map((s) => ({ pts: copy(s.pts), cls: s.cls })), kept,
+    shapes: moves.map((m) => ({ ...m, pts: copy(m.pts) })) };
   return { site: { ...site, design: { ...D, can }, moves: moved }, conflicts, cells };
 }
 
