@@ -640,7 +640,7 @@ One PR per item.
 - **Place matching** depends on street names in the site exports (re-export approved).
 - **Sources.** URDPFI arrives from you; Guwahati FAR may stay assumed.
 
-## 12. Built form re-plan (proposed 26 October, waiting for approval)
+## 12. Built form re-plan (approved 26 October, with the changes in 12.12)
 
 The built form brief (`docs/built-form-brief.md`, 26 October) reverses the order of work:
 shared ground first, buildings placed to shape it, plots drawn last. This section re-plans the
@@ -893,6 +893,34 @@ first. One PR per item, as before.
 8. **Height ceiling.** Four storeys as the default everywhere (Pattern 21), raised per block only
    where the block's density needs it or a landmark is justified, with at most N towers per site:
    what N for Bengaluru (I'd say 2)?
+
+### 12.12 Decisions (26 October)
+
+1. **Scales:** the split in 12.3 is approved, with two conditions:
+   - **Consistency check.** Each run masses a sample of blocks per type and reports the gap
+     between the density numbers the type promised (coverage, storeys, floor area) and what the
+     massing produced. A type whose gap is over 10% is flagged.
+   - **Unopened blocks in 3D** get a cheap default massing for their type (a courtyard reads as a
+     courtyard), never plot extrusions.
+2. **Target:** the lesser of the brief and the rules' capacity. In A4, "on brief" means within
+   10% of the rule-capped target. The UI shows the shortfall against the original brief.
+3. **Islands,** one per feasible type. MAP-Elites later, for variations inside a chosen type.
+4. **Cuts:** stress tests stay in the workbench. Score maps (D5), building and locked edits (D7),
+   other sites' rules (D8) and view corridors (D9) move to B, with D1-D3. To make room, Milestone A
+   ships **four types: courtyard, perimeter block, row housing, podium with towers.** Clusters
+   around courts and pavilions move to B.
+5. **A4:** scores and genome v3.1 frozen on 7 November.
+6. **Lake buffer:** the legal rule is 30 m; the design default is 75 m, labelled as a design
+   choice beyond the legal minimum. Keep looking for any later notification and report it.
+7. **Books:** none named yet. Figures from the books go in as "assumed", with the secondary
+   source named.
+8. **Height:** four storeys by default. At most two towers per site, only at major nodes, and only
+   where the lower types can't reach the density.
+
+Effect on the estimate: stress tests +0.75; four generators instead of six, -0.75 (2.75 to 2.0);
+consistency check +0.25 (the default massing for unopened blocks was already in the generators).
+Total still 21.75 of 22 days, so the margin is thin and E1-E4 stay ready. Stress tests go on
+5 November with the street edits; the street edits move to 6 November alongside the A4 harness.
 
 ---
 
