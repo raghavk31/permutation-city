@@ -8,11 +8,16 @@ import type { MassKept, MassResult } from "../../engine/massing/worker";
 import * as Mass from "../mass/massing";
 
 // COPY: the representations
-export const KINDS: { kind: M.RepKind; label: string; note: string }[] = [
+// Typologies is the default; the other two are experimental (built form brief, quick fixes).
+export const KINDS: { kind: M.RepKind; label: string; note: string; experimental?: boolean }[] = [
   { kind: "typology", label: "Typologies", note: "Courtyards, L and U shapes, towers, slabs: each plot gets a type and its dimensions." },
-  { kind: "field", label: "Voxel field", note: "Soft blobs fill a grid of small boxes inside the envelope; a smooth skin is drawn over them." },
-  { kind: "cppn", label: "Network", note: "A small network turns position, water, height limit and sun into where to build; it grows as it breeds." },
+  { kind: "field", label: "Voxel field", note: "Soft blobs fill a grid of small boxes inside the envelope; a smooth skin is drawn over them.", experimental: true },
+  { kind: "cppn", label: "Network", note: "A small network turns position, water, height limit and sun into where to build; it grows as it breeds.", experimental: true },
 ];
+// COPY: what a massing does best, for its name
+const STANDOUT: Record<M.MassScoreKey, string> = {
+  sun: "sunniest ground", shade: "most shade", sky: "most open sky", wind: "lets the most wind through", neighbours: "takes least sun from neighbours",
+};
 // COPY: sun dates
 export const DATES = [
   { label: "21 December", month: 12, day: 21 }, { label: "15 March, hot season", month: 3, day: 15 },
@@ -53,6 +58,21 @@ export class MassStep {
     ? M.prepareBlock(this.source.src.G, Mass.setupOf(this.source.src, this.block, $state.snapshot(this.setbacks)), this.source.design) : null);
   stale = $derived(!!this.result && this.resultKey !== this.key);
   chosen = $derived(this.result && this.pick >= 0 && !this.stale ? this.result.kept[this.pick] : null);
+  /** The kept massings in the order the rail shows them: best trade-offs first. */
+  ranked = $derived(this.result && !this.stale ? this.result.kept.map((k, i) => ({ k, i })).sort((a, b) => a.k.rank - b.k.rank || a.i - b.i) : []);
+
+  /** A kept massing in plain words: its place in the rail's order ("Option 2"), and the score
+   *  it does best of all the kept ones on, if any. */
+  titleOf(k: MassKept): { title: string; best: string } {
+    const n = this.ranked.findIndex((r) => r.k.name === k.name) + 1;
+    const kept = this.result?.kept ?? [];
+    let best = "";
+    for (const key of M.MASS_SCORE_KEYS) {
+      const up = M.MASS_SCORES[key][2], v = k.scores[key];
+      if (kept.every((o) => o === k || (up ? o.scores[key] < v : o.scores[key] > v))) { best = STANDOUT[key]; break; }
+    }
+    return { title: n > 0 ? `Option ${n}` : "Option", best };
+  }
 
   /** Mass a design: start on a typical block near its middle, with the brief's setbacks. */
   open(s: MassSource) {
