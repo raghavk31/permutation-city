@@ -17,6 +17,7 @@
     "syntax-survey": "vite-node scripts/syntax-survey.ts --",
     "capacity": "vite-node scripts/capacity.ts --",
     "capacity-survey": "vite-node scripts/capacity-survey.ts --",
+    "types-survey": "vite-node scripts/types-survey.ts --",
     "massing-shade": "vite-node scripts/massing-shade.ts --",
     "shock-survey": "vite-node scripts/shock-survey.ts --",
     "story-prepare": "vite-node scripts/story-prepare.ts --",

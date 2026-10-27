@@ -1,6 +1,7 @@
 // Genome → design (pc/genome.py). See that file for the body plan and the growth steps.
 import {
-  ATTRACTOR_GENES, BUILDING, DEFAULT_RANGES, GENES_V3, GLOBAL_GENES, KINDS, LANDSCAPE, LENGTH, LENGTH_V3, N_ATTRACTORS,
+  ATTRACTOR_GENES, BUILDING, DEFAULT_RANGES, GENES_V3, type GenomeVersion, GLOBAL_GENES, isVector, KINDS, LANDSCAPE, LENGTH,
+  lengthOf, N_ATTRACTORS,
   PRE_STREET_LENGTH, RANGES_V3, STREET_FRONT_RISE, STREET_GENE_DEFAULT, WATER, WATER_FIELD_REACH_M, type Ranges,
 } from "./config.js";
 import { type Frame, growV3 } from "./plan/grow.js";
@@ -28,20 +29,22 @@ export function decode(genome: number[], bounds: Ground["bounds"], ranges: Range
   return { attractors, settings };
 }
 
-/** Decode a version 3 genome (LENGTH_V3 numbers): the attractors as before, then GENES_V3. */
+/** Decode a version 3 or 3.1 genome: the attractors as before, then GENES_V3 (a version 3
+ *  genome stops before the type genes). */
 export function decodeV3(genome: number[], bounds: Ground["bounds"], ranges: Ranges = DEFAULT_RANGES) {
   const { attractors } = decode(genome, bounds, ranges);
   const settings = {} as SettingsV3;
   GENES_V3.forEach((name, i) => {
+    if (N_ATTRACTORS * ATTRACTOR_GENES + i >= genome.length) return;
     const r = (ranges as unknown as Record<string, readonly [number, number]>)[name] ?? RANGES_V3[name as keyof typeof RANGES_V3];
     (settings as unknown as Record<string, number>)[name] = lerp(genome[N_ATTRACTORS * ATTRACTOR_GENES + i], ...r);
   });
   return { attractors, settings };
 }
 
-/** A random genome: version 2 (LENGTH numbers) unless version 3 is asked for. */
-export const randomGenome = (rng: Rng, version: 2 | 3 = 2): number[] =>
-  Array.from({ length: version === 3 ? LENGTH_V3 : LENGTH }, () => rng.random());
+/** A random genome: version 2 (LENGTH numbers) unless another is asked for. */
+export const randomGenome = (rng: Rng, version: GenomeVersion = 2): number[] =>
+  Array.from({ length: lengthOf(version) }, () => rng.random());
 
 /** Sum of attractor fields of one kind (or all kinds): weight × (1 - d/r)² inside the radius. */
 export function field(G: Ground, attractors: Attractor[], kind: Kind | null): Float64Array {
@@ -112,11 +115,11 @@ export function claimUses(G: Ground, attractors: Attractor[], s: Pick<Settings, 
 }
 
 /** Grow a design. `locked` (optional): a use code per cell, 0 = free. A version 3 genome
- *  (LENGTH_V3 numbers) grows a vector plan (plan/grow.ts), in `frame`'s streets and plots when
+ *  or 3.1 grows a vector plan (plan/grow.ts), in `frame`'s streets and plots when
  *  given; versions 1 and 2 grow as before. */
 export function grow(genome: number[], G: Ground, locked: ArrayLike<number> | null = null,
   ranges: Ranges = DEFAULT_RANGES, frame: Frame | null = null): Design {
-  if (genome.length === LENGTH_V3) return growV3(genome, G, locked, ranges, frame);
+  if (isVector(genome)) return growV3(genome, G, locked, ranges, frame);
   const [full, preStreet] = upgrade(genome);
   genome = full;
   const { attractors, settings: s } = decode(genome, G.bounds, ranges);

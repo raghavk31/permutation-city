@@ -199,7 +199,7 @@
         {@const s = grown.settings as unknown as Record<string, number>}
         <details class="wb-group" open><summary>Genes, in plain words<span class="wb-meta">{Object.keys(bench.geneLocks).length ? `${Object.keys(bench.geneLocks).length} locked` : ""}</span></summary>
           <div class="wb-genes">
-            {#each GENE_GROUPS as [g, genes]}
+            {#each GENE_GROUPS.map(([g, ws]) => [g, ws.filter((w) => s[w.gene] !== undefined)] as const).filter(([, ws]) => ws.length) as [g, genes]}
               <span class="wb-gene-group">{g}</span>
               {#each genes as w}
                 {@const locked = w.gene in bench.geneLocks}

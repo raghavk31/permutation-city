@@ -1,7 +1,7 @@
 // Evolution, NSGA-II style with the Sem 06 breeding rules (pc/evolve.py). With
 // search: "nsga3", survival uses reference directions instead of crowding (niche.ts).
 // `objectives` promotes up to two form metrics to objectives beside the five scores.
-import { ATTRACTOR_GENES, DEFAULT_RANGES, DUPLICATE, LENGTH, N_ATTRACTORS, TARGET_TOLERANCE, type Ranges } from "./config.js";
+import { ATTRACTOR_GENES, DEFAULT_RANGES, DUPLICATE, type GenomeVersion, LENGTH, N_ATTRACTORS, TARGET_TOLERANCE, type Ranges } from "./config.js";
 import { evaluate } from "./fitness.js";
 import { grow, randomGenome } from "./genome.js";
 import { roundTo } from "./num.js";
@@ -80,7 +80,7 @@ export interface EvolveOptions {
   ranges?: Ranges;                   // how genes are read (a brief may narrow them)
   progress?: ((gen: number, run: Run) => void) | null;
   hooks?: Hooks;                     // piecemeal growth (piecemeal.ts); none in a plain run
-  version?: 2 | 3;                   // genome version of Generation 0 and newcomers (2 unless asked)
+  version?: GenomeVersion;           // genome version of Generation 0 and newcomers (2 unless asked)
 }
 
 /** How a mode other than a plain run grows and scores designs. `grow` replaces growth;
@@ -173,7 +173,7 @@ export function individual(G: Ground, g: number[], name: string, parents: string
 }
 
 /** Generation 0: `pop` random genomes, the first ones replaced by `start`. */
-export function firstGenomes(rng: Rng, pop: number, start: number[][] | null, version: 2 | 3 = 2): number[][] {
+export function firstGenomes(rng: Rng, pop: number, start: number[][] | null, version: GenomeVersion = 2): number[][] {
   const genomes = Array.from({ length: pop }, () => randomGenome(rng, version));
   (start || []).forEach((g, k) => { genomes[k % pop] = g.slice(); });
   return genomes;

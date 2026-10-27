@@ -15,7 +15,7 @@ with the reason).
 | 1 Rules and brief | plot rules by road width, plot size and height; what the site can hold; the target | every design | **built for Bengaluru** (below) |
 | 2 Streets, frontage | a frontage type and a cross-section per street | every design | **built** (below) |
 | 3 Shared ground first | lake edge, valley corridors, squares, open-space hierarchy | every design | **built** (below) |
-| 4 Building type per block | the block's type as coverage, storeys and floor area | every design | to come (section 5) |
+| 4 Building type per block | the block's type as coverage, storeys and floor area | every design | **built** (below) |
 | 5 Place buildings | along frontage and shared-ground edges, with spacing rules | opened design | to come |
 | 6 Draw plots | territories round the placed buildings, every plot on a street | opened design | to come |
 | 7 Shape buildings | floor by floor: depth limit, floor heights, core, stepping to water | opened design | to come |
@@ -171,7 +171,94 @@ scores are revised (section 10); the urban objectives are unchanged.
 Shared ground, frontage and access add 8-61 ms a design (Docks, Bengaluru, Wadaj; Node), against
 120-500 ms for the rest of the plan.
 
-## Steps 4-9: references to check
+## Step 4: a building type per block
+
+`app/engine/plan/blocktypes.ts`, run in every design after shared ground and the heights, before
+the plot rules (`plan/grow.ts` step 9). The four types and every number they use are in that one
+file, `BLOCK_TYPES` and the constants under it.
+
+### What the engine does
+
+- **A block as Spacematrix sees it.** Its building land (the cells of its building plots, less
+  street) and the oriented bounding box of its outline scaled to that land: a width W across and
+  a length L along.
+- **What the genes ask.** The floor area the fields grow on the block (the coverage gene, heights
+  from the core field, as before) over its land: the wanted FSI.
+- **What each type gives.** For each storey count in the type's range, within the block's height
+  caps (the site's storey cap, the road's height limit), the type's ground coverage (GSI) on a
+  W x L block, held to the rules' coverage for the block's size, and its FSI = GSI x storeys, held
+  to the FAR the block's plots allow. A type with no storey count whose shape fits is not
+  feasible. The type takes the storey count that comes closest to the wanted FSI.
+- **The choice.** Each feasible type scores its gene (the search's preference, 0-1), plus 0.25
+  for courts and perimeter blocks where the wanted FSI is 1 or more (Martin and March's case for
+  them at medium and higher density), less twice its relative miss of the wanted FSI. The best
+  score wins. So the genes choose among types that reach the density; a type that falls far short
+  loses whatever the genes prefer.
+- **Towers** (decision 8): only on a block whose middle is within 150 m of a square or a centre,
+  on a road of 12 m or more, wide enough for the bye-laws' high-rise site and fire clearance, and
+  only where no lower type reaches the wanted FSI. At most two towers on the site: the blocks
+  furthest short of their density choose first.
+- **On the plan.** A typed block's building cells take the type's coverage and storeys (within
+  each cell's cap); podium with towers gives the podium's, and a tower each to the cells nearest
+  the node. Then the plot rules (step 1) hold each plot to its FAR, coverage and height as
+  before. The urban scores read these cells, so they see each block's type through its density.
+
+### The types
+
+| Type | Wing depth | Storeys | Coverage on the block | Source |
+|---|---:|---:|---|---|
+| courtyard | 10-14 m | 3-6 | courtyard buildings tiled over the block, 6 m apart, stretched along it; each a ring of wings round a court at least 12 m and as wide as the wings are high | depth: Bye-laws 2003 20.11 (3), a wing lit on both sides at most 15 m (read); court 12 m: Correa's cluster court (brief, secondary); court as wide as high: assumed until step 8 sizes it by winter sun |
+| perimeter block | 10-15 m | 3-6 | one ring along the block's edge, 10% left open for passages; the yard inside at least 12 m and as wide as the ring is high | depth as above (read); breaks and yard: assumed |
+| row housing | 8-12 m | 2-4 | rows along the block's length, apart by their height and at least 6 m, 10% left open | depth and spacing assumed (light at 45° to the ground floor; the RMP's half the height, 3.6 (i), is the legal floor); walk-ups to four storeys: Alexander 21 (assumed) |
+| podium with towers | floor plate 18-24 m | towers 5-15, podium 2 | podium at the plot's coverage (at most 60%), one or two towers per block, apart by half the taller one's height and twice the fire clearance | high-rise from ground plus four: Bye-laws 2003 2.46 (read); spacing: RMP 3.6 (i), Bye-laws 16.0 (e) (read); plate, 15 storeys, podium: assumed |
+
+Wing depth sits where the coverage gene puts it in each type's range (more ground covered,
+deeper wings). Fire clearance and the high-rise site and road are Bengaluru's (Bye-laws 2003);
+sites without plot rules use them too, marked assumed.
+
+### Genome version 3.1
+
+Four genes join the end of the genome (63 numbers), one preference per type
+(`t_courtyard`, `t_perimeter`, `t_row`, `t_towers`), shown in the inspector as "Building types
+preferred". The plan's own random seed reads only the first 59, so a type gene never moves a
+street or a plot. A version 3 genome (59 numbers) grows as before, without types; links and
+files from before breed again as version 3, with a note.
+
+### The result
+
+Over 16 random designs a site (`npm run types-survey -- --n 16`, 28 October): the share of
+blocks of each type, how often each is feasible, and the FSI asked and given over typed land.
+
+| Site | Courtyard | Perimeter | Row | Towers | FSI asked / given | Floor area (v3) |
+|---|---:|---:|---:|---:|---:|---:|
+| Bengaluru | 13% (46%) | 4% (44%) | 82% (99%) | 0% (0%) | 1.08 / 1.21 | 106 ha (90) |
+| Wadaj | 28% (56%) | 15% (54%) | 56% (99%) | 0% (5%) | 2.61 / 2.25 | 346 ha (396) |
+| Mumbai Docks | 16% (50%) | 10% (48%) | 73% (100%) | 1% (4%) | 1.78 / 1.74 | 42 ha (49) |
+| Mumbai EWF | 21% (51%) | 13% (48%) | 65% (99%) | 1% (5%) | 2.27 / 1.99 | 120 ha (143) |
+| Guwahati | 22% (47%) | 14% (45%) | 64% (100%) | 0% (5%) | 2.72 / 2.25 | 233 ha (276) |
+
+(Feasible in brackets.) Half the blocks are too narrow for a court: two wings and a 12 m court
+need 32-40 m across, and the plot families make many blocks two plots deep. Rows fit almost
+everywhere. Random genes aren't a search, though: after a short run on Bengaluru (8 generations
+of 24) the design most daylit was 97 perimeter blocks, 70 rows, 9 courtyards and two towers at
+nodes, 177 ha against the 181 ha the rules allow. On the denser sites the types give 10-15%
+less floor area than the fields asked, since the types cap storeys and coverage that plots
+alone didn't; Bengaluru gets more, since rows start at two storeys.
+
+Typing costs 2-10 ms a design, about 1-2% of a plan.
+
+### Simplifications, and what isn't built yet
+
+- **A block is its bounding box** scaled to its land. Irregular blocks get the numbers of a
+  rectangle of the same land and proportions.
+- **One type per block** (brief section 5), no mixing.
+- **The 3D view still extrudes plots** at their cells' storeys, a tower plot whole. Default
+  massing per type for unopened blocks, and the consistency check (massing a sample of blocks
+  per type against the numbers here, a gap over 10% flagged; decision 1), come with the type
+  generators (12 November checkpoint).
+- **Blocks no type fits** (about 1%: too narrow even for a row) keep what the genes grew.
+
+## Steps 5-9: references to check
 
 Figures from books go in as **assumed** with the secondary source named until a copy is read
 (decision 7). The ones the next steps will lean on:
