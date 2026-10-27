@@ -9,7 +9,10 @@
 //      long blocks split and slivers merged, then noded again (network.ts)
 //   6  plots by oriented-bounding-box splits (plots.ts)
 //   7  rasterised: street share per cell, streets on cell sides, the plot under each cell
-//      (raster.ts); heights from the core field as before, one height per plot
+//      (raster.ts)
+//   8  shared ground before buildings: squares at the important junctions, parks where plots
+//      lack one within a walk, frontage types per street (shared.ts); then heights from the core
+//      field as before, one height per plot
 //
 // Steps 2-7 are the design's frame. Grown with another design's frame (piecemeal growth: the
 // streets are laid out once, by the first increment), a design only claims its uses, which
@@ -29,6 +32,7 @@ import { applyBlockRepairs, blockRepairs, type Edge, type Face, faces, type Flag
 import { type Plot, plotUse, plots as splitPlots } from "./plots.js";
 import { type Raster, rasterise } from "./raster.js";
 import { route } from "./route.js";
+import { accessOf, FRONTAGES, frontages, reserveShared } from "./shared.js";
 
 /** Milliseconds per stage, summed over designs, when profiling (scripts/plan-profile.ts). */
 export const planTimes: { on: boolean; t: Record<string, number> } = { on: false, t: {} };
@@ -66,7 +70,13 @@ export function growV3(genome: number[], G: Ground, locked: ArrayLike<number> | 
     const loc = locator(G);
     frame = { ...given, ps: given.ps.map((p) => ({ ...p, use: plotUse(loc, use, p.ring) })) };
   } else frame = layout(genome, G, use, attractors, s);
+  t = tick("layout", t);
   const { fam, widthOf, edges, fs, ps, ras } = frame;
+  // 8. Shared ground first: it claims plots and their cells before any building fills them.
+  const loc = locator(G), cellOf = (p: Pt) => loc.cell(p);
+  const centres: Pt[] = attractors.filter((a) => a.kind === "core").map((a) => [a.x, a.y]);
+  const shared = reserveShared(G, use, frame.vx, frame.vy, edges, fs, ps, ras.plotOf, centres, cellOf, locked);
+  t = tick("shared", t);
 
   const share = Float64Array.from(ras.share, (v) => Math.min(v, STREET_SHARE_MAX));
   const sd = sides(G), fronts = new Uint8Array(n);
@@ -99,14 +109,19 @@ export function growV3(genome: number[], G: Ground, locked: ArrayLike<number> | 
   const rules = plotRules(G, use, ps, ras.plotOf, share, plotLevels, levels, coverage, floorArea);
   t = tick("heights", t);
 
+  const streets = edges.filter((e) => e.cls > 0).map((e) => ({ pts: e.pts, cls: e.cls, w: widthOf(e.cls) }));
+  const front = frontages(G, use, streets, centres, shared.squares.map((q) => q.at), cellOf);
+  shared.access = accessOf(G, { use, floorArea });
+  t = tick("frontage and access", t);
   const plan: VectorPlan = {
     family: fam.name,
-    streets: edges.filter((e) => e.cls > 0).map((e) => ({ pts: e.pts, cls: e.cls, w: widthOf(e.cls) })),
+    streets: streets.map((st, k) => ({ ...st, frontage: FRONTAGES.indexOf(front[k]) })),
     vx: frame.vx, vy: frame.vy, edges: edges.map((e) => ({ u: e.u, v: e.v, cls: e.cls })),
     blocks: fs.map((f) => f.ring),
     plots: ps.map((p, k) => ({ ring: p.ring, block: p.block, use: p.use, levels: plotLevels[k], frontage: p.frontage })),
     repairs: frame.repairs, flags: frame.flags,
     destinations: frame.dests,
+    shared,
     ...(rules ? { rules } : {}),
   };
   plan.plots.forEach((p, k) => { p.road = ps[k].road; });

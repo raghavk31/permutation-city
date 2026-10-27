@@ -269,3 +269,5 @@ a { color: inherit; }
 kbd { font: 500 11px / 1 var(--pc-mono); padding: 3px 5px; border: var(--wb-hair); border-bottom-width: 2px; border-radius: 4px; background: var(--pc-surface-2); }
 button.wb-pen-item { cursor: pointer; font: inherit; color: inherit; }
 button.wb-pen-item:hover { border-color: var(--wb-fill-2); }
+.wb-ex-layer { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.wb-section { margin: 8px 0 0; } .wb-section figcaption { font-size: var(--pc-size-small); margin-bottom: 2px; }

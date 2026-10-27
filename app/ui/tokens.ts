@@ -33,6 +33,9 @@ export const tokens = {
   forbidden: "#c0503f",
   constrained: "#8c887f",
   accent: "#f26b1d",
+  /** Street frontage types (plan/shared.ts FRONTAGES order): shops at ground, homes, beside
+   *  shared ground, along the water. */
+  frontage: { active: "#c98a2b", residential: "#a39f96", green: "#2f8a85", lake: "#3d74b0" },
 
   /** Ground height: rose to umber, a redder hue than the building ramp. */
   elevation: ["#f6eeea", "#ead5cb", "#d9b5a5", "#c1907d", "#a06b58", "#7a4a3b"],

@@ -6,16 +6,16 @@ export const CAPACITY_TABLE: Record<string, Capacity[]> = {
   "bengaluru-cascade": [
     {
       "key": "bengaluru-cascade:2308:36a4986c",
-      "floor_m2": 1858074,
-      "median_m2": 1418639,
+      "floor_m2": 1809657,
+      "median_m2": 1402527,
       "n": 48,
       "seed": 20261027,
       "note": "the site's rules"
     },
     {
       "key": "bengaluru-cascade:2843:82274810",
-      "floor_m2": 2282466,
-      "median_m2": 1729863,
+      "floor_m2": 2216609,
+      "median_m2": 1711664,
       "n": 48,
       "seed": 20261027,
       "note": "the law's lake buffer only"

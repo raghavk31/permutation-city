@@ -118,12 +118,47 @@ export function vectorGround(Env: M.Envelope, G: E.Ground, d: E.Design, P: Draw.
     ctx.fill();
   }
   for (const p of plan.plots) if (p.block === Env.block && p.use === E.BUILDING && p.levels > 0) { path(p.ring); ctx.fillStyle = t.building[0]; ctx.fill(); }
-  ctx.strokeStyle = t.street.onGround; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  // streets as their cross-sections (IRC:SP:118 templates: engine/config.ts sectionFor): each
+  // part a band at its offset, trees marked along the planted strips
+  const LOOK: Record<string, string> = { footpath: t.street.onDesign, planted: t.green.proposed, carriageway: t.street.primary, shared: t.street.onGround };
+  ctx.lineCap = "butt"; ctx.lineJoin = "round";
+  const trees: [number, number][] = [];
   for (const s of plan.streets) {
-    ctx.lineWidth = s.w * k;
-    ctx.beginPath(); s.pts.forEach(([x, y], j) => (j ? ctx.lineTo(X(x), Y(y)) : ctx.moveTo(X(x), Y(y)))); ctx.stroke();
+    let at = s.w / 2;
+    for (const part of E.sectionFor(s.w).parts) {
+      const mid = at - part.w / 2, line = offsetLine(s.pts, mid);
+      ctx.strokeStyle = LOOK[part.kind]; ctx.lineWidth = part.w * k + 0.5;
+      ctx.beginPath(); line.forEach(([x, y], j) => (j ? ctx.lineTo(X(x), Y(y)) : ctx.moveTo(X(x), Y(y)))); ctx.stroke();
+      if (part.kind === "planted" && part.w >= 1.5) trees.push(...every(line, 15));
+      at -= part.w;
+    }
   }
+  ctx.fillStyle = t.green.existing; ctx.globalAlpha = 0.45;
+  for (const [x, y] of trees) { ctx.beginPath(); ctx.arc(X(x), Y(y), 2 * k, 0, 2 * Math.PI); ctx.fill(); }
+  ctx.globalAlpha = 1;
   return c;
+}
+
+/** A polyline moved `o` metres to its left (negative: right). */
+function offsetLine(pts: [number, number][], o: number): [number, number][] {
+  return pts.map(([x, y], k) => {
+    const [px, py] = pts[Math.max(0, k - 1)], [qx, qy] = pts[Math.min(pts.length - 1, k + 1)];
+    const l = Math.hypot(qx - px, qy - py) || 1;
+    return [x - ((qy - py) / l) * o, y + ((qx - px) / l) * o];
+  });
+}
+
+/** Points every `step` metres along a polyline, starting half a step in. */
+function every(pts: [number, number][], step: number): [number, number][] {
+  const out: [number, number][] = [];
+  let run = step / 2;
+  for (let k = 1; k < pts.length; k++) {
+    const [x0, y0] = pts[k - 1], [x1, y1] = pts[k], L = Math.hypot(x1 - x0, y1 - y0);
+    if (!L) continue;
+    for (; run < L; run += step) out.push([x0 + ((x1 - x0) / L) * run, y0 + ((y1 - y0) / L) * run]);
+    run -= L;
+  }
+  return out;
 }
 
 /** A small plan of a massing's heights, for the gallery. */
