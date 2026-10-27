@@ -283,8 +283,14 @@ def fetch_catchment(site: Site):
     print(f"  catchment terrain: {hydro.fetch(site)}", flush=True)
 
 
+def fetch_seasonal(site: Site):
+    """End-of-monsoon water frequency from Sentinel-2 (pc/seasonal.py)."""
+    from pc import seasonal
+    seasonal.fetch_seasonal(site)
+
+
 STEPS = {"dem": fetch_dem, "terrain": fetch_terrain, "catchment": fetch_catchment, "landcover": fetch_landcover,
-         "overture": fetch_overture, "streets": fetch_streets, "lst": fetch_lst, "heights": fetch_heights,
+         "overture": fetch_overture, "streets": fetch_streets, "lst": fetch_lst, "seasonal": fetch_seasonal, "heights": fetch_heights,
          "wind": fetch_wind}
 
 

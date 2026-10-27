@@ -15,7 +15,8 @@
                 rules mean the same on any grid and cell size
     industrial  on industrial or rail land (a stand-in for contaminated land)
     in_design   inside the site's design area (everywhere, if none is given)
-    flow_acc_ha, mapped_channel, valley_order, valley_buffer, catchment_id, ridge
+    flow_acc_ha, mapped_channel, valley_order, valley_buffer, catchment_id, ridge, sink_m
+    seasonal_water  share of the cell wet at the end of most monsoons (Sentinel-2; pc/seasonal.py)
                 landform: valleys, catchments and ridges (pc/landform.py)
     lst         hot-season land surface temperature, °C (pc/lst.py), when fetched
 
@@ -34,7 +35,7 @@ from rasterio.features import rasterize
 from rasterio.windows import from_bounds
 
 from pc import grid as cellgrid
-from pc import landform, lst
+from pc import landform, lst, seasonal
 from pc.site import Site, read_polygon
 
 
@@ -232,6 +233,7 @@ def build(site: Site) -> gpd.GeoDataFrame:
     grid, summary = landform.analyse(site, grid, nbrs, graph)
     landform.save(site, summary)
     grid = lst.add_lst(site, grid)
+    grid = seasonal.add_seasonal(site, grid)
     return crop_to_boundary(site, grid)
 
 

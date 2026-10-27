@@ -214,6 +214,17 @@ def fetch_lst(site) -> list:
                 "layer and the 'cooling where it's hot' metric are missing."]
 
 
+def fetch_seasonal(site) -> list:
+    """Stage 4, after LST: end-of-monsoon water frequency (pc/seasonal.py). Optional: without
+    it the site builds with no seasonal ponds layer, and says so."""
+    try:
+        fetch.fetch_seasonal(site)
+        return []
+    except Exception as err:  # noqa: BLE001 - any failure here only loses one layer
+        return [f"No seasonal water for this site ({type(err).__name__}): ponds and tanks that fill in the "
+                "monsoon and dry out after are not mapped unless OSM or WorldCover has them."]
+
+
 def build_layers(site):
     """Stage 5."""
     grid = layers.build(site)
@@ -252,6 +263,7 @@ def run(req: Request, key: str, overture_release: str | None, cache: Path, progr
         progress(4)
         fetch_overture(site, overture_release, progress)
         notes += fetch_lst(site)
+        notes += fetch_seasonal(site)
         progress(5)
         build_layers(site)
         progress(6)

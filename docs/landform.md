@@ -92,6 +92,31 @@ flow analysis of the same ground showed a clear network.
   below until they are fetched again. Re-fetching them changes their valleys, rules and
   scores, so it waits for a decision before the A4 freeze.
 
+### Seasonal ponds (`pc/seasonal.py`, 27 October 2026)
+
+Ponds and tanks that fill in the monsoon and are farmed or dry the rest of the year (south
+Bihar's ahars, a dry year's tanks) are missing from single snapshots. WorldCover 2021 reads a
+dry ahar as cropland, JRC Global Surface Water's 30 m Landsat misses most of them, and OSM maps
+few. Checked on Rajgir: none of the three showed the pond network.
+
+- **Source.** Sentinel-2 Level-2A at 10 m (Planetary Computer, no key), every scene of the
+  months `wet_months` (default August to October) in the years `wet_years` (2019 to 2025).
+- **Per pixel.** Looked at where the scene classification isn't cloud, shadow, cirrus, snow
+  or missing; wet where the green-NIR water index (McFeeters' NDWI) is over 0.1 or the
+  classification says water. Its frequency is wet looks over clear looks (at least 3).
+- **Per cell.** `seasonal_water` is the share of its pixels wet in at least a tenth of the
+  looks. Monsoon cloud, turbid and weedy water keep real ponds from reading wet every time:
+  on Rajgir the village tanks read wet in 5-20% of about 59 clear looks.
+- **Rule** (template): `seasonal ponds`, a third of a cell or more, kept for flood storage
+  (water, wetland or landscape, 90% unsealed).
+- **Also kept:** `sink_m`, the depth of each hollow on the 30 m terrain before it spills.
+  Ahar banks are 1-2 m high and narrow, below what the terrain resolves well (on Rajgir only
+  17% of wet pixels lay in a hollow), so it is shown, not used by a rule.
+- **Limits.** Ponds under vegetation, and ponds kept dry in the years read, don't show. The
+  location of the person's Rajgir site wasn't known when this was built: the test box north of
+  the town has few ponds (5 ha wet in a tenth of the looks), so the method is checked on village
+  tanks, not yet on an ahar chain.
+
 ### On the cells (the earlier reading, still used for catchments and ridges)
 
 The hydrology runs on the site's cells (design area and context margin), not on a raster:

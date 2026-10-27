@@ -69,3 +69,24 @@ def test_strahler_orders_two_heads_meeting():
     so, n_up = hydro.strahler(stream, rec, order)
     assert list(so) == [1, 1, 2, 2, 2]
     assert list(n_up) == [0, 0, 2, 1, 1]
+
+
+def test_seasonal_water_is_the_share_of_a_cell_wet_often_enough(tmp_path):
+    # two 20 m squares over a 10 m frequency raster: the left one half wet, the right one dry
+    import geopandas as gpd
+    import rasterio
+    from rasterio.transform import from_origin
+    from shapely.geometry import box
+
+    from pc import seasonal
+
+    class S:
+        raw = tmp_path
+    crs = "EPSG:32645"
+    f = np.array([[0.5, 0.0, 0.0, 0.0], [0.5, 0.05, 0.0, np.nan]], dtype=np.float32)
+    with rasterio.open(tmp_path / "seasonal-water.tif", "w", driver="GTiff", width=4, height=2, count=1,
+                       dtype="float32", crs=crs, transform=from_origin(0, 20, 10, 10), nodata=np.nan) as dst:
+        dst.write(f, 1)
+    grid = gpd.GeoDataFrame(geometry=[box(0, 0, 20, 20), box(20, 0, 40, 20)], crs=crs)
+    out = seasonal.add_seasonal(S, grid)
+    assert list(out["seasonal_water"]) == [0.5, 0.0]

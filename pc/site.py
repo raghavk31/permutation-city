@@ -77,6 +77,8 @@ class Site:
     catchment_m: float = 5000.0            # flow is traced this far beyond the site's box (pc/hydro.py)
     lst_months: tuple = (3, 5)             # hot season for land surface temperature (first, last)
     lst_years: tuple = (2023, 2025)        # years whose clear hot-season scenes are combined
+    wet_months: tuple = (8, 10)            # end of the monsoon, when seasonal ponds are full (pc/seasonal.py)
+    wet_years: tuple = (2019, 2025)        # years whose clear scenes of those months are combined
     utc_offset: float | None = None        # hours; local clock time for shade and the sun study (None: from the location)
     skeleton: str = "auto"                 # auto (landform where there are strong ridges, else roads), roads or landform
 
@@ -155,6 +157,8 @@ def load(site_id: str) -> Site:
         catchment_m=float(cfg.get("catchment_m", 5000.0)),
         lst_months=tuple(cfg.get("lst_months", (3, 5))),
         lst_years=tuple(cfg.get("lst_years", (2023, 2025))),
+        wet_months=tuple(cfg.get("wet_months", (8, 10))),
+        wet_years=tuple(cfg.get("wet_years", (2019, 2025))),
         utc_offset=float(cfg["utc_offset"]) if cfg.get("utc_offset") is not None else None,
         skeleton=str(cfg.get("skeleton", "auto")),
     )
