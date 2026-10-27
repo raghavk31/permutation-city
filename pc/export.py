@@ -323,6 +323,11 @@ def export(site: Site) -> dict:
         },
         **({"skeleton": skel} if skel else {}),
     }
+    fl = landform.flow_lines(site)
+    if fl is not None and len(fl):  # flow lines on the terrain's pixels (pc/hydro.py), for the map
+        out["flow_lines"] = [{"pts": [[round(x - ox, 1), round(y - oy, 1)] for x, y in g.coords],
+                              "order": int(o), "upstream_ha": float(u), "confidence": str(c)}
+                             for g, o, u, c in zip(fl.geometry, fl["order"], fl["upstream_ha"], fl["confidence"])]
     sx = syntax.buffer_streets(site, (ox, oy))
     if sx:
         out["syntax"] = sx

@@ -280,7 +280,12 @@
     <div class="wb-sub">
       <span class="wb-label">How it was read</span>
       <!-- COPY: landform method note -->
-      <p class="wb-why">Valleys are where water from {meta.landform?.valley_ha ?? 10} ha or more runs; mapped streams count even where the ground disagrees. Each valley keeps a buffer either side, wider for bigger streams.</p>
+      {#if bench.site?.flow_lines?.length}
+        <!-- COPY: how flow lines were traced -->
+        <p class="wb-why">Water was traced on the bare-earth terrain's own 30 m pixels, {Math.round((meta.landform?.flow_lines?.catchment_m ?? 5000) / 1000)} km beyond the site so streams arriving from upstream come in whole. A valley starts where {meta.landform?.valley_ha ?? 10} ha or more drains; mapped streams count even where the ground disagrees. Dashed lines fall less than 1 m over the next kilometre, less than the terrain model resolves. Each valley keeps a buffer either side, wider for bigger streams.</p>
+      {:else}
+        <p class="wb-why">Valleys are where water from {meta.landform?.valley_ha ?? 10} ha or more runs; mapped streams count even where the ground disagrees. Each valley keeps a buffer either side, wider for bigger streams.</p>
+      {/if}
       {#if meta.landform}<p class="wb-hint">Buffers are provisional: {Object.entries(meta.landform.valley_buffer_m).map(([o, m]) => `${m} m for order ${o}`).join(", ")}, to be checked against drain margins in the local rules.</p>{/if}
     </div>
   {:else if bench.step === "site"}

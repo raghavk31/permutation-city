@@ -24,6 +24,10 @@ export interface SiteExport {
     z?: number[]; valley?: number[]; vbuf?: number[]; down?: number[]; lst?: (number | null)[]; ridge?: number[];
   };
   skeleton?: SkeletonExport;
+  /** Flow lines traced on the terrain's own pixels over the site's upstream catchment
+   *  (pc/hydro.py), in the grid's local metres. confidence "low": the ground falls under 1 m
+   *  over the next kilometre of flow, less than the terrain model resolves. */
+  flow_lines?: { pts: [number, number][]; order: number; upstream_ha: number; confidence: "high" | "low" | "mapped" }[];
   /** Existing streets to 1 km round the site, as segments (pc/syntax.py). */
   syntax?: { buffer_m: number; simplify_m: number; segments: number[][] };
   context: {
@@ -94,7 +98,9 @@ export interface SiteMeta {
   /** Format 4: the landform summary (pc/landform.py) and the hot-season LST scenes (pc/lst.py). */
   landform?: { relief: SkeletonExport["relief"]; valley_ha: number; valley_buffer_m: Record<string, number>;
     buffers_provisional: boolean; mapped_channel_cells: number; valley_cells: number; max_order: number; catchments: number;
-    ridge_min_ha: number; ridge_min_consistency: number };
+    ridge_min_ha: number; ridge_min_consistency: number;
+    /** pc/hydro.py: flow traced on the terrain's pixels this far (m) beyond the site's box. */
+    flow_lines?: { catchment_m: number; segments: number; low_confidence: number; max_upstream_ha: number } };
   lst?: { source: string; months: number[]; years: number[]; scenes: { id: string; date: string; clear: number }[];
     median_clear_scenes_per_pixel: number; note: string };
   /** The regional wind (pc/wind.py): ERA5 via Open-Meteo, per season; streets read the axis
