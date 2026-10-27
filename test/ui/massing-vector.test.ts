@@ -4,7 +4,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { BUILDING, DEFAULT_RANGES, grow, makeRng, prepare, randomGenome, type SiteExport } from "../../app/engine";
+import { BUILDING, coverageFor, DEFAULT_RANGES, farFor, grow, highSetback, makeRng, plotRulesOf, prepare, randomGenome, roadStoreys, type SiteExport } from "../../app/engine";
+import { STOREY_M } from "../../app/engine/config";
 import * as M from "../../app/engine/massing";
 import { inside, toSegment } from "../../app/engine/plan/geom";
 
@@ -54,5 +55,40 @@ describe("vector envelope", () => {
         if (best.massing.occ[z * N + q]) { expect(E.plotOf[q]).toBeGreaterThanOrEqual(0); expect(z).toBeLessThan(E.capZ[q]); }
       }
     }
+  });
+});
+
+describe("vector envelope under plot rules (Bengaluru)", () => {
+  const site: SiteExport = JSON.parse(readFileSync(join(__dirname, "..", "..", "app", "public", "sites", "bengaluru-cascade.json"), "utf8"));
+  const G = prepare(site);
+  const R = plotRulesOf(G.meta.id)!;
+  const genome = randomGenome(makeRng(3), 3);
+  const d = grow(genome, G, null, DEFAULT_RANGES);
+  const blocks = M.blocksOf(d, G).sort((a, b) => b.ha - a.ha || a.id - b.id).slice(0, 6);
+
+  it("caps storeys by road, coverage by plot size, floor area by FAR, and steps back with height", () => {
+    expect(R).toBeTruthy();
+    let stepped = 0;
+    for (const b of blocks) {
+      const { E } = M.prepareBlock(G, { genome, locks: null, ranges: DEFAULT_RANGES, block: b.id, setbacks: M.DEFAULT_SETBACKS });
+      const plots = d.plan!.plots.filter((p) => p.block === b.id && p.use === BUILDING && p.levels > 0);
+      const lowStoreys = Math.floor(R.lowHeightM / STOREY_M + 1e-9);
+      E.plots.forEach((p, k) => {
+        const road = plots[k].road ?? 0;
+        expect(p.capLevels).toBeLessThanOrEqual(roadStoreys(R, road));
+        expect(p.maxCover).toBeLessThanOrEqual(coverageFor(R, p.area) + 1e-9);
+        expect(p.target).toBeLessThanOrEqual(farFor(R, road) * p.area + 1e-6);
+      });
+      for (let q = 0; q < E.nx * E.ny; q++) {
+        const k = E.plotOf[q];
+        if (k < 0 || E.capZ[q] <= lowStoreys) continue;
+        stepped++;
+        const pt = M.columnXY(E, q), ring = plots[k].ring;
+        let near = Infinity;
+        for (let j = 0; j < ring.length; j++) near = Math.min(near, toSegment(pt, ring[j], ring[(j + 1) % ring.length]).d);
+        expect(near).toBeGreaterThanOrEqual(highSetback(R, E.capZ[q] * STOREY_M) - 1e-6);
+      }
+    }
+    expect(stepped).toBeGreaterThan(0);   // four storeys rise above the 11.5 m low band
   });
 });

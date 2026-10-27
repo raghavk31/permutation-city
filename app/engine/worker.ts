@@ -2,7 +2,8 @@
 // Space syntax (seconds per design) also runs here: the readouts of the designs a run kept,
 // the opened design's segments, and exact Rn choice.
 import * as Comlink from "comlink";
-import type { Ranges } from "./config.js";
+import { capacityOf, sampleGenomes, summarise } from "./capacity.js";
+import { DEFAULT_RANGES, type Ranges } from "./config.js";
 import { mapElites, searchOf, type ArchiveInfo, type EliteOptions, type SearchChoice } from "./elites.js";
 import { evolve, evolveAsync, frontFamilies, type EvolveOptions, type HistoryRow, type LineageNode, type Run } from "./evolve.js";
 import { Pool, poolSize } from "./pool.js";
@@ -14,7 +15,8 @@ import { legibilityParts, siteMean, viewpoints } from "./metrics/syntax.js";
 import { piecemeal, type Conditions, type Scenario } from "./piecemeal.js";
 import { shockSite } from "./shocks.js";
 import { choiceRn, syntaxOf } from "./syntax.js";
-import type { Design, Ground, Scores, SiteExport } from "./types.js";
+import { plotRulesOf } from "./regs.js";
+import type { Capacity, Design, Ground, Scores, SiteExport } from "./types.js";
 
 let G: Ground | null = null;
 let siteNow: SiteExport | null = null;
@@ -77,6 +79,20 @@ const api = {
     siteOff = off;
     lastKept = [];
     pool?.terminate(); pool = null;
+  },
+  /** What the site's plot rules let plans on this ground hold (capacity.ts): from the table, or
+   *  measured on the pool's workers when the ground has changed (a rule edited), then carried on
+   *  the site so every worker aims at the same target. Null where the site has no plot rules. */
+  async capacity(): Promise<Capacity | null> {
+    if (!G || !siteNow || !plotRulesOf(G.meta.id)) return null;
+    const known = capacityOf(G);
+    if (known) return known;
+    pool ??= new Pool(poolSize(), siteNow, siteOff);
+    const ds = await pool.whole(sampleGenomes(), { storm: 1, ranges: DEFAULT_RANGES, locked: null, objectives: [] });
+    const c = summarise(G, ds.map((d) => d.plan?.rules?.capacity ?? 0), "measured on the page after the rules were edited");
+    siteNow.meta.capacity = c;   // G.meta is the site's meta
+    pool.terminate(); pool = null;  // the pool's workers hold the site without it
+    return c;
   },
   /** `onLeaders`: after each generation of a version 3 run, the best few designs on the
    *  front, grown whole (plan included), for the page's live strip. */

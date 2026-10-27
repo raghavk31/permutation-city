@@ -169,7 +169,7 @@
         <dl class="wb-facts">
           <dt>Floor area</dt><dd class="wb-num">{Number.isFinite(ex.floorArea) ? Math.round(ex.floorArea).toLocaleString("en-IN") : "…"} ha{grown?.grossFloorArea ? ` net, ${Math.round(grown.grossFloorArea / 1e4).toLocaleString("en-IN")} ha gross` : ""}</dd>
           <!-- COPY: brief fit -->
-          <dt>Against the brief</dt><dd>{ex.scores.gap <= 0.1 ? "within it" : `${Math.round(ex.scores.gap * 100)}% off`}</dd>
+          <dt title="The target is the lesser of the brief and what the plot rules allow">Against the target</dt><dd>{ex.scores.gap <= 0.1 ? "within it" : `${Math.round(ex.scores.gap * 100)}% off`}</dd>
           <dt>Average storeys</dt><dd class="wb-num">{Number.isFinite(ex.levels) ? ex.levels.toFixed(1) : "…"}</dd>
           <dt>Bred from</dt><dd>
             {#if ex.parents.length}
@@ -244,9 +244,9 @@
             <div class="wb-axis"><span>run's worst</span><span>best</span></div>
           </div>
           <div class="wb-fit">
-            <span class="wb-label">Floor area against the brief</span>
+            <span class="wb-label" title="The target is the lesser of the brief and what the plot rules allow">Floor area against the target</span>
             <!-- COPY: brief fit -->
-            <div class="wb-row wb-between"><span class="wb-quiet">{chosen.d.scores.gap <= 0.1 ? "within the brief" : `${Math.round(chosen.d.scores.gap * 100)}% off the brief`}</span></div>
+            <div class="wb-row wb-between"><span class="wb-quiet">{chosen.d.scores.gap <= 0.1 ? "within the target" : `${Math.round(chosen.d.scores.gap * 100)}% off the target`}</span></div>
           </div>
         {/if}
         <button class="wb-btn is-primary" type="button" disabled={bench.pen.some((p) => p.name === chosen.name)}
@@ -291,7 +291,7 @@
         {#if card.thumb}<div class="wb-insp-thumb"><Thumb rows={card.thumb} /></div>{/if}
         <dl class="wb-facts">
           <dt>Design ground</dt><dd class="wb-num">{fmtHa(card.design_ha)}{card.cells ? ` · ${card.cells.toLocaleString("en-IN")} cells` : ""}</dd>
-          <dt>Floor area to fit</dt><dd class="wb-num">{fmtHa(card.target_ha)}</dd>
+          <dt>Floor area the brief asks</dt><dd class="wb-num">{fmtHa(card.target_ha)}</dd>
           <dt>How hilly</dt><dd>{card.relief ? HILLY[card.relief] : "unknown"}{card.relief_m != null ? `, ${Math.round(card.relief_m)} m of relief` : ""}
             {#if card.confidence === "low"}<span class="wb-tag is-low">low confidence</span>{/if}</dd>
           <dt>Ground from</dt><dd>{card.terrain ? TERRAIN[card.terrain] ?? card.terrain : "unknown"}</dd>
