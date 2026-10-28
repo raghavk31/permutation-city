@@ -34,7 +34,9 @@ export type Feature =
   /** The ground floor set back under the upper floors: an arcade, a portico, a five-foot way. */
   | { kind: "arcade"; depth: number }
   /** Roofs that rise from the front to the back by this much (m). */
-  | { kind: "slope"; rise: number };
+  | { kind: "slope"; rise: number }
+  /** An earth mound the whole group stands on, `raised` high (a char plinth, a terp). */
+  | { kind: "mound" };
 
 export interface Params {
   arrangement: Arrangement;
@@ -80,6 +82,8 @@ export interface Params {
   water?: number;
   /** Trees on the open ground: a homegarden, a planted court, willows on a chinampa. */
   trees?: number;
+  /** What terraces are made of: planted fields, or stone steps (ghats, amphitheatres). */
+  surface?: "green" | "ground";
   features?: Feature[];
 }
 
@@ -243,7 +247,7 @@ export function build(p: Params): Built {
       // Paddies or fields stepping down a slope, `steps` of them, each `depth` deep.
       const n = p.steps ?? 6, rise = p.sunken ?? 1.5, L = p.width;
       for (let k = 0; k < n; k++) {
-        S.push({ ring: rect(0, k * p.depth, L, p.depth), z: (n - k - 1) * rise, h: 0.4, use: "green" });
+        S.push({ ring: rect(0, k * p.depth, L, p.depth), z: (n - k - 1) * rise, h: p.surface === "ground" ? rise : 0.4, use: p.surface ?? "green" });
         if (p.water) S.push({ ring: rect(0.6, k * p.depth + 0.6, L - 1.2, p.depth - 1.2), z: (n - k - 1) * rise + 0.4, h: 0.05, use: "water" });
       }
       W = L; D = n * p.depth;
@@ -279,8 +283,12 @@ export function build(p: Params): Built {
 
   features(p, S, fh, z0, W, D);
 
-  // Stilts under a raised floor: a post at each corner, from the ground up.
-  if (z0 > 0) for (const s of S.filter((x) => x.use === "built" && x.z === z0 && x.ring.length === 4))
+  // Under a raised floor: an earth mound under the whole group, or a post at each corner.
+  const mound = (p.features ?? []).some((f) => f.kind === "mound");
+  if (z0 > 0 && mound) {
+    const bs = S.filter((x) => x.use === "built"), xs = bs.flatMap((x) => x.ring.map((q) => q[0])), ys = bs.flatMap((x) => x.ring.map((q) => q[1]));
+    S.push({ ring: rect(Math.min(...xs) - 3, Math.min(...ys) - 3, Math.max(...xs) - Math.min(...xs) + 6, Math.max(...ys) - Math.min(...ys) + 6), z: 0, h: z0, use: "green" });
+  } else if (z0 > 0) for (const s of S.filter((x) => x.use === "built" && x.z === z0 && x.ring.length === 4))
     for (const [x, y] of s.ring) S.push({ ring: rect(x - 0.15, y - 0.15, 0.3, 0.3), z: 0, h: z0, use: "built", roof: "flat", storeys: 0 });
 
   // Trees on open ground: placed by a seeded random, never inside a building.
@@ -370,7 +378,8 @@ function features(p: Params, S: Solid[], fh: number, z0: number, W: number, D: n
         for (const b of blocks) { b.roof = "mono"; b.rise = f.rise; }
         break;
       case "arcade":
-        break; // built with the row
+      case "mound":
+        break; // built with the row, or under the group
     }
   }
 }
