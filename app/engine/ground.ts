@@ -59,6 +59,7 @@ function fromDesign(site: SiteExport, d: SiteExport["design"], state: ArrayLike<
     cellArea: site.meta.cell_area, bounds: [xmin, ymin, xmax, ymax],
     meta: site.meta, roads: site.context.roads, activities: site.context.activities,
     syntaxStreets: site.syntax?.segments, buildings: site.context.buildings,
+    ...(site.moves ? { forced: Int8Array.from(site.moves.forced), drawn: site.moves.streets } : {}),
     water: site.grid.x.flatMap((x, i) => (site.grid.water[i] ? [[x, site.grid.y[i]] as [number, number]] : [])),
     openLand: site.grid.x.flatMap((x, i) => (!site.grid.water[i] && state[i] === FORBIDDEN ? [[x, site.grid.y[i]] as [number, number]] : [])),
     ...(d.z ? {

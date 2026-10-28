@@ -4,7 +4,7 @@ the design ground as the site's rules leave it; the browser can switch ridges of
     landform  the strong ridges (pc.landform: divides of 5 ha or more on the smaller side,
               at least half their edges touching a headwater cell), on the sides of design
               cells, joined to the existing roads
-    roads     on flat land with no mapped drains (or no usable ridges): the existing roads,
+    roads     on flat land (or with no usable ridges): the existing roads,
               every class but footpaths, including port and service roads: "skeleton from
               existing roads, not landform". Major roads (motorway to tertiary) are primary
               streets, residential roads secondary, service and port roads lanes
@@ -190,7 +190,10 @@ def build(site, ground, cells, grid) -> dict:
     if site.skeleton not in ("auto", "roads", "landform"):
         raise ValueError(f"site.yaml skeleton: {site.skeleton!r} (auto, roads or landform)")
     chosen_by_site = site.skeleton == "roads" and bool(ridges)
-    if ridges and site.skeleton != "roads":
+    # On flat land the divides between drains are a metre or two high: `auto` keeps the roads
+    # (a site can still ask for `landform`).
+    flat_auto = site.skeleton == "auto" and rel["class"] == "flat"
+    if ridges and site.skeleton != "roads" and not flat_auto:
         source = "landform"
         chosen = {sid for r in ridges for sid in r["sides"]}
         level = {sid: PRIMARY for sid in chosen}

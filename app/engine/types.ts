@@ -1,4 +1,5 @@
 // Shapes shared by the engine and the UI.
+import type { SiteMoves } from "./moves.js";
 
 /** A site as `pc export` writes it (app/public/sites/<id>.json). */
 export interface SiteExport {
@@ -24,6 +25,12 @@ export interface SiteExport {
     z?: number[]; valley?: number[]; vbuf?: number[]; down?: number[]; lst?: (number | null)[]; ridge?: number[];
   };
   skeleton?: SkeletonExport;
+  /** Moves drawn on the map, as the engine takes them (moves.ts applyMoves); not in exports. */
+  moves?: SiteMoves;
+  /** Flow lines traced on the terrain's own pixels over the site's upstream catchment
+   *  (pc/hydro.py), in the grid's local metres. confidence "low": the ground falls under 1 m
+   *  over the next kilometre of flow, less than the terrain model resolves. */
+  flow_lines?: { pts: [number, number][]; order: number; upstream_ha: number; confidence: "high" | "low" | "mapped" }[];
   /** Existing streets to 1 km round the site, as segments (pc/syntax.py). */
   syntax?: { buffer_m: number; simplify_m: number; segments: number[][] };
   context: {
@@ -42,6 +49,8 @@ export interface SiteExport {
  *  metres each, and where the height came from (an index into `sources`). */
 export interface ExistingBuildings {
   within_m: number; rings: number[][]; h: number[]; src: number[]; sources: string[]; counts: Record<string, number>;
+  /** the buildings on the design ground, which the design replaces unless one is kept (moves.ts) */
+  ground?: { rings: number[][]; h: number[]; src: number[] };
 }
 
 export type Activities = Record<"shops" | "schools" | "transit", [number, number][]>;
@@ -94,7 +103,9 @@ export interface SiteMeta {
   /** Format 4: the landform summary (pc/landform.py) and the hot-season LST scenes (pc/lst.py). */
   landform?: { relief: SkeletonExport["relief"]; valley_ha: number; valley_buffer_m: Record<string, number>;
     buffers_provisional: boolean; mapped_channel_cells: number; valley_cells: number; max_order: number; catchments: number;
-    ridge_min_ha: number; ridge_min_consistency: number };
+    ridge_min_ha: number; ridge_min_consistency: number;
+    /** pc/hydro.py: flow traced on the terrain's pixels this far (m) beyond the site's box. */
+    flow_lines?: { catchment_m: number; segments: number; low_confidence: number; max_upstream_ha: number } };
   lst?: { source: string; months: number[]; years: number[]; scenes: { id: string; date: string; clear: number }[];
     median_clear_scenes_per_pixel: number; note: string };
   /** The regional wind (pc/wind.py): ERA5 via Open-Meteo, per season; streets read the axis
@@ -145,6 +156,9 @@ export interface Ground {
   lst?: Float64Array | null;     // hot-season land surface temperature (°C; NaN: none)
   ridge?: Float64Array;          // strength of the strongest divide on its edges (ha)
   skeleton?: GroundSkeleton;
+  // Drawn moves (moves.ts): per cell 0 free, -1 kept from any use, else the use; drawn streets
+  forced?: Int8Array;
+  drawn?: { pts: [number, number][]; cls: number }[];
 }
 
 /** The primary streets on this design ground (sides from streets.ts), and what they came from. */

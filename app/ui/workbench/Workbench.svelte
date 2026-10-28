@@ -8,6 +8,8 @@
   import LayersMap from "./LayersMap.svelte";
   import * as Draw from "../draw";
   import BriefMap from "./BriefMap.svelte";
+  import DrawMap from "./DrawMap.svelte";
+  import DrawRail from "./DrawRail.svelte";
   import BriefRail from "./BriefRail.svelte";
   import EvolveCentre from "./EvolveCentre.svelte";
   import EvolveRail from "./EvolveRail.svelte";
@@ -58,6 +60,10 @@
     if (id === "site" && bench.site) return `${Math.round(bench.site.meta.design_ha)} ha`;
     if (id === "layers" && bench.site) return `${Object.keys(bench.site.grid.layers ?? {}).length}`;
     if (id === "rules" && bench.rules) return bench.edited ? "changed" : `${bench.rules.list.length}`;
+    if (id === "draw" && bench.moves.length) {
+      const c = bench.drawn?.conflicts.length ?? 0;
+      return c ? `${c} conflict${c === 1 ? "" : "s"}` : `${bench.moves.length}`;
+    }
     if (id === "brief") return bench.briefLocked ? "confirmed" : bench.brief ? "draft" : "";
     if (id === "evolve") return bench.running ? `${bench.runGen} of ${bench.settings.generations}` : bench.result ? `${bench.result.frontSize} on front` : "";
     if (id === "explore" && bench.result) return `${bench.result.kept.length} designs`;
@@ -82,8 +88,8 @@
     <div class="wb-top-right">
       <!-- COPY: run status -->
       <span class="wb-pill">{bench.running ? `Running: generation ${bench.runGen} of ${bench.settings.generations}` : bench.result ? `Run done: ${bench.result.frontSize} on the front` : "No run yet"}</span>
-      <button class="wb-icon-btn" type="button" aria-label="Undo" title="Undo (Ctrl Z)" disabled={!bench.past.length} onclick={() => bench.undo()}><Icon icon={Undo2} /></button>
-      <button class="wb-icon-btn" type="button" aria-label="Redo" title="Redo (Ctrl Shift Z)" disabled={!bench.future.length} onclick={() => bench.redo()}><Icon icon={Redo2} /></button>
+      <button class="wb-icon-btn" type="button" aria-label="Undo" title="Undo (Ctrl Z)" disabled={!bench.canUndo} onclick={() => bench.undo()}><Icon icon={Undo2} /></button>
+      <button class="wb-icon-btn" type="button" aria-label="Redo" title="Redo (Ctrl Shift Z)" disabled={!bench.canRedo} onclick={() => bench.redo()}><Icon icon={Redo2} /></button>
       <button class="wb-btn" type="button" onclick={share}><Icon icon={Share2} />{copied ? "Copied" : "Share"}</button>
       <button class="wb-icon-btn" type="button" aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)"
         onclick={() => keys?.showModal()}><Icon icon={Keyboard} /></button>
@@ -107,6 +113,7 @@
               {:else if s.id === "layers"}<LayersRail />
               {:else if s.id === "rules"}<RulesRail />
               {:else if s.id === "landform"}<LandformRail />
+              {:else if s.id === "draw"}<DrawRail />
               {:else if s.id === "brief"}<BriefRail />
               {:else if s.id === "evolve"}<EvolveRail />
               {:else if s.id === "explore" && bench.result}<ExploreRail />
@@ -131,6 +138,8 @@
       <RulesMap site={bench.site} />
     {:else if bench.step === "landform" && bench.site}
       <LandformMap site={bench.site} />
+    {:else if bench.step === "draw" && bench.site && bench.rules}
+      <DrawMap site={bench.site} />
     {:else if bench.step === "brief" && bench.site && bench.rules}
       <BriefMap site={bench.site} />
     {:else if bench.step === "evolve" && bench.site}
@@ -197,7 +206,8 @@
       <dt><kbd>J</kbd> <kbd>K</kbd></dt><dd>next and previous design</dd>
       <dt><kbd>P</kbd></dt><dd>keep the open design in the pen</dd>
       <dt><kbd>2</kbd> <kbd>3</kbd></dt><dd>plan or 3D, on the Massing step</dd>
-      <dt><kbd>Ctrl</kbd> <kbd>Z</kbd></dt><dd>undo a rule change; with <kbd>Shift</kbd>, redo</dd>
+      <dt><kbd>Ctrl</kbd> <kbd>Z</kbd></dt><dd>undo a rule change (on Draw, a move); with <kbd>Shift</kbd>, redo</dd>
+      <dt><kbd>Enter</kbd> <kbd>Backspace</kbd></dt><dd>on Draw: finish the shape, take a point back (<kbd>Esc</kbd> stops)</dd>
       <dt><kbd>[</kbd> <kbd>]</kbd></dt><dd>fold the steps, fold the inspector</dd>
       <dt><kbd>+</kbd> <kbd>-</kbd> <kbd>0</kbd></dt><dd>zoom the map in, out, and fit it (arrows pan)</dd>
       <dt><kbd>Esc</kbd></dt><dd>leave presentation, or close this</dd>
