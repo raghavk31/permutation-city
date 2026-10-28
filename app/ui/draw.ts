@@ -395,6 +395,22 @@ export function dots(ctx: Ctx, v: View, xs: ArrayLike<number>, ys: ArrayLike<num
 
 // --- context ----------------------------------------------------------------------------
 
+// Place names in Bengali or Assamese script: Inter Tight has no glyphs for them, and a device
+// without a Bengali font showed empty boxes. Noto Sans Bengali (which covers Assamese) loads the
+// first time such a name is drawn; maps redraw when it arrives (MapCanvas listens for fonts).
+const BENGALI = /[ঀ-৿]/;
+const LABEL_FONT = T.font.text.replace(/, sans-serif$/, ', "Noto Sans Bengali", sans-serif');
+let bengaliAsked = false;
+function needScript(text: string) {
+  if (bengaliAsked || !BENGALI.test(text) || typeof document === "undefined") return;
+  bengaliAsked = true;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = "https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400&display=swap";
+  link.onload = () => { void document.fonts.load('11px "Noto Sans Bengali"', text); };
+  document.head.appendChild(link);
+}
+
 // The footprints as one path in metres, made once per site: tracing Bengaluru's thousands of
 // buildings again was most of every map's draw. Views are affine, so the path is drawn
 // through the view's transform.
@@ -439,8 +455,9 @@ export function context(ctx: Ctx, v: View, c: SiteExport["context"], p: Palette,
   }
   if (boundary && c.boundary.length) { ctx.strokeStyle = p.ink; ctx.lineWidth = 1.2; c.boundary.forEach(line); }
   if (labels) {
-    ctx.font = `11px ${T.font.text}`; ctx.textAlign = "center";
+    ctx.font = `11px ${LABEL_FONT}`; ctx.textAlign = "center";
     for (const pl of c.places) {
+      needScript(pl.name);
       const x = v.px(pl.x), y = v.py(pl.y);
       ctx.lineWidth = 3; ctx.strokeStyle = p.paper; ctx.strokeText(pl.name, x, y + 4);
       ctx.fillStyle = p.ink2; ctx.fillText(pl.name, x, y + 4);
