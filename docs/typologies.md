@@ -1,6 +1,12 @@
 # Typologies: programme first, precedents as seeds
 
-Draft, 28 October 2026. The building-scale search starts from programme and from precedents:
+Draft, 28 October 2026. The library itself now lives in code and on the site: the entries,
+figures and sources in `app/engine/typology/library.ts`, the grammar in
+`app/engine/typology/grammar.ts`, and the page at `/typologies` (`app/ui/typologies/`), where
+every precedent is drawn from its own seed. This document keeps the method; the per-precedent
+notes below were the first draft and the code is now the one to keep current.
+
+The building-scale search starts from programme and from precedents:
 forms that people built over centuries for a climate and a material, and a few modern ones that
 did the same with new means. Each precedent is written down as numbers in one shared grammar,
 seeds the first generation of the search for its programme, and is then evolved for this site's
