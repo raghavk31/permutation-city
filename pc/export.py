@@ -206,7 +206,8 @@ def existing_buildings(site: Site, ground) -> dict | None:
                       heights inside the footprint, when at least OB_MIN_M
       nearby          the median of known heights within NEARBY_M (at least NEARBY_MIN known)
       default         DEFAULT_STOREYS × STOREY_M
-    Buildings on the design ground are left out: the design replaces them."""
+    Buildings on the design ground are listed apart, under "ground": the design replaces them,
+    unless a person keeps one (a drawn constraint; app/engine/moves.ts)."""
     from pc import syntax as sx
     from pc.metrics.network import STOREY_M
     p = site.overture("building")
@@ -222,29 +223,42 @@ def existing_buildings(site: Site, ground) -> dict | None:
     f = b["num_floors"].to_numpy(float) if "num_floors" in b else np.full(len(b), np.nan)
     known_h = np.where(np.isfinite(h) & (h > 2) & (h < 300), h, np.where(np.isfinite(f) & (f > 0), f * STOREY_M, np.nan))
     kx, ky, kh = cx[np.isfinite(known_h)], cy[np.isfinite(known_h)], known_h[np.isfinite(known_h)]
+    on = [k for k in range(len(b)) if idx.has(float(cx[k]), float(cy[k]))]
     keep = [k for k in range(len(b)) if not idx.has(float(cx[k]), float(cy[k])) and idx.near(float(cx[k]), float(cy[k]), reach)]
-    ob = dict(zip(keep, _open_buildings_heights(site, b.geometry.iloc[keep].tolist()))) if keep else {}
-    rings, heights, src = [], [], []
-    for k in keep:
-        geom, x, y = b.geometry.iloc[k], float(cx[k]), float(cy[k])
-        if np.isfinite(h[k]) and 2 < h[k] < 300:
-            hk, sk = float(h[k]), 0
-        elif np.isfinite(f[k]) and f[k] > 0:
-            hk, sk = float(f[k]) * STOREY_M, 1
-        elif np.isfinite(ob[k]) and ob[k] >= OB_MIN_M:
-            hk, sk = float(ob[k]), 2
-        else:
-            near = kh[(kx - x) ** 2 + (ky - y) ** 2 <= NEARBY_M ** 2]
-            hk, sk = (float(np.median(near)), 3) if len(near) >= NEARBY_MIN else (DEFAULT_STOREYS * STOREY_M, 4)
-        poly = max(getattr(geom, "geoms", [geom]), key=lambda g: g.area).simplify(0.5)
-        pts = [(round(px - ox, 1), round(py - oy, 1)) for px, py in poly.exterior.coords][:-1]
-        if len(pts) < 3:
-            continue
-        rings.append([v for pt in pts for v in pt])
-        heights.append(round(hk, 1))
-        src.append(sk)
+    # Looked up apart: the lookup over a list isn't independent per building, and the
+    # neighbours' heights stay as they were before the ground's were added.
+    ob = {}
+    for which in (keep, on):
+        if which:
+            ob.update(zip(which, _open_buildings_heights(site, b.geometry.iloc[which].tolist())))
+
+    def footprints(which):
+        rings, heights, src = [], [], []
+        for k in which:
+            geom, x, y = b.geometry.iloc[k], float(cx[k]), float(cy[k])
+            if np.isfinite(h[k]) and 2 < h[k] < 300:
+                hk, sk = float(h[k]), 0
+            elif np.isfinite(f[k]) and f[k] > 0:
+                hk, sk = float(f[k]) * STOREY_M, 1
+            elif np.isfinite(ob[k]) and ob[k] >= OB_MIN_M:
+                hk, sk = float(ob[k]), 2
+            else:
+                near = kh[(kx - x) ** 2 + (ky - y) ** 2 <= NEARBY_M ** 2]
+                hk, sk = (float(np.median(near)), 3) if len(near) >= NEARBY_MIN else (DEFAULT_STOREYS * STOREY_M, 4)
+            poly = max(getattr(geom, "geoms", [geom]), key=lambda g: g.area).simplify(0.5)
+            pts = [(round(px - ox, 1), round(py - oy, 1)) for px, py in poly.exterior.coords][:-1]
+            if len(pts) < 3:
+                continue
+            rings.append([v for pt in pts for v in pt])
+            heights.append(round(hk, 1))
+            src.append(sk)
+        return rings, heights, src
+
+    rings, heights, src = footprints(keep)
     counts = {name: src.count(i) for i, name in enumerate(HEIGHT_SOURCES)}
-    return {"within_m": NEIGHBOURS_M, "rings": rings, "h": heights, "src": src, "sources": HEIGHT_SOURCES, "counts": counts}
+    g_rings, g_heights, g_src = footprints(on)
+    return {"within_m": NEIGHBOURS_M, "rings": rings, "h": heights, "src": src, "sources": HEIGHT_SOURCES, "counts": counts,
+            "ground": {"rings": g_rings, "h": g_heights, "src": g_src}}
 
 
 def suitability(site: Site) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, dict]:

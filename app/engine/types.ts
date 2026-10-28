@@ -1,4 +1,5 @@
 // Shapes shared by the engine and the UI.
+import type { SiteMoves } from "./moves.js";
 
 /** A site as `pc export` writes it (app/public/sites/<id>.json). */
 export interface SiteExport {
@@ -24,6 +25,8 @@ export interface SiteExport {
     z?: number[]; valley?: number[]; vbuf?: number[]; down?: number[]; lst?: (number | null)[]; ridge?: number[];
   };
   skeleton?: SkeletonExport;
+  /** Moves drawn on the map, as the engine takes them (moves.ts applyMoves); not in exports. */
+  moves?: SiteMoves;
   /** Flow lines traced on the terrain's own pixels over the site's upstream catchment
    *  (pc/hydro.py), in the grid's local metres. confidence "low": the ground falls under 1 m
    *  over the next kilometre of flow, less than the terrain model resolves. */
@@ -46,6 +49,8 @@ export interface SiteExport {
  *  metres each, and where the height came from (an index into `sources`). */
 export interface ExistingBuildings {
   within_m: number; rings: number[][]; h: number[]; src: number[]; sources: string[]; counts: Record<string, number>;
+  /** the buildings on the design ground, which the design replaces unless one is kept (moves.ts) */
+  ground?: { rings: number[][]; h: number[]; src: number[] };
 }
 
 export type Activities = Record<"shops" | "schools" | "transit", [number, number][]>;
@@ -140,6 +145,9 @@ export interface Ground {
   lst?: Float64Array | null;     // hot-season land surface temperature (°C; NaN: none)
   ridge?: Float64Array;          // strength of the strongest divide on its edges (ha)
   skeleton?: GroundSkeleton;
+  // Drawn moves (moves.ts): per cell 0 free, -1 kept from any use, else the use; drawn streets
+  forced?: Int8Array;
+  drawn?: { pts: [number, number][]; cls: number }[];
 }
 
 /** The primary streets on this design ground (sides from streets.ts), and what they came from. */

@@ -8,10 +8,12 @@
 // building reports it (onPick), so its height can be set.
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import type { Envelope, Mesh } from "../../engine/massing";
+import { streetEye, type Envelope, type Mesh } from "../../engine/massing";
 
 export interface Look { mass: string; context: string; existing: string; ground: string; ink: string; background: string }
-export interface SceneData { E: Envelope; mass: Mesh; context: Mesh; existing: Mesh; ground: HTMLCanvasElement; look: Look }
+/** guessed: the existing buildings (indices into Ground.buildings) whose heights are estimated,
+ *  drawn hatched. */
+export interface SceneData { E: Envelope; mass: Mesh; context: Mesh; existing: Mesh; ground: HTMLCanvasElement; look: Look; guessed?: Set<number> }
 export type Section = { mode: "none" } | { mode: "plan"; height: number } | { mode: "cut"; at: number };
 
 function geometry(m: Mesh, smooth: boolean): THREE.BufferGeometry {
@@ -20,6 +22,30 @@ function geometry(m: Mesh, smooth: boolean): THREE.BufferGeometry {
   g.setIndex(new THREE.BufferAttribute(m.indices, 1));
   if (smooth) g.computeVertexNormals(); else { const f = g.toNonIndexed(); f.computeVertexNormals(); return f; }
   return g;
+}
+
+/** Flag the vertices of the existing buildings whose heights are estimated (mesh groups are
+ *  "existing <k>"), for the hatch. */
+function guessAttribute(m: Mesh, guessed: Set<number> | undefined): THREE.BufferAttribute {
+  const flag = new Float32Array(m.positions.length / 3);
+  if (guessed?.size) for (const g of m.groups) {
+    if (!guessed.has(+g.name.split(" ")[1])) continue;
+    for (let t = g.start; t < g.start + g.count; t++) flag[m.indices[t]] = 1;
+  }
+  return new THREE.BufferAttribute(flag, 1);
+}
+
+/** Diagonal stripes in world space on the flagged faces: a hatch that reads on walls and roofs. */
+function hatch(mat: THREE.MeshStandardMaterial): THREE.MeshStandardMaterial {
+  mat.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader
+      .replace("#include <common>", "#include <common>\nattribute float guess;\nvarying float vGuess;\nvarying vec3 vWorld;")
+      .replace("#include <project_vertex>", "#include <project_vertex>\nvGuess = guess;\nvWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+    sh.fragmentShader = sh.fragmentShader
+      .replace("#include <common>", "#include <common>\nvarying float vGuess;\nvarying vec3 vWorld;")
+      .replace("#include <color_fragment>", "#include <color_fragment>\nif (vGuess > 0.5 && fract((vWorld.x + vWorld.y + vWorld.z) / 1.6) < 0.45) diffuseColor.rgb *= 0.78;");
+  };
+  return mat;
 }
 
 export class Viewer {
@@ -99,7 +125,14 @@ export class Viewer {
     const smooth = !d.mass.groups.some((g) => g.name.startsWith("plot"));
     const mass = new THREE.Mesh(geometry(d.mass, smooth), mat(look.mass));
     const context = new THREE.Mesh(geometry(d.context, false), mat(look.context));
-    const existing = new THREE.Mesh(geometry(d.existing, false), mat(look.existing));
+    const raw = new THREE.BufferGeometry();
+    raw.setAttribute("position", new THREE.BufferAttribute(d.existing.positions, 3));
+    raw.setAttribute("guess", guessAttribute(d.existing, d.guessed));
+    raw.setIndex(new THREE.BufferAttribute(d.existing.indices, 1));
+    const existingGeo = raw.toNonIndexed();   // flat faces, as geometry(); picking reads faces in order
+    existingGeo.computeVertexNormals();
+    raw.dispose();
+    const existing = new THREE.Mesh(existingGeo, hatch(mat(look.existing)));
     for (const m of [mass, context, existing]) { m.castShadow = true; m.receiveShadow = true; }
     this.existing = existing;
     // Edges of the massing, so plan and section read.
@@ -156,7 +189,8 @@ export class Viewer {
   }
 
   /** Camera presets: aerial (from the south-west, above), plan (straight down) and street (eye
-   *  height at the block's south-west corner, looking at its middle). */
+   *  height on the street nearest the block, looking along it: streetEye; else from the
+   *  block's south-west corner, looking at its middle). */
   preset(kind: "aerial" | "plan" | "street") {
     const d = this.data;
     if (!d) return;
@@ -165,7 +199,11 @@ export class Viewer {
     const span = ps.length ? Math.max(...ps.map((p) => Math.hypot(p.cx - px, p.cy - py) + Math.max(...p.half))) : 40;
     if (kind === "aerial") { this.controls.target.set(cx, cy, 0); this.camera.position.set(cx - r * 0.6, cy - r * 0.9, r * 0.7); }
     if (kind === "plan") { this.controls.target.set(px, py, 0); this.camera.position.set(px, py - 0.01, r * 1.4); }
-    if (kind === "street") { this.controls.target.set(px, py, 8); this.camera.position.set(px - span - 18, py - span - 18, 1.7); }
+    if (kind === "street") {
+      const s = streetEye(E);
+      if (s) { this.controls.target.set(s.eye[0] + s.dir[0] * 40, s.eye[1] + s.dir[1] * 40, 6); this.camera.position.set(s.eye[0], s.eye[1], 1.7); }
+      else { this.controls.target.set(px, py, 8); this.camera.position.set(px - span - 18, py - span - 18, 1.7); }
+    }
     this.controls.update();
     this.render();
     this.sync();

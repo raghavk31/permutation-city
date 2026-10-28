@@ -120,19 +120,33 @@ export const SKELETON = {
   SNAP_M: 20,      // an end this close to another line joins it
 };
 
-export interface SkeletonLine { cls: number; points: Line }
+export interface SkeletonLine { cls: number; points: Line; drawn?: boolean }
 
 const skCache = new WeakMap<Ground, SkeletonLine[]>();
+
+/** The skeleton's lines (below), and any streets a person drew (moves.ts), whose loose ends
+ *  join the nearest line within SNAP_M. Drawn streets keep their class; a ground without
+ *  them gets exactly the traced lines. */
+export function skeletonLines(G: Ground): SkeletonLine[] {
+  const hit = skCache.get(G);
+  if (hit) return hit;
+  const out = tracedLines(G);
+  if (G.drawn?.length) {
+    const drawn = G.drawn.map((d): SkeletonLine => ({ cls: d.cls, points: d.pts.map((p): Pt => [p[0], p[1]]), drawn: true }));
+    out.push(...drawn);
+    snapEnds(out, SKELETON.SNAP_M, new Set(drawn));
+  }
+  skCache.set(G, out);
+  return out;
+}
 
 /** The site's skeleton as clean centrelines: its sides painted thick, so the two carriageways
  *  of a road and the zigzag of hex sides merge, thinned to one pixel (Zhang and Suen 1984),
  *  traced, spurs pruned, smoothed (smoothTrace) and fitted with splines; loose ends
  *  snapped to the nearest line. Each line keeps the highest class painted under it. */
-export function skeletonLines(G: Ground): SkeletonLine[] {
-  const hit = skCache.get(G);
-  if (hit) return hit;
+function tracedLines(G: Ground): SkeletonLine[] {
   const sk = G.skeleton, out: SkeletonLine[] = [];
-  if (!sk || !sk.sides.length) { skCache.set(G, out); return out; }
+  if (!sk || !sk.sides.length) return out;
   // On flat land the skeleton is the existing roads (pc/skeleton.py). v3 keeps only the major
   // ones (primary class: motorway to tertiary) fixed; the design replaces lesser roads inside
   // the site, and its own routes build the rest (docs/streets.md).
@@ -142,7 +156,7 @@ export function skeletonLines(G: Ground): SkeletonLine[] {
   sk.sides.forEach((sid, k) => { if (keep[k]) for (const v of [sd.v0[sid], sd.v1[sid]]) {
     x0 = Math.min(x0, sd.vx[v]); x1 = Math.max(x1, sd.vx[v]); y0 = Math.min(y0, sd.vy[v]); y1 = Math.max(y1, sd.vy[v]);
   } });
-  if (!Number.isFinite(x0)) { skCache.set(G, out); return out; }
+  if (!Number.isFinite(x0)) return out;
   const pad = S.ROAD_MERGE_M + 2 * res;
   x0 -= pad; y0 -= pad; x1 += pad; y1 += pad;
   const W = Math.ceil((x1 - x0) / res), H = Math.ceil((y1 - y0) / res);
@@ -183,7 +197,6 @@ export function skeletonLines(G: Ground): SkeletonLine[] {
     out.push({ cls: c || 3, points: pts });
   }
   snapEnds(out, S.SNAP_M);
-  skCache.set(G, out);
   return out;
 }
 
@@ -291,9 +304,10 @@ function trace(img: Uint8Array, W: number, H: number): number[][] {
 }
 
 /** Join each loose end to the nearest point of another line within `r` (a short straight join). */
-function snapEnds(lines: SkeletonLine[], r: number) {
+function snapEnds(lines: SkeletonLine[], r: number, only: Set<SkeletonLine> | null = null) {
   const endPts = (l: SkeletonLine) => [l.points[0], l.points[l.points.length - 1]];
   lines.forEach((l, k) => {
+    if (only && !only.has(l)) return;
     for (const [e, atStart] of [[l.points[0], true], [l.points[l.points.length - 1], false]] as [Pt, boolean][]) {
       // already meets another line's end or body?
       let best: Pt | null = null, bd = r;
