@@ -30,7 +30,7 @@ const FLAG: Record<string, string> = {
 // COPY: how a measured layer is named in a sentence
 const NAME: Record<string, string> = {
   slope: "the slope", edge_dist: "the distance to water", valley_order: "the stream order",
-  flow_acc_ha: "the area draining here", lst: "the hot-season surface", ground: "the ground",
+  flow_acc_ha: "the area draining here", seasonal_water: "seasonal ponds", sink_m: "the hollow's depth", lst: "the hot-season surface", ground: "the ground",
 };
 const NOT_FLAG: Record<string, string> = { in_design: "outside the design area", industrial: "off industrial land", water: "on land" };
 

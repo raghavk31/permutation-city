@@ -54,6 +54,12 @@ constrained:
     roles: [flood_storage]
     limits: {raised_ground: true, min_permeable: 0.5}
 
+  - name: seasonal ponds
+    when: seasonal_water >= 0.3   # pc/seasonal.py: a third of the cell wet in at least a tenth of clear end-of-monsoon looks
+    why: "water stands here at the end of most monsoons (Sentinel-2): a pond, tank or ahar that fills and is farmed or dry the rest of the year; keep it for storage"
+    roles: [flood_storage]
+    limits: {min_permeable: 0.9, uses: [water, wetland, landscape]}
+
   - name: rain hollows
     when: pool > 0.2
     why: rainwater collects here; keep it as storage

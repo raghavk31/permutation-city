@@ -325,3 +325,77 @@ export function plotColumns(E: Envelope): Int32Array[] {
 /** Column centre (m) of column q. */
 export const columnXY = (E: Envelope, q: number): [number, number] =>
   [E.ox + ((q % E.nx) + 0.5) * E.res, E.oy + (Math.floor(q / E.nx) + 0.5) * E.res];
+
+/** Where the street view stands: on the street nearest the block, in the clear middle of its
+ *  band (never in a building), a little way back along it, looking along the street towards
+ *  the block. Null when the frame has no street. */
+export function streetEye(E: Envelope): { eye: [number, number]; dir: [number, number] } | null {
+  const { nx, ny, res } = E, N = nx * ny;
+  const open = (q: number) => E.street[q] === 1 && E.context[q] <= 0 && E.plotOf[q] < 0;
+  // clearance: distance (m) from each street column to the nearest column that isn't street
+  const clear = new Float32Array(N);
+  for (let q = 0; q < N; q++) clear[q] = open(q) ? Infinity : 0;
+  const D = res, Dd = res * Math.SQRT2;
+  for (let y = 0; y < ny; y++) for (let x = 0; x < nx; x++) {
+    const q = x + y * nx;
+    if (!clear[q]) continue;
+    let v = clear[q];
+    if (x > 0) v = Math.min(v, clear[q - 1] + D);
+    if (y > 0) v = Math.min(v, clear[q - nx] + D, x > 0 ? clear[q - nx - 1] + Dd : Infinity, x < nx - 1 ? clear[q - nx + 1] + Dd : Infinity);
+    if (x === 0 || y === 0 || x === nx - 1 || y === ny - 1) v = Math.min(v, D);   // the frame's edge
+    clear[q] = v;
+  }
+  for (let y = ny - 1; y >= 0; y--) for (let x = nx - 1; x >= 0; x--) {
+    const q = x + y * nx;
+    if (!clear[q]) continue;
+    let v = clear[q];
+    if (x < nx - 1) v = Math.min(v, clear[q + 1] + D);
+    if (y < ny - 1) v = Math.min(v, clear[q + nx] + D, x < nx - 1 ? clear[q + nx + 1] + Dd : Infinity, x > 0 ? clear[q + nx - 1] + Dd : Infinity);
+    clear[q] = v;
+  }
+  let most = 0;
+  for (let q = 0; q < N; q++) most = Math.max(most, clear[q]);
+  if (!most) return null;
+  const ps = E.plots, [fx, fy] = columnXY(E, Math.floor(ny / 2) * nx + Math.floor(nx / 2));
+  const px = ps.length ? ps.reduce((s, p) => s + p.cx, 0) / ps.length : fx, py = ps.length ? ps.reduce((s, p) => s + p.cy, 0) / ps.length : fy;
+  // the street nearest the block's middle (among columns well inside their band), then the
+  // middle of that street: the clearest column within 15 m of it
+  const need = Math.min(2 * res, most);
+  let near = -1, best = Infinity;
+  for (let q = 0; q < N; q++) {
+    if (clear[q] < need) continue;
+    const [x, y] = columnXY(E, q), dd = Math.hypot(x - px, y - py);
+    if (dd < best) { best = dd; near = q; }
+  }
+  const [nx0, ny0] = columnXY(E, near);
+  let at = near;
+  for (let q = 0; q < N; q++) {
+    if (clear[q] <= clear[at]) continue;
+    const [x, y] = columnXY(E, q);
+    if (Math.hypot(x - nx0, y - ny0) <= 15) at = q;
+  }
+  const [ex, ey] = columnXY(E, at);
+  // the street's direction there: the long axis of the open street columns within 15 m
+  let sxx = 0, sxy = 0, syy = 0;
+  for (let q = 0; q < N; q++) {
+    if (!clear[q]) continue;
+    const [x, y] = columnXY(E, q), dx = x - ex, dy = y - ey;
+    if (dx * dx + dy * dy > 225) continue;
+    sxx += dx * dx; sxy += dx * dy; syy += dy * dy;
+  }
+  const th = 0.5 * Math.atan2(2 * sxy, sxx - syy);
+  let ux = Math.cos(th), uy = Math.sin(th);
+  if (ux * (px - ex) + uy * (py - ey) < 0) { ux = -ux; uy = -uy; }
+  // step back along the street, while it stays open, so the block comes into view ahead
+  const colAt = (x: number, y: number) => {
+    const i = Math.floor((x - E.ox) / res), j = Math.floor((y - E.oy) / res);
+    return i >= 0 && j >= 0 && i < nx && j < ny ? i + j * nx : -1;
+  };
+  let bx = ex, by = ey;
+  for (let s = res; s <= 30; s += res) {
+    const q = colAt(ex - ux * s, ey - uy * s);
+    if (q < 0 || clear[q] < Math.min(res, most)) break;
+    bx = ex - ux * s; by = ey - uy * s;
+  }
+  return { eye: [bx, by], dir: [ux, uy] };
+}

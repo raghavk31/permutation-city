@@ -34,3 +34,4 @@ export { measure, network, METRICS, METRIC_KEYS, OBJECTIVE_KEYS, NOT_MEASURED, S
 export * from "./shocks.js";
 export * from "./scenarios.js";
 export * from "./piecemeal.js";
+export * from "./moves.js";
