@@ -380,4 +380,25 @@ export const AMERICAS: Precedent[] = [
       src("Twentieth Century Society, SESC Pompéia", "https://c20society.org.uk/building-of-the-month/sesc-pompeia-sao-paulo-brazil"),
     ],
   },
+  {
+    id: "sod-house", name: "Sod house", local: "soddy", place: "Great Plains, Nebraska and Kansas", region: "Americas", at: [-99.5, 41.5],
+    era: "1860s-1900s", climate: "continental", programmes: ["housing"],
+    mechanisms: ["earth", "insulation", "thermal-mass", "compact"],
+    materials: ["cut prairie sod", "cottonwood poles", "grass"],
+    summary: "Settlers' houses on a treeless prairie, built of blocks of sod cut from the ground, with walls two or three sods thick.",
+    how: "With no timber, the prairie itself became the wall: thick sod insulates against blizzards and keeps the summer out. Its weakness was rain on the roof.",
+    lesson: "On a treeless plain, the ground's own turf can make a warm house; protect it from rain.",
+    figures: [
+      { what: "Walls (Dowse house)", value: "27 inches at the ground, 20 at the top", conf: "medium", src: 0 },
+      { what: "Sod blocks", value: "about 24 × 12-16 × 4 inches", conf: "medium", src: 1 },
+      { what: "Survivors", value: "most of those that survive are in Nebraska", conf: "medium", src: 2 },
+    ],
+    seed: { arrangement: "row", width: 5, depth: 7, storeys: 1, floorH: 2.4, count: 2, rows: 1, street: 10, gap: 10, roof: "gable", porosity: 0.05, wall: 0.65 },
+    seedNote: "Walls from the figures; plan assumed.",
+    sources: [
+      src("SAH Archipedia, Dowse sod house", "https://sah-archipedia.org/node/16133"),
+      src("Outdoor Nebraska, Building a sod house", "https://magazine.outdoornebraska.gov/2024/05/building-a-sod-house"),
+      src("American Heritage, Zenith of prairie architecture: the soddy", "https://www.americanheritage.com/zenith-prairie-architecture-soddy"),
+    ],
+  },
 ];

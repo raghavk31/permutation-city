@@ -521,4 +521,24 @@ export const WEST_ASIA_NORTH_AFRICA: Precedent[] = [
       src("Arab News (AFP), Old Sanaa, an endangered heritage site", "https://www.arabnews.com/news/449764"),
     ],
   },
+  {
+    id: "basilica-cistern", name: "Columned cistern", local: "Yerebatan", place: "Istanbul", region: "West Asia and North Africa", at: [28.98, 41.01],
+    era: "about 532 AD", climate: "mediterranean", programmes: ["water"],
+    mechanisms: ["storage", "earth"],
+    materials: ["brick vaults", "336 reused marble columns"],
+    summary: "A vast underground hall of 336 columns under the city's centre, built to store aqueduct water for the Great Palace.",
+    how: "Under ground and vaulted, the water stays cool and out of the sun; the columns carry the city above, so the reservoir takes no land.",
+    lesson: "Put the reservoir under the city: vaulted storage beneath streets and squares costs no land.",
+    figures: [
+      { what: "Plan", value: "about 140 × 70 m (sources range 138-143 × 65-70)", conf: "medium", src: 0 },
+      { what: "Columns", value: "336, about 9 m tall, 4.8 m apart, 12 rows of 28", conf: "medium", src: 0 },
+      { what: "Capacity", value: "about 80,000 m³", conf: "medium", src: 1 },
+    ],
+    seed: { arrangement: "sunken", width: 140, depth: 70, storeys: 0, sunken: 9, steps: 1, water: 3 },
+    seedNote: "Plan and depth from the figures; columns and vaults not drawn.",
+    sources: [
+      src("Famous Historic Buildings, Basilica Cistern", "https://famous-historic-buildings.org.uk/basilica-cistern-istanbul.html"),
+      src("Turkey Travel Planner, Basilica Cistern", "https://turkeytravelplanner.com/go/Istanbul/Sights/Sultanahmet/Yerebatan.html"),
+    ],
+  },
 ];

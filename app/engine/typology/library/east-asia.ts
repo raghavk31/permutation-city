@@ -305,4 +305,25 @@ export const EAST_ASIA: Precedent[] = [
       src("Sara Jaaksola, Visiting Meizhou: traditional weilongwu", "https://sarajaaksola.com/visiting-meizhou-traditional-weilongwu-architecture/"),
     ],
   },
+  {
+    id: "kang-house", name: "House with a heated bed", local: "kang", place: "Rural northern China", region: "East Asia", at: [116.0, 40.5],
+    era: "over 2,000 years; still common", climate: "continental", programmes: ["housing", "energy"],
+    mechanisms: ["thermal-mass", "insulation", "compact"],
+    materials: ["brick or adobe kang", "flues from the kitchen stove"],
+    summary: "A raised brick platform taking a third to half of the main room, heated by flues from the cooking stove, where the family sits by day and sleeps by night.",
+    how: "The same fire cooks and heats: smoke runs through the kang before leaving, and its mass warms the people on it rather than the air of the room. Improved designs nearly double the efficiency.",
+    lesson: "Heat people, not rooms: a warm mass to sit and sleep on, fed by the cooking fire.",
+    figures: [
+      { what: "Share of the room", value: "about a third to a half", conf: "low", src: 0 },
+      { what: "Use", value: "about 85% of households in 14 provinces (2009)", conf: "low", src: 1 },
+      { what: "Efficiency", value: "about 37% traditional, 67% suspended kang (Gansu field test)", conf: "medium", src: 2 },
+    ],
+    seed: { arrangement: "row", width: 10, depth: 6, storeys: 1, floorH: 3, count: 3, rows: 1, street: 10, gap: 6, roof: "gable", porosity: 0.1, wall: 0.5, features: [{ kind: "stack", height: 1.5, size: 0.8, count: 3 }] },
+    seedNote: "House sizes assumed; chimneys drawn.",
+    sources: [
+      src("The World of Chinese, Hearth warming", "https://www.theworldofchinese.com/2020/04/hearth-warming/"),
+      src("PolyU thesis on rural kang heating", "https://theses.lib.polyu.edu.hk/handle/200/11174"),
+      src("Transactions of the CSAE (2017), kang thermal efficiency", "https://www.aeeisp.com/nygcxb/en/article/doi/10.11975/j.issn.1002-6819.2017.14.029"),
+    ],
+  },
 ];

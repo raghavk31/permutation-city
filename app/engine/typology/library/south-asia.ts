@@ -1064,4 +1064,25 @@ export const SOUTH_ASIA: Precedent[] = [
       src("Pulitzer Center, Dharavi Kumbharwada's clay economy", "https://pulitzercenter.org/stories/dharavi-kumbharwadas-clay-economy-meets-redevelopment-chokehold"),
     ],
   },
+  {
+    id: "bhutan-farmhouse", name: "Bhutanese farmhouse", place: "Paro and Thimphu valleys, Bhutan", region: "South Asia", at: [89.41, 27.43],
+    era: "traditional; still built", climate: "humid-subtropical", programmes: ["housing", "food"],
+    mechanisms: ["thermal-mass", "insulation", "porous", "eaves"],
+    materials: ["rammed earth", "timber frame", "shingle or tin roof"],
+    summary: "A two- or three-storey farmhouse with rammed-earth walls below, timber above, and an open, ventilated attic under a floating roof where the harvest dries.",
+    how: "Animals live on the ground floor, the family above; thick earth walls hold warmth; the gap between the top floor and the raised roof dries chillies and crops in the wind while shading the house.",
+    lesson: "Lift the roof off the top floor: the gap becomes a shaded, ventilated drying room.",
+    figures: [
+      { what: "Storeys", value: "two to three", conf: "medium", src: 0 },
+      { what: "Walls (western Bhutan)", value: "rammed earth about 600 mm thick", conf: "medium", src: 1 },
+      { what: "Attic", value: "open, ventilated; for drying crops", conf: "medium", src: 2 },
+    ],
+    seed: { arrangement: "row", width: 12, depth: 9, storeys: 3, floorH: 2.8, count: 2, rows: 1, street: 10, gap: 10, eave: 1.5, roof: "gable", porosity: 0.2, wall: 0.6, trees: 6 },
+    seedNote: "Storeys and walls from the figures; plan assumed.",
+    sources: [
+      src("Jentsch et al., Building physics of Bhutanese houses", "https://www.db-thueringen.de/servlets/MCRFileNodeServlet/dbt_derivate_00043500/Jentsch_et_al_Building_physics_Bhutan_pdfa.pdf"),
+      src("Tobunken, Survey of traditional rammed earth buildings in Bhutan", "https://www.tobunken.go.jp/materials/ekatudo/205938.html"),
+      src("Architecture of Bhutan, Wikipedia", "https://en.wikipedia.org/wiki/Architecture_of_Bhutan"),
+    ],
+  },
 ];
