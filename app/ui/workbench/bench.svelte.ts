@@ -11,7 +11,7 @@ import { MassStep } from "./mass.svelte";
 import * as Saved from "./saved";
 
 
-export type StepId = "site" | "layers" | "rules" | "landform" | "brief" | "evolve" | "explore" | "massing";
+export type StepId = "site" | "layers" | "rules" | "landform" | "draw" | "brief" | "evolve" | "explore" | "massing";
 
 // COPY: step names
 export const STEPS: { id: StepId; name: string; built: boolean }[] = [
@@ -19,6 +19,7 @@ export const STEPS: { id: StepId; name: string; built: boolean }[] = [
   { id: "layers", name: "Layers", built: true },
   { id: "rules", name: "Rules", built: true },
   { id: "landform", name: "Landform", built: true },
+  { id: "draw", name: "Draw", built: true },
   { id: "brief", name: "Brief", built: true },
   { id: "evolve", name: "Evolve", built: true },
   { id: "explore", name: "Explore", built: true },
@@ -43,6 +44,9 @@ export interface MapApi {
   clearDrawing: () => void;
   center: () => [number, number] | undefined;
 }
+
+/** The names of the rules that never build, to say why a move conflicts. */
+const neverBuilt = (r: E.RuleSet) => new Set(r.list.filter((x) => x.kind === "forbidden").map((x) => x.name));
 
 const store = {
   get(key: string): string | null { try { return localStorage.getItem(key); } catch { return null; } },
@@ -80,6 +84,16 @@ class Bench {
 
   // the Landform step: ridges switched off (by ridge id)
   ridgesOff = $state.raw<ReadonlySet<number>>(new Set());
+
+  // the Draw step: moves drawn on the map (moves.ts), with undo and redo; the tool in hand;
+  // the move pointed at; what a new spine and a new street take
+  moves = $state.raw<E.Move[]>([]);
+  movesPast = $state.raw<E.Move[][]>([]);
+  movesFuture = $state.raw<E.Move[][]>([]);
+  tool = $state<E.MoveKind | null>(null);
+  moveHover = $state<number | null>(null);
+  spineWidth = $state(E.SPINE_WIDTH_M.default);
+  streetCls = $state<2 | 3>(3);
 
   // the Brief step: the brief, the passages it cites, and whether it is confirmed
   brief = $state.raw<E.Brief | null>(null);
@@ -323,6 +337,7 @@ class Bench {
       this.rules = s.rules ?? null;
       this.past = []; this.future = [];
       this.ridgesOff = new Set();
+      this.moves = []; this.movesPast = []; this.movesFuture = []; this.tool = null;
       this.brief = null; this.briefLocked = false;
       this.result = null; this.leaders = []; this.history = []; this.runInputs = null; this.notes = [];
       this.step = step;
@@ -341,13 +356,44 @@ class Bench {
     this.future = [];
     this.rules = r;
   }
+  setMoves(ms: E.Move[]) {
+    this.movesPast = [...this.movesPast, this.moves].slice(-50);
+    this.movesFuture = [];
+    this.moves = ms;
+    this.sync();
+  }
+  addMove(m: Omit<E.Move, "id">) {
+    const id = Math.max(0, ...this.moves.map((x) => x.id)) + 1;
+    this.setMoves([...this.moves, { ...m, id } as E.Move]);
+  }
+  removeMove(id: number) { this.setMoves(this.moves.filter((m) => m.id !== id)); }
+  updateMove(id: number, patch: Partial<E.Move>) { this.setMoves(this.moves.map((m) => (m.id === id ? { ...m, ...patch } : m))); }
+  /** Undo and redo follow the step: moves on the Draw step, rules elsewhere. */
+  get canUndo() { return this.step === "draw" ? this.movesPast.length > 0 : this.past.length > 0; }
+  get canRedo() { return this.step === "draw" ? this.movesFuture.length > 0 : this.future.length > 0; }
   undo() {
+    if (this.step === "draw") {
+      if (!this.movesPast.length) return;
+      this.movesFuture = [this.moves, ...this.movesFuture];
+      this.moves = this.movesPast[this.movesPast.length - 1];
+      this.movesPast = this.movesPast.slice(0, -1);
+      this.sync();
+      return;
+    }
     if (!this.past.length || !this.rules) return;
     this.future = [this.rules, ...this.future];
     this.rules = this.past[this.past.length - 1];
     this.past = this.past.slice(0, -1);
   }
   redo() {
+    if (this.step === "draw") {
+      if (!this.movesFuture.length) return;
+      this.movesPast = [...this.movesPast, this.moves];
+      this.moves = this.movesFuture[0];
+      this.movesFuture = this.movesFuture.slice(1);
+      this.sync();
+      return;
+    }
     if (!this.future.length || !this.rules) return;
     this.past = [...this.past, this.rules];
     this.rules = this.future[0];
@@ -355,17 +401,23 @@ class Bench {
   }
   get edited() { return !!this.site?.rules && !!this.rules && JSON.stringify(this.rules) !== JSON.stringify(this.site.rules); }
 
-  /** The site as a run sees it: its rules as edited, and the brief's targets and rule changes. */
+  /** The site as a run sees it: its rules as edited, the brief's targets and rule changes,
+   *  and the moves drawn on it, with any conflicts between the moves and the rules. */
   underBrief() {
     if (!this.site || !this.rules) return null;
-    if (this.brief) {
-      const u = Sites.withBrief(this.site, this.rules, this.brief);
-      return { site: u.site, result: u.result, ranges: this.pinned(u.config.ranges) };
-    }
-    const u = Sites.withRules(this.site, this.rules);
-    return { site: u.site, result: u.result, ranges: this.pinned(E.DEFAULT_RANGES) };
+    const b = this.brief ? Sites.withBrief(this.site, this.rules, this.brief) : null;
+    const u = b ? { site: b.site, result: b.result, ranges: b.config.ranges } : { ...Sites.withRules(this.site, this.rules), ranges: E.DEFAULT_RANGES };
+    const m = E.applyMoves(u.site, this.moves, u.result.state, u.result.reasons, neverBuilt(this.rules));
+    return { site: m.site, result: u.result, ranges: this.pinned(u.ranges), conflicts: m.conflicts };
   }
 
+  /** The moves on the rules as they stand (the Draw step's map and list): the cells each
+   *  covers, and the conflicts. */
+  drawn = $derived.by(() => {
+    if (!this.site || !this.rules) return null;
+    const u = Sites.withRules(this.site, this.rules);
+    return E.applyMoves(u.site, this.moves, u.result.state, u.result.reasons, neverBuilt(this.rules));
+  });
   /** What the plot rules let plans hold on the ground a run would grow on, against the brief
    *  (engine/capacity.ts): from the table, or measured on the engine's workers after a rule was
    *  edited (seconds). Null where the site has no plot rules. */
@@ -401,6 +453,12 @@ class Bench {
     const kept = this.measured.get(E.groundKey(Sites.groundOf(u.site)));
     if (kept) u.site.meta.capacity = kept;
     this.runError = "";
+    // COPY: a run held back by conflicts
+    if (u.conflicts.length) {
+      const one = u.conflicts.length === 1;
+      this.runError = `${one ? "A move conflicts" : `${u.conflicts.length} moves conflict`} with the rules. Resolve ${one ? "it" : "them"} on the Draw step, then run.`;
+      return;
+    }
     this.running = true;
     this.runGen = 0;
     this.history = [];
@@ -409,7 +467,7 @@ class Bench {
     this.runStarted = performance.now();
     this.runSite = u.site;
     const inputs: Saved.RunInputs = { settings: { ...this.settings }, rules: this.edited ? this.rules : null, brief: this.brief,
-      off: [...this.ridgesOff], geneLocks: { ...this.geneLocks }, ...(version !== E.GENOME_VERSION ? { version } : {}) };
+      off: [...this.ridgesOff], geneLocks: { ...this.geneLocks }, moves: this.moves, ...(version !== E.GENOME_VERSION ? { version } : {}) };
     try {
       const api = await this.engine(u.site, inputs.off);
       const c = await api.capacity();   // measured now if the rules were edited and it isn't known
@@ -463,8 +521,9 @@ class Bench {
   }
 
   /** Put a run's inputs back on the steps: rules, brief, ridges, locked genes, settings. */
-  private applyInputs(x: { rules: E.RuleSet | null; brief: E.Brief | null; off: number[]; geneLocks: Record<string, number>; settings: Saved.Settings }) {
+  private applyInputs(x: { rules: E.RuleSet | null; brief: E.Brief | null; off: number[]; geneLocks: Record<string, number>; settings: Saved.Settings; moves: E.Move[] }) {
     if (x.rules) { this.rules = x.rules; this.past = []; this.future = []; }
+    this.moves = x.moves; this.movesPast = []; this.movesFuture = [];
     if (x.brief) { this.brief = x.brief; this.briefLocked = true; }
     this.ridgesOff = new Set(x.off);
     this.geneLocks = x.geneLocks;
@@ -493,7 +552,7 @@ class Bench {
     try { r = Saved.readLink(q, this.site); } catch (e) { this.runError = (e as Error).message; this.step = "evolve"; return; }
     this.notes = r.notes;
     if (!r.run) {
-      this.applyInputs({ rules: r.rules, brief: r.brief, off: [], geneLocks: {}, settings: { ...this.settings } });
+      this.applyInputs({ rules: r.rules, brief: r.brief, off: [], geneLocks: {}, settings: { ...this.settings }, moves: r.moves });
       return;
     }
     this.applyInputs(r.run);
@@ -535,7 +594,8 @@ class Bench {
       const rules = f.rulesText && own ? Sites.decodeRules(f.rulesText, own) : null;
       const base = rules ?? own;
       const brief = f.briefText && base ? Sites.recheck(Sites.decodeBrief(f.briefText).brief, base).brief : null;
-      const inputs: Saved.RunInputs = { ...f.run, rules, brief };
+      const moves = f.movesText ? Saved.decodeMoves(f.movesText, this.site) : [];
+      const inputs: Saved.RunInputs = { ...f.run, rules, brief, moves };
       this.applyInputs(inputs);
       const u = this.underBrief();
       if (!u || !f.result) throw new Error("The file has no finished run in it.");
@@ -585,7 +645,7 @@ class Bench {
     if (!this.siteId) return location.pathname;
     const run = this.result ? this.runInputs : null;
     return `${location.pathname}${Saved.writeLink({
-      site: this.siteId, base: this.site?.rules, step: this.step, rules: this.edited ? this.rules : null,
+      site: this.siteId, base: this.site?.rules, step: this.step, rules: this.edited ? this.rules : null, moves: this.moves,
       brief: this.briefLocked ? this.brief : null, run, sel: run ? this.exSel : null,
       keep: run ? this.pen.filter((p) => this.genomeOf(p.name)).map((p) => p.name) : [],
     })}`;

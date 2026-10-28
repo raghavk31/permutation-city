@@ -22,8 +22,8 @@ from pc import export, fetch, layers, rules
 from pc import grid as cellgrid
 from pc.site import DATA, ROOT, SITES, load, utm_crs
 
-LAYERS_VERSION = 3   # bump when pc/layers.py changes what it computes (3: landform, LST)
-MAX_KM2 = 4.0        # design polygon, before the context margin
+LAYERS_VERSION = 4   # bump when pc/layers.py changes what it computes (3: landform, LST; 4: flow lines over the catchment)
+MAX_KM2 = 16.0       # design polygon, before the context margin (MAX_CELLS still binds: about 37 m cells at 16 km²)
 MAX_CELLS = 4500     # the browser engine's budget (about 5 s for a full run)
 GRID_TYPES = set(cellgrid.GRID_TYPES)
 
@@ -177,6 +177,17 @@ def write_site(req: Request, key: str):
 # Stages 1 to 3. A web build falls back to the surface model if FABDEM is down, and says so
 # (export_site records it; the layer cake shows it).
 FETCHES = [fetch.fetch_dem, lambda site: fetch.fetch_terrain(site, fallback=True), fetch.fetch_landcover]
+
+
+def fetch_catchment(site) -> list:
+    """Stage 2, after the site's terrain: the terrain over its upstream catchment, for flow lines
+    (pc/hydro.py). Optional: without it the site's valleys come from its own cells, as before."""
+    try:
+        fetch.fetch_catchment(site)
+        return []
+    except Exception as err:  # noqa: BLE001 - only the wider flow lines are lost
+        return [f"The terrain beyond the site couldn't be downloaded ({type(err).__name__}): flow lines are traced "
+                "on the site's own cells, so water from upstream is missing and flat land shows none."]
 FALLBACK_NOTES = {
     "copernicus-surface": "Bare-earth heights (FABDEM) couldn't be downloaded, so ground heights come from the "
                           "Copernicus surface model and include buildings and trees: flooding and rain pooling in "
@@ -201,6 +212,17 @@ def fetch_lst(site) -> list:
     except Exception as err:  # noqa: BLE001 - any failure here only loses one layer
         return [f"No land surface temperature for this site ({type(err).__name__}): the surface heat "
                 "layer and the 'cooling where it's hot' metric are missing."]
+
+
+def fetch_seasonal(site) -> list:
+    """Stage 4, after LST: end-of-monsoon water frequency (pc/seasonal.py). Optional: without
+    it the site builds with no seasonal ponds layer, and says so."""
+    try:
+        fetch.fetch_seasonal(site)
+        return []
+    except Exception as err:  # noqa: BLE001 - any failure here only loses one layer
+        return [f"No seasonal water for this site ({type(err).__name__}): ponds and tanks that fill in the "
+                "monsoon and dry out after are not mapped unless OSM or WorldCover has them."]
 
 
 def build_layers(site):
@@ -237,9 +259,11 @@ def run(req: Request, key: str, overture_release: str | None, cache: Path, progr
         for k, step in enumerate(FETCHES):
             progress(1 + k)
             used[k] = step(site)
+        notes = fetch_catchment(site)
         progress(4)
         fetch_overture(site, overture_release, progress)
-        notes = fetch_lst(site)
+        notes += fetch_lst(site)
+        notes += fetch_seasonal(site)
         progress(5)
         build_layers(site)
         progress(6)

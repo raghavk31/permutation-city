@@ -286,7 +286,7 @@ function layout(genome: number[], G: Ground, use: Int8Array, attractors: Design[
   // Simplified to half a metre before noding: the splines' dense points cost time, not shape.
   const lean = (pts: Line) => simplify(pts, 0.5);
   const lines = [
-    ...sk.map((l) => ({ pts: lean(l.points), cls: 3 })),
+    ...sk.map((l) => ({ pts: lean(l.points), cls: l.drawn ? l.cls : 3 })),
     ...routes.map((pts) => ({ pts: lean(pts), cls: 2 })),
     ...local.map((pts) => ({ pts: lean(pts), cls: 1 })),
     ...outlineLines(G),

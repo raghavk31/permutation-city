@@ -22,6 +22,7 @@
     evolve: { title: "Evolve: breed designs", text: "Designs breed. The better ones become parents, so each generation tends to do a little better. You choose among what it finds.", svg: () => Iso.evolution().svg },
     massing: { title: "Massing: buildings in a block", text: "Pick a block of the design. Its plots, setbacks and height limits make an envelope, and buildings breed inside it, scored on sun, shade and sky.", svg: () => Iso.massing().svg },
     explore: { title: "Explore: weigh the trade-offs", text: "No design is best at everything: more water storage can mean more heat. These are the designs nothing else beats on every count; pick the balance you want.", svg: () => Iso.tradeoff().svg },
+    draw: { title: "Draw: your moves", text: "Draw what you are sure of: a main street, a green spine, a square, ground to leave unbuilt, a building to keep. Every design keeps them; evolution explores the rest.", svg: () => Iso.moves().svg },
     landform: { title: "Landform: valleys and ridges", text: "Water gathers in the valleys, so they stay open; the ridges between them are where the main streets go.", svg: () => Iso.landform().svg },
   };
   const intro = $derived(INTRO[bench.step]);
@@ -110,8 +111,9 @@
   {#if bench.step === "massing" && mEnv}
     {#if mk}
       <div class="wb-sub">
-        <span class="wb-label">{mk.rank === 1 ? "On the front" : "Beaten on every count by another"}</span>
-        <b class="wb-insp-title">Massing {mk.name}</b>
+        <!-- COPY: a kept massing's heading -->
+        <span class="wb-label">{mk.rank === 1 ? "A best trade-off: no other does better on every score" : "Outdone: another does better on every score"}</span>
+        <b class="wb-insp-title">{mass.titleOf(mk).title}{mass.titleOf(mk).best ? ` · ${mass.titleOf(mk).best}` : ""}</b>
         <div class="wb-scores">
           {#each M.MASS_SCORE_KEYS as k}
             <div class="wb-score"><span>{M.MASS_SCORES[k][0]}{lowHeights && Mass.HEIGHT_SCORES.includes(k) ? " *" : ""}</span>
@@ -297,7 +299,12 @@
     <div class="wb-sub">
       <span class="wb-label">How it was read</span>
       <!-- COPY: landform method note -->
-      <p class="wb-why">Valleys are where water from {meta.landform?.valley_ha ?? 10} ha or more runs; mapped streams count even where the ground disagrees. Each valley keeps a buffer either side, wider for bigger streams.</p>
+      {#if bench.site?.flow_lines?.length}
+        <!-- COPY: how flow lines were traced -->
+        <p class="wb-why">Water was traced on the bare-earth terrain's own 30 m pixels, {Math.round((meta.landform?.flow_lines?.catchment_m ?? 5000) / 1000)} km beyond the site so streams arriving from upstream come in whole. A valley starts where {meta.landform?.valley_ha ?? 10} ha or more drains; mapped streams count even where the ground disagrees. Dashed lines fall less than 1 m over the next kilometre, less than the terrain model resolves. Each valley keeps a buffer either side, wider for bigger streams.</p>
+      {:else}
+        <p class="wb-why">Valleys are where water from {meta.landform?.valley_ha ?? 10} ha or more runs; mapped streams count even where the ground disagrees. Each valley keeps a buffer either side, wider for bigger streams.</p>
+      {/if}
       {#if meta.landform}<p class="wb-hint">Buffers are provisional: {Object.entries(meta.landform.valley_buffer_m).map(([o, m]) => `${m} m for order ${o}`).join(", ")}, to be checked against drain margins in the local rules.</p>{/if}
     </div>
   {:else if bench.step === "site"}

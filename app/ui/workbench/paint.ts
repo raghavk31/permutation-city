@@ -52,6 +52,18 @@ export function landform(ctx: Ctx, v: Draw.View, site: E.SiteExport, G: E.Ground
   Draw.fillRegions(ctx, v, g.x, g.y, g.x.map((_, i) => (water?.[i] ? P.t.water.deep : order?.[i] ? blues[Math.min(2, (order[i] as number) - 1)] : null)), shape);
   if (buffer) Draw.fillRegions(ctx, v, g.x, g.y, g.x.map((_, i) => (buffer[i] && !order?.[i] ? "buf" : null)), shape,
     { buf: { fill: false, pattern: "/", ink: P.t.water.deep, gap: 5 } });
+  // flow lines on the terrain's pixels, wider by stream order; dashed where low confidence
+  if (site.flow_lines?.length) {
+    ctx.save(); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = P.t.water.deep;
+    for (const f of site.flow_lines) {
+      ctx.beginPath();
+      f.pts.forEach(([x, y], k) => (k ? ctx.lineTo(v.px(x), v.py(y)) : ctx.moveTo(v.px(x), v.py(y))));
+      ctx.lineWidth = 0.8 + 0.6 * Math.min(f.order, 5);
+      ctx.setLineDash(f.confidence === "low" ? [5, 4] : []);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
   Draw.context(ctx, v, site.context, P, { labels: true, roads: false });
   // the skeleton: ridge streets in ink, the existing roads it keeps in grey
   ctx.save(); ctx.lineCap = "round"; ctx.lineJoin = "round";
@@ -93,5 +105,38 @@ export function landform(ctx: Ctx, v: Draw.View, site: E.SiteExport, G: E.Ground
 export function design(ctx: Ctx, v: Draw.View, site: E.SiteExport, d: E.Design, P: Draw.Palette, layer: Draw.PlanLayer = "plan") {
   Draw.footprints(ctx, v, site);
   if (d.plan) Draw.vectorPlan(ctx, v, d, layer);
+  Draw.groundBuildings(ctx, v, site, "kept", P);
+  moveOutlines(ctx, v, site, P);
   Draw.context(ctx, v, site.context, P, { labels: true, roads: false });
+}
+
+/** The areas and spines drawn before the run, dashed over a design, so it reads where the
+ *  moves were kept (streets show as streets, kept buildings as buildings). */
+function moveOutlines(ctx: Ctx, v: Draw.View, site: E.SiteExport, P: Draw.Palette) {
+  const shapes = site.moves?.shapes.filter((m) => m.kind === "plaza" || m.kind === "nobuild" || m.kind === "spine") ?? [];
+  if (!shapes.length) return;
+  ctx.save(); ctx.setLineDash([5, 4]); ctx.lineWidth = 1.4; ctx.strokeStyle = P.t.accent; ctx.lineJoin = "round";
+  for (const m of shapes) {
+    ctx.beginPath();
+    m.pts.forEach(([x, y], k) => (k ? ctx.lineTo(v.px(x), v.py(y)) : ctx.moveTo(v.px(x), v.py(y))));
+    if (m.kind !== "spine") ctx.closePath();
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/** Draw: what the rules allow (as on the Rules map), the main streets, and the buildings on the
+ *  design ground outlined, to keep one. The moves themselves are drawn over it (DrawMap). */
+export function drawBase(ctx: Ctx, v: Draw.View, site: E.SiteExport, res: E.RuleResult, G: E.Ground, P: Draw.Palette) {
+  rules(ctx, v, site, res, P, null);
+  Draw.groundBuildings(ctx, v, site, "all", P);
+  ctx.save(); ctx.lineJoin = "round"; ctx.lineCap = "round";
+  for (const l of skeletonLines(G)) {
+    if (l.drawn) continue;
+    ctx.beginPath();
+    l.points.forEach(([x, y], k) => (k ? ctx.lineTo(v.px(x), v.py(y)) : ctx.moveTo(v.px(x), v.py(y))));
+    ctx.strokeStyle = P.paper; ctx.lineWidth = 5; ctx.stroke();
+    ctx.strokeStyle = P.t.ink2; ctx.lineWidth = 2.2; ctx.stroke();
+  }
+  ctx.restore();
 }

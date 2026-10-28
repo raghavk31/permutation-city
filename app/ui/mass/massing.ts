@@ -183,9 +183,10 @@ export function thumb(canvas: HTMLCanvasElement, Env: M.Envelope, m: M.Massing, 
 }
 
 export function look(P: Draw.Palette) {
-  // The massing in the building ramp's mid tone, the design's other buildings and the existing
-  // city in the existing city's greys (quieter than the massing).
-  return { mass: P.t.building[2], context: P.t.existingRamp[1], existing: P.t.existingRamp[3], ground: P.paper, ink: P.ink,
+  // The massing in the building ramp's mid tone, the design's other buildings in its lightest
+  // (warm sand: the same design, quieter), the existing city in grey (a different hue, so the
+  // two never read as one).
+  return { mass: P.t.building[2], context: P.t.building[0], existing: P.t.existingRamp[3], ground: P.paper, ink: P.ink,
     background: P.paper };
 }
 
@@ -210,11 +211,17 @@ export const sourceOf = (G: E.Ground, k: number) => G.buildings!.sources[G.build
 /** The existing buildings in an envelope's frame, by where their heights came from. */
 export function neighbourLine(Env: M.Envelope, G: E.Ground): string {
   const B = G.buildings;
-  if (!B || !Env.neighbours.length) return "No existing buildings near this block are mapped.";
+  // COPY: existing buildings round the block
+  if (!B || !Env.neighbours.length) return `No existing buildings stand within ${Math.round(M.MARGIN_M)} m of this block; the buildings round it are the design's own.`;
   const counts = new Map<string, number>();
   for (const k of Env.neighbours) counts.set(sourceOf(G, k), (counts.get(sourceOf(G, k)) ?? 0) + 1);
   const parts = B.sources.filter((s) => counts.get(s)).map((s) => `${counts.get(s)} ${HEIGHT_FROM[s] ?? s}`);
-  return `${Env.neighbours.length} existing buildings stand round this block (darker grey), casting shade and receiving it. Heights: ${parts.join(", ")}.`;
+  return `${Env.neighbours.length} existing buildings stand round this block (grey, hatched where the height is estimated), casting shade and receiving it. Heights: ${parts.join(", ")}.`;
+}
+
+/** The existing buildings in the frame whose heights are estimated (drawn hatched). */
+export function guessedOf(Env: M.Envelope, G: E.Ground): Set<number> {
+  return new Set(G.buildings ? Env.neighbours.filter((k) => GUESSED_FROM.includes(sourceOf(G, k))) : []);
 }
 
 /** Low confidence: most of the block's existing neighbours have guessed heights, so the

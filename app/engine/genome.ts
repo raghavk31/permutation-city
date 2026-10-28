@@ -82,6 +82,8 @@ export function claimUses(G: Ground, attractors: Attractor[], s: Pick<Settings, 
   const use = new Int8Array(n);
   const free = new Uint8Array(n).fill(1);
   if (locked) for (let i = 0; i < n; i++) if (locked[i] > 0) { use[i] = locked[i]; free[i] = 0; }
+  // drawn moves (moves.ts): a spine is landscape, a plaza or a kept building takes no use
+  if (G.forced) for (let i = 0; i < n; i++) if (G.forced[i] !== 0) { use[i] = Math.max(G.forced[i], 0); free[i] = 0; }
 
   const idxBuf = new Uint32Array(n);
   const claim = (score: Float64Array, eligible: boolean[], share: number, code: number) => {

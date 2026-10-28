@@ -574,6 +574,35 @@ export function brief(): Diagram {
   return { id: "brief", title: "Brief", caption: "The brief says how much to build and how high, with where each figure comes from.", svg: s.svg("Buildings on a block, all under a dashed box marking the height limit.") };
 }
 
+/** Moves: what a designer draws before a run (a main street, a green spine, a square, a
+ *  building kept), in the accent; evolution fills the rest, in paper. */
+export function moves(): Diagram {
+  const s = new Scene("moves"), W = 130, D = 90, T = 3, r = rng(71);
+  const STREET_Y = (x: number) => 30 + (x / W) * 18, SPINE_X = 78, SPINE_W = 14;
+  const PLAZA = { x0: 18, x1: 42, y0: 58, y1: 80 }, KEEP = { x: 104, y: 62, w: 12, d: 12 };
+  s.slab(0, 0, 0, W, D, T);
+  s.poly([[SPINE_X - SPINE_W / 2, 0, T + .05], [SPINE_X + SPINE_W / 2, 0, T + .05], [SPINE_X + SPINE_W / 2, D, T + .05], [SPINE_X - SPINE_W / 2, D, T + .05]], "var(--pc-green-light)", false);
+  s.street([[0, STREET_Y(0), T + .1], [W, STREET_Y(W), T + .1]], 10, "color-mix(in srgb, var(--pc-accent) 55%, var(--pc-surface))");
+  s.poly([[PLAZA.x0, PLAZA.y0, T + .1], [PLAZA.x1, PLAZA.y0, T + .1], [PLAZA.x1, PLAZA.y1, T + .1], [PLAZA.x0, PLAZA.y1, T + .1]], "color-mix(in srgb, var(--pc-accent) 18%, var(--pc-surface))");
+  const free = (x: number, y: number, w: number, d: number) =>
+    Math.abs(y + d / 2 - STREET_Y(x + w / 2)) > d / 2 + 7 && (x + w < SPINE_X - SPINE_W / 2 - 2 || x > SPINE_X + SPINE_W / 2 + 2)
+    && !(x + w > PLAZA.x0 - 2 && x < PLAZA.x1 + 2 && y + d > PLAZA.y0 - 2 && y < PLAZA.y1 + 2)
+    && !(x + w > KEEP.x - 3 && x < KEEP.x + KEEP.w + 3 && y + d > KEEP.y - 3 && y < KEEP.y + KEEP.d + 3);
+  const th: Thing[] = [];
+  for (let i = 0; i < 9; i++) for (let j = 0; j < 6; j++) {
+    const x = 3 + i * 14, y = 3 + j * 14.5, w = 10, d = 10;
+    if (free(x, y, w, d) && r() > .12) th.push({ x, y, z: T, w, d, h: 4 + r() * 12, floors: true });
+  }
+  for (let y = 6; y < D; y += 9) th.push({ kind: "tree", x: SPINE_X - 3 + r() * 6, y, z: T, s: 2.2 });
+  th.push({ x: KEEP.x, y: KEEP.y, z: T, w: KEEP.w, d: KEEP.d, h: 10, style: "mark", floors: true });
+  s.things(th, { x0: 0, y0: 0, x1: W, y1: D });
+  s.label([W, STREET_Y(W), T], "your main street", { dx: 14, dy: 4, strong: true });
+  s.label([SPINE_X, 2, T + 4], "green spine", { dx: 18, dy: -22, strong: true });
+  s.label([PLAZA.x0, PLAZA.y1, T], "square", { dx: -12, dy: 16, anchor: "end", strong: true });
+  s.label([KEEP.x, KEEP.y + KEEP.d, T], "building kept", { dx: -10, dy: 18, anchor: "end", strong: true });
+  return { id: "moves", title: "Moves", caption: "Draw what you are sure of; every design keeps it, and evolution explores the rest.", svg: s.svg("A block of white buildings crossed by an orange main street and a green band of trees, with an orange-paved square and one dark building kept.") };
+}
+
 /** Every diagram, in the order the story tells them. */
 export const DIAGRAMS = () => [site(), layers(), rules(), landform(), brief(), streets(), recipe(), evolution(), tradeoff(), massing(), growth()];
 

@@ -395,10 +395,59 @@ export function dots(ctx: Ctx, v: View, xs: ArrayLike<number>, ys: ArrayLike<num
 
 // --- context ----------------------------------------------------------------------------
 
+// Place names in Bengali or Assamese script: Inter Tight has no glyphs for them, and a device
+// without a Bengali font showed empty boxes. Noto Sans Bengali (which covers Assamese) loads the
+// first time such a name is drawn; maps redraw when it arrives (MapCanvas listens for fonts).
+const BENGALI = /[ঀ-৿]/;
+const LABEL_FONT = T.font.text.replace(/, sans-serif$/, ', "Noto Sans Bengali", sans-serif');
+let bengaliAsked = false;
+function needScript(text: string) {
+  if (bengaliAsked || !BENGALI.test(text) || typeof document === "undefined") return;
+  bengaliAsked = true;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = "https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400&display=swap";
+  link.onload = () => { void document.fonts.load('11px "Noto Sans Bengali"', text); };
+  document.head.appendChild(link);
+}
+
 // The footprints as one path in metres, made once per site: tracing Bengaluru's thousands of
 // buildings again was most of every map's draw. Views are affine, so the path is drawn
 // through the view's transform.
 const footprintPaths = new WeakMap<SiteExport, Path2D>();
+
+/** The buildings standing on the design ground today (the design replaces them): all of them
+ *  outlined (the Draw step, to pick one to keep), or only those kept by a move, drawn as the
+ *  existing city over a design. */
+const groundPaths = new WeakMap<object, Path2D>();
+export function groundBuildings(ctx: Ctx, v: View, site: SiteExport, which: "all" | "kept", p: Palette) {
+  const g = site.context.buildings?.ground;
+  if (!g?.rings.length) return;
+  const ids = which === "all" ? null : site.moves?.kept ?? [];
+  if (ids && !ids.length) return;
+  const keyObj = ids ? site.moves! : g;
+  let path = groundPaths.get(keyObj);
+  if (!path) {
+    path = new Path2D();
+    for (const k of ids ?? g.rings.keys()) {
+      const r = g.rings[k];
+      if (!r) continue;
+      for (let i = 0; i < r.length; i += 2) (i ? path.lineTo(r[i], r[i + 1]) : path.moveTo(r[i], r[i + 1]));
+      path.closePath();
+    }
+    groundPaths.set(keyObj, path);
+  }
+  const e = v.px(0), f = v.py(0), a = v.px(1) - e, d = v.py(1) - f;
+  ctx.save();
+  ctx.transform(a, 0, 0, d, e, f);
+  if (which === "kept") {
+    ctx.fillStyle = T.existing.fill; ctx.fill(path);
+    ctx.strokeStyle = p.ink; ctx.lineWidth = 1 / Math.abs(a); ctx.stroke(path);
+  } else {
+    ctx.strokeStyle = T.existing.edge; ctx.lineWidth = 0.6 / Math.abs(a); ctx.stroke(path);
+  }
+  ctx.restore();
+}
 
 /** The existing city round the design: building footprints in light grey with an edge. */
 export function footprints(ctx: Ctx, v: View, site: SiteExport) {
@@ -439,8 +488,9 @@ export function context(ctx: Ctx, v: View, c: SiteExport["context"], p: Palette,
   }
   if (boundary && c.boundary.length) { ctx.strokeStyle = p.ink; ctx.lineWidth = 1.2; c.boundary.forEach(line); }
   if (labels) {
-    ctx.font = `11px ${T.font.text}`; ctx.textAlign = "center";
+    ctx.font = `11px ${LABEL_FONT}`; ctx.textAlign = "center";
     for (const pl of c.places) {
+      needScript(pl.name);
       const x = v.px(pl.x), y = v.py(pl.y);
       ctx.lineWidth = 3; ctx.strokeStyle = p.paper; ctx.strokeText(pl.name, x, y + 4);
       ctx.fillStyle = p.ink2; ctx.fillText(pl.name, x, y + 4);
@@ -623,6 +673,7 @@ export function plan(canvas: HTMLCanvasElement, site: SiteExport, d: Design, p: 
   ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(groundUnder(site, p, canvas, v, w, h, shape), 0, 0); ctx.restore();
   if (d.plan) vectorPlan(ctx, v, d);
   else { fillRegions(ctx, v, D.x, D.y, designColours(d), shape, DESIGN_STYLES); streets(ctx, v, roads, p); }
+  groundBuildings(ctx, v, site, "kept", p);
   if (locked) dots(ctx, v, D.x, D.y, (i) => !!locked[i], p.ink, 1.4);
   context(ctx, v, site.context, p, { labels, roads: false });
   if (showAttractors) attractors(ctx, v, d);
@@ -642,6 +693,7 @@ export function plans(canvases: HTMLCanvasElement[], site: SiteExport, designs: 
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(under, 0, 0); ctx.restore();
     if (designs[k].plan) vectorPlan(ctx, v, designs[k]);
     else { fillRegions(ctx, v, D.x, D.y, designColours(designs[k]), shape, DESIGN_STYLES); streets(ctx, v, roads[k], p); }
+    groundBuildings(ctx, v, site, "kept", p);
     context(ctx, v, site.context, p, { roads: false });
   });
 }

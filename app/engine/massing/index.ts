@@ -1,5 +1,5 @@
 // Building-scale massing (Phase 7, TS only; docs/massing.md).
-export { envelope, blocksOf, columnXY, RES_M, DEFAULT_SETBACKS, PLOT_MAX_HA, PLOT_MIN_HA, type Envelope, type Plot,
+export { envelope, blocksOf, columnXY, streetEye, MARGIN_M, RES_M, DEFAULT_SETBACKS, PLOT_MAX_HA, PLOT_MIN_HA, type Envelope, type Plot,
   type Setbacks } from "./envelope.js";
 export { massContext, type MassContext, type Representation, type RepKind } from "./context.js";
 export { floorArea, footprints, heights, describeRepairs, type Massing, type Box, type Repair } from "./voxels.js";

@@ -9,6 +9,7 @@
   import RunFile from "./RunFile.svelte";
 
   const s = bench.settings;
+  const conflicts = $derived(bench.drawn?.conflicts.length ?? 0);
   const cells = $derived(bench.site?.design.x.length ?? 0);
   const designs = $derived(s.pop * (s.generations + 1));
   // Whole browser runs took 0.040-0.048 ms per design cell with 8 workers on all four timed sites
@@ -90,7 +91,11 @@
       <button class="wb-btn" type="button" onclick={() => bench.cancel()}><Icon icon={Square} />Stop</button>
     </div>
   {:else}
-    <button class="wb-btn is-primary" type="button" onclick={() => bench.run()}><Icon icon={Play} />Run {s.generations} generations</button>
+    {#if conflicts}
+      <!-- COPY: run held back by conflicts -->
+      <p class="wb-error" role="alert">{conflicts === 1 ? "A move conflicts" : `${conflicts} moves conflict`} with the rules. <button class="wb-link" type="button" onclick={() => bench.go("draw")}>Resolve on the Draw step</button></p>
+    {/if}
+    <button class="wb-btn is-primary" type="button" disabled={conflicts > 0} onclick={() => bench.run()}><Icon icon={Play} />Run {s.generations} generations</button>
   {/if}
   {#if bench.runError}<p class="wb-error" role="alert">{bench.runError}</p>{/if}
   {#if bench.result && !bench.running}

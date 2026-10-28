@@ -44,6 +44,22 @@ describe("vector envelope", () => {
     expect(n).toBeGreaterThan(0);
   });
 
+  it("stands the street view on an open street, looking along it", () => {
+    const s = M.streetEye(E)!;
+    expect(s).toBeTruthy();
+    const q = Math.floor((s.eye[0] - E.ox) / E.res) + Math.floor((s.eye[1] - E.oy) / E.res) * E.nx;
+    expect(E.street[q]).toBe(1);
+    expect(E.context[q]).toBe(0);
+    expect(E.plotOf[q]).toBe(-1);
+    expect(Math.hypot(...s.dir)).toBeCloseTo(1, 6);
+    // and no building stands within a metre and a half of the eye
+    for (let k = 0; k < E.nx * E.ny; k++) {
+      if (E.plotOf[k] < 0 && E.context[k] <= 0) continue;
+      const [x, y] = M.columnXY(E, k);
+      expect(Math.hypot(x - s.eye[0], y - s.eye[1])).toBeGreaterThan(1.5);
+    }
+  });
+
   it("breeds each representation inside the envelope", () => {
     for (const kind of ["typology", "field", "cppn"] as const) {
       const { ctx } = M.prepareBlock(G, setup);
