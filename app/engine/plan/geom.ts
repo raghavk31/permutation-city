@@ -360,13 +360,13 @@ export function offsetRing(r: Line, d: number): Line | null {
   return Math.sign(a0) === Math.sign(a1) && Math.abs(a1) > 1 ? out : null;
 }
 
-/** A ring with a flag per edge (edge k runs from point k to point k + 1). */
-export interface FlaggedRing { pts: Line; flag: boolean[] }
+/** A ring with a flag per edge (edge k runs from point k to point k + 1); 0 is unflagged. */
+export interface FlaggedRing { pts: Line; flag: number[] }
 
-/** splitPolygon for a flagged ring: pieces keep their edges' flags; the cut edges are false. */
+/** splitPolygon for a flagged ring: pieces keep their edges' flags; the cut edges are 0. */
 export function splitFlagged(r: FlaggedRing, p: Pt, dx: number, dy: number): FlaggedRing[] {
   const side = (v: Pt) => (v[0] - p[0]) * dy - (v[1] - p[1]) * dx;
-  const n = r.pts.length, pts: { p: Pt; s: number; cut: boolean; flag: boolean }[] = [];
+  const n = r.pts.length, pts: { p: Pt; s: number; cut: boolean; flag: number }[] = [];
   for (let k = 0; k < n; k++) {
     const a = r.pts[k], b = r.pts[(k + 1) % n], sa = side(a), sb = side(b);
     pts.push({ p: a, s: sa, cut: false, flag: r.flag[k] });
@@ -384,7 +384,7 @@ export function splitFlagged(r: FlaggedRing, p: Pt, dx: number, dy: number): Fla
   const used = new Uint8Array(pts.length), out: FlaggedRing[] = [];
   for (let start = 0; start < pts.length; start++) {
     if (used[start] || pts[start].s === 0) continue;
-    const ring: Line = [], flag: boolean[] = [];
+    const ring: Line = [], flag: number[] = [];
     let k = start;
     for (let guard = 0; guard < 4 * pts.length; guard++) {
       if (used[k] && k === start) break;
@@ -392,7 +392,7 @@ export function splitFlagged(r: FlaggedRing, p: Pt, dx: number, dy: number): Fla
       ring.push(pts[k].p);
       if ((pts[k].cut || pts[k].s === 0) && bridge.has(k) && ring.length > 1) {
         const j = bridge.get(k)!;
-        flag.push(false);                    // along the cut
+        flag.push(0);                    // along the cut
         ring.push(pts[j].p); flag.push(pts[j].flag); used[j] = 1;
         k = (j + 1) % pts.length;
       } else { flag.push(pts[k].flag); k = (k + 1) % pts.length; }

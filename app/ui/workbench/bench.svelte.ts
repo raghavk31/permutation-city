@@ -415,10 +415,39 @@ class Bench {
     const u = Sites.withRules(this.site, this.rules);
     return E.applyMoves(u.site, this.moves, u.result.state, u.result.reasons, neverBuilt(this.rules));
   });
+  /** What the plot rules let plans hold on the ground a run would grow on, against the brief
+   *  (engine/capacity.ts): from the table, or measured on the engine's workers after a rule was
+   *  edited (seconds). Null where the site has no plot rules. */
+  capacity = $state.raw<{ key: string; brief: number; cap: E.Capacity | null; measuring: boolean } | null>(null);
+  private measured = new Map<string, E.Capacity>();
+
+  /** The capacity of a ground: known, or measured once and kept by its fingerprint. */
+  private known(G: E.Ground): E.Capacity | null { return E.capacityOf(G) ?? this.measured.get(E.groundKey(G)) ?? null; }
+
+  async checkCapacity() {
+    const u = this.underBrief();
+    if (!u || !E.plotRulesOf(u.site.meta.id)) { this.capacity = null; return; }
+    const G = Sites.groundOf(u.site), key = E.groundKey(G), brief = E.briefFloorArea(G);
+    const cap = this.known(G);
+    if (cap || this.running) { this.capacity = { key, brief, cap, measuring: false }; return; }
+    if (this.capacity?.key === key && this.capacity.measuring) return;
+    this.capacity = { key, brief, cap: null, measuring: true };
+    try {
+      const api = await this.engine(u.site, [...this.ridgesOff]);
+      const c = await api.capacity();
+      if (c) this.measured.set(key, c);
+      if (this.capacity?.key === key) this.capacity = { key, brief, cap: c, measuring: false };
+    } catch {
+      if (this.capacity?.key === key) this.capacity = { key, brief, cap: null, measuring: false };
+    }
+  }
 
   async run() {
     const u = this.underBrief();
     if (!u || this.running) return;
+    // A capacity measured on this ground travels with the site, so the run's workers aim at it.
+    const kept = this.measured.get(E.groundKey(Sites.groundOf(u.site)));
+    if (kept) u.site.meta.capacity = kept;
     this.runError = "";
     // COPY: a run held back by conflicts
     if (u.conflicts.length) {
@@ -437,6 +466,8 @@ class Bench {
       off: [...this.ridgesOff], geneLocks: { ...this.geneLocks }, moves: this.moves };
     try {
       const api = await this.engine(u.site, inputs.off);
+      const c = await api.capacity();   // measured now if the rules were edited and it isn't known
+      if (c) { this.measured.set(c.key, c); u.site.meta.capacity = c; }
       const s = inputs.settings;
       const r = await api.evolve(
         { search: s.search, objectives: [], generations: s.generations, pop: s.pop, seed: s.seed, shock: null, locked: null,

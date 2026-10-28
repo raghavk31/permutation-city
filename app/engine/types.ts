@@ -118,7 +118,15 @@ export interface SiteMeta {
   service?: { overture: string | null; layers: number; terrain?: string; warnings?: string[] };
   /** Hours from UTC of local clock time (shade hours, the sun study), and where it came from. */
   utc_offset_h?: number; utc_offset_source?: string;
+  /** What the plot rules let plans on this ground hold, measured on the page after a rule was
+   *  edited (engine/capacity.ts). */
+  capacity?: Capacity | null;  // null: don't apply the plot rules' capacity (parity with Python)
 }
+
+/** A measurement of what a site's plot rules let its plans hold (engine/capacity.ts): the
+ *  ground's fingerprint, the target (m², the sample's 90th percentile), its median, the sample,
+ *  and a note on the rules it was measured under. */
+export interface Capacity { key: string; floor_m2: number; median_m2: number; n: number; seed: number; note: string }
 
 /** The engine's view of a site's design ground (pc.genome.Ground). */
 export interface Ground {
@@ -196,10 +204,14 @@ export interface VectorPlan {
   streets: { pts: [number, number][]; cls: number; w: number }[];
   vx: number[]; vy: number[]; edges: { u: number; v: number; cls: number }[];
   blocks: [number, number][][];
-  plots: { ring: [number, number][]; block: number; use: number; levels: number; frontage: number }[];
+  plots: { ring: [number, number][]; block: number; use: number; levels: number; frontage: number; road?: number }[];
   repairs: { kind: string; at: [number, number] }[];
   flags: { rule: string; at: [number, number]; value: number; limit: number }[];
   destinations: { kind: string; at: [number, number] }[];
+  /** Under the site's plot rules (engine/regs.ts), where it has them: the floor area its plots
+   *  may hold (m²), the share of its land in building plots and in parks, and the floor area
+   *  the rules took off what the genes asked for (m²). */
+  rules?: { capacity: number; plotShare: number; parkShare: number; trimmed: number };
 }
 
 export interface Scores {

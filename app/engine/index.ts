@@ -19,7 +19,9 @@ export {
   type RuleResult,
 } from "./rules.js";
 export { decode, grow, randomGenome, stats, upgrade } from "./genome.js";
-export { evaluate, floorAreaTarget, heatField, storageDepth, SCORES, SCORE_KEYS } from "./fitness.js";
+export { briefFloorArea, evaluate, floorAreaTarget, heatField, storageDepth, SCORES, SCORE_KEYS } from "./fitness.js";
+export { capacityOf, groundKey } from "./capacity.js";
+export { BENGALURU, coverageFor, farFor, highSetback, lowSetbacks, plotRulesOf, roadStoreys, type PlotRules } from "./regs.js";
 export { paretoRanks, crowding, difference, families, asMin } from "./rank.js";
 export { referencePoints, divisionsFor, nicheSelect } from "./niche.js";
 export { makeRng } from "./rng.js";

@@ -49,6 +49,7 @@
     let x = B.emptyBrief(rules);
     x = { ...x, summary: description.trim() || `The site's own figures for ${m.name}.`,
       fsi: { value: m.target_far, sources: [], note },
+      ...(m.target_floor_area_ha ? { floor_area_ha: { value: m.target_floor_area_ha, sources: [], note } } : {}),
       design_storm_mm: { value: m.design_storm_mm, sources: [], note },
       height_limit_levels: { value: rules.defaults.max_levels, sources: [], note: "The site's rules: the most levels anywhere." } };
     bench.brief = x;

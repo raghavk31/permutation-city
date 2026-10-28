@@ -14,8 +14,9 @@
 //   context    the design's other building plots in the frame at their storeys, and the
 //              existing buildings off the design ground (as envelope.ts)
 import { BUILDING, LANDSCAPE, STOREY_M, WATER } from "../config.js";
-import { area, inside, toSegment, type Line, type Pt } from "../plan/geom.js";
+import { area, inside, obb, toSegment, type Line, type Pt } from "../plan/geom.js";
 import { locator } from "../plan/ground.js";
+import { coverageFor, farFor, highSetback, lowSetbacks, plotRulesOf, roadStoreys } from "../regs.js";
 import { cellAt } from "../syntax.js";
 import type { Design, Ground, VectorPlan } from "../types.js";
 import { MARGIN_M, RES_M, WATER_REACH_M, type Envelope, type Plot, type Setbacks } from "./envelope.js";
@@ -134,18 +135,45 @@ export function vectorEnvelope(d: Design, G: Ground, block: number, setbacks: Se
     return v;
   };
 
-  // This block's plots: their columns, and those clear of the setbacks.
+  // This block's plots: their columns, and those clear of the setbacks. Under a site's plot
+  // rules (regs.ts) the envelope steps: low storeys keep the low setbacks (shares of the plot's
+  // depth and width), and a column rises above the low band only as far as its distance to
+  // every plot edge allows (all-round setbacks by height), and no higher than its road allows.
+  const R = plotRulesOf(G.meta.id);
   const back = { front: setbacks.front, side: setbacks.side, rear: setbacks.rear };
   const edges = mine.map(({ p }) => edgesOf(p.ring, plan, G, d));
+  const lows = mine.map(({ p }) => {
+    if (!R) return null;
+    const b = obb(p.ring), a = Math.abs(area(p.ring));
+    // the plot's depth runs back from its front: the side of the box across its longest front edge
+    let fu = 0, fl = 0;
+    for (const e of edgesOf(p.ring, plan, G, d)) if (e.kind === "front") {
+      const l = Math.hypot(e.b[0] - e.a[0], e.b[1] - e.a[1]);
+      if (l > fl) { fl = l; fu = Math.abs((e.b[0] - e.a[0]) * b.ux + (e.b[1] - e.a[1]) * b.uy) / (l || 1); }
+    }
+    const along = fu >= Math.SQRT1_2, du = 2 * b.hl, dv = 2 * b.hw;
+    return lowSetbacks(R, along ? dv : du, along ? du : dv, a);
+  });
   mine.forEach(({ p }, id) => {
+    const low = lows[id], road = p.road ?? 0;
     columns(p.ring, (q) => {
       if (street[q]) return;
       inPlot[q] = id;
       if (cellOf[q] >= 0) water[q] = wd(cellOf[q]);
       const pt: Pt = [X(q), Y(q)];
-      if (edges[id].some((e) => toSegment(pt, e.a, e.b).d < back[e.kind])) return;
+      const sb = low ?? back;
+      if (edges[id].some((e) => toSegment(pt, e.a, e.b).d < sb[e.kind])) return;
       plotOf[q] = id;
-      capZ[q] = cellOf[q] >= 0 ? Math.max(0, Math.floor(G.cap[cellOf[q]])) : 0;
+      let cap = cellOf[q] >= 0 ? Math.max(0, Math.floor(G.cap[cellOf[q]])) : 0;
+      if (R) {
+        cap = Math.min(cap, roadStoreys(R, road));
+        const near = Math.min(...edges[id].map((e) => toSegment(pt, e.a, e.b).d));
+        const lowStoreys = Math.floor(R.lowHeightM / STOREY_M + 1e-9);
+        let z = Math.min(cap, lowStoreys);
+        while (z < cap && near >= highSetback(R, (z + 1) * STOREY_M)) z++;
+        cap = z;
+      }
+      capZ[q] = cap;
     });
   });
 
@@ -211,7 +239,9 @@ export function vectorEnvelope(d: Design, G: Ground, block: number, setbacks: Se
       id, cells: [...cells].sort((a, b) => a - b), axis,
       cx: mx + cu * ux - cv * uy, cy: my + cu * uy + cv * ux,
       half: [Math.max((u1 - u0) / 2 + res / 2, res), Math.max((v1 - v0) / 2 + res / 2, res)],
-      capLevels, maxCover: Math.max(0, 1 - perm), area: cols * res * res, buildable: m * res * res, target, frontage,
+      capLevels, maxCover: R ? Math.min(Math.max(0, 1 - perm), coverageFor(R, cols * res * res)) : Math.max(0, 1 - perm),
+      area: cols * res * res, buildable: m * res * res,
+      target: R ? Math.min(target, farFor(R, mine[id].p.road ?? 0) * cols * res * res) : target, frontage,
     };
   });
   const nz = Math.max(1, ...plots.map((p) => p.capLevels));

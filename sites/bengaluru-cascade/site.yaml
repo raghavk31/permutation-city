@@ -4,7 +4,10 @@ grid:
   size: 20.0
 # assumed: a heavy one-day monsoon storm for Bengaluru; check against IMD return periods
 design_storm_mm: 150
-# RMP 2015 residential zones allow FAR 1.75-3.25 by road width; 2.0 is a mid value, assumed
+# The brief (assumed): FAR 2.0 over the design ground with the law's 30 m lake buffer
+# (295.5 ha), held as a floor area so a wider design buffer doesn't shrink what is asked.
+# Designs aim for the lesser of this and what the plot rules allow (engine/capacity.ts).
 target_far: 2.0
+target_floor_area_ha: 590.9
 boundary: boundary.geojson
 context_m: 250

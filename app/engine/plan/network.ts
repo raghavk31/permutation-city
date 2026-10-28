@@ -30,7 +30,8 @@ export interface Edge { u: number; v: number; pts: Line; cls: number }
 export interface Repair { kind: "extended" | "deleted dead end" | "kept dead end" | "straightened junction" | "merged junctions"
   | "smoothed bend" | "removed orphan" | "split long block" | "merged sliver" | "folded onto skeleton"; at: Pt }
 export interface Flag { rule: "junction spacing" | "curve radius" | "gradient" | "block perimeter"; at: Pt; value: number; limit: number }
-export interface Face { ring: Line; edges: number[]; area: number; street: boolean[] }  // street: per ring edge, on a street
+/** street: per ring edge, on a street; cls: per ring edge, that street's class (0: none). */
+export interface Face { ring: Line; edges: number[]; area: number; street: boolean[]; cls: number[] }
 export interface Network { vx: number[]; vy: number[]; edges: Edge[]; faces: Face[]; repairs: Repair[]; flags: Flag[] }
 
 /** Cut routes where they run along the skeleton (within SKELETON_FOLD_M), joining what's left
@@ -359,12 +360,13 @@ export function faces(G: Ground, vx: number[], vy: number[], edges: Edge[]): Fac
   const used = new Uint8Array(edges.length * 2), result: Face[] = [];
   for (let h0 = 0; h0 < edges.length * 2; h0++) {
     if (used[h0]) continue;
-    const ring: Line = [], es: number[] = [], street: boolean[] = [];
+    const ring: Line = [], es: number[] = [], street: boolean[] = [], cls: number[] = [];
     let h = h0;
     for (let guard = 0; guard < 100000; guard++) {
       used[h] = 1; es.push(h >> 1);
       const p = pts(h), onStreet = edges[h >> 1].cls > 0;
-      for (let k = 0; k < p.length - 1; k++) { ring.push(p[k]); street.push(onStreet); }
+      const c0 = Math.max(edges[h >> 1].cls, 0);
+      for (let k = 0; k < p.length - 1; k++) { ring.push(p[k]); street.push(onStreet); cls.push(c0); }
       // Next: at the head, the outgoing half-edge just clockwise of the way back (face on the left).
       const v = head(h), l = out.get(v)!, back = h ^ 1;
       const i = l.indexOf(back);
@@ -382,7 +384,7 @@ export function faces(G: Ground, vx: number[], vy: number[], edges: Edge[]): Fac
       all++; if (loc.cell(m) >= 0) on++;
     }
     if (on / all < 0.5) continue;
-    result.push({ ring, edges: [...new Set(es)], area: a, street });
+    result.push({ ring, edges: [...new Set(es)], area: a, street, cls });
   }
   return result;
 }
