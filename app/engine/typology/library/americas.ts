@@ -323,7 +323,7 @@ export const AMERICAS: Precedent[] = [
   },
   {
     id: "havana-portales", name: "Arcaded streets", local: "portales", place: "Havana", region: "Americas", at: [-82.37, 23.13],
-    era: "late 19th-early 20th century", climate: "tropical-dry", programmes: ["mobility", "commercial", "housing"],
+    era: "late 19th-early 20th century", climate: "tropical-dry", programmes: ["mobility", "commercial", "housing", "public"],
     mechanisms: ["eaves", "mutual-shade", "shared"],
     materials: ["masonry columns", "stucco"],
     summary: "Long colonnaded sidewalks, sometimes a whole block, in front of houses and shops along Havana's main streets.",
@@ -363,7 +363,7 @@ export const AMERICAS: Precedent[] = [
   },
   {
     id: "sesc-pompeia", name: "SESC Pompéia", place: "São Paulo", region: "Americas", at: [-46.68, -23.53],
-    era: "1977-86", climate: "humid-subtropical", programmes: ["cultural", "education"], modern: true,
+    era: "1977-86", climate: "humid-subtropical", programmes: ["cultural", "education", "public"], modern: true,
     mechanisms: ["shared", "porous", "cross-vent"],
     materials: ["reused factory sheds", "concrete towers", "walkways"],
     summary: "Lina Bo Bardi's leisure centre in a 1920s factory kept rather than demolished, with sports in two new concrete towers linked by walkways.",
@@ -458,6 +458,50 @@ export const AMERICAS: Precedent[] = [
     sources: [
       src("Zaguan, Wikipedia", "https://en.wikipedia.org/wiki/Zaguan"),
       src("Cultural Daily, A guide to Mexican colonial home architecture", "https://www.culturaldaily.com/a-guide-to-mexican-colonial-home-architecture/"),
+    ],
+  },
+  {
+    id: "green-street", name: "Green street", place: "SW 12th Avenue, Portland, Oregon", region: "Americas", at: [-122.69, 45.51],
+    era: "2005", climate: "temperate", programmes: ["public", "water", "mobility"], modern: true,
+    mechanisms: ["filter", "recharge", "flood-room"],
+    materials: ["concrete planters", "soil", "rushes and trees"],
+    summary: "Kevin Perry's street-side planters: the gutter runs into a chain of sunken beds in the sidewalk, which hold and soak in the street's runoff.",
+    how: "Curb cuts let runoff into four planters in a row; each fills to about 15 cm before overflowing to the next, and soaks into the soil at about 10 cm an hour. Most storms never reach the combined sewer, and the sidewalk gains trees and planting.",
+    lesson: "Every street can treat its own runoff in a line of sunken beds along the sidewalk, sized to the street's paved area.",
+    figures: [
+      { what: "Street drained", value: "about 8,000 ft² (740 m²)", conf: "medium", src: 1 },
+      { what: "Ponding depth / soak-in rate", value: "6 in (15 cm) / 4 in (10 cm) an hour", conf: "medium", src: 1 },
+      { what: "Runoff kept from the sewer in flow tests", value: "72-77% (NACTO); 50-74% (ASCE, design storm)", conf: "medium", src: 0 },
+      { what: "Peak flows cut by green streets", value: "70-90%", conf: "medium", src: 1 },
+    ],
+    seed: { arrangement: "ponds", width: 2.4, depth: 12, storeys: 0, count: 4, rows: 1, street: 1.2, water: 0.15, trees: 4 },
+    seedNote: "Four planters; sizes assumed to match the street area.",
+    gaps: "Long-term performance; planter dimensions.",
+    sources: [
+      src("NACTO Urban Street Stormwater Guide: volume reduction", "https://nacto.org/publication/urban-street-stormwater-guide/partnerships-performance/performance-measures/performance-measures-ecology"),
+      src("Managing street runoff with green streets. ASCE", "https://ascelibrary.com/doi/10.1061/41009%28333%2920"),
+    ],
+  },
+  {
+    id: "paley-park", name: "Paley Park", place: "53rd Street, New York", region: "Americas", at: [-73.98, 40.76],
+    era: "1967", climate: "humid-subtropical", programmes: ["public"], modern: true,
+    mechanisms: ["shade", "evaporative"],
+    materials: ["granite", "water wall", "honey locust trees", "ivy walls"],
+    summary: "Zion and Breen's pocket park in a single lot between buildings: a grove of honey locusts, movable chairs and a 20-foot waterfall across the back wall.",
+    how: "The waterfall's roar drowns out the traffic, the thin canopy of locusts shades without darkening, and ivy covers the side walls. A plot the width of one building becomes a quiet, cool room off the street.",
+    lesson: "A single empty plot can be a public room: shade trees, a wall of falling water to mask the noise, and chairs people can move.",
+    figures: [
+      { what: "Area", value: "4,200 ft² (390 m²)", conf: "medium", src: 0 },
+      { what: "Waterfall", value: "20 ft (6 m) high, about 1,800 gallons (6,800 L) a minute", conf: "medium", src: 0 },
+      { what: "Water noise", value: "up to 90 dB, masking the street", conf: "medium", src: 1 },
+      { what: "Trees", value: "12 honey locusts at 12 ft (3.7 m)", conf: "medium", src: 0 },
+    ],
+    seed: { arrangement: "court", width: 6, depth: 10, storeys: 6, court: 13, rows: 3, street: 10, trees: 8 },
+    seedNote: "Drawn as a gap between six-storey neighbours; a square stands for the 13 × 30 m plot.",
+    gaps: "Measured temperatures.",
+    sources: [
+      src("Paley Park. Wikipedia", "https://en.wikipedia.org/wiki/Paley_Park"),
+      src("Paley Park case study. Terrapin Bright Green", "https://www.terrapinbrightgreen.com/wp-content/uploads/2015/11/Paley-Park_Case-Study-Fall-15.pdf"),
     ],
   },
 ];

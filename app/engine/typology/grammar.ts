@@ -36,7 +36,10 @@ export type Feature =
   /** Roofs that rise from the front to the back by this much (m). */
   | { kind: "slope"; rise: number }
   /** An earth mound the whole group stands on, `raised` high (a char plinth, a terp). */
-  | { kind: "mound" };
+  | { kind: "mound" }
+  /** A pool or well in the middle of the open court or yard, `size` across (m): a tank the
+   *  roofs drain to, a monastery well, a garden's central basin. */
+  | { kind: "pool"; size?: number };
 
 export interface Params {
   arrangement: Arrangement;
@@ -372,6 +375,19 @@ function features(p: Params, S: Solid[], fh: number, z0: number, W: number, D: n
           const y = st / 2 + r * (p.depth + st) + p.depth;
           part(rect(0, y, W, st), z0 + p.storeys * fh - 0.3, 0.3, "vault");
         }
+        break;
+      }
+      case "pool": {
+        // in each court or yard: a court's centre, each cluster's yard, a ring's centre
+        const c = p.court ?? 8, a = f.size ?? c * 0.6;
+        let centres: [number, number][] = [[W / 2, D / 2]];
+        if (p.arrangement === "court") centres = [[c / 2 + p.depth, c / 2 + p.depth]];
+        else if (p.arrangement === "ring") centres = [[(p.diameter ?? 40) / 2, (p.diameter ?? 40) / 2]];
+        else if (p.arrangement === "cluster") {
+          const k = p.rows ?? 1, span = W / k;
+          centres = Array.from({ length: k }, (_, j) => [j * span + span / 2, D / 2] as [number, number]);
+        }
+        for (const [cx, cy] of centres) S.push({ ring: rect(cx - a / 2, cy - a / 2, a, a), z: -0.3, h: 0.3, use: "water" });
         break;
       }
       case "slope":

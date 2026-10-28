@@ -5,6 +5,7 @@ import type { Params } from "./grammar.js";
 export const PROGRAMMES = {
   housing: "Housing", water: "Water", food: "Food", waste: "Waste", energy: "Energy",
   mobility: "Mobility", commercial: "Commerce", education: "Education", industrial: "Industry", cultural: "Culture",
+  public: "Public space",
 } as const;
 export type Programme = keyof typeof PROGRAMMES;
 
@@ -44,6 +45,9 @@ export const MECHANISMS = {
   shared: "Ground shared by neighbours",
   solar: "Takes energy from the sun",
   insulation: "Keeps the cold out",
+  shade: "A roof of shade over open ground",
+  filter: "Plants and soil clean the water",
+  sound: "Carries sound to a crowd",
 } as const;
 export type Mechanism = keyof typeof MECHANISMS;
 

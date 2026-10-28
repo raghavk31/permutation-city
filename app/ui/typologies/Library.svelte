@@ -112,7 +112,7 @@
     <!-- COPY: title and lead are drafts for the user to rewrite. -->
     <h1>What people built for their climate</h1>
     <p class="ty-lead">
-      Houses, water systems, farms and markets that people shaped over centuries for a climate, a material or a need,
+      Houses, water systems, farms, markets and public spaces that people shaped over centuries for a climate, a material or a need,
       and a few modern buildings that did the same with new means. Each one is written down as numbers, and every
       drawing here is made from those numbers. The design search will start from these forms and adapt them to a site.
     </p>

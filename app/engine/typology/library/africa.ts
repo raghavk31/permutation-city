@@ -202,7 +202,7 @@ export const AFRICA: Precedent[] = [
   },
   {
     id: "toguna", name: "Toguna", place: "Dogon villages, Bandiagara, Mali", region: "Africa", at: [-3.6, 14.35],
-    era: "traditional", climate: "semi-arid", programmes: ["cultural"],
+    era: "traditional", climate: "semi-arid", programmes: ["cultural", "public"],
     mechanisms: ["mutual-shade", "porous", "shared"],
     materials: ["carved wooden posts", "layers of millet stalks"],
     summary: "The men's meeting shelter: a very low roof of stacked millet stalks on carved posts, too low to stand under.",

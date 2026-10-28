@@ -126,7 +126,7 @@ export const WEST_ASIA_NORTH_AFRICA: Precedent[] = [
   },
   {
     id: "ab-anbar", name: "Ab anbar", place: "Yazd, Iran", region: "West Asia and North Africa", at: [54.36, 31.89],
-    era: "Safavid and Qajar periods", climate: "hot-arid", programmes: ["water"],
+    era: "Safavid and Qajar periods", climate: "hot-arid", programmes: ["water", "public"],
     mechanisms: ["storage", "wind-catch", "earth", "evaporative"],
     materials: ["brick", "sarooj mortar"],
     summary: "A deep domed cistern with windcatchers that keep its water cool and fresh.",
@@ -165,7 +165,7 @@ export const WEST_ASIA_NORTH_AFRICA: Precedent[] = [
   },
   {
     id: "bazaar-isfahan", name: "Covered bazaar", local: "bazaar, timcheh", place: "Grand Bazaar, Isfahan", region: "West Asia and North Africa", at: [51.68, 32.66],
-    era: "Seljuk to Safavid (most 1600s)", climate: "hot-arid", programmes: ["commercial", "mobility", "cultural"],
+    era: "Seljuk to Safavid (most 1600s)", climate: "hot-arid", programmes: ["commercial", "mobility", "cultural", "public"],
     mechanisms: ["mutual-shade", "thermal-mass", "stack", "shared"],
     materials: ["brick vaults and domes"],
     summary: "A two-kilometre vaulted street of shops, with domed halls, caravanserais and courts along it.",
@@ -539,6 +539,50 @@ export const WEST_ASIA_NORTH_AFRICA: Precedent[] = [
     sources: [
       src("Famous Historic Buildings, Basilica Cistern", "https://famous-historic-buildings.org.uk/basilica-cistern-istanbul.html"),
       src("Turkey Travel Planner, Basilica Cistern", "https://turkeytravelplanner.com/go/Istanbul/Sights/Sultanahmet/Yerebatan.html"),
+    ],
+  },
+  {
+    id: "medina-umbrellas", name: "Umbrellas of the Prophet's Mosque", place: "Medina", region: "West Asia and North Africa", at: [39.61, 24.47],
+    era: "2010", climate: "hot-arid", programmes: ["public", "cultural"], modern: true,
+    mechanisms: ["shade", "rain-harvest"],
+    materials: ["PTFE membrane", "steel"],
+    summary: "SL Rasch's 250 giant umbrellas that open over the mosque's piazzas by day and fold away at night, turning the open ground into one shaded room.",
+    how: "Opened, the umbrellas overlap into a continuous roof that keeps the sun off the paving and the crowd; closed at night, they let the stored heat leave to the sky. They also shed rain, so the piazzas stay usable in a storm.",
+    lesson: "Shade that opens by day and closes by night keeps a hot open ground cool without enclosing it.",
+    figures: [
+      { what: "Umbrellas", value: "250", conf: "medium", src: 0 },
+      { what: "Each, open", value: "25.5 × 25.5 m", conf: "medium", src: 0 },
+      { what: "Height", value: "about 15 m (sources say 14-20)", conf: "low", src: 0 },
+      { what: "Shaded area", value: "about 143,000 m²", conf: "medium", src: 0 },
+      { what: "Cooler under them", value: "at least 8 °C (reported)", conf: "low", src: 1 },
+    ],
+    seed: { arrangement: "canopy", width: 25.5, depth: 25.5, storeys: 0, floorH: 15, count: 5, street: 10 },
+    seedNote: "A row of five umbrellas; size and height from the figures.",
+    gaps: "Measured surface and air temperatures under them.",
+    sources: [
+      src("Medina Haram Piazza. Architect Magazine", "https://www.architectmagazine.com/?p=190542"),
+      src("The giant umbrellas that protect pilgrims at the Medina Haram Piazza. Senatus", "https://m.senatus.net/article/giant-umbrellas-protect-pilgrims-medina"),
+    ],
+  },
+  {
+    id: "sabil", name: "Sabil-kuttab", local: "sabil", place: "Abd al-Rahman Katkhuda, al-Muizz Street, Cairo", region: "West Asia and North Africa", at: [31.26, 30.05],
+    era: "1744", climate: "hot-arid", programmes: ["water", "public", "education"],
+    mechanisms: ["storage", "shared"],
+    materials: ["stone", "marble", "waterproof mortar"],
+    summary: "A public drinking fountain on a street corner, fed from a domed cistern below it, with a children's school on the floor above.",
+    how: "The large cistern below keeps the water cool in the dark; an attendant hands it out through grilled windows to anyone passing. Water and schooling, both given free, sit on the busiest corner.",
+    lesson: "Put free water on the street corner, stored cool below, and stack another public use above it.",
+    figures: [
+      { what: "Cistern", value: "about 445,000 litres, under nine stone domes", conf: "low", src: 1 },
+      { what: "Sabil room", value: "three street fronts with copper grilles and marble basins", conf: "medium", src: 0 },
+      { what: "Upper floor", value: "a kuttab, a Quran school for children", conf: "medium", src: 0 },
+    ],
+    seed: { arrangement: "sunken", width: 12, depth: 12, storeys: 2, sunken: 5, steps: 1, water: 3, count: 1 },
+    seedNote: "Drawn as a cistern pit with rooms over two sides; sizes assumed.",
+    gaps: "How the cistern was filled and how long it lasted.",
+    sources: [
+      src("Sabil-Kuttab of Abd al-Rahman Katkhuda. Egypt's Ministry of Tourism and Antiquities", "https://egymonuments.gov.eg/en/monuments/sabil-kuttab-of-abd-al-rahman-katkhuda/"),
+      src("Cairo's famous sabils. Cairo Governorate", "https://cairo.gov.eg/en/culture/cairo-history/ancient-landmarks/cairos-famous-sabils/"),
     ],
   },
 ];

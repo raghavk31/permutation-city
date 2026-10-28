@@ -293,6 +293,31 @@ No vernacular precedent. Massed in A as plain buildings of their use, sized by t
 solar canopies over parking and markets; a biogas plant beside the waste site; workshops on
 freight streets, downwind.
 
+## Public space
+
+Added 28 October 2026: open spaces that do a job for the city as well as being places to be. Each
+one holds, cleans or moves water, gives shade, carries sound, feeds people or hands out water,
+and is a commons people use every day, so it is looked after. They are tagged **Public space** on
+the page (programme `public`); three mechanisms came with them: shade over open ground, plants
+and soil cleaning water, and carrying sound to a crowd.
+
+| Job | In the library | Still to add |
+|---|---|---|
+| Harvest rain from roofs and ground | Nalanda University campus (roofs drain through the pillars to the ponds), kund, Thammasat rooftop farm, Barefoot College, tanka | Fatehpur Sikri's mosque court and tanks; Ryōgoku Kokugikan's roof tank (sizes not found) |
+| Store water in public | stepwell, kalyani, kere, Hyderabad baoli, sabil-kuttab, ab anbar, Venice wells, johad | temple tank (kulam), Chand Baori |
+| Hold a flood, then dry out | water square, Enghave climate park, Chulalongkorn Centenary Park, Bishan-Ang Mo Kio Park, Room for the Waal, Qunli, Cheonggyecheon | Yanweizhou Park, Tåsinge Plads |
+| Clean water with plants | East Kolkata Wetlands, Houtan Park, Benjakitti Forest Park, green street, DEWATS | Sponge-city bioswales |
+| Shade open ground | tree platform (katte), Medina umbrellas, Metropol Parasol, portico, Havana portales, toguna | haat under trees, stoa |
+| Cool with water and planting | charbagh garden, Lalbagh and Cubbon Park, Paley Park, Cheonggyecheon | Shalimar Bagh |
+| Gather a crowd | Theatre of Epidaurus, ghats, Nalanda's amphitheatre (in the campus entry) | Greek and Roman theatres in other climates |
+| Work in the open | Dhobi Ghat, Fès tannery, Kumbharwada | weekly haat, mandi |
+| Keep nature in common | sacred grove (devarakadu), chabutro | urban sacred groves of Bengaluru |
+| Many small pieces near every door | Van Eyck playgrounds, superblock, chabutro | chowk, pocket parks |
+
+For the search, these are the open ground the city's programme sits round: a block's public
+space should be chosen by the job its land can do (low ground and flow lines hold and clean
+water; junctions get shade and seats; every few hundred metres, a small doorstep space).
+
 ## Programme
 
 ### Where each goes
@@ -309,6 +334,7 @@ freight streets, downwind.
 | Education | spread by walking catchment, away from industry and arterials | population, access |
 | Industrial | downwind, on freight roads, away from water and homes | wind, street class, buffers |
 | Cultural | landmark junctions and water edges | landmarks, lake edges |
+| Public space | low ground and flow lines (flood parks, wetlands, tanks); junctions (shade, platforms); one small space within a few hundred metres of every door | `pc/hydro.py` sinks and lines, junctions, walking distance |
 
 ### How much
 

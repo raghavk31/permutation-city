@@ -150,7 +150,14 @@ function pit(d: Drawing, levels: Solid[], water: Solid[], plot: { w: number; d: 
   const box = (s: Solid) => { const xs = s.ring.map((p) => p[0]), ys = s.ring.map((p) => p[1]); return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]; };
   for (let k = 0; k < sorted.length; k++) {
     const s = sorted[k], [x0, y0, x1, y1] = box(s), z = s.z + s.h, zTop = k + 1 < sorted.length ? sorted[k + 1].z + sorted[k + 1].h : 0;
-    d.poly([[x0, y0, z], [x1, y0, z], [x1, y1, z], [x0, y1, z]], GROUND);
+    // the floor of this level: whole for the deepest, a frame round the level below otherwise,
+    // so the deeper levels stay in view
+    if (k === 0) d.poly([[x0, y0, z], [x1, y0, z], [x1, y1, z], [x0, y1, z]], GROUND);
+    else {
+      const [a0, b0, a1, b1] = box(sorted[k - 1]);
+      for (const [u0, v0, u1, v1] of [[x0, y0, x1, b0], [x0, b0, a0, b1], [a1, b0, x1, b1], [x0, b1, x1, y1]])
+        if (u1 - u0 > 0.01 && v1 - v0 > 0.01) d.poly([[u0, v0, z], [u1, v0, z], [u1, v1, z], [u0, v1, z]], GROUND);
+    }
     if (k === 0) for (const w of water) d.poly(w.ring.map(([x, y]): P3 => [x, y, w.z + w.h]), "var(--pc-water)");
     // the far walls, from this level up to the next
     d.poly([[x0, y0, z], [x1, y0, z], [x1, y0, zTop], [x0, y0, zTop]], CUT);
