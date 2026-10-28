@@ -60,7 +60,7 @@
       const { Viewer } = await import("../mass/viewer");
       if (!viewer || viewer.canvas !== c) { viewer?.dispose(); viewer = new Viewer(c); shown = ""; }
       const tag = `${m.resultKey}|${k.name}`, mesh = m.meshOf(k);
-      if (shown !== tag && mesh) { viewer.show({ E: e, mass: mesh, context: ctxMesh, existing: existingMesh!, ground: g, look: Mass.look(P) }, shown.startsWith(`${m.resultKey}|`)); shown = tag; }
+      if (shown !== tag && mesh) { viewer.show({ E: e, mass: mesh, context: ctxMesh, existing: existingMesh!, ground: g, look: Mass.look(P), guessed: m.prepared ? Mass.guessedOf(e, m.prepared.G) : undefined }, shown.startsWith(`${m.resultKey}|`)); shown = tag; }
       viewer.sun(sun ? sun.dir : null);
       viewer.section(sec);
     })();
@@ -99,8 +99,10 @@
   <div class="wb-over br">
     <div class="wb-legend">
       <div><i style="--c: {P.t.building[2]}"></i><span>the bred massing</span></div>
-      <div><i style="--c: {P.t.existingRamp[1]}"></i><span>the design's other buildings</span></div>
+      <!-- COPY: 3D legend -->
+      <div><i style="--c: {P.t.building[0]}"></i><span>the design's other buildings</span></div>
       <div><i style="--c: {P.t.existingRamp[3]}"></i><span>existing buildings</span></div>
+      <div><i style="--c: repeating-linear-gradient(135deg, {P.t.existingRamp[3]} 0 3px, {P.t.existingRamp[4]} 3px 5px)"></i><span>existing, height estimated</span></div>
     </div>
   </div>
 {/if}

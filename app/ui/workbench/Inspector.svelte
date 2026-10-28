@@ -110,8 +110,9 @@
   {#if bench.step === "massing" && mEnv}
     {#if mk}
       <div class="wb-sub">
-        <span class="wb-label">{mk.rank === 1 ? "On the front" : "Beaten on every count by another"}</span>
-        <b class="wb-insp-title">Massing {mk.name}</b>
+        <!-- COPY: a kept massing's heading -->
+        <span class="wb-label">{mk.rank === 1 ? "A best trade-off: no other does better on every score" : "Outdone: another does better on every score"}</span>
+        <b class="wb-insp-title">{mass.titleOf(mk).title}{mass.titleOf(mk).best ? ` · ${mass.titleOf(mk).best}` : ""}</b>
         <div class="wb-scores">
           {#each M.MASS_SCORE_KEYS as k}
             <div class="wb-score"><span>{M.MASS_SCORES[k][0]}{lowHeights && Mass.HEIGHT_SCORES.includes(k) ? " *" : ""}</span>

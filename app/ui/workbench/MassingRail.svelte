@@ -18,8 +18,8 @@
   const massings = $derived(m.population * (m.generations + 1));
   // about 15 ms a massing on a block of 0.2 ha (the A3 timings), more on bigger blocks
   const seconds = $derived(Math.max(1, Math.round(massings * 0.015 * Math.max(1, (info?.ha ?? 0.2) / 0.2))));
-  const ranked = $derived(m.result && !m.stale ? m.result.kept.map((k, i) => ({ k, i })).sort((a, b) => a.k.rank - b.k.rank || a.i - b.i)
-    .filter(({ k }, n) => k.rank === 1 || n < 6) : []);
+  const ranked = $derived(m.ranked.filter(({ k }, n) => k.rank === 1 || n < 6));
+  const kind = $derived(KINDS.find((k) => k.kind === m.kind)!);
   const fmtHour = (h: number) => `${String(Math.floor(h)).padStart(2, "0")}:${String(Math.round((h % 1) * 60)).padStart(2, "0")}`;
   const sunLine = $derived(m.sun ? (m.sun.altitude > 0
     ? `Sun ${Math.round((m.sun.altitude * 180) / Math.PI)}° up, from ${Math.round((m.sun.azimuth * 180) / Math.PI)}° (clockwise from north)`
@@ -77,9 +77,12 @@
     <div class="wb-field">
       <span class="wb-field-label">Written as</span>
       <div class="wb-seg" role="group" aria-label="Written as">
-        {#each KINDS as k}<button type="button" aria-pressed={m.kind === k.kind} disabled={m.running} onclick={() => (m.kind = k.kind)}>{k.label}</button>{/each}
+        {#each KINDS as k}<button type="button" aria-pressed={m.kind === k.kind} disabled={m.running} onclick={() => (m.kind = k.kind)}
+          title={k.experimental ? `${k.label} (experimental)` : undefined}>{k.label}</button>{/each}
       </div>
-      <span class="wb-hint">{KINDS.find((k) => k.kind === m.kind)!.note}</span>
+      <!-- COPY: experimental representations -->
+      <span class="wb-hint">{#if kind.experimental}<span class="wb-tag is-assumed">experimental</span> {/if}{kind.note}</span>
+      {#if !kind.experimental}<span class="wb-hint">{KINDS.filter((k) => k.experimental).map((k) => k.label).join(" and ")} are experimental.</span>{/if}
     </div>
 
     <div class="wb-field">
@@ -119,13 +122,17 @@
         <span class="wb-label">What survived</span>
         <div class="wb-mass-list">
           {#each ranked as { k, i } (k.name)}
-            <button class="wb-thumb" type="button" aria-pressed={i === m.pick} onclick={() => (m.pick = i)}>
+            {@const t = m.titleOf(k)}
+            <!-- COPY: a kept massing's caption -->
+            <button class="wb-thumb" type="button" aria-pressed={i === m.pick} onclick={() => (m.pick = i)} title={t.best ? `${t.title}: ${t.best}` : t.title}>
               <span class="wb-pic"><canvas {@attach thumb(k)}></canvas></span>
-              <span class="wb-cap"><span>{k.rank === 1 ? "on the front" : "beaten"}</span><span>{Math.round((k.floor / Math.max(1, env?.target ?? 1)) * 100)}%</span></span>
+              <span class="wb-cap"><span>{t.title}</span><span>{Math.round((k.floor / Math.max(1, env?.target ?? 1)) * 100)}%</span></span>
+              <span class="wb-cap wb-quiet"><span>{k.rank === 1 ? "a best trade-off" : "outdone"}</span></span>
             </button>
           {/each}
         </div>
-        <span class="wb-hint">The figure is floor area against what the block should fit.</span>
+        <!-- COPY: what the captions mean -->
+        <span class="wb-hint">A best trade-off: no other option does better on every score. Outdone: another does. The figure is floor area against what the block should fit.</span>
       </div>
 
       <div class="wb-field">
