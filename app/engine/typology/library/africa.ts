@@ -219,4 +219,24 @@ export const AFRICA: Precedent[] = [
       src("Galerie Flak, Togu na", "https://galerieflak.com/en/togu-na"),
     ],
   },
+  {
+    id: "konso", name: "Walled terraced towns", local: "paleta", place: "Konso, southern Ethiopia", region: "Africa", at: [37.43, 5.33],
+    era: "over 400 years (21 generations); World Heritage 2011", climate: "semi-arid", programmes: ["food", "water", "housing", "cultural"],
+    mechanisms: ["storage", "recharge", "shared", "compact"],
+    materials: ["dry stone terraces and walls", "thatched houses"],
+    summary: "Hill towns ringed by up to six dry-stone walls, set among terraces up to 5 m high that hold soil and pass water from field to field.",
+    how: "Terraces catch the rain and let it seep down from one to the next so most fields share it; communal reservoirs (harda) near sacred forests store more. Inside the walls, mora are the shared squares.",
+    lesson: "Terrace a whole landscape so water moves slowly from field to field, and keep the town compact on the hilltop.",
+    figures: [
+      { what: "Terraces", value: "dry stone, walls up to about 5 m", conf: "high", src: 0 },
+      { what: "Town walls", value: "one to six rings of dry stone", conf: "high", src: 0 },
+      { what: "Area", value: "55 km² inscribed", conf: "high", src: 0 },
+    ],
+    seed: { arrangement: "terraces", width: 50, depth: 7, storeys: 0, steps: 8, sunken: 2, trees: 10 },
+    seedNote: "Terrace sizes assumed; the walled town is not drawn.",
+    sources: [
+      src("UNESCO, Konso cultural landscape", "https://whc.unesco.org/en/list/1333"),
+      src("UNESCO, Konso nomination", "https://whc.unesco.org/document/152402"),
+    ],
+  },
 ];
