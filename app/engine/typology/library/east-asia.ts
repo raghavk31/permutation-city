@@ -286,4 +286,23 @@ export const EAST_ASIA: Precedent[] = [
       src("Transport Department, Central to Mid-Levels escalator and walkway system", "https://www.td.gov.hk/en/transport_in_hong_kong/pedestrians/hillside_escalator"),
     ],
   },
+  {
+    id: "weilongwu", name: "Enclosed dragon house", local: "weilongwu", place: "Meizhou, Guangdong (Hakka)", region: "East Asia", at: [116.12, 24.29],
+    era: "Ming and Qing dynasties", climate: "humid-subtropical", programmes: ["housing", "water", "food"],
+    mechanisms: ["court", "shared", "storage", "flood-room"],
+    materials: ["rammed earth", "brick", "tile"],
+    summary: "A clan house of halls and courts with a half-ring of rooms behind it against the hill, and a half-moon fish pond in front.",
+    how: "Built into the hillside, the rear half-ring sheds runoff round the house; the pond in front collects it, raises fish, fights fires and cools the forecourt.",
+    lesson: "Put the house between a hill and a pond: one sheds the water, the other keeps it.",
+    figures: [
+      { what: "Layout", value: "semicircular pond in front, square forecourt, halls, semicircular rear rooms on the slope", conf: "medium", src: 0 },
+      { what: "Example", value: "Tong Yu Zhuang: 56 rooms, 13 halls, 9 atriums", conf: "low", src: 1 },
+    ],
+    seed: { arrangement: "court", width: 6, depth: 6, storeys: 1, floorH: 3.4, court: 30, rows: 3, street: 12, roof: "gable", porosity: 0.15, trees: 10 },
+    seedNote: "A U of halls round a forecourt; sizes assumed; the pond and the curve are not drawn.",
+    sources: [
+      src("China Daily, Meizhou, capital of Hakka culture", "https://guangdong.chinadaily.com.cn/2021-08/11/c_510568.htm"),
+      src("Sara Jaaksola, Visiting Meizhou: traditional weilongwu", "https://sarajaaksola.com/visiting-meizhou-traditional-weilongwu-architecture/"),
+    ],
+  },
 ];

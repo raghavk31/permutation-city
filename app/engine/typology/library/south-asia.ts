@@ -1026,4 +1026,42 @@ export const SOUTH_ASIA: Precedent[] = [
       src("Heritance Hotels, Kandalama", "https://www.heritancehotels.com/kandalama/"),
     ],
   },
+  {
+    id: "channapatna", name: "Toy-making town", place: "Channapatna, Karnataka", region: "South Asia", at: [77.2, 12.65],
+    era: "18th century onwards", climate: "tropical-dry", programmes: ["industrial", "housing"],
+    mechanisms: ["shared", "loop"],
+    materials: ["houses with lathe workshops", "hale wood", "lac"],
+    summary: "A town near Bengaluru where lacquered wooden toys are turned in about 250 home workshops and 50 small factories.",
+    how: "Work happens at home or next door, with lathes in front rooms and yards; the craft spreads across the whole town rather than an industrial zone, and the wood and lac come from the region.",
+    lesson: "A craft industry can live in the houses of a town, an hour from Bengaluru: plan workshop space into homes.",
+    figures: [
+      { what: "Units", value: "about 250 home units and 50 small factories", conf: "medium", src: 0 },
+      { what: "Artisans", value: "about 2,500-6,000 (sources and years differ)", conf: "low", src: 1 },
+    ],
+    seed: { arrangement: "row", width: 5, depth: 10, storeys: 2, floorH: 3, count: 8, rows: 2, street: 6, well: 0.1, roof: "flat", porosity: 0.25 },
+    seedNote: "House-workshop sizes assumed.",
+    sources: [
+      src("Mongabay India, Channapatna's artisans toy with modernity", "https://india.mongabay.com/2024/01/channapatnas-traditional-artisans-toy-with-modernity/"),
+      src("Dastkari Haat Samiti, Channapatna artisans (Google Arts and Culture)", "https://artsandculture.google.com/story/-wVxTvjTbuizKA"),
+    ],
+  },
+  {
+    id: "kumbharwada", name: "Potters' quarter", local: "Kumbharwada", place: "Dharavi, Mumbai", region: "South Asia", at: [72.86, 19.04],
+    era: "19th century onwards", climate: "tropical-wet", programmes: ["industrial", "housing"],
+    mechanisms: ["shared", "loop"],
+    materials: ["houses with workshops", "shared kilns (bhatti)"],
+    summary: "Potters' homes and workshops round shared open kilns, each kiln used by two or three families.",
+    how: "Clay is shaped at home and fired in shared kilns in the lanes; sharing the kiln shares the cost and fuel. Smoke in a dense neighbourhood is the problem redevelopment struggles with.",
+    lesson: "Share the heavy equipment between households and the craft stays possible in the city.",
+    figures: [
+      { what: "Kilns", value: "about 120 shared by about 600 families (older report)", conf: "low", src: 0 },
+      { what: "Potters", value: "estimates range from 200 families to over 1,500 people", conf: "low", src: 1 },
+    ],
+    seed: { arrangement: "row", width: 5, depth: 7, storeys: 2, floorH: 3, count: 8, rows: 2, street: 5, roof: "flat", porosity: 0.2, features: [{ kind: "stack", height: 2, size: 2, count: 6 }] },
+    seedNote: "Sizes assumed; kilns drawn as stacks on the houses.",
+    sources: [
+      src("Outlook Traveller, Inside Kumbarwada", "https://www.outlooktraveller.com/destinations/india/kumbarwada-mumbai-potter-village"),
+      src("Pulitzer Center, Dharavi Kumbharwada's clay economy", "https://pulitzercenter.org/stories/dharavi-kumbharwadas-clay-economy-meets-redevelopment-chokehold"),
+    ],
+  },
 ];
