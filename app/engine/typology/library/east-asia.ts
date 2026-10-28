@@ -265,4 +265,25 @@ export const EAST_ASIA: Precedent[] = [
       src("ASLA 2012, A green sponge for a water-resilient city", "https://www.asla.org/2012awards/026.html"),
     ],
   },
+  {
+    id: "mid-levels", name: "Hillside escalator", place: "Central to Mid-Levels, Hong Kong", region: "East Asia", at: [114.15, 22.28],
+    era: "1993", climate: "humid-subtropical", programmes: ["mobility"], modern: true,
+    mechanisms: ["shared", "eaves"],
+    materials: ["covered escalators and travelators", "footbridges"],
+    summary: "Eight hundred metres of covered outdoor escalators climbing 135 m up a steep hillside through 13 streets, downhill in the morning and uphill after.",
+    how: "On steep ground a covered moving walkway beats roads: it carries about 99,000 trips a day under cover from sun and rain, and shops and cafés grew along it.",
+    lesson: "On a steep, hot, wet hillside, a covered pedestrian lift can be the main street.",
+    figures: [
+      { what: "Length and rise", value: "about 800 m, 135 m", conf: "high", src: 1 },
+      { what: "Trips", value: "about 99,000 a day (2024)", conf: "high", src: 2 },
+      { what: "Direction", value: "downhill 6-10 am, uphill 10 am to midnight", conf: "medium", src: 0 },
+    ],
+    seed: { arrangement: "terraces", width: 4, depth: 20, storeys: 0, steps: 10, sunken: 4, surface: "ground", trees: 0 },
+    seedNote: "Drawn as a covered stepped walk climbing the hill; steps assumed.",
+    sources: [
+      src("Central-Mid-Levels escalator, Wikipedia", "https://en.wikipedia.org/wiki/Central%E2%80%93Mid-Levels_escalator"),
+      src("EMSD conference paper, the hillside escalator", "https://www.emsd.gov.hk/filemanager/conferencepaper/en/upload/61/cnfrnc-paper-20150705-09-3.pdf"),
+      src("Transport Department, Central to Mid-Levels escalator and walkway system", "https://www.td.gov.hk/en/transport_in_hong_kong/pedestrians/hillside_escalator"),
+    ],
+  },
 ];
