@@ -127,14 +127,45 @@ def fetch_overture(site: Site, tries=5, release: str | None = None, on_theme=lam
             continue
         out.parent.mkdir(parents=True, exist_ok=True)
         for attempt in range(tries):
+            # Without the catalogue the tool can't find the latest release either, so from the
+            # third try the release is pinned from the bucket's own listing.
+            rel = release or (latest_release() if attempt >= 2 else None)
             cmd = [cli, "download", f"--bbox={bbox}", "-f", "geoparquet", f"--type={theme}",
-                   "-o", str(out)] + (["-r", release] if release else []) + (["--no-stac"] if attempt >= 2 else [])
+                   "-o", str(out)] + (["-r", rel] if rel else []) + (["--no-stac"] if attempt >= 2 else [])
             r = subprocess.run(cmd, capture_output=True, text=True)
             if r.returncode == 0:
+                break
+            # The CLI checks any release against the catalogue; the library reads the bucket
+            # directly once it has one.
+            if rel and _overture_direct(theme, site.bbox, rel, out):
                 break
             time.sleep(5 * (attempt + 1))
         else:
             raise RuntimeError(f"Overture {theme} failed: {r.stderr[-300:]}")
+
+
+def _overture_direct(theme: str, bbox: tuple, release: str, out) -> bool:
+    """One theme straight from the release's files on S3 (no catalogue)."""
+    try:
+        from overturemaps import core
+        core.geodataframe(theme, bbox=tuple(bbox), release=release, stac=False).set_crs(4326, allow_override=True).to_parquet(out)
+        return True
+    except Exception as err:
+        print(f"  Overture {theme} from the bucket failed: {type(err).__name__}: {str(err)[:200]}", flush=True)
+        return False
+
+
+def latest_release() -> str | None:
+    """The newest Overture release, from the public bucket's listing (no catalogue needed)."""
+    import re
+    import urllib.request
+    try:
+        xml = urllib.request.urlopen("https://overturemaps-us-west-2.s3.amazonaws.com/?list-type=2&prefix=release/&delimiter=/",
+                                     timeout=60).read().decode()
+    except Exception:
+        return None
+    found = sorted(re.findall(r"release/(\d{4}-\d{2}-\d{2}\.\d+)/", xml))
+    return found[-1] if found else None
 
 
 def syntax_bbox(site: Site) -> tuple:
@@ -246,8 +277,20 @@ def fetch_heights(site: Site):
         dst.update_tags(source=f"Google Open Buildings 2.5D Temporal v1, {OB_YEAR}", licence="CC BY 4.0")
 
 
-STEPS = {"dem": fetch_dem, "terrain": fetch_terrain, "landcover": fetch_landcover,
-         "overture": fetch_overture, "streets": fetch_streets, "lst": fetch_lst, "heights": fetch_heights,
+def fetch_catchment(site: Site):
+    """The terrain over the site's upstream catchment window, for flow lines (pc/hydro.py)."""
+    from pc import hydro
+    print(f"  catchment terrain: {hydro.fetch(site)}", flush=True)
+
+
+def fetch_seasonal(site: Site):
+    """End-of-monsoon water frequency from Sentinel-2 (pc/seasonal.py)."""
+    from pc import seasonal
+    seasonal.fetch_seasonal(site)
+
+
+STEPS = {"dem": fetch_dem, "terrain": fetch_terrain, "catchment": fetch_catchment, "landcover": fetch_landcover,
+         "overture": fetch_overture, "streets": fetch_streets, "lst": fetch_lst, "seasonal": fetch_seasonal, "heights": fetch_heights,
          "wind": fetch_wind}
 
 

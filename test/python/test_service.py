@@ -67,7 +67,7 @@ def test_key_changes_with_what_changes_the_result():
     ({"boundary": SQUARE, "grid": {"size": 5}}, "between 10 and 50"),
     ({"boundary": SQUARE, "sea_levels": {"a b": 1}}, "letters"),
     ({"boundary": {"type": "Polygon", "coordinates": [[[72.80, 18.90], [72.86, 18.90], [72.86, 18.96],
-                                                       [72.80, 18.96], [72.80, 18.90]]]}}, "the limit is 4 km²"),
+                                                       [72.80, 18.96], [72.80, 18.90]]]}}, "the limit is 16 km²"),
     ({"boundary": SQUARE, "rules": {"defaults": {}, "forbidden": [{"name": "x", "when": "water"}]}}, "structured"),
 ])
 def test_rejects_with_a_clear_message(client, body, message):

@@ -41,6 +41,11 @@
     <div><i class="wb-ramp" style="background: linear-gradient(90deg, {P.t.elevation.join(', ')}); opacity: .6"></i><span>ground height</span></div>
     <div><i class="wb-ramp" style="background: linear-gradient(90deg, {P.t.water.storage}, {P.t.water.flood}, {P.t.water.deep})"></i><span>valleys, small to large</span></div>
     <div><i style="--c: transparent; background: repeating-linear-gradient(-45deg, {P.t.water.deep} 0 1px, transparent 1px 5px)"></i><span>valley buffer</span></div>
+    <!-- COPY: flow lines legend -->
+    {#if site.flow_lines?.length}
+      <div><i class="is-line" style="--c: {P.t.water.deep}"></i><span>flow lines, wider downstream</span></div>
+      {#if site.flow_lines.some((f) => f.confidence === "low")}<div><i class="is-line" style="--c: transparent; border-top: 2px dashed {P.t.water.deep}"></i><span title="The ground falls less than 1 m over the next kilometre of flow: less than the terrain model resolves, so the line may not be where water runs">dashed: too flat to be sure</span></div>{/if}
+    {/if}
     <div><i class="is-line" style="--c: {G.skeleton?.source === 'roads' ? P.t.ink2 : P.ink}; --w: 3px"></i><span>main streets</span></div>
     {#if site.skeleton?.crossings?.length}<div><i style="--c: var(--pc-surface); border-radius: 50%; box-shadow: inset 0 0 0 2px var(--pc-water)"></i><span>crossing a valley</span></div>{/if}
   </div>

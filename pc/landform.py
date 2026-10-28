@@ -190,8 +190,20 @@ def analyse(site: Site, grid, nbrs: list, graph) -> tuple[gpd.GeoDataFrame, dict
     grid["flow_to_row"] = np.where(recv >= 0, rows[recv], -1)  # the receiver, by row and col, so it
     grid["flow_to_col"] = np.where(recv >= 0, cols[recv], -1)  # survives cropping
 
-    # Valleys: mapped channels always; on land with relief, also where enough area drains.
-    valley = channel | ((acc >= site.valley_ha) & ~water & (not flat))
+    # Valleys: where the terrain's own pixels carry flow lines over the whole upstream catchment
+    # (pc/hydro.py), with mapped channels always. Sites without the catchment terrain keep the
+    # older reading on the cells: mapped channels, and on land with relief where enough drains.
+    from pc import hydro
+    lines = None
+    if hydro.catchment_path(site).exists():
+        h = hydro.analyse(site)
+        on = hydro.onto_cells(grid, h)
+        lines, hsum = h["lines"], h["summary"]
+        valley = channel | ((on["order"] > 0) & ~water)
+        grid["flow_acc_ha"] = np.maximum(acc, on["acc_ha"]).round(2)   # upstream area beyond the site
+        grid["sink_m"] = on["sink_m"].round(2)
+    else:
+        valley = channel | ((acc >= site.valley_ha) & ~water & (not flat))
     contrib = [[] for _ in range(n)]
     for i in range(n):
         if valley[i] and recv[i] >= 0 and valley[recv[i]]:
@@ -210,6 +222,8 @@ def analyse(site: Site, grid, nbrs: list, graph) -> tuple[gpd.GeoDataFrame, dict
         else:
             seg[i] = segments
             segments += 1
+    if lines is not None:
+        order = np.where(valley, np.maximum(order, on["order"]), 0)
     rivers = _river_cells(site, grid) & valley
     order[rivers] = np.maximum(order[rivers], MAPPED_RIVER_ORDER)
     grid["mapped_channel"] = channel
@@ -234,12 +248,13 @@ def analyse(site: Site, grid, nbrs: list, graph) -> tuple[gpd.GeoDataFrame, dict
     grid["valley_buffer"] = buffer & ~water
 
     # Catchments: the valley segment (or outlet) each cell drains to. On flat land, the nearest
-    # mapped drain by steps, since flow there follows noise.
+    # mapped drain by steps, since flow there follows noise: the flow lines traced on the
+    # terrain still mark valleys, but divides between them would be ridges of a metre or two.
     cid = np.full(n, -1)
     if flat:
         from collections import deque
         q = deque()
-        for i in np.flatnonzero(valley):
+        for i in np.flatnonzero(valley & channel if lines is not None else valley):
             cid[i] = seg[i]
             q.append(i)
         while q:
@@ -318,8 +333,22 @@ def analyse(site: Site, grid, nbrs: list, graph) -> tuple[gpd.GeoDataFrame, dict
         "catchments": int(len(carea)),
         "ridges": ridges,
         "ridge_min_ha": RIDGE_MIN_HA, "ridge_min_consistency": RIDGE_MIN_CONSISTENCY,
+        **({"flow_lines": hsum} if lines is not None else {}),
     }
+    if lines is not None:
+        site.layers.mkdir(parents=True, exist_ok=True)
+        lines.to_file(flow_lines_path(site), driver="GeoJSON")
     return grid, summary
+
+
+def flow_lines_path(site: Site):
+    return site.layers / "flow-lines.geojson"
+
+
+def flow_lines(site: Site):
+    """The flow lines pc/hydro.py traced (site CRS), or None for layers built without them."""
+    p = flow_lines_path(site)
+    return gpd.read_file(p).to_crs(site.crs) if p.exists() else None
 
 
 def save(site: Site, summary: dict):

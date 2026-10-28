@@ -33,9 +33,11 @@ const INFO: Record<string, LayerInfo> = {
   valley_buffer: { label: "valley buffer", note: "room either side of a valley, wider for bigger streams: provisional until checked against nallah margins", kind: "flag", ramp: "water" },
   catchment_id: { label: "catchments", note: "the valley segment or outlet each cell drains to", kind: "count", ramp: "measure" },
   ridge: { label: "ridges", note: "divides between catchments: the land the smaller side drains (ha)", kind: "hectares", ramp: "measure" },
+  seasonal_water: { label: "seasonal ponds", note: "share of the cell wet at the end of most monsoons (Sentinel-2, 10 m): ponds, tanks and ahars that are farmed or dry the rest of the year", kind: "share", ramp: "water" },
+  sink_m: { label: "hollows", note: "how deep water would stand before spilling, on the 30 m terrain (m)", kind: "metres", ramp: "water" },
   mapped_channel: { label: "mapped streams and drains", note: "OSM via Overture: wins where it disagrees with the ground", kind: "flag", ramp: "water" },
 };
-const ORDER = ["water", "ground", "flood_", "pool", "flow_acc_ha", "mapped_channel", "valley_order", "valley_buffer", "catchment_id",
+const ORDER = ["water", "seasonal_water", "ground", "flood_", "pool", "sink_m", "flow_acc_ha", "mapped_channel", "valley_order", "valley_buffer", "catchment_id",
   "ridge", "lst", "catchment_ha", "upstream", "edge_dist", "trees", "green", "mangrove", "built", "industrial", "in_design"];
 const HIDDEN = new Set(["sea", "elev", "bare", "wl_built", "wl_water", "upstream", "flow_to_row", "flow_to_col"]);
 

@@ -52,6 +52,18 @@ export function landform(ctx: Ctx, v: Draw.View, site: E.SiteExport, G: E.Ground
   Draw.fillRegions(ctx, v, g.x, g.y, g.x.map((_, i) => (water?.[i] ? P.t.water.deep : order?.[i] ? blues[Math.min(2, (order[i] as number) - 1)] : null)), shape);
   if (buffer) Draw.fillRegions(ctx, v, g.x, g.y, g.x.map((_, i) => (buffer[i] && !order?.[i] ? "buf" : null)), shape,
     { buf: { fill: false, pattern: "/", ink: P.t.water.deep, gap: 5 } });
+  // flow lines on the terrain's pixels, wider by stream order; dashed where low confidence
+  if (site.flow_lines?.length) {
+    ctx.save(); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = P.t.water.deep;
+    for (const f of site.flow_lines) {
+      ctx.beginPath();
+      f.pts.forEach(([x, y], k) => (k ? ctx.lineTo(v.px(x), v.py(y)) : ctx.moveTo(v.px(x), v.py(y))));
+      ctx.lineWidth = 0.8 + 0.6 * Math.min(f.order, 5);
+      ctx.setLineDash(f.confidence === "low" ? [5, 4] : []);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
   Draw.context(ctx, v, site.context, P, { labels: true, roads: false });
   // the skeleton: ridge streets in ink, the existing roads it keeps in grey
   ctx.save(); ctx.lineCap = "round"; ctx.lineJoin = "round";

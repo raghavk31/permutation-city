@@ -30,7 +30,7 @@ import json
 import geopandas as gpd
 import numpy as np
 
-from pc import elites, evolve, fitness, genome, landform, lst, metrics, rules, skeleton, syntax, wind
+from pc import elites, evolve, fitness, genome, landform, lst, metrics, rules, seasonal, skeleton, syntax, wind
 from pc import grid as cellgrid
 from pc.rng import Rng
 from pc.site import ROOT, Site, utc_offset_of
@@ -319,9 +319,10 @@ def export(site: Site) -> dict:
             "target_ha": round(fitness.floor_area_target(site, ground) / 1e4, 1),
             "design_ha": round(float(ground.area.sum()) / 1e4, 1),
             "sea_levels": site.sea_levels, "states": list(STATE_CODE),
-            "credits": CREDITS + ([wind.CREDIT] if wind.meta(site) else []),
+            "credits": CREDITS + ([wind.CREDIT] if wind.meta(site) else []) + ([seasonal.CREDIT] if seasonal.meta(site) else []),
             **({"landform": {k: v for k, v in lf_summary.items() if k != "ridges"}} if lf_summary else {}),
             **({"lst": lst.meta(site)} if lst.meta(site) else {}),
+            **({"seasonal_water": {k: v for k, v in seasonal.meta(site).items() if k != "scenes"}} if seasonal.meta(site) else {}),
             **({"wind": wind.meta(site)} if wind.meta(site) else {}),
         },
         "grid": grid,
@@ -337,6 +338,11 @@ def export(site: Site) -> dict:
         },
         **({"skeleton": skel} if skel else {}),
     }
+    fl = landform.flow_lines(site)
+    if fl is not None and len(fl):  # flow lines on the terrain's pixels (pc/hydro.py), for the map
+        out["flow_lines"] = [{"pts": [[round(x - ox, 1), round(y - oy, 1)] for x, y in g.coords],
+                              "order": int(o), "upstream_ha": float(u), "confidence": str(c)}
+                             for g, o, u, c in zip(fl.geometry, fl["order"], fl["upstream_ha"], fl["confidence"])]
     sx = syntax.buffer_streets(site, (ox, oy))
     if sx:
         out["syntax"] = sx
