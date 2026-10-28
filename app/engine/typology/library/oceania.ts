@@ -97,7 +97,7 @@ export const OCEANIA: Precedent[] = [
       { what: "Gable section", value: "about 5 m high", conf: "low", src: 1 },
       { what: "Piles", value: "both men's and family houses, because of regular floods", conf: "medium", src: 0 },
     ],
-    seed: { arrangement: "row", width: 12, depth: 35, storeys: 1, floorH: 4, count: 1, rows: 1, street: 16, raised: 2.5, roof: "gable", porosity: 0.3, trees: 4 },
+    seed: { arrangement: "row", width: 12, depth: 35, storeys: 1, floorH: 4, count: 1, rows: 1, street: 16, raised: 2.5, roof: "gable", pitch: 55, porosity: 0.3, trees: 4 },
     seedNote: "Length about 35 m from the figures; height of piles assumed.",
     sources: [
       src("Traditional architecture of Papua New Guinea, Wikipedia", "https://en.wikipedia.org/wiki/Traditional_architecture_of_Papua_New_Guinea"),

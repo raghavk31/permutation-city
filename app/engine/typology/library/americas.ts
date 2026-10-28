@@ -81,7 +81,7 @@ export const AMERICAS: Precedent[] = [
       { what: "Spacing", value: "about 500 m", conf: "low", src: 1 },
       { what: "Largest station (2026)", value: "91 m long, about 22,000 passengers a day", conf: "medium", src: 1 },
     ],
-    seed: { arrangement: "canopy", width: 30, depth: 3.5, storeys: 1, floorH: 3.5, count: 1, street: 7 },
+    seed: { arrangement: "shed", width: 3.5, depth: 30, storeys: 1, floorH: 1.2, count: 1, street: 7, raised: 0.8, roof: "vault", porosity: 0.9 },
     seedNote: "Length assumed for a typical station.",
     sources: [
       src("URBS Curitiba, transit concession presentation (2025)", "https://www.urbs.curitiba.pr.gov.br/PORTAL/licitacaoTransporteColetivo/doc/RoadShowPresentationEN.pdf"),
@@ -160,7 +160,7 @@ export const AMERICAS: Precedent[] = [
       { what: "Families", value: "three to ten per island", conf: "low", src: 1 },
       { what: "Life", value: "about 25-30 years; new reed added often", conf: "low", src: 0 },
     ],
-    seed: { arrangement: "ponds", width: 28, depth: 28, storeys: 0, count: 3, rows: 1, street: 14 },
+    seed: { arrangement: "ponds", width: 28, depth: 28, storeys: 0, count: 3, rows: 1, street: 14, ground: "water" },
     seedNote: "Island size from the figures (about 30 m across for small ones).",
     sources: [
       src("Uru people, Wikipedia", "https://en.wikipedia.org/wiki/Uru_people"),
@@ -180,7 +180,7 @@ export const AMERICAS: Precedent[] = [
       { what: "Top to bottom", value: "up to about 15 °C difference", conf: "medium", src: 0 },
       { what: "Purpose", value: "agricultural trials is a hypothesis", conf: "low", src: 1 },
     ],
-    seed: { arrangement: "sunken", width: 70, depth: 70, storeys: 0, sunken: 30, steps: 8 },
+    seed: { arrangement: "sunken", footprint: "round", width: 70, depth: 70, storeys: 0, sunken: 30, steps: 8 },
     seedNote: "Depth from the figures; the round basin drawn square.",
     sources: [
       src("Moray (Inca ruin), Wikipedia", "https://en.wikipedia.org/wiki/Moray_(Inca_ruin)"),
@@ -220,7 +220,7 @@ export const AMERICAS: Precedent[] = [
       { what: "With skin lining", value: "from about 2 °C to 10-20 °C", conf: "medium", src: 0 },
       { what: "Entrance", value: "tunnel below the floor, a cold trap", conf: "medium", src: 0 },
     ],
-    seed: { arrangement: "cluster", footprint: "round", width: 4, depth: 4, diameter: 4, storeys: 1, floorH: 0.4, count: 3, court: 6, gap: 1.5, rows: 1, street: 6, roof: "dome", porosity: 0.01 },
+    seed: { arrangement: "cluster", footprint: "round", width: 4, depth: 4, diameter: 4, storeys: 1, floorH: 0.2, count: 3, court: 6, gap: 1.5, rows: 1, street: 6, roof: "dome", pitch: 40, porosity: 0.01 },
     seedNote: "Sizes assumed.",
     sources: [src("Igloo, Wikipedia", "https://en.wikipedia.org/wiki/Igloo")],
   },
@@ -256,7 +256,7 @@ export const AMERICAS: Precedent[] = [
       { what: "Door", value: "faces east", conf: "medium", src: 0 },
       { what: "Roof", value: "cribbed logs covered with earth", conf: "medium", src: 1 },
     ],
-    seed: { arrangement: "cluster", footprint: "round", width: 6, depth: 6, diameter: 6, storeys: 1, floorH: 1.6, count: 2, court: 12, gap: 8, rows: 1, street: 10, roof: "dome", porosity: 0.03, wall: 0.4 },
+    seed: { arrangement: "cluster", footprint: "round", width: 6, depth: 6, diameter: 6, storeys: 1, floorH: 1.6, count: 2, court: 12, gap: 8, rows: 1, street: 10, roof: "dome", pitch: 25, porosity: 0.03, wall: 0.4 },
     seedNote: "Size from the figures (rounded up).",
     sources: [
       src("Hogan, Wikipedia", "https://en.wikipedia.org/wiki/Hogan"),
@@ -413,7 +413,7 @@ export const AMERICAS: Precedent[] = [
       { what: "Rio Negro", value: "large annual changes of level; 12.3 m at Manaus port in the 2024 drought", conf: "medium", src: 0 },
       { what: "Manaus by the 1970s", value: "a large system of stilt and floating houses", conf: "medium", src: 1 },
     ],
-    seed: { arrangement: "row", width: 5, depth: 7, storeys: 1, floorH: 2.8, count: 8, rows: 2, street: 6, gap: 2, raised: 3, roof: "gable", porosity: 0.3 },
+    seed: { arrangement: "row", width: 5, depth: 7, storeys: 1, floorH: 2.8, count: 8, rows: 2, street: 6, gap: 2, raised: 3, roof: "gable", porosity: 0.3, ground: "water" },
     seedNote: "Sizes assumed.",
     sources: [
       src("Rede Onda Digital, Floating houses swept away in the interior of Amazonas", "https://redeondadigital.com.br/amazonas/video-flutuantes-sao-levados-pelo-rio-no-interior-do-am"),

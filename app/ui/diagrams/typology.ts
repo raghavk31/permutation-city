@@ -57,8 +57,31 @@ class Drawing {
       if (out[0] + out[1] <= 0.001 || s.h <= 0.01) continue; // faces away from the viewer
       sides.push({ d: a[0] + a[1] + b[0] + b[1], draw: () => this.poly([[a[0], a[1], z0], [b[0], b[1], z0], [b[0], b[1], z1], [a[0], a[1], z1]], sideShade(out[0], out[1], c)) });
     }
+    if (n > 8 && s.h > 0.01) { this.drum(s, r, z0, z1, c); this.roof(s, r, z1, c); return; }
     sides.sort((p, q) => p.d - q.d).forEach((x) => x.draw());
     this.roof(s, r, z1, c);
+  }
+
+  /** A round wall: facets shaded smoothly by their facing, with only its outline drawn, so it
+   *  reads as one curved wall rather than a row of slats. */
+  drum(s: Solid, r: Pt[], z0: number, z1: number, c: ReturnType<typeof fillOf>) {
+    const n = r.length, sign = ringSign(r) > 0 ? 1 : -1, front: [Pt, Pt][] = [];
+    const shade = (t: number) => s.use === "built" ? `color-mix(in srgb, var(--pc-ink) ${(3 + 12 * t).toFixed(1)}%, var(--pc-surface))` : t < 0.5 ? c.lit : c.dark;
+    for (let i = 0; i < n; i++) {
+      const a = r[i], b = r[(i + 1) % n], ex = b[0] - a[0], ey = b[1] - a[1], L = Math.hypot(ex, ey) || 1;
+      const nx = (sign * ey) / L, ny = (-sign * ex) / L;
+      if (nx + ny <= 0.001) continue;
+      front.push([a, b]);
+      this.poly([[a[0], a[1], z0], [b[0], b[1], z0], [b[0], b[1], z1], [a[0], a[1], z1]], shade(Math.max(0, Math.min(1, (nx - ny + 1) / 2))), false);
+    }
+    for (const [a, b] of front) {
+      this.s.line([[a[0], a[1], z0], [b[0], b[1], z0]], "var(--pc-ink)", 0.55, { opacity: 0.5 });
+      this.s.line([[a[0], a[1], z1], [b[0], b[1], z1]], "var(--pc-ink)", 0.55, { opacity: 0.5 });
+    }
+    // the two sides of the silhouette
+    const sx = (p: Pt) => iso([p[0], p[1], 0])[0];
+    const l = r.reduce((m, p) => (sx(p) < sx(m) ? p : m)), rr = r.reduce((m, p) => (sx(p) > sx(m) ? p : m));
+    for (const p of [l, rr]) this.s.line([[p[0], p[1], z0], [p[0], p[1], z1]], "var(--pc-ink)", 0.55, { opacity: 0.5 });
   }
 
   roof(s: Solid, r: Pt[], z: number, c: ReturnType<typeof fillOf>) {
@@ -70,7 +93,7 @@ class Drawing {
     }
     if (kind === "cone" || kind === "dome") {
       const R = Math.max(...r.map(([x, y]) => Math.hypot(x - cx, y - cy)));
-      const H = kind === "cone" ? R * 0.9 : R * 0.75, tiers = kind === "cone" ? 1 : 3;
+      const H = kind === "cone" ? R * Math.tan(((s.pitch ?? 45) * Math.PI) / 180) : R * (s.pitch ? Math.tan((s.pitch * Math.PI) / 180) : 0.75), tiers = kind === "cone" ? 1 : 4;
       const rings = Array.from({ length: tiers + 1 }, (_, k) => {
         const t = k / tiers, rr = kind === "cone" ? 1 - t : Math.cos((t * Math.PI) / 2), zz = kind === "cone" ? z + H * t : z + H * Math.sin((t * Math.PI) / 2);
         return r.map(([x, y]): P3 => [cx + (x - cx) * rr, cy + (y - cy) * rr, zz]);
@@ -80,13 +103,26 @@ class Drawing {
         const j = (i + 1) % r.length, p = [rings[k][i], rings[k][j], rings[k + 1][j], rings[k + 1][i]];
         const mx = (p[0][0] + p[1][0]) / 2 - cx, my = (p[0][1] + p[1][1]) / 2 - cy;
         if (mx + my < -0.3 * R && k === 0) continue;
-        faces.push({ d: p[0][0] + p[0][1] + p[1][0] + p[1][1] + k, p, fill: mx - my > 0 ? c.dark : c.lit });
+        const t = Math.max(0, Math.min(1, ((mx - my) / (Math.hypot(mx, my) || 1) + 1) / 2));
+        faces.push({ d: p[0][0] + p[0][1] + p[1][0] + p[1][1] + k, p, fill: r.length > 8 && s.use === "built" ? `color-mix(in srgb, var(--pc-ink) ${Math.max(1, 2 + 12 * t - 2 * k).toFixed(1)}%, var(--pc-surface))` : mx - my > 0 ? c.dark : c.lit });
       }
       // A cone over a polygon of a few sides is a pyramid: its faces keep their edges and the
       // edges behind it are drawn dashed, so it reads as a pyramid, not a flat shape. Domes and
       // round cones are sealed without hairlines, so they read smooth, not as a cage.
       const pyramid = kind === "cone" && r.length <= 8;
       faces.sort((a, b) => a.d - b.d).forEach((x) => this.poly(x.p, x.fill, pyramid));
+      if (!pyramid) {
+        // the outline: the front of the eave and, for a cone, its two sides to the apex
+        const sx = (p: P3) => iso(p)[0];
+        const base = rings[0], top = rings[tiers];
+        for (let i = 0; i < r.length; i++) {
+          const j = (i + 1) % r.length;
+          if ((r[i][0] + r[j][0]) / 2 - cx + (r[i][1] + r[j][1]) / 2 - cy > -0.3 * R) this.s.line([base[i], base[j]], "var(--pc-ink)", 0.55, { opacity: 0.5 });
+        }
+        const l = base.reduce((m, p) => (sx(p) < sx(m) ? p : m)), rt = base.reduce((m, p) => (sx(p) > sx(m) ? p : m));
+        if (kind === "cone") for (const p of [l, rt]) this.s.line([p, top[0]], "var(--pc-ink)", 0.55, { opacity: 0.5 });
+        else for (const p of [l, rt]) { const i = base.indexOf(p); this.s.line(rings.map((q) => q[i]), "var(--pc-ink)", 0.55, { opacity: 0.5 }); }
+      }
       if (pyramid) {
         const apex: P3 = [cx, cy, z + H], n = r.length;
         const hidden = r.map((_, i) => { const j = (i + 1) % n; return (r[i][0] + r[j][0]) / 2 - cx + (r[i][1] + r[j][1]) / 2 - cy < -0.3 * R; });
@@ -104,16 +140,33 @@ class Drawing {
       const P = (i: number, up: boolean): P3 => [q[i][0], q[i][1], z + (up ? R : 0)];
       this.poly([P(1, false), P(2, false), P(2, true)], c.dark);
       this.poly([P(0, false), P(3, false), P(3, true)], c.lit);
-      this.poly([P(0, false), P(1, false), P(2, true), P(3, true)], "var(--pc-green-light)");
+      this.poly([P(0, false), P(1, false), P(2, true), P(3, true)], PAPER.top);
       return;
     }
     // gable or vault over a quadrilateral: the ridge along the longer pair of sides
     const e0 = Math.hypot(r[1][0] - r[0][0], r[1][1] - r[0][1]), e1 = Math.hypot(r[2][0] - r[1][0], r[2][1] - r[1][1]);
-    const q = e0 >= e1 ? r : [r[1], r[2], r[3], r[0]];
-    const span = Math.min(e0, e1), H = kind === "vault" ? span * 0.5 : span * 0.35;
+    const q = (e0 >= e1) !== !!s.ridgeShort ? r : [r[1], r[2], r[3], r[0]];
+    const span = Math.min(e0, e1), H = kind === "vault" ? span * 0.5 : (span / 2) * Math.tan(((s.pitch ?? 35) * Math.PI) / 180);
     const mid = (a: Pt, b: Pt): Pt => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-    const m0 = mid(q[0], q[3]), m1 = mid(q[1], q[2]);
-    const ridge: [P3, P3] = [[m0[0], m0[1], z + H], [m1[0], m1[1], z + H]];
+    let m0 = mid(q[0], q[3]), m1 = mid(q[1], q[2]);
+    let ridge: [P3, P3] = [[m0[0], m0[1], z + H], [m1[0], m1[1], z + H]];
+    if (kind === "saddle") {
+      // a saddle: the ridge sags in the middle and its ends sweep up and out past the gables
+      // (a tongkonan, a rumah gadang), drawn as two slopes each side of a raised middle
+      const L = Math.hypot(m1[0] - m0[0], m1[1] - m0[1]) || 1, ux = (m1[0] - m0[0]) / L, uy = (m1[1] - m0[1]) / L, out = L * 0.18;
+      const e0: P3 = [m0[0] - ux * out, m0[1] - uy * out, z + H * 2.2], e1: P3 = [m1[0] + ux * out, m1[1] + uy * out, z + H * 2.2];
+      const c0: P3 = [m0[0] + ux * L * 0.35, m0[1] + uy * L * 0.35, z + H], c1: P3 = [m1[0] - ux * L * 0.35, m1[1] - uy * L * 0.35, z + H];
+      const E = (pt: Pt): P3 => [pt[0], pt[1], z];
+      const faces = [
+        { p: [E(q[0]), E(q[1]), c1, c0], fill: PAPER.lit }, { p: [E(q[3]), E(q[2]), c1, c0], fill: PAPER.top },
+        { p: [E(q[0]), c0, e0], fill: PAPER.lit }, { p: [E(q[3]), c0, e0], fill: PAPER.top },
+        { p: [E(q[1]), c1, e1], fill: PAPER.lit }, { p: [E(q[2]), c1, e1], fill: PAPER.top },
+        { p: [E(q[0]), E(q[3]), e0], fill: PAPER.dark }, { p: [E(q[1]), E(q[2]), e1], fill: PAPER.dark },
+      ];
+      const dep = (p: P3[]) => p.reduce((a, v) => a + v[0] + v[1], 0) / p.length;
+      faces.sort((a, b) => dep(a.p) - dep(b.p)).forEach((x) => this.poly(x.p, x.fill));
+      return;
+    }
     if (kind === "vault") {
       const segs = 4, prof = (t: number) => Math.sin(t * Math.PI);
       const at = (a: Pt, b: Pt, t: number): P3 => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, z + H * prof(t)];
@@ -183,6 +236,38 @@ function pit(d: Drawing, levels: Solid[], water: Solid[], plot: { w: number; d: 
   }
 }
 
+/** A round bowl (Moray, a theatre): from the deepest ring up, each ring's tread as an annulus
+ *  over the seating arc and the far half of its riser, then the ground round it. Rings are
+ *  drawn from 48-point discs; `sweep` degrees of the circle are stepped, centred on the far
+ *  side, and the rest is the flat floor at the bottom. */
+function roundPit(d: Drawing, levels: Solid[], water: Solid[], sweep: number) {
+  const sorted = [...levels].sort((a, b) => a.z - b.z);
+  const geo = (x: Solid) => { const xs = x.ring.map((p) => p[0]); const r = (Math.max(...xs) - Math.min(...xs)) / 2; return { cx: Math.min(...xs) + r, cy: x.ring.reduce((a, p) => a + p[1], 0) / x.ring.length, r }; };
+  const { cx, cy, r: R } = geo(sorted[sorted.length - 1]);
+  // the arc is centred on the far side (toward -x -y, away from the viewer)
+  const mid = (5 * Math.PI) / 4, half = (Math.min(360, sweep) * Math.PI) / 360, N = 48;
+  const arc = (r: number, z: number, a0: number, a1: number): P3[] => Array.from({ length: N + 1 }, (_, i) => { const a = a0 + ((a1 - a0) * i) / N; return [cx + r * Math.cos(a), cy + r * Math.sin(a), z]; });
+  const zb = sorted[0].z + sorted[0].h;
+  // the floor
+  d.poly(arc(geo(sorted[0]).r, zb, 0, 2 * Math.PI), GROUND);
+  for (const w of water) d.poly(w.ring.map(([x, y]): P3 => [x, y, w.z + w.h]), "var(--pc-water)");
+  for (let k = 1; k < sorted.length; k++) {
+    const r0 = geo(sorted[k - 1]).r, r1 = geo(sorted[k]).r, z0 = sorted[k - 1].z + sorted[k - 1].h, z1 = sorted[k].z + sorted[k].h;
+    const a0 = mid - half, a1 = mid + half;
+    // the riser at r0 from z0 to z1: its far side faces the viewer
+    const fa0 = Math.max(a0, Math.PI / 4 + 0.001), fa1 = Math.min(a1, (9 * Math.PI) / 4 - 0.001);
+    if (fa1 > fa0) d.poly([...arc(r0, z0, fa0, fa1), ...arc(r0, z1, fa0, fa1).reverse()], CUT, false);
+    d.poly([...arc(r1, z1, a0, a1), ...arc(r0, z1, a0, a1).reverse()], GROUND);
+  }
+  // the ground round the bowl: a square with the bowl cut out
+  const m = 6, zt = 0, sq: P3[] = [[cx - R - m, cy - R - m, zt], [cx + R + m, cy - R - m, zt], [cx + R + m, cy + R + m, zt], [cx - R - m, cy + R + m, zt]];
+  if (sweep >= 360) {
+    // the square with the bowl cut out, its seam left unstroked; then its edges and the rim
+    d.poly([...sq, sq[0], ...arc(R, zt, 0, 2 * Math.PI).reverse(), sq[0]], GROUND, false);
+    d.poly(sq, "none"); d.poly(arc(R, zt, 0, 2 * Math.PI), "none");
+  }
+}
+
 export interface TypologyDrawing { svg: string; fsi: number; gsi: number; floorArea: number; plot: { w: number; d: number } }
 
 /** The drawing of one seed. */
@@ -192,8 +277,9 @@ export function drawTypology(p: Params, title: string): TypologyDrawing {
   const above = b.solids.filter((x) => !below.includes(x) && !water.includes(x));
   const { w: W, d: D } = b.plot;
 
-  if (below.length) pit(d, below, water, b.plot);
-  else d.poly([[-2, -2, 0], [W + 2, -2, 0], [W + 2, D + 2, 0], [-2, D + 2, 0]], GROUND);
+  if (below.length && below[0].ring.length > 8) roundPit(d, below, water, p.sweep ?? 360);
+  else if (below.length) pit(d, below, water, b.plot);
+  else d.poly([[-2, -2, 0], [W + 2, -2, 0], [W + 2, D + 2, 0], [-2, D + 2, 0]], p.ground === "water" ? "var(--pc-water)" : GROUND);
 
   // back to front by the nearest corner, lower first
   const key = (x: Solid) => Math.max(...x.ring.map(([a, c]) => a + c)) * 0.5 + Math.min(...x.ring.map(([a, c]) => a + c)) * 0.5 + x.z * 0.01;
@@ -209,8 +295,10 @@ export function drawTypology(p: Params, title: string): TypologyDrawing {
   const land = (x: Solid) => x.use === "green" || x.use === "ground" || x.use === "water";
   const order = [
     ...above.filter(land).sort((a, c) => key(a) - key(c)),
-    ...[...above.filter((x) => !onRoof(x) && !land(x)), ...loose].sort((a, c) => key(a) - key(c))
+    ...[...above.filter((x) => !onRoof(x) && !land(x) && x.use !== "canopy"), ...loose].sort((a, c) => key(a) - key(c))
       .flatMap((x) => [x, ...(parts.get(x) ?? []).sort((a, c) => key(a) - key(c))]),
+    // canopies last: they cover their posts
+    ...above.filter((x) => x.use === "canopy").sort((a, c) => key(a) - key(c)),
   ];
   for (const x of order) {
     if (x.use === "tree") s.tree({ kind: "tree", x: x.ring[0][0], y: x.ring[0][1], z: 0, s: x.h / 3 });

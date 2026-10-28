@@ -16,7 +16,7 @@ export const AFRICA: Precedent[] = [
       { what: "Height", value: "3-9 m", conf: "medium", src: 0 },
       { what: "Lifts", value: "up to 0.5 m, each dried before the next", conf: "low", src: 1 },
     ],
-    seed: { arrangement: "cluster", footprint: "round", width: 5, depth: 5, diameter: 5, storeys: 1, floorH: 4, count: 6, court: 10, gap: 2, rows: 1, roof: "dome", porosity: 0.05, wall: 0.4 },
+    seed: { arrangement: "cluster", footprint: "round", width: 5, depth: 5, diameter: 5, storeys: 1, floorH: 1, count: 6, court: 10, gap: 2, rows: 1, roof: "cone", pitch: 72, porosity: 0.05, wall: 0.4 },
     seedNote: "Height from the figures; diameter and cluster assumed.",
     sources: [
       src("Musgum mud hut, Wikipedia", "https://en.wikipedia.org/wiki/Musgum_mud_hut"),
@@ -58,7 +58,7 @@ export const AFRICA: Precedent[] = [
       { what: "Area", value: "about 520-526 m²", conf: "medium", src: 1 },
       { what: "Cooler than a tin roof alone", value: "up to 6 °C", conf: "medium", src: 0 },
     ],
-    seed: { arrangement: "row", width: 9, depth: 8, storeys: 1, floorH: 3.6, count: 3, rows: 1, street: 10, gap: 4, eave: 2.5, roof: "flat", porosity: 0.3, wall: 0.3 },
+    seed: { arrangement: "row", width: 9, depth: 8, storeys: 1, floorH: 3.6, count: 3, rows: 1, street: 10, gap: 4, eave: 2.5, roof: "flat", porosity: 0.3, wall: 0.3, features: [{ kind: "flyroof", height: 1.2, margin: 2.5 }] },
     seedNote: "Three classrooms with gaps, sized to about 520 m² with the covered spaces (approximate).",
     sources: [
       src("Aga Khan Award, Primary School, Gando", "https://the.akdn/en/architecture/project/primary-school"),
@@ -78,7 +78,7 @@ export const AFRICA: Precedent[] = [
       { what: "Granaries", value: "almost spherical above a cylindrical base", conf: "high", src: 0 },
       { what: "Landscape", value: "about 50,000 ha in Togo; World Heritage 2004", conf: "high", src: 0 },
     ],
-    seed: { arrangement: "cluster", footprint: "round", width: 3.5, depth: 3.5, diameter: 3.5, storeys: 2, floorH: 2.4, count: 6, court: 5, gap: 0.2, rows: 1, street: 12, roof: "dome", porosity: 0.05, wall: 0.4 },
+    seed: { arrangement: "cluster", footprint: "round", width: 3.5, depth: 3.5, diameter: 3.5, storeys: 2, floorH: 2.4, count: 6, court: 5, gap: 0.2, rows: 1, street: 12, roof: "cone", pitch: 50, porosity: 0.05, wall: 0.4 },
     seedNote: "Towers and granaries drawn as a ring of round rooms; sizes assumed.",
     sources: [src("UNESCO, Koutammakou, the land of the Batammariba", "https://whc.unesco.org/document/151851")],
   },
@@ -137,7 +137,7 @@ export const AFRICA: Precedent[] = [
       { what: "People", value: "about 20,000-45,000 (sources differ)", conf: "low", src: 1 },
       { what: "Stilts", value: "several feet above the water", conf: "low", src: 2 },
     ],
-    seed: { arrangement: "row", width: 6, depth: 8, storeys: 1, floorH: 3, count: 6, rows: 2, street: 8, gap: 3, raised: 2, roof: "gable", porosity: 0.35 },
+    seed: { arrangement: "row", width: 6, depth: 8, storeys: 1, floorH: 3, count: 6, rows: 2, street: 8, gap: 3, raised: 2, roof: "gable", porosity: 0.35, ground: "water" },
     seedNote: "House sizes and stilt height assumed.",
     sources: [
       src("Atlas Obscura, Ganvié", "https://atlasobscura.com/places/gavie-benin"),
@@ -193,7 +193,7 @@ export const AFRICA: Precedent[] = [
       { what: "Entrance", value: "low, about 18 inches by 2 feet in old accounts", conf: "low", src: 1 },
       { what: "Layout", value: "huts in a ring round the cattle kraal; entrance downhill", conf: "medium", src: 1 },
     ],
-    seed: { arrangement: "cluster", footprint: "round", width: 5, depth: 5, diameter: 5, storeys: 1, floorH: 1, count: 9, court: 22, gap: 3, rows: 1, street: 8, roof: "dome", porosity: 0.03 },
+    seed: { arrangement: "cluster", footprint: "round", width: 6, depth: 6, diameter: 6, storeys: 1, floorH: 0.6, count: 10, court: 24, gap: 2, rows: 1, street: 8, roof: "dome", pitch: 50, porosity: 0.03 },
     seedNote: "Hut size from the figures; the kraal is the open centre (not drawn).",
     sources: [
       src("Britannica, Indlu (Zulu dwelling)", "https://www.britannica.com/topic/indlu"),
@@ -212,7 +212,7 @@ export const AFRICA: Precedent[] = [
       { what: "Roof", value: "thick stacks of millet stalks, traditionally eight layers", conf: "medium", src: 0 },
       { what: "Height", value: "about 1-1.5 m inside", conf: "low", src: 1 },
     ],
-    seed: { arrangement: "canopy", width: 8, depth: 6, storeys: 0, floorH: 1.6, count: 1, street: 10, trees: 2 },
+    seed: { arrangement: "canopy", width: 8, depth: 6, storeys: 0, floorH: 1.8, count: 1, street: 10, trees: 2 },
     seedNote: "Height from the figures; plan assumed.",
     sources: [
       src("The Met, Togu na support post", "https://metmuseum.org/art/collection/search/310779"),

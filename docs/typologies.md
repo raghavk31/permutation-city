@@ -293,6 +293,23 @@ No vernacular precedent. Massed in A as plain buildings of their use, sized by t
 solar canopies over parking and markets; a biogas plant beside the waste site; workshops on
 freight streets, downwind.
 
+## Checked against photographs
+
+29 October 2026: every drawing was set beside photographs of the real thing (Wikimedia Commons,
+Wikipedia and the projects' own pages) and corrected where it misled. Fixed: round huts and
+domes now read round with their roofs (bhunga, trulli, musgum, igloo, hogan, goahti);
+roof pitch and ridge direction (gassho, machiya, tulou, shophouse, pol); saddle roofs
+(tongkonan, rumah gadang); houses on water (Ganvié, klong houses, palafitas, floating homes);
+canopies stand on posts (Metropol Parasol, Medina umbrellas, Gando's double roof); round
+bowls (Moray, Epidaurus); a stepwell steps down its length; Kanchanjunga's corner terraces;
+grids with an open square (Jawahar Kala Kendra, Sangrahalaya); Belapur's houses on a square
+round each court; the Nalanda campus as brick wings and towers round a pond.
+
+Still not drawn well: djenne's buttresses, a tulou's continuous roof, Sangath's half-sunken
+vaults, Santorini and Aït Benhaddou on their slopes, Taos's stepped pueblo, weilongwu's half
+ring and pond, Bosco Verticale's planted balconies, Konso's walled hill town. Photos were not
+found for several modern works (Aranya, Belapur's later state).
+
 ## Public space
 
 Added 28 October 2026: open spaces that do a job for the city as well as being places to be. Each

@@ -17,7 +17,7 @@ export const WEST_ASIA_NORTH_AFRICA: Precedent[] = [
       { what: "Splitting blades", value: "start 1.5-2 m above the ground floor", conf: "medium", src: 0 },
       { what: "Courtyard proportions", value: "set in the traditional gereh unit (six courts in Yazd and Kashan)", conf: "medium", src: 1 },
     ],
-    seed: { arrangement: "court", width: 6, depth: 6, storeys: 1, floorH: 4.5, court: 12, rows: 4, street: 4, sunken: 1.5, roof: "flat", porosity: 0.1, wall: 0.8, features: [{ kind: "windcatcher", height: 8, size: 3 }] },
+    seed: { arrangement: "court", width: 6, depth: 6, storeys: 1, floorH: 4.5, court: 12, rows: 4, street: 4, sunken: 1.5, roof: "flat", porosity: 0.1, wall: 0.8, features: [{ kind: "windcatcher", height: 8, size: 3 }, { kind: "pool", size: 5 }] },
     seedNote: "Windcatcher height from the figures (shaft above the roof); all plan sizes assumed.",
     gaps: "Plan measurements of the Mortaz and Fateh-ha houses.",
     sources: [
@@ -96,7 +96,7 @@ export const WEST_ASIA_NORTH_AFRICA: Precedent[] = [
       { what: "Arches", value: "an odd number; up to 15 on the Euphrates", conf: "medium", src: 0 },
       { what: "Reed bundles", value: "about 10 m long", conf: "medium", src: 0 },
     ],
-    seed: { arrangement: "shed", width: 6, depth: 25, storeys: 1, floorH: 5, count: 1, street: 10, roof: "vault", porosity: 0.5 },
+    seed: { arrangement: "shed", width: 6, depth: 25, storeys: 1, floorH: 1, count: 1, street: 10, roof: "vault", porosity: 0.5 },
     seedNote: "Length from the figures; width set larger than the low figure to match photographs (assumed).",
     sources: [
       src("Mudhif, Wikipedia", "https://en.wikipedia.org/wiki/Mudhif"),
@@ -156,7 +156,7 @@ export const WEST_ASIA_NORTH_AFRICA: Precedent[] = [
       { what: "Sails", value: "six vertical blades per mill", conf: "medium", src: 0 },
       { what: "Mills", value: "about 30", conf: "low", src: 1 },
     ],
-    seed: { arrangement: "row", width: 6, depth: 8, storeys: 1, floorH: 18, count: 10, rows: 1, street: 12, gap: 0, roof: "flat", porosity: 0.3 },
+    seed: { arrangement: "row", width: 1.5, depth: 8, storeys: 1, floorH: 18, count: 12, rows: 1, street: 12, gap: 4, roof: "flat", porosity: 0.3 },
     seedNote: "Height from the figures; plan per mill assumed.",
     sources: [
       src("National Geographic, Iran's centuries-old windmills", "https://www.nationalgeographic.com/science/article/nashtifan-iran-windmills"),
@@ -236,7 +236,7 @@ export const WEST_ASIA_NORTH_AFRICA: Precedent[] = [
       { what: "Walls", value: "about 2 m thick at the base, 0.5 m at the top", conf: "low", src: 0 },
       { what: "Freezing pools", value: "30-50 cm deep, brick-lined; shading wall up to 10 m high", conf: "medium", src: 1 },
     ],
-    seed: { arrangement: "sunken", width: 20, depth: 20, storeys: 0, sunken: 5.5, steps: 1, features: [{ kind: "dome", size: 11 }] },
+    seed: { arrangement: "sunken", width: 20, depth: 20, storeys: 0, sunken: 5.5, steps: 1, features: [{ kind: "dome", size: 11, cone: true, pitch: 62 }] },
     seedNote: "Dome and pit from the figures; the freezing pools and wall are not drawn yet.",
     sources: [
       src("Max Fordham, The physics of freezing at the Iranian yakhchal", "https://www.maxfordham.com/practice-people/journal/the-physics-of-freezing-at-the-iranian-yakhchal"),
@@ -275,7 +275,7 @@ export const WEST_ASIA_NORTH_AFRICA: Precedent[] = [
       { what: "Height", value: "about 10-20 m; 15-25 m across", conf: "low", src: 1 },
       { what: "Pigeons", value: "up to about 14,000 per tower", conf: "low", src: 1 },
     ],
-    seed: { arrangement: "cluster", footprint: "round", width: 15, depth: 15, diameter: 15, storeys: 1, floorH: 14, count: 3, court: 40, gap: 6, rows: 1, street: 10, roof: "dome", porosity: 0.1 },
+    seed: { arrangement: "cluster", footprint: "round", width: 10, depth: 10, diameter: 10, storeys: 1, floorH: 16, count: 3, court: 40, gap: 6, rows: 1, street: 10, roof: "dome", pitch: 30, porosity: 0.1 },
     seedNote: "Height and diameter from the figures; three towers in a field assumed.",
     sources: [
       src("Amusing Planet, The pigeon towers of Iran", "https://www.amusingplanet.com/2014/11/the-pigeon-towers-of-iran.html"),

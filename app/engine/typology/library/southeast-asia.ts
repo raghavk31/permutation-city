@@ -17,7 +17,7 @@ export const SOUTHEAST_ASIA: Precedent[] = [
       { what: "Storeys", value: "two to three", conf: "medium", src: 0 },
       { what: "Air well", value: "midway between front and back", conf: "medium", src: 0 },
     ],
-    seed: { arrangement: "row", width: 5, depth: 30, storeys: 3, count: 10, rows: 1, street: 10, well: 0.08, eave: 1.8, roof: "gable", porosity: 0.3, features: [{ kind: "arcade", depth: 1.8 }] },
+    seed: { arrangement: "row", width: 5, depth: 30, storeys: 3, count: 10, rows: 1, street: 10, well: 0.08, eave: 1.8, roof: "gable", ridge: "short", pitch: 25, porosity: 0.3, features: [{ kind: "arcade", depth: 1.8 }] },
     seedNote: "Storeys and five-foot way from the figures; frontage and depth assumed (narrow and deep).",
     gaps: "Frontage and depth from URA or George Town conservation guidelines.",
     sources: [
@@ -96,7 +96,7 @@ export const SOUTHEAST_ASIA: Precedent[] = [
       { what: "Below the floor", value: "piles, with buffalo stabled between them", conf: "medium", src: 0 },
       { what: "Rice barns", value: "smaller versions opposite each house", conf: "medium", src: 0 },
     ],
-    seed: { arrangement: "row", width: 7, depth: 12, storeys: 1, floorH: 3, count: 4, rows: 2, street: 14, gap: 4, raised: 2, eave: 2, roof: "gable", porosity: 0.15 },
+    seed: { arrangement: "row", width: 7, depth: 12, storeys: 1, floorH: 3, count: 4, rows: 2, street: 14, gap: 4, raised: 2, eave: 2, roof: "saddle", porosity: 0.15 },
     seedNote: "All sizes assumed: no measured heights found; houses and barns in two facing rows.",
     sources: [src("Tongkonan, Wikipedia", "https://en.wikipedia.org/wiki/Tongkonan")],
   },
@@ -112,7 +112,7 @@ export const SOUTHEAST_ASIA: Precedent[] = [
       { what: "Gajah Maharam (early 19th century)", value: "about 30 pillars, five upswept gonjong", conf: "low", src: 1 },
       { what: "Plan", value: "long, rectangular, raised on piles", conf: "medium", src: 0 },
     ],
-    seed: { arrangement: "row", width: 30, depth: 9, storeys: 1, floorH: 3.4, count: 1, rows: 1, street: 12, raised: 1.8, eave: 1.5, roof: "gable", porosity: 0.3 },
+    seed: { arrangement: "row", width: 30, depth: 9, storeys: 1, floorH: 3.4, count: 1, rows: 1, street: 12, raised: 1.8, eave: 1.5, roof: "saddle", porosity: 0.3 },
     seedNote: "Length guessed from 30 pillars in three rows (assumed).",
     sources: [
       src("Rumah Gadang, Wikipedia", "https://en.wikipedia.org/wiki/Rumah_Gadang"),
@@ -152,7 +152,7 @@ export const SOUTHEAST_ASIA: Precedent[] = [
       { what: "Crop", value: "tomatoes about 90% of production", conf: "medium", src: 1 },
       { what: "Extent", value: "hundreds of hectares", conf: "medium", src: 2 },
     ],
-    seed: { arrangement: "ponds", width: 2, depth: 60, storeys: 0, count: 10, rows: 1, street: 3 },
+    seed: { arrangement: "ponds", width: 2, depth: 60, storeys: 0, count: 10, rows: 1, street: 3, ground: "water" },
     seedNote: "Strip width and length assumed.",
     sources: [
       src("Atlas Obscura, Floating gardens of Inle Lake", "https://www.atlasobscura.com/places/floating-gardens-of-inle-lake"),
@@ -273,7 +273,7 @@ export const SOUTHEAST_ASIA: Precedent[] = [
       { what: "Mid-1800s", value: "two-thirds of Bangkok's people lived on floating houses", conf: "low", src: 0 },
       { what: "Today", value: "mostly in Thonburi; many canals filled for roads", conf: "medium", src: 1 },
     ],
-    seed: { arrangement: "row", width: 6, depth: 8, storeys: 1, floorH: 3, count: 6, rows: 2, street: 12, gap: 2, raised: 1.5, eave: 1, roof: "gable", porosity: 0.4 },
+    seed: { arrangement: "row", width: 6, depth: 8, storeys: 1, floorH: 3, count: 6, rows: 2, street: 12, gap: 2, raised: 1.5, eave: 1, roof: "gable", porosity: 0.4, ground: "water" },
     seedNote: "Sizes assumed; the canal between the rows is not drawn as water.",
     sources: [
       src("ThingsAsian, The klongs of Bangkok", "https://thingsasian.com/node/567.html"),

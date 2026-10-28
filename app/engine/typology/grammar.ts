@@ -18,7 +18,7 @@ export type Arrangement =
   | "row" | "ring" | "court" | "cluster" | "slab" | "tower"
   | "sunken" | "terraces" | "ponds" | "shed" | "canopy";
 
-export type Roof = "flat" | "gable" | "cone" | "dome" | "vault" | "mono";
+export type Roof = "flat" | "gable" | "cone" | "dome" | "vault" | "mono" | "saddle";
 
 /** The parts that make a precedent itself, beyond its massing: what catches the wind, lets the
  *  heat out, covers the water or the street, or lifts the floor. */
@@ -27,8 +27,14 @@ export type Feature =
   | { kind: "windcatcher"; height: number; size?: number; count?: number }
   /** Chimneys or towers that let warm air out at the top, or cooling towers (PDEC). */
   | { kind: "stack"; height: number; size?: number; count?: number }
-  /** A dome over the pit (a cistern, an ice house) or over the middle of the plan. */
-  | { kind: "dome"; size?: number }
+  /** A dome over the pit (a cistern, an ice house) or over the middle of the plan; `cone`
+   *  makes it a stepped cone (a yakhchal), `pitch` its steepness. */
+  | { kind: "dome"; size?: number; cone?: boolean; pitch?: number }
+  /** Double-height terraces cut out of a tower's corners, alternating side every two floors
+   *  (Kanchanjunga), `size` m square. */
+  | { kind: "cutouts"; size: number }
+  /** One roof floating `height` m above the blocks, overhanging by `margin` (Gando's school). */
+  | { kind: "flyroof"; height: number; margin?: number }
   /** A vault over the lanes between rows (a covered bazaar). */
   | { kind: "vault" }
   /** The ground floor set back under the upper floors: an arcade, a portico, a five-foot way. */
@@ -77,6 +83,17 @@ export interface Params {
   /** Eave or gallery overhang beyond the wall (m). */
   eave?: number;
   roof?: Roof;
+  /** Which way a gable's ridge runs: along the unit's longer side (the default) or across it
+   *  (a machiya's ridge parallel to the street, a tulou's along the ring). */
+  ridge?: "long" | "short";
+  /** Units of a row left out, by index (row by row): a court in a grid of squares. */
+  omit?: number[];
+  /** A cluster's units on a square round the yard, not a circle (Belapur). */
+  square?: boolean;
+  /** How a pit steps down: on all sides (a kund), or along its length only (a stepwell). */
+  descent?: "around" | "along";
+  /** Roof pitch in degrees: 35 a gable, 45 a cone by default; 60 a gassho or a trullo. */
+  pitch?: number;
   /** Share of the façade left open (jali, louvres, verandah): 0.05 closed to 0.8 open. */
   porosity?: number;
   /** Wall thickness (m): reported, not scored; there is no thermal model yet. */
@@ -85,6 +102,11 @@ export interface Params {
   water?: number;
   /** Trees on the open ground: a homegarden, a planted court, willows on a chinampa. */
   trees?: number;
+  /** A round bowl's seating or terracing covers this arc (degrees, 360 a full ring); the rest
+   *  is flat floor (a theatre's orchestra and stage). */
+  sweep?: number;
+  /** What the ground under the plot is: land, or water the houses stand or float in. */
+  ground?: "land" | "water";
   /** What terraces are made of: planted fields, or stone steps (ghats, amphitheatres). */
   surface?: "green" | "ground";
   features?: Feature[];
@@ -93,7 +115,7 @@ export interface Params {
 export type Use = "built" | "water" | "green" | "ground" | "canopy" | "tree";
 
 /** A convex prism: a footprint ring (anticlockwise seen from above), a base and a height. */
-export interface Solid { ring: [number, number][]; z: number; h: number; use: Use; roof?: Roof; storeys?: number; /** A mono roof's rise (m). */ rise?: number }
+export interface Solid { ring: [number, number][]; z: number; h: number; use: Use; roof?: Roof; storeys?: number; /** A mono roof's rise (m). */ rise?: number; /** A gable's or cone's pitch (degrees). */ pitch?: number; /** A gable's ridge across the longer side. */ ridgeShort?: boolean }
 
 export interface Built {
   solids: Solid[];
@@ -133,7 +155,7 @@ export function build(p: Params): Built {
   const fh = p.floorH ?? DEFAULT_FLOOR_H, S: Solid[] = [];
   const z0 = p.raised ?? 0, roof = p.roof ?? "flat";
   const add = (ring: [number, number][], storeys: number, use: Use = "built", z = z0, r: Roof = roof) =>
-    S.push({ ring, z, h: storeys * fh, use, roof: r, storeys });
+    S.push({ ring, z, h: storeys * fh, use, roof: r, storeys, pitch: p.pitch, ridgeShort: p.ridge === "short" });
   let W = 0, D = 0;
 
   switch (p.arrangement) {
@@ -154,6 +176,7 @@ export function build(p: Params): Built {
       for (let r = 0; r < rows; r++) {
         const y = st / 2 + r * (p.depth + st);
         for (let i = 0; i < n; i++) {
+          if (p.omit?.includes(r * n + i)) continue;
           const x = i * (p.width + g);
           const well = p.well ?? 0;
           if (well > 0) {
@@ -206,7 +229,12 @@ export function build(p: Params): Built {
       for (let j = 0; j < k; j++) {
         const cx = j * span + span / 2, cy = span / 2;
         for (let i = 0; i < n; i++) {
-          const a = (i / n) * 2 * Math.PI + Math.PI / n, ux = cx + R * Math.cos(a), uy = cy + R * Math.sin(a);
+          let ux = cx + R * Math.cos((i / n) * 2 * Math.PI + Math.PI / n), uy = cy + R * Math.sin((i / n) * 2 * Math.PI + Math.PI / n);
+          if (p.square) {
+            // round the perimeter of a square of side 2R, starting at a corner
+            const t = (i / n) * 8 * R, side = Math.floor(t / (2 * R)), u = t - side * 2 * R - R;
+            [ux, uy] = ([[cx + u, cy - R], [cx + R, cy + u], [cx - u, cy + R], [cx - R, cy - u]] as [number, number][])[side];
+          }
           if (p.footprint === "round") add(disc(ux, uy, size / 2), p.storeys);
           else add(rect(ux - p.width / 2, uy - p.depth / 2, p.width, p.depth), p.storeys);
         }
@@ -224,7 +252,18 @@ export function build(p: Params): Built {
     case "tower": {
       const t = p.tower ?? { width: 20, depth: 20, storeys: 20 };
       add(rect(0, 0, p.width, p.depth), p.storeys);
-      add(rect((p.width - t.width) / 2, (p.depth - t.depth) / 2, t.width, t.depth), t.storeys, "built", z0 + p.storeys * fh);
+      const tx = (p.width - t.width) / 2, ty = (p.depth - t.depth) / 2, zt = z0 + p.storeys * fh;
+      const cut = (p.features ?? []).find((f) => f.kind === "cutouts") as { size: number } | undefined;
+      if (!cut) add(rect(tx, ty, t.width, t.depth), t.storeys, "built", zt);
+      else {
+        // bands of two floors, each with one near corner cut out, turning side each band
+        const c = Math.min(cut.size, t.width / 2, t.depth / 2);
+        for (let b = 0; b * 2 < t.storeys; b++) {
+          const st = Math.min(2, t.storeys - b * 2), z = zt + b * 2 * fh;
+          add(rect(tx, ty, t.width, t.depth - c), st, "built", z);
+          add(rect(b % 2 ? tx + c : tx, ty + t.depth - c, t.width - c, c), st, "built", z);
+        }
+      }
       W = p.width + (p.street ?? 10); D = p.depth + (p.street ?? 10);
       break;
     }
@@ -232,12 +271,19 @@ export function build(p: Params): Built {
       // A pit stepping down to water: terraces narrowing as they go down; rooms round the top
       // when `count` is set (Matmata, a dikengyuan).
       const L = p.width, B = p.depth, dz = p.sunken ?? 8, n = p.steps ?? 4, step = Math.min(L, B) / (2 * n + 2);
-      for (let k = 0; k < n; k++) {
-        const o = k * step, z = -(k + 1) * (dz / n);
-        S.push({ ring: rect(o, o, L - 2 * o, B - 2 * o), z, h: dz / n * 0.2, use: "ground" });
+      if (p.footprint === "round") {
+        // a round bowl (Moray, a theatre): rings narrowing as they go down, over `sweep` degrees
+        const R = L / 2, dr = R / (n + 1);
+        for (let k = 0; k < n; k++) S.push({ ring: disc(R, R, R - k * dr, 48), z: -(k + 1) * (dz / n), h: dz / n * 0.2, use: "ground" });
+        if (p.water) S.push({ ring: disc(R, R, R - n * dr, 48), z: -dz, h: Math.min(p.water, dz) * 0.4, use: "water" });
+        W = L + 6; D = L + 6;
+        break;
       }
-      const o = n * step;
-      if (p.water) S.push({ ring: rect(o, o, L - 2 * o, B - 2 * o), z: -dz, h: Math.min(p.water, dz) * 0.4, use: "water" });
+      // around: each level narrower on all sides; along: steps down the length, the sides kept
+      const along = p.descent === "along", sx = L / (n + 1), sy = Math.min(2, B / 8);
+      const lv = (k: number) => along ? rect(k * sx, k ? sy : 0, L - k * sx, B - (k ? 2 * sy : 0)) : rect(k * step, k * step, L - 2 * k * step, B - 2 * k * step);
+      for (let k = 0; k < n; k++) S.push({ ring: lv(k), z: -(k + 1) * (dz / n), h: dz / n * 0.2, use: "ground" });
+      if (p.water) S.push({ ring: lv(n), z: -dz, h: Math.min(p.water, dz) * 0.4, use: "water" });
       if (p.storeys > 0 && (p.count ?? 0) > 0) {
         // a colonnade or ring of rooms at street level
         const d = 3;
@@ -251,7 +297,8 @@ export function build(p: Params): Built {
       const n = p.steps ?? 6, rise = p.sunken ?? 1.5, L = p.width;
       for (let k = 0; k < n; k++) {
         S.push({ ring: rect(0, k * p.depth, L, p.depth), z: (n - k - 1) * rise, h: p.surface === "ground" ? rise : 0.4, use: p.surface ?? "green" });
-        if (p.water) S.push({ ring: rect(0.6, k * p.depth + 0.6, L - 1.2, p.depth - 1.2), z: (n - k - 1) * rise + 0.4, h: 0.05, use: "water" });
+        // flooded paddies read green with their water at the foot of each riser
+        if (p.water) S.push({ ring: rect(0.6, k * p.depth + 0.3, L - 1.2, Math.max(0.4, p.depth * 0.18)), z: (n - k - 1) * rise + 0.4, h: 0.05, use: "water" });
       }
       W = L; D = n * p.depth;
       break;
@@ -278,7 +325,17 @@ export function build(p: Params): Built {
     case "canopy": {
       // A roof on posts over open ground (a bazaar shade, solar canopy, a station).
       const n = p.count ?? 1;
-      for (let i = 0; i < n; i++) S.push({ ring: rect(i * (p.width + (p.gap ?? 0)), 0, p.width, p.depth), z: (p.floorH ?? 4) - 0.4, h: 0.4, use: "canopy", roof: "flat" });
+      const top = p.floorH ?? 4, span = Math.max(p.width, p.depth);
+      // posts or stems under it: one stem under an umbrella, a grid of posts under a long roof
+      const pitch = span > 60 ? 35 : span > 20 ? 30 : 3.5, a = span > 20 ? Math.max(1, span / 40) : 0.3;
+      for (let i = 0; i < n; i++) {
+        const x0 = i * (p.width + (p.gap ?? 0)), nx = Math.max(1, Math.round(p.width / pitch)), ny = Math.max(1, Math.round(p.depth / pitch));
+        for (let u = 0; u < nx; u++) for (let v = 0; v < ny; v++) {
+          const px = x0 + ((u + 0.5) * p.width) / nx, py = ((v + 0.5) * p.depth) / ny;
+          S.push({ ring: rect(px - a / 2, py - a / 2, a, a), z: 0, h: top - 0.4, use: "built", roof: "flat", storeys: 0 });
+        }
+        S.push({ ring: rect(x0, 0, p.width, p.depth), z: top - 0.4, h: 0.4, use: "canopy", roof: "flat" });
+      }
       W = n * p.width + (n - 1) * (p.gap ?? 0); D = p.depth + (p.street ?? 4);
       break;
     }
@@ -303,7 +360,8 @@ export function build(p: Params): Built {
       return [Math.min(...xs) - 2, Math.min(...ys) - 2, Math.max(...xs) + 2, Math.max(...ys) + 2];
     });
     for (let k = 0, tries = 0; k < p.trees && tries < p.trees * 40; tries++) {
-      const x = rnd() * W, y = rnd() * D;
+      // a single tree stands in the middle (the tree of a tree platform); more are scattered
+      const x = p.trees === 1 ? W / 2 : rnd() * W, y = p.trees === 1 ? D / 2 : rnd() * D;
       if (boxes.some(([a, b, c, d]) => x > a && x < c && y > b && y < d)) continue;
       S.push({ ring: [[x, y]], z: 0, h: 4 + rnd() * 6, use: "tree" });
       k++;
@@ -365,7 +423,8 @@ function features(p: Params, S: Solid[], fh: number, z0: number, W: number, D: n
         const xs = ring.map((q) => q[0]), ys = ring.map((q) => q[1]);
         const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
         const r = f.size ?? Math.min(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) * 0.5, n = 16;
-        part(Array.from({ length: n }, (_, i) => [cx + r * Math.cos((i / n) * 2 * Math.PI), cy + r * Math.sin((i / n) * 2 * Math.PI)] as [number, number]), pit ? 0 : z0 + p.storeys * fh, 1, "dome");
+        S.push({ ring: Array.from({ length: n * 2 }, (_, i) => [cx + r * Math.cos((i / (n * 2)) * 2 * Math.PI), cy + r * Math.sin((i / (n * 2)) * 2 * Math.PI)] as [number, number]),
+          z: pit ? 0 : z0 + p.storeys * fh, h: 1, use: "built", roof: f.cone ? "cone" : "dome", storeys: 0, pitch: f.pitch });
         break;
       }
       case "vault": {
@@ -387,9 +446,21 @@ function features(p: Params, S: Solid[], fh: number, z0: number, W: number, D: n
           const k = p.rows ?? 1, span = W / k;
           centres = Array.from({ length: k }, (_, j) => [j * span + span / 2, D / 2] as [number, number]);
         }
-        for (const [cx, cy] of centres) S.push({ ring: rect(cx - a / 2, cy - a / 2, a, a), z: -0.3, h: 0.3, use: "water" });
+        // its surface just above whatever ground or planting it sits in
+        const g = S.filter((x) => x.use === "green" || x.use === "ground").reduce((m, x) => Math.max(m, x.z + x.h), 0);
+        for (const [cx, cy] of centres) S.push({ ring: rect(cx - a / 2, cy - a / 2, a, a), z: -0.3, h: 0.35 + g, use: "water" });
         break;
       }
+      case "flyroof": {
+        if (!blocks.length) break;
+        const xs = blocks.flatMap((b) => b.ring.map((q) => q[0])), ys = blocks.flatMap((b) => b.ring.map((q) => q[1])), m = f.margin ?? 2;
+        const x0 = Math.min(...xs) - m, x1 = Math.max(...xs) + m, y0 = Math.min(...ys) - m, y1 = Math.max(...ys) + m, zt = Math.max(...blocks.map(top)) + f.height;
+        S.push({ ring: rect(x0, y0, x1 - x0, y1 - y0), z: zt, h: 0.3, use: "canopy", roof: "flat" });
+        for (const [x, y] of [[x0 + 0.5, y1 - 0.5], [x1 - 0.5, y1 - 0.5], [x1 - 0.5, y0 + 0.5]]) part(rect(x - 0.2, y - 0.2, 0.4, 0.4), 0, zt);
+        break;
+      }
+      case "cutouts":
+        break; // built with the tower
       case "slope":
         for (const b of blocks) { b.roof = "mono"; b.rise = f.rise; }
         break;

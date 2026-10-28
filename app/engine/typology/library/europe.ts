@@ -18,7 +18,7 @@ export const EUROPE: Precedent[] = [
       { what: "Corners", value: "cut at 45°", conf: "medium", src: 1 },
       { what: "Streets", value: "20 m; the great avenues 50 m and more", conf: "low", src: 1 },
     ],
-    seed: { arrangement: "court", width: 20, depth: 20, storeys: 5, court: 73.3, rows: 2, street: 20, roof: "flat", porosity: 0.2 },
+    seed: { arrangement: "court", width: 20, depth: 20, storeys: 6, court: 73.3, rows: 4, street: 20, roof: "flat", porosity: 0.2 },
     seedNote: "Block, depth and height from the figures, built on two sides as Cerdà planned; corners not cut.",
     sources: [
       src("Failed Architecture, Behind four walls: Barcelona's lost utopia", "https://failedarchitecture.com/behind-four-walls-barcelonas-lost-utopia/"),
@@ -140,7 +140,7 @@ export const EUROPE: Precedent[] = [
       { what: "Blocks", value: "glaumbæjarhnausar, rectangular, laid with turf strips; stone base", conf: "medium", src: 1 },
       { what: "Recognition", value: "on Iceland's UNESCO tentative list", conf: "high", src: 0 },
     ],
-    seed: { arrangement: "row", width: 5, depth: 11, storeys: 1, floorH: 2.6, count: 5, rows: 1, street: 8, roof: "gable", porosity: 0.05, wall: 1 },
+    seed: { arrangement: "row", width: 5, depth: 11, storeys: 1, floorH: 1.6, count: 5, rows: 1, street: 8, roof: "gable", pitch: 45, porosity: 0.05, wall: 1 },
     seedNote: "Wall thickness from the figures; rooms assumed.",
     sources: [
       src("UNESCO tentative list, The turf house tradition", "https://whc.unesco.org/en/tentativelists/5589"),
@@ -160,7 +160,7 @@ export const EUROPE: Precedent[] = [
       { what: "Roof", value: "corbelled cone, outer slabs 3-7 cm, inner dome", conf: "high", src: 0 },
       { what: "Cistern", value: "under the house, fed from the eaves", conf: "high", src: 0 },
     ],
-    seed: { arrangement: "cluster", footprint: "round", width: 5, depth: 5, diameter: 5.5, storeys: 1, floorH: 2.2, count: 5, court: 6, gap: 0, rows: 2, street: 4, roof: "cone", porosity: 0.05, wall: 1.1 },
+    seed: { arrangement: "cluster", footprint: "round", width: 5, depth: 5, diameter: 5.5, storeys: 1, floorH: 2.2, count: 5, court: 6, gap: 0, rows: 2, street: 4, roof: "cone", pitch: 58, porosity: 0.05, wall: 1.1 },
     seedNote: "Walls from the figures; room diameter and grouping assumed.",
     sources: [
       src("UNESCO, The Trulli of Alberobello", "https://whc.unesco.org/en/list/787"),
@@ -301,7 +301,7 @@ export const EUROPE: Precedent[] = [
       { what: "Density", value: "about 60-100 homes per hectare (sources differ)", conf: "low", src: 1 },
       { what: "Structure", value: "buoyant concrete tubs, steel mooring poles, jetties", conf: "medium", src: 0 },
     ],
-    seed: { arrangement: "row", width: 7, depth: 10, storeys: 3, floorH: 3, count: 6, rows: 2, street: 8, gap: 3, raised: 0.6, roof: "flat", porosity: 0.3 },
+    seed: { arrangement: "row", width: 7, depth: 10, storeys: 3, floorH: 3, count: 6, rows: 2, street: 8, gap: 3, raised: 0.6, roof: "flat", porosity: 0.3, ground: "water" },
     seedNote: "House sizes assumed; drawn just above the water on short posts.",
     sources: [
       src("Amusing Planet, The floating houses of IJburg", "https://www.amusingplanet.com/2015/06/the-floating-houses-of-ijburg-amsterdam.html"),
@@ -339,7 +339,7 @@ export const EUROPE: Precedent[] = [
       { what: "Frame", value: "four curved poles of about 2.4-3.7 m bent to about 130°, a ridge pole, 10-12 wall poles", conf: "medium", src: 0 },
       { what: "Diameter (fishing goahti, Holmengrå)", value: "2.5-6 m", conf: "medium", src: 1 },
     ],
-    seed: { arrangement: "cluster", footprint: "round", width: 5, depth: 5, diameter: 5, storeys: 1, floorH: 1.2, count: 3, court: 10, gap: 6, rows: 1, street: 8, roof: "cone", porosity: 0.03 },
+    seed: { arrangement: "cluster", footprint: "round", width: 5, depth: 5, diameter: 5, storeys: 1, floorH: 0.3, count: 3, court: 10, gap: 6, rows: 1, street: 8, roof: "cone", pitch: 62, porosity: 0.03 },
     seedNote: "Diameter from the figures; drawn as a low cone.",
     sources: [
       src("Goahti, Wikipedia", "https://en.wikipedia.org/wiki/Goahti"),
@@ -379,7 +379,7 @@ export const EUROPE: Precedent[] = [
       { what: "System", value: "mills lift to a reservoir, released through locks at low river levels", conf: "high", src: 0 },
       { what: "Today", value: "two pumping stations do the work", conf: "medium", src: 1 },
     ],
-    seed: { arrangement: "row", width: 8, depth: 8, storeys: 1, floorH: 14, count: 6, rows: 1, street: 14, gap: 22, roof: "cone", porosity: 0.05 },
+    seed: { arrangement: "row", width: 7, depth: 7, storeys: 1, floorH: 16, count: 6, rows: 1, street: 14, gap: 22, roof: "cone", pitch: 55, porosity: 0.05 },
     seedNote: "Mill sizes and spacing assumed; sails and canals not drawn.",
     sources: [
       src("Kinderdijk windmills, Wikipedia", "https://en.wikipedia.org/wiki/Kinderdijk_windmills"),
@@ -538,8 +538,8 @@ export const EUROPE: Precedent[] = [
       { what: "Rows", value: "55: 34 below, 21 above", conf: "medium", src: 1 },
       { what: "Acoustics", value: "the seat rows filter low-frequency noise and pass the voices", conf: "high", src: 0 },
     ],
-    seed: { arrangement: "terraces", width: 110, depth: 0.8, storeys: 0, steps: 55, sunken: 0.42, surface: "ground" },
-    seedNote: "Rows from the figures, drawn straight instead of curved; width, tread and rise assumed.",
+    seed: { arrangement: "sunken", footprint: "round", width: 118, depth: 118, storeys: 0, sunken: 22, steps: 28, sweep: 210 },
+    seedNote: "Rows drawn as 28 rings over 210 degrees, a stand-in for the 55 rows; diameter and height assumed.",
     gaps: "Seats, diameter and measured row sizes.",
     sources: [
       src("Declercq, N. Acoustical mystery of Greek theater of Epidaurus solved. Georgia Tech (J. Acoust. Soc. Am. 2007)", "https://www.sciencedaily.com/releases/2007/04/070404162237.htm"),

@@ -22,7 +22,7 @@ export const SOUTH_ASIA: Precedent[] = [
       { what: "People comfortable in shade at 31 °C", value: "over 72%", conf: "medium", src: 0 },
       { what: "Rainwater tank", value: "under the yard in most multi-storey houses", conf: "medium", src: 1 },
     ],
-    seed: { arrangement: "row", width: 6, depth: 15, storeys: 3, count: 8, rows: 2, street: 3, well: 0.12, roof: "flat", porosity: 0.15, wall: 0.45 },
+    seed: { arrangement: "row", width: 6, depth: 15, storeys: 3, count: 8, rows: 2, street: 3, well: 0.12, roof: "gable", ridge: "short", pitch: 28, porosity: 0.15, wall: 0.45 },
     seedNote: "Width, depth and lane from the figures; three storeys, chowk share and wall thickness assumed.",
     gaps: "Measured chowk sizes and storeys. Rawal (PLEA 2017) monitored pol houses for a year; its results were not reachable.",
     sources: [
@@ -72,7 +72,7 @@ export const SOUTH_ASIA: Precedent[] = [
       { what: "Openings", value: "one door, two small windows", conf: "high", src: 0 },
       { what: "Wall thickness", value: "about 60 cm (one build account)", conf: "low", src: 1 },
     ],
-    seed: { arrangement: "cluster", footprint: "round", width: 5, depth: 5, diameter: 5.5, storeys: 1, floorH: 2.8, count: 5, court: 9, gap: 3, rows: 2, roof: "cone", porosity: 0.08, wall: 0.6 },
+    seed: { arrangement: "cluster", footprint: "round", width: 5, depth: 5, diameter: 5.5, storeys: 1, floorH: 2.8, count: 5, court: 9, gap: 3, rows: 2, roof: "cone", pitch: 40, porosity: 0.08, wall: 0.6 },
     seedNote: "Diameter, height and spacing from the figures; five rooms round a yard of 9 m assumed.",
     gaps: "The yard's size and how many bhungas a family has: described only in popular sources.",
     sources: [
@@ -177,7 +177,7 @@ export const SOUTH_ASIA: Precedent[] = [
       { what: "Density", value: "same as the walk-up flats in the brief", conf: "high", src: 0 },
       { what: "Competition", value: "first prize, Gujarat Housing Board, 1961-62", conf: "high", src: 0 },
     ],
-    seed: { arrangement: "row", width: 3.6, depth: 18, storeys: 2, count: 10, rows: 2, street: 4, well: 0.08, roof: "gable", porosity: 0.15, features: [{ kind: "slope", rise: 3 }] },
+    seed: { arrangement: "row", width: 3.6, depth: 18, storeys: 2, count: 10, rows: 1, street: 4, well: 0.08, roof: "flat", porosity: 0.15, features: [{ kind: "slope", rise: 4 }] },
     seedNote: "Plan from the figures (low); two storeys and lane assumed.",
     sources: [
       src("Charles Correa Foundation, Tube Housing", "https://charlescorreafoundation.org/2022/03/13/tube-housing/"),
@@ -199,8 +199,8 @@ export const SOUTH_ASIA: Precedent[] = [
       { what: "Third court", value: "about 20 × 20 m", conf: "high", src: 0 },
       { what: "Density", value: "about 500 people per hectare, with open space and schools", conf: "high", src: 0 },
     ],
-    seed: { arrangement: "cluster", width: 6, depth: 7, storeys: 2, count: 7, court: 8, gap: 1, rows: 3, street: 4, roof: "gable", porosity: 0.3 },
-    seedNote: "Court sizes and houses per court from the figures; house footprint within the plot assumed.",
+    seed: { arrangement: "cluster", square: true, width: 4.5, depth: 6, storeys: 1, floorH: 3, count: 7, court: 8, gap: 2.5, rows: 3, street: 4, roof: "flat", porosity: 0.3, features: [{ kind: "slope", rise: 1.6 }] },
+    seedNote: "Court sizes and houses per court from the figures, the houses set on a square round each court with single-pitch tiled roofs; house footprint within the plot assumed.",
     sources: [
       src("Charles Correa Foundation, Incremental Housing", "https://charlescorreafoundation.org/2022/03/13/incremental-housing/"),
     ],
@@ -239,8 +239,8 @@ export const SOUTH_ASIA: Precedent[] = [
       { what: "Footprint", value: "about 21 × 21 m (432-441 m²)", conf: "low", src: 1 },
       { what: "Flats", value: "32, of three to six bedrooms", conf: "medium", src: 0 },
     ],
-    seed: { arrangement: "tower", width: 21, depth: 21, storeys: 1, tower: { width: 21, depth: 21, storeys: 27 }, street: 30, roof: "flat", porosity: 0.25 },
-    seedNote: "Height and footprint from student reports (low).",
+    seed: { arrangement: "tower", width: 21, depth: 21, storeys: 1, tower: { width: 21, depth: 21, storeys: 27 }, street: 30, roof: "flat", porosity: 0.25, features: [{ kind: "cutouts", size: 7 }] },
+    seedNote: "Plan and storeys from the figures; the double-height corner terraces drawn every two floors, alternating sides, sized assumed.",
     sources: [
       src("Charles Correa Foundation, Kanchanjunga Apartments", "https://charlescorreafoundation.org/2022/03/13/kanchanjunga/"),
       src("VIT B.Arch thesis repository (case study)", "https://ebooks.vit.ac.in/B.Arch/2019-Batch-Thesis-Repository/Thesis-Reports/19BAR0035/files/basic-html/page19.html"),
@@ -261,7 +261,7 @@ export const SOUTH_ASIA: Precedent[] = [
       { what: "Tank", value: "9.5 × 9.4 m at 23 m depth", conf: "medium", src: 0 },
       { what: "Cooling at the bottom", value: "5-6 °C is tradition, not a measurement; being measured in Jodhpur", conf: "low", src: 1 },
     ],
-    seed: { arrangement: "sunken", width: 64, depth: 20, storeys: 1, sunken: 27, steps: 7, water: 4, count: 1 },
+    seed: { arrangement: "sunken", descent: "along", width: 64, depth: 20, storeys: 1, sunken: 27, steps: 7, water: 4, count: 1 },
     seedNote: "Rani ki Vav's size from the figures.",
     sources: [
       src("Rani ki Vav, Wikipedia and UNESCO nomination", "https://en.wikipedia.org/wiki/Rani_ki_Vav"),
@@ -342,8 +342,8 @@ export const SOUTH_ASIA: Precedent[] = [
       { what: "Household tank", value: "21 m³: a family of six's drinking water for a year", conf: "medium", src: 0 },
       { what: "Design need", value: "7-10 litres per person per day", conf: "medium", src: 0 },
     ],
-    seed: { arrangement: "sunken", width: 4, depth: 4, storeys: 0, sunken: 3, steps: 1, water: 2 },
-    seedNote: "A 21 m³ tank drawn as about 4 × 4 × 1.5 m of water (derived).",
+    seed: { arrangement: "cluster", footprint: "round", width: 8, depth: 8, diameter: 8, storeys: 1, floorH: 0.9, count: 1, court: 0, gap: 0, rows: 1, street: 8, roof: "dome", pitch: 12 },
+    seedNote: "Drawn as the round raised cover over the tank; its apron is not drawn. Sizes assumed.",
     sources: [src("Vikaspedia (CAZRI), Rainwater harvesting through tanka in the hot arid zone", "https://vikaspedia.in/energy/environment/rainwater-harvesting-1/rainwater-harvesting-through-tanka-in-hot-arid-zone-of-india")],
   },
   {
@@ -400,7 +400,7 @@ export const SOUTH_ASIA: Precedent[] = [
       { what: "Saadabad sarai", value: "50 × 50 m; 13, 13, 12 and 12 rooms on the four sides, each about 3 m square", conf: "medium", src: 1 },
       { what: "Sarai Amanat Khan", value: "168 × 165 m, gateways in the middle of two sides", conf: "medium", src: 0 },
     ],
-    seed: { arrangement: "court", width: 3, depth: 4, storeys: 1, floorH: 4, court: 42, rows: 4, street: 10, roof: "flat", porosity: 0.15, wall: 0.8 },
+    seed: { arrangement: "court", width: 4, depth: 8, storeys: 2, floorH: 4, court: 42, rows: 4, street: 10, roof: "flat", porosity: 0.15, wall: 0.8, features: [{ kind: "stack", height: 5, size: 4, count: 4 }] },
     seedNote: "Saadabad's size and rooms from the figures.",
     sources: [
       src("Sarai Amanat Khan, Wikipedia", "https://en.wikipedia.org/wiki/Sarai_Amanat_Khan"),
@@ -459,8 +459,8 @@ export const SOUTH_ASIA: Precedent[] = [
       { what: "Units at opening", value: "51", conf: "high", src: 0 },
       { what: "Roof channels", value: "concrete channels: beams and rain conduits", conf: "high", src: 1 },
     ],
-    seed: { arrangement: "cluster", width: 6, depth: 6, storeys: 1, floorH: 3.4, count: 12, court: 14, gap: 1.5, rows: 2, roof: "gable", porosity: 0.55 },
-    seedNote: "Unit from the figures; grouping simplified to two rings.",
+    seed: { arrangement: "row", width: 6, depth: 6, storeys: 1, floorH: 3.4, count: 5, rows: 3, street: 3, gap: 3, roof: "cone", pitch: 30, porosity: 0.55, omit: [7], features: [{ kind: "pool", size: 5 }] },
+    seedNote: "Square pavilions with pyramid tiled roofs on a grid, one left open as a water court; sizes from the figures where given, grid assumed.",
     sources: [
       src("Gandhi Smarak Sangrahalaya, Wikipedia", "https://en.wikipedia.org/wiki/Gandhi_Smarak_Sangrahalaya"),
       src("Charles Correa Foundation, Gandhi Smarak Sangrahalaya", "https://charlescorreafoundation.org/2022/02/23/gandhi-smarak-sangrahalaya/"),
@@ -541,7 +541,7 @@ export const SOUTH_ASIA: Precedent[] = [
       { what: "Ground floor", value: "stone, for animals; mud brick above", conf: "medium", src: 0 },
       { what: "Passive solar", value: "SECMOL campus at Phey stays warm through winter largely on sunshine", conf: "medium", src: 1 },
     ],
-    seed: { arrangement: "row", width: 10, depth: 10, storeys: 2, floorH: 2.6, count: 4, rows: 1, street: 10, gap: 8, roof: "flat", porosity: 0.12, wall: 0.8 },
+    seed: { arrangement: "row", width: 10, depth: 10, storeys: 3, floorH: 2.6, count: 4, rows: 1, street: 10, gap: 8, roof: "flat", porosity: 0.12, wall: 0.8 },
     seedNote: "Storeys and walls from the figures; plan and spacing assumed.",
     sources: [
       src("SSVK, Shelter strategy in Leh", "https://ssvk.org/disaster_new/leh/shelter_strategy_in_leh.pdf"),
@@ -562,7 +562,7 @@ export const SOUTH_ASIA: Precedent[] = [
       { what: "Storeys", value: "two to three, more timber above", conf: "medium", src: 0 },
       { what: "Earthquakes", value: "may shake and crack; little chance of collapse (field study, Naggar)", conf: "medium", src: 1 },
     ],
-    seed: { arrangement: "row", width: 7, depth: 9, storeys: 3, floorH: 2.8, count: 3, rows: 1, street: 8, gap: 6, eave: 1, roof: "gable", porosity: 0.12, wall: 0.6 },
+    seed: { arrangement: "row", width: 6, depth: 7, storeys: 4, floorH: 2.6, count: 3, rows: 1, street: 8, gap: 6, eave: 1.5, roof: "gable", pitch: 30, porosity: 0.12, wall: 0.6 },
     seedNote: "Storeys from the figures; plan sizes and walls assumed.",
     sources: [
       src("Kath kuni architecture, Wikipedia", "https://en.wikipedia.org/wiki/Kath_kuni_architecture"),
@@ -823,7 +823,7 @@ export const SOUTH_ASIA: Precedent[] = [
       { what: "Time lag", value: "about 6 hours", conf: "low", src: 1 },
       { what: "Floor", value: "partly below grade, vaults banked with earth", conf: "medium", src: 0 },
     ],
-    seed: { arrangement: "shed", width: 6, depth: 18, storeys: 1, floorH: 3, count: 4, street: 10, roof: "vault", porosity: 0.15, trees: 8 },
+    seed: { arrangement: "shed", width: 6, depth: 18, storeys: 1, floorH: 1.2, count: 4, street: 10, roof: "vault", porosity: 0.15, trees: 8, features: [{ kind: "pool", size: 4 }] },
     seedNote: "Vault sizes assumed; the sinking and the water channels are not drawn.",
     sources: [
       src("Studio Matrx, Sangath by Doshi", "https://www.studiomatrx.org/guides/sangath-ahmedabad-doshi"),
@@ -922,8 +922,8 @@ export const SOUTH_ASIA: Precedent[] = [
       { what: "Plan", value: "nine squares, the centre open as a kund", conf: "medium", src: 0 },
       { what: "Squares", value: "about 30 m each, passages about 8 m (one source)", conf: "low", src: 1 },
     ],
-    seed: { arrangement: "cluster", width: 26, depth: 26, storeys: 2, floorH: 4.5, count: 8, court: 30, gap: 4, rows: 1, street: 10, roof: "flat", porosity: 0.08, wall: 0.6 },
-    seedNote: "Square sizes from the figures (low); the kund is the open centre.",
+    seed: { arrangement: "row", width: 26, depth: 26, storeys: 2, floorH: 4.5, count: 3, rows: 3, street: 0, gap: 0, roof: "flat", porosity: 0.08, wall: 0.6, omit: [4], features: [{ kind: "pool", size: 14 }] },
+    seedNote: "Nine squares of about 26 m with the middle one an open court and kund (Correa's plan has one square shifted out; not drawn).",
     sources: [
       src("Jawahar Kala Kendra, Wikipedia", "https://en.wikipedia.org/wiki/Jawahar_Kala_Kendra"),
       src("Studio Matrx, Jawahar Kala Kendra", "https://www.studiomatrx.org/architecture-canon/jawahar-kala-kendra"),
@@ -941,7 +941,7 @@ export const SOUTH_ASIA: Precedent[] = [
       { what: "Lake", value: "artificial, round three sides", conf: "medium", src: 0 },
       { what: "Light", value: "indirect, through openings in an outer shell", conf: "medium", src: 1 },
     ],
-    seed: { arrangement: "cluster", width: 18, depth: 18, storeys: 8, floorH: 4, count: 8, court: 24, gap: 2, rows: 1, street: 20, roof: "flat", porosity: 0.2, wall: 0.6 },
+    seed: { arrangement: "cluster", width: 18, depth: 18, storeys: 8, floorH: 4, count: 8, court: 24, gap: 2, rows: 1, street: 20, ground: "water", roof: "flat", porosity: 0.2, wall: 0.6 },
     seedNote: "Sizes assumed; the lake is not drawn.",
     sources: [
       src("Jatiya Sangsad Bhaban, Wikipedia", "https://en.wikipedia.org/wiki/Jatiya_Sangsad_Bhaban"),
@@ -1077,7 +1077,7 @@ export const SOUTH_ASIA: Precedent[] = [
       { what: "Walls (western Bhutan)", value: "rammed earth about 600 mm thick", conf: "medium", src: 1 },
       { what: "Attic", value: "open, ventilated; for drying crops", conf: "medium", src: 2 },
     ],
-    seed: { arrangement: "row", width: 12, depth: 9, storeys: 3, floorH: 2.8, count: 2, rows: 1, street: 10, gap: 10, eave: 1.5, roof: "gable", porosity: 0.2, wall: 0.6, trees: 6 },
+    seed: { arrangement: "row", width: 12, depth: 9, storeys: 3, floorH: 2.8, count: 2, rows: 1, street: 10, gap: 10, eave: 1.5, roof: "gable", pitch: 18, porosity: 0.2, wall: 0.6, trees: 6 },
     seedNote: "Storeys and walls from the figures; plan assumed.",
     sources: [
       src("Jentsch et al., Building physics of Bhutanese houses", "https://www.db-thueringen.de/servlets/MCRFileNodeServlet/dbt_derivate_00043500/Jentsch_et_al_Building_physics_Bhutan_pdfa.pdf"),
@@ -1198,8 +1198,8 @@ export const SOUTH_ASIA: Precedent[] = [
       { what: "Built-up pockets", value: "about 3-4 °C hotter than Lalbagh, Cubbon Park and IISc", conf: "medium", src: 1 },
       { what: "Lalbagh at its founding", value: "about 100 ha", conf: "low", src: 2 },
     ],
-    seed: { arrangement: "ponds", width: 60, depth: 40, storeys: 0, count: 2, rows: 2, street: 10, trees: 70 },
-    seedNote: "Park sizes assumed; drawn as lawns and trees.",
+    seed: { arrangement: "terraces", width: 160, depth: 120, storeys: 0, steps: 1, sunken: 0.3, trees: 90, features: [{ kind: "pool", size: 40 }] },
+    seedNote: "A piece of the park: lawns and tree groves round a lake; sizes assumed.",
     sources: [
       src("Shah, Garg and Mishra (2021), Quantifying the local cooling effects of urban green spaces: Bengaluru", "https://repository.ias.ac.in/142324"),
       src("Deccan Herald, Cool city warms up", "https://www.deccanherald.com/science/cool-city-warms-up-mercury-2566720"),
@@ -1268,8 +1268,8 @@ export const SOUTH_ASIA: Precedent[] = [
       { what: "Solar", value: "4.45 MWp planned; 6.5 MW reported", conf: "medium", src: 1 },
       { what: "Amphitheatre", value: "about 2,000 seats", conf: "high", src: 2 },
     ],
-    seed: { arrangement: "cluster", width: 18, depth: 18, storeys: 2, floorH: 4.5, count: 6, court: 60, gap: 6, rows: 2, street: 20, roof: "cone", porosity: 0.2, wall: 0.5, trees: 30, features: [{ kind: "pool", size: 40 }] },
-    seedNote: "A drawing of the idea, not the plan: buildings with pyramid roofs round a pond. Sizes, spacing and storeys assumed.",
+    seed: { arrangement: "court", width: 16, depth: 16, storeys: 3, floorH: 4.5, court: 60, rows: 3, street: 20, roof: "flat", porosity: 0.2, wall: 0.5, trees: 24, features: [{ kind: "pool", size: 44 }, { kind: "stack", height: 9, size: 5, count: 6 }] },
+    seedNote: "A drawing of the idea, not the plan: brick wings with tall towers round a pond. Sizes, spacing and storeys assumed.",
     gaps: "Roof areas, pond volumes and the water balance: the architects' and GreenTree's reports were not found in full. The roof and pillar detail is from one magazine account.",
     sources: [
       src("Nalanda is revived after 800 years. Hinduism Today, Jan-Mar 2024", "https://www.hinduismtoday.com/magazine/january-february-march-2024/nalanda-is-revived-after-800-years/"),
@@ -1363,8 +1363,8 @@ export const SOUTH_ASIA: Precedent[] = [
       { what: "Wells", value: "historic wells desilted and joined to the irrigation", conf: "medium", src: 1 },
       { what: "Stone channel edging", value: "about 2,000 m, hand-dressed", conf: "medium", src: 0 },
     ],
-    seed: { arrangement: "ponds", width: 40, depth: 40, storeys: 0, count: 4, rows: 4, street: 3, trees: 40 },
-    seedNote: "Drawn as beds between channels; bed sizes and number assumed.",
+    seed: { arrangement: "ponds", width: 40, depth: 40, storeys: 0, count: 4, rows: 4, street: 3, trees: 40, features: [{ kind: "dome", size: 18 }] },
+    seedNote: "Drawn as beds between channels with the tomb at the centre; bed sizes and number assumed.",
     gaps: "Channel widths and depths; measured cooling.",
     sources: [
       src("Aga Khan Trust for Culture. Humayun's Tomb garden restoration", "https://nizamuddinrenewal.org/conservation/humayun-tomb/garden-restoration.php"),
