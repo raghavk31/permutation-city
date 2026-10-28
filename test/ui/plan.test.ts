@@ -85,7 +85,8 @@ describe("version 3 traits (MAP-Elites)", () => {
 
 describe("genome versions", () => {
   it("reads versions by length and grows versions 1 and 2 as before", () => {
-    expect(E.versionOf(new Array(E.LENGTH_V3).fill(0.5))).toBe(3);
+    expect(E.versionOf(new Array(E.LENGTH_V3).fill(0.5))).toBe(3.1);
+    expect(E.versionOf(new Array(E.LENGTH_V3_0).fill(0.5))).toBe(3);
     expect(E.versionOf(new Array(E.LENGTH).fill(0.5))).toBe(2);
     expect(E.versionOf(new Array(E.PRE_STREET_LENGTH).fill(0.5))).toBe(1);
     const G = load("mumbai-docks"), g2 = E.randomGenome(E.makeRng(3));

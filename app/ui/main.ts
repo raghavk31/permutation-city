@@ -41,9 +41,10 @@ const state = {
   families: [] as Item[], selected: null as Item | null,
   pen: [] as PenEntry[], children: [] as PenEntry[], brood: 0, locks: null as Int8Array | null, lockNote: [] as string[],
   layer: "ground" as LayerKey, showAll: false,
-  // The genome version the page breeds: 3 (vector streets and plots), or 2 when a link or file
-  // from before asks for it (version 1 runs breed as 2, as they did).
-  version: E.GENOME_VERSION as 2 | 3,
+  // The genome version the page breeds: 3.1 (vector streets, plots and a building type per
+  // block), or 3 or 2 when a link or file from before asks for it (version 1 runs breed as 2, as
+  // they did).
+  version: E.GENOME_VERSION as E.GenomeVersion,
   // A confirmed brief from the link: how genes are read, and whether to seed by typology.
   brief: null as Sites.LinkedBrief | null, ranges: E.DEFAULT_RANGES as E.Ranges, linkRules: null as string | null,
   // What the last run kept, for Explore; designs regrown as they're drawn.
@@ -65,6 +66,10 @@ const G = () => state.G!;
 
 const fmtHa = (v: number) => `${Math.round(v).toLocaleString("en-IN")} ha`;
 const pct = (v: number) => `${Math.round(v * 100)}%`;
+/** The version a run saved with `v` breeds as: 1 as 2, a newer one than the page's as the page's. */
+const versionAt = (v: number): E.GenomeVersion =>
+  (v >= E.GENOME_VERSION ? E.GENOME_VERSION : v >= 3.1 ? 3.1 : v >= 3 ? 3 : 2) as E.GenomeVersion;
+
 function scoreLine(d: E.Design) {
   const s = d.scores!, st = E.stats(d, G());
   const gross = (d.grossFloorArea ?? 0) / 1e4;
@@ -174,7 +179,7 @@ async function loadSite(id: string, rules: string | null = null, brief: string |
   $(".pc-site-warning").hidden = !warnings.length;
   $(".pc-site-warning").textContent = warnings.join(" ");
   drawBriefLine();
-  state.version = E.GENOME_VERSION as 2 | 3;
+  state.version = E.GENOME_VERSION as E.GenomeVersion;
   state.genome = E.randomGenome(rng, state.version);
   drawAll();
 }
@@ -745,7 +750,7 @@ async function loadRun(file: File) {
     store.setHeights(state.id!, s.heights);
   }
   const notes = Runs.versionNotes(s.genomeVersion, s.build);
-  state.version = s.genomeVersion >= 3 ? 3 : 2;
+  state.version = versionAt(s.genomeVersion);
   const r = s.result;
   if (r && s.settings) {
     const st = s.settings;
@@ -840,7 +845,7 @@ async function runFromLink() {
   applySettings(link.settings);
   drawEvolve();
   const notes = Runs.versionNotes(link.genomeVersion, link.build);
-  state.version = link.genomeVersion >= 3 ? 3 : 2;
+  state.version = versionAt(link.genomeVersion);
   if (link.pen) {
     notes.push(`This run started from ${link.pen} designs in the pen, which a link can't carry, so it was grown without them`
       + " and won't match. The run's file keeps them.");
@@ -1415,7 +1420,7 @@ function wire() {
     const b = (e.target as HTMLElement).closest<HTMLElement>("[data-layer]");
     if (b) { state.layer = b.dataset.layer as LayerKey; drawLayer(); }
   });
-  $(".pc-genome .pc-another").addEventListener("click", () => { state.genome = E.randomGenome(rng, E.GENOME_VERSION as 3); drawGenome(); });
+  $(".pc-genome .pc-another").addEventListener("click", () => { state.genome = E.randomGenome(rng, E.GENOME_VERSION as E.GenomeVersion); drawGenome(); });
   $(".pc-ridges").addEventListener("change", (e) => {
     const b = (e.target as HTMLElement).closest<HTMLInputElement>("[data-ridge]");
     if (!b) return;

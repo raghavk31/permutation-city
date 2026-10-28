@@ -3,7 +3,7 @@
 // the opened design's segments, and exact Rn choice.
 import * as Comlink from "comlink";
 import { capacityOf, sampleGenomes, summarise } from "./capacity.js";
-import { DEFAULT_RANGES, type Ranges } from "./config.js";
+import { DEFAULT_RANGES, type GenomeVersion, type Ranges } from "./config.js";
 import { mapElites, searchOf, type ArchiveInfo, type EliteOptions, type SearchChoice } from "./elites.js";
 import { evolve, evolveAsync, frontFamilies, type EvolveOptions, type HistoryRow, type LineageNode, type Run } from "./evolve.js";
 import { Pool, poolSize } from "./pool.js";
@@ -41,7 +41,7 @@ export type RunRequest = Omit<EvolveOptions, "progress" | "search"> & Omit<Elite
   search?: SearchChoice;
 };
 /** Piecemeal growth as the page asks for it: the size of each increment, a seed, a scenario. */
-export interface PiecemealRequest { generations: number; pop: number; seed: number; scenario: Scenario; ranges: Ranges; version?: 2 | 3 }
+export interface PiecemealRequest { generations: number; pop: number; seed: number; scenario: Scenario; ranges: Ranges; version?: GenomeVersion }
 /** One increment, for the page: its year and conditions, and the design it built. */
 export interface IncrementSummary {
   year: number; conditions: Conditions; target: number; share: number; everyone: number; seconds: number;
@@ -109,10 +109,10 @@ const api = {
     };
     const progress = (gen: number, r: Run) => {
       onProgress?.(gen, r.history[r.history.length - 1]);
-      if (options.version === 3 && search !== "map-elites") leaders(gen, r);
+      if ((options.version ?? 2) >= 3 && search !== "map-elites") leaders(gen, r);
     };
     // Version 3 designs are grown by the pool, a generation at a time.
-    const v3 = options.version === 3 && search !== "map-elites";
+    const v3 = (options.version ?? 2) >= 3 && search !== "map-elites";
     let run: Run & { archive: ArchiveInfo | null; pop: (Run["pop"][number] & { cell?: number; quality?: number })[] };
     if (v3) {
       pool ??= new Pool(poolSize(), siteNow!, siteOff);

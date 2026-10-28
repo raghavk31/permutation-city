@@ -90,6 +90,7 @@
   const shown = $derived(hovered ? { name: bench.exHover!, d: hovered } : selected ? { name: bench.exSel!, d: selected } : null);
   const paintOf = (d: E.Design | null, layer: Draw.PlanLayer = "plan") => (ctx: CanvasRenderingContext2D, v: Draw.View) => { if (d) Paint.design(ctx, v, site, d, P, layer); };
   const sh = $derived(shown?.d.plan?.shared ?? null);
+  const ty = $derived(shown?.d.plan?.types ? E.typeSummary(shown.d.plan.types) : null);
 
   // compare: one camera for both plans
   let cam = $state({ k: 1, tx: 0, ty: 0 });
@@ -223,7 +224,7 @@
       <!-- COPY: what the plan shows -->
       <div class="wb-over bl wb-ex-layer">
         <div class="wb-seg" role="group" aria-label="The plan shows">
-          {#each [["plan", "Plan"], ["shared", "Shared ground"], ["frontage", "Frontage"]] as [k, label]}
+          {#each [["plan", "Plan"], ["shared", "Shared ground"], ["frontage", "Frontage"], ["types", "Building types"]] as [k, label]}
             <button type="button" aria-pressed={bench.exLayer === k} onclick={() => (bench.exLayer = k as typeof bench.exLayer)}>{label}</button>
           {/each}
         </div>
@@ -240,6 +241,18 @@
             <div><i class="is-line" style="--c: {P.t.frontage.residential}"></i><span>residential</span></div>
             <div><i class="is-line" style="--c: {P.t.frontage.green}"></i><span>green edge</span></div>
             <div><i class="is-line" style="--c: {P.t.frontage.lake}"></i><span>lake edge</span></div>
+          </div>
+        {:else if bench.exLayer === "types"}
+          <div class="wb-legend">
+            {#if ty}
+              {#each E.BLOCK_TYPES as t, k}
+                <div><i style="--c: {P.t.blockType[t.key]}"></i><span>{t.name}: {ty.blocks[k]} block{ty.blocks[k] === 1 ? "" : "s"}{t.key === "towers" && ty.towers ? `, ${ty.towers} tower${ty.towers === 1 ? "" : "s"}` : ""}</span></div>
+              {/each}
+              {#if ty.none}<div><i style="--c: {P.t.blockType.none}"></i><span>no type fits: {ty.none}</span></div>{/if}
+              <span class="wb-quiet" title="Floor area over building land (FSI): what the genes asked of the typed blocks, and what their types give within the plot rules (Spacematrix)">density asked {ty.asked.toFixed(2)}, given {ty.given.toFixed(2)}</span>
+            {:else}
+              <span class="wb-quiet">This design was bred before building types (genome version 3).</span>
+            {/if}
           </div>
         {/if}
       </div>

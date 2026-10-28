@@ -16,7 +16,13 @@ export interface Settings { search: Search; generations: number; pop: number; se
 export interface RunInputs {
   settings: Settings; rules: E.RuleSet | null; brief: E.Brief | null;
   off: number[]; geneLocks: Record<string, number>; moves: E.Move[];
+  /** The genome version bred: this page's unless a link or file from before asks for 3. */
+  version?: E.GenomeVersion;
 }
+
+/** Genome versions the workbench breeds: its own, and 3 (before building types) so links and
+ *  files from before grow as they did. */
+const BREEDS: number[] = [3, E.GENOME_VERSION];
 
 /** Everything a link or file restores. */
 export interface Restore {
@@ -93,7 +99,7 @@ export function writeLink(o: {
   if (moves.length) q.set("moves", encodeMoves(moves));
   if (o.run) {
     Runs.writeLink(q, { settings: classicSettings(o.run.settings), off: o.run.off, locks: null, pen: 0,
-      genomeVersion: E.GENOME_VERSION, build: Runs.BUILD });
+      genomeVersion: o.run.version ?? E.GENOME_VERSION, build: Runs.BUILD });
     if (Object.keys(o.run.geneLocks).length) q.set("genes", encodeGenes(o.run.geneLocks));
     if (o.sel) q.set("sel", o.sel);
     if (o.keep.length) q.set("keep", o.keep.join(","));
@@ -115,7 +121,7 @@ export function readLink(q: URLSearchParams, site: E.SiteExport): Restore {
   const notes: string[] = [];
   let run: RunInputs | null = null;
   if (link) {
-    if (link.genomeVersion !== E.GENOME_VERSION) {
+    if (!BREEDS.includes(link.genomeVersion)) {
       throw new Error(`This run was bred with genome version ${link.genomeVersion}; open it on the classic page (/classic).`);
     }
     notes.push(...Runs.versionNotes(link.genomeVersion, link.build));
@@ -126,6 +132,7 @@ export function readLink(q: URLSearchParams, site: E.SiteExport): Restore {
     run = {
       settings: { search: s.search === "map-elites" ? "map-elites" : "auto", generations: s.gens, pop: s.pop, seed: s.seed },
       rules, brief, off: link.off, geneLocks: q.get("genes") ? decodeGenes(q.get("genes")!) : {}, moves,
+      ...(link.genomeVersion !== E.GENOME_VERSION ? { version: link.genomeVersion as E.GenomeVersion } : {}),
     };
   }
   return {
@@ -149,7 +156,7 @@ export function toFile(o: {
   const r = o.result;
   const enc = new URLSearchParams(Sites.query(o.site.id, o.run.rules, o.base, o.run.brief ? { brief: o.run.brief, seeds: false } : null).slice(1));
   const saved: Runs.SavedRun & WbFields = {
-    format: Runs.RUN_FORMAT, version: Runs.RUN_VERSION, build: Runs.BUILD, genomeVersion: E.GENOME_VERSION,
+    format: Runs.RUN_FORMAT, version: Runs.RUN_VERSION, build: Runs.BUILD, genomeVersion: o.run.version ?? E.GENOME_VERSION,
     saved: new Date().toISOString(),
     site: { id: o.site.id, name: o.site.name, rules: enc.get("rules"), brief: enc.get("brief") },
     off: o.run.off, locks: null, lockNote: [], pen: o.pen, children: [], brood: 0,
@@ -173,7 +180,7 @@ export function readFile(text: string): {
   result: EvolveResult | null; pen: Runs.PenEntry[]; sel: string | null; step: string | null; notes: string[];
 } {
   const s = Runs.readSaved(text) as Runs.SavedRun & WbFields;
-  if (s.genomeVersion !== E.GENOME_VERSION) {
+  if (!BREEDS.includes(s.genomeVersion)) {
     throw new Error(`This run was bred with genome version ${s.genomeVersion}; open it on the classic page (/classic).`);
   }
   const st = s.settings;
@@ -183,6 +190,7 @@ export function readFile(text: string): {
     run: {
       settings: { search: st?.search === "map-elites" ? "map-elites" : "auto", generations: st?.gens ?? 15, pop: st?.pop ?? 30, seed: st?.seed ?? 1 },
       off: s.off, geneLocks: s.geneLocks && typeof s.geneLocks === "object" ? decodeGenes(encodeGenes(s.geneLocks)) : {},
+      ...(s.genomeVersion !== E.GENOME_VERSION ? { version: s.genomeVersion as E.GenomeVersion } : {}),
     },
     ranges: s.ranges,
     result: r ? {

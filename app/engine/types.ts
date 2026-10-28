@@ -198,6 +198,8 @@ export interface SettingsV3 {
   peak: number; intensity: number; base: number;
   detour: number; w_gates: number; w_centres: number; w_transit: number; w_schools: number; w_markets: number;
   f_landform: number; f_edges: number; f_wind: number; local_spacing: number; pattern: number; plot_depth: number;
+  /** Version 3.1: the preference for each building type (absent on a version 3 genome). */
+  t_courtyard?: number; t_perimeter?: number; t_row?: number; t_towers?: number;
 }
 
 /** A version 3 design's vector plan (plan/grow.ts): streets by class with their widths, the
@@ -221,6 +223,11 @@ export interface VectorPlan {
    *  the share of the land that is shared ground. */
   shared?: { squares: { at: [number, number]; plot: number }[]; parks: { level: "doorstep" | "housing" | "neighbourhood"; block: number; area: number }[];
     access: Record<"doorstep" | "housing" | "neighbourhood", number>; share: number };
+  /** Version 3.1: each block's building type (plan/blocktypes.ts BLOCK_TYPES; -1 where none
+   *  fits), the types it allows, its building land (m²), the FSI the genes asked for, and the
+   *  type's coverage, storeys, FSI, wing depth (m) and towers. */
+  types?: { block: number; type: number; feasible: number[]; land: number; wanted: number; gsi: number; storeys: number;
+    fsi: number; depth: number; towers: number }[];
 }
 
 export interface Scores {

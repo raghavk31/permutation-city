@@ -19,7 +19,7 @@
 //
 // The engine grows, scores and ranks as in a plain run (evolve.ts, with hooks); TS only.
 import { ATTRACTOR_GENES, BUILDING, DEFAULT_RANGES, LANDSCAPE, LENGTH, LENGTH_V3, N_ATTRACTORS, STREET_GENES, TARGET_TOLERANCE,
-  type Ranges } from "./config.js";
+  type GenomeVersion, lengthOf, type Ranges } from "./config.js";
 import { quality } from "./elites.js";
 import { evolve, frontFamilies, type HistoryRow, type Individual, type LineageNode } from "./evolve.js";
 import { evaluate, floorAreaTarget, storageDepth } from "./fitness.js";
@@ -225,7 +225,7 @@ export const growLast = (genome: number[], G: Ground, before: Fabric, ranges: Ra
 export interface PiecemealOptions {
   generations?: number; pop?: number; seed?: number; scenario?: Scenario; ranges?: Ranges;
   years?: number[]; shares?: number[];
-  version?: 2 | 3;                   // genome version bred (2 unless asked)
+  version?: GenomeVersion;           // genome version bred (2 unless asked)
   foresight?: boolean;               // each increment also scored under the last year's conditions (scoreAhead)
   wholenessObjective?: boolean;      // the wholeness penalty as an objective (default); false for the ablation
   progress?: ((step: number, gen: number, row: HistoryRow) => void) | null;
@@ -278,7 +278,7 @@ export function piecemeal(G: Ground, S: ShockSite, opts: PiecemealOptions = {}):
   const total = floorAreaTarget(G), increments: Increment[] = [];
   const end = conditionsFor(G.meta, years[years.length - 1], scenario);
   const depthEnd = end.sea !== null && S.coastal ? seaDepth(S, end.sea) : null;
-  const blank = Array(version === 3 ? LENGTH_V3 : LENGTH).fill(0.5);
+  const blank = Array(lengthOf(version)).fill(0.5);
   let fabric = emptyFabric(G), before = wholeness(fabricDesign(fabric, G, blank, ranges), G);
   for (let k = 0; k < years.length; k++) {
     const t0 = Date.now(), year = years[k], c = conditionsFor(G.meta, year, scenario), target = total * shares[k];

@@ -13,7 +13,7 @@ export const GLOBAL_GENES = ["water_share", "green_share", "follow_water", "cove
 export const STREET_GENES = 4;
 export const LENGTH = N_ATTRACTORS * ATTRACTOR_GENES + GLOBAL_GENES.length;
 export const PRE_STREET_LENGTH = LENGTH - STREET_GENES;
-export const GENOME_VERSION = 3;  // what the page breeds; versions 1 and 2 still grow (genome.ts)
+export const GENOME_VERSION = 3.1;  // what the page breeds; versions 1, 2 and 3 still grow (genome.ts)
 export const STREET_GENE_DEFAULT = 0.5;  // what a pre-street genome's street genes are read as
 export const KINDS: Kind[] = ["core", "green", "water"];
 export const USES = ["building", "landscape", "water"]; // use codes 1, 2, 3 (0 = none)
@@ -85,8 +85,13 @@ export const STREET_FRONT_RISE = 1.1;                     // buildings on a stre
 
 export const GENES_V3 = ["water_share", "green_share", "follow_water", "coverage", "peak", "intensity", "base",
   "detour", "w_gates", "w_centres", "w_transit", "w_schools", "w_markets",
-  "f_landform", "f_edges", "f_wind", "local_spacing", "pattern", "plot_depth"] as const;
+  "f_landform", "f_edges", "f_wind", "local_spacing", "pattern", "plot_depth",
+  "t_courtyard", "t_perimeter", "t_row", "t_towers"] as const;
+// Version 3.1 (built form, section 5) added the last four, the search's preference for each
+// building type (plan/blocktypes.ts). A genome of LENGTH_V3_0 numbers is version 3: it grows
+// without building types, as it did (architecture-v3 12.10).
 export const LENGTH_V3 = N_ATTRACTORS * ATTRACTOR_GENES + GENES_V3.length;
+export const LENGTH_V3_0 = LENGTH_V3 - 4;
 export type GeneV3 = (typeof GENES_V3)[number];
 
 export const RANGES_V3: Record<Exclude<GeneV3, keyof Settings>, Range> = {
@@ -96,6 +101,7 @@ export const RANGES_V3: Record<Exclude<GeneV3, keyof Settings>, Range> = {
   local_spacing: [50, 125], // metres between local streets (IRC:SP:118 3.2: a walking route at least every 125 m)
   pattern: [0, 1],          // five bands: the block pattern family (FAMILIES)
   plot_depth: [0, 1],       // where plot depth sits inside the family's range
+  t_courtyard: [0, 1], t_perimeter: [0, 1], t_row: [0, 1], t_towers: [0, 1], // preference for each building type
 };
 // On a site whose relief is pronounced, local_spacing maps onto 50-80 m instead
 // (IRC:SP:118 3.2: in hilly areas a walking route at least every 80 m).
@@ -114,11 +120,15 @@ export type Family = (typeof FAMILIES)[number];
 
 export const SECONDARY_W_M = 12.0;  // Otto routes (IRC:SP:118 template 12A; IRC:86 Table 4.1 local street 10-15 m)
 
-/** A genome's version, from its length (1: 47 numbers, 2: 51, 3: LENGTH_V3). */
-export const versionOf = (genome: ArrayLike<number>): 1 | 2 | 3 =>
-  genome.length === LENGTH_V3 ? 3 : genome.length === PRE_STREET_LENGTH ? 1 : 2;
+export type GenomeVersion = 1 | 2 | 3 | 3.1;
+/** A genome's version, from its length (1: 47 numbers, 2: 51, 3: LENGTH_V3_0, 3.1: LENGTH_V3). */
+export const versionOf = (genome: ArrayLike<number>): GenomeVersion =>
+  genome.length === LENGTH_V3 ? 3.1 : genome.length === LENGTH_V3_0 ? 3 : genome.length === PRE_STREET_LENGTH ? 1 : 2;
 /** How many numbers a genome of a version has. */
-export const lengthOf = (version: number) => (version >= 3 ? LENGTH_V3 : version === 1 ? PRE_STREET_LENGTH : LENGTH);
+export const lengthOf = (version: number) =>
+  (version >= 3.1 ? LENGTH_V3 : version >= 3 ? LENGTH_V3_0 : version === 1 ? PRE_STREET_LENGTH : LENGTH);
+/** A vector plan's genome: version 3 or 3.1. */
+export const isVector = (genome: ArrayLike<number>) => genome.length === LENGTH_V3 || genome.length === LENGTH_V3_0;
 
 // --- street cross-sections (corpus: irc-sp118-street-templates) ---------------------------
 

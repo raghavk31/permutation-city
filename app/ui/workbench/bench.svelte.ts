@@ -126,8 +126,9 @@ class Bench {
   // of values), the design selected and pointed at (kept names), the pair compared
   exView = $state<"tradeoffs" | "compare" | "archive" | "tree">("tradeoffs");
   exPlot = $state<"matrix" | "parallel">("matrix");
-  /** What the Explore plan shows: the plan, its shared ground, or its street frontage. */
-  exLayer = $state<"plan" | "shared" | "frontage">("plan");
+  /** What the Explore plan shows: the plan, its shared ground, its street frontage, or its
+   *  building types. */
+  exLayer = $state<"plan" | "shared" | "frontage" | "types">("plan");
   exColour = $state("front");
   brush = $state.raw<Record<string, [number, number]>>({});
   exSel = $state<string | null>(null);
@@ -444,7 +445,8 @@ class Bench {
     }
   }
 
-  async run() {
+  /** Breed a run: version 3.1 genomes, or 3 when a link from before asks for it. */
+  async run(version: E.GenomeVersion = E.GENOME_VERSION) {
     const u = this.underBrief();
     if (!u || this.running) return;
     // A capacity measured on this ground travels with the site, so the run's workers aim at it.
@@ -465,7 +467,7 @@ class Bench {
     this.runStarted = performance.now();
     this.runSite = u.site;
     const inputs: Saved.RunInputs = { settings: { ...this.settings }, rules: this.edited ? this.rules : null, brief: this.brief,
-      off: [...this.ridgesOff], geneLocks: { ...this.geneLocks }, moves: this.moves };
+      off: [...this.ridgesOff], geneLocks: { ...this.geneLocks }, moves: this.moves, ...(version !== E.GENOME_VERSION ? { version } : {}) };
     try {
       const api = await this.engine(u.site, inputs.off);
       const c = await api.capacity();   // measured now if the rules were edited and it isn't known
@@ -473,7 +475,7 @@ class Bench {
       const s = inputs.settings;
       const r = await api.evolve(
         { search: s.search, objectives: [], generations: s.generations, pop: s.pop, seed: s.seed, shock: null, locked: null,
-          start: null, ranges: u.ranges, version: 3, weights: this.brief?.objective_weights?.value ?? null },
+          start: null, ranges: u.ranges, version, weights: this.brief?.objective_weights?.value ?? null },
         Comlink.proxy((gen: number, row: E.HistoryRow) => { this.runGen = gen; this.history = [...this.history, row]; }),
         Comlink.proxy((_gen: number, ds: E.Design[]) => { this.leaders = ds; }),
       );
@@ -557,7 +559,7 @@ class Bench {
     this.step = "evolve";
     // COPY: rebuilding a run from a link
     this.restoring = "Breeding this run again from the link: the same inputs give the same designs.";
-    await this.run();
+    await this.run(r.run.version);
     this.restoring = "";
     if (!this.result) return;
     if (r.sel && this.genomeOf(r.sel)) this.exSel = r.sel;

@@ -35,3 +35,4 @@ export * from "./shocks.js";
 export * from "./scenarios.js";
 export * from "./piecemeal.js";
 export * from "./moves.js";
+export { BLOCK_TYPES, typeSummary, type BlockType } from "./plan/blocktypes.js";

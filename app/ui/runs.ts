@@ -125,15 +125,27 @@ export function readLink(q: URLSearchParams, n: number): RunLink | null {
       ...(growth === "piecemeal" ? { growth: "piecemeal" as const, scenario: ssp as "ssp245" | "ssp585" } : {}),
     },
     off, locks, pen: q.get("pen") ? int(q.get("pen"), 0, 500, "pen count") : 0,
-    genomeVersion: q.get("gv") ? int(q.get("gv"), 1, 99, "genome version") : E.GENOME_VERSION, build: q.get("b"),
+    genomeVersion: q.get("gv") ? version(q.get("gv")!) : E.GENOME_VERSION, build: q.get("b"),
   };
+}
+
+/** A genome version in a link: 1, 2, 3 or 3.1. */
+function version(v: string): number {
+  const n = Number(v);
+  if (![1, 2, 3, 3.1].includes(n)) throw new Error(`The link's genome version (${v}) can't be read.`);
+  return n;
 }
 
 /** What to tell people about a link or file made with another engine. */
 export function versionNotes(genomeVersion: number, build: string | null): string[] {
   const out: string[] = [];
+  // COPY: the note on runs saved before building types.
+  if (genomeVersion === 3 && E.GENOME_VERSION > 3) {
+    out.push(`Saved with genome version 3 (${E.LENGTH_V3_0} numbers), before building types: it grows as it did then, `
+      + `each plot filled from the height field. This page breeds version ${E.GENOME_VERSION} (${E.LENGTH_V3} numbers, a building type per block), `
+      + "and the two can't be bred together.");
   // COPY: the note on runs saved with an older genome.
-  if (genomeVersion < E.GENOME_VERSION) {
+  } else if (genomeVersion < 3) {
     out.push(`Saved with genome version ${genomeVersion} (${genomeVersion === 1 ? `${E.PRE_STREET_LENGTH} numbers, before streets`
       : `${E.LENGTH} numbers, streets on the cells' edges`}). It grows as it did then; this page breeds version ${E.GENOME_VERSION}`
       + ` (${E.LENGTH_V3} numbers, vector streets and plots), and the two can't be bred together.`);
