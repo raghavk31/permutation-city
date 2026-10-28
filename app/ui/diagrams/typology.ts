@@ -25,6 +25,11 @@ const sideShade = (nx: number, ny: number, c: ReturnType<typeof fillOf>) => {
   return t < 0.5 ? c.lit : c.dark;
 };
 
+const inside = (r: Pt[], x: number, y: number) => {
+  let c = false;
+  for (let i = 0, j = r.length - 1; i < r.length; j = i++) if ((r[i][1] > y) !== (r[j][1] > y) && x < ((r[j][0] - r[i][0]) * (y - r[i][1])) / (r[j][1] - r[i][1]) + r[i][0]) c = !c;
+  return c;
+};
 const centroid = (r: Pt[]): Pt => [r.reduce((a, p) => a + p[0], 0) / r.length, r.reduce((a, p) => a + p[1], 0) / r.length];
 
 class Drawing {
@@ -73,6 +78,15 @@ class Drawing {
         faces.push({ d: p[0][0] + p[0][1] + p[1][0] + p[1][1] + k, p, fill: mx - my > 0 ? c.dark : c.lit });
       }
       faces.sort((a, b) => a.d - b.d).forEach((x) => this.poly(x.p, x.fill));
+      return;
+    }
+    if (kind === "mono" && r.length === 4) {
+      // a roof rising from the front edge (the first side) to the back by `rise`, planted on top
+      const R = s.rise ?? 3, q = r;
+      const P = (i: number, up: boolean): P3 => [q[i][0], q[i][1], z + (up ? R : 0)];
+      this.poly([P(1, false), P(2, false), P(2, true)], c.dark);
+      this.poly([P(0, false), P(3, false), P(3, true)], c.lit);
+      this.poly([P(0, false), P(1, false), P(2, true), P(3, true)], "var(--pc-green-light)");
       return;
     }
     // gable or vault over a quadrilateral: the ridge along the longer pair of sides
@@ -151,7 +165,17 @@ export function drawTypology(p: Params, title: string): TypologyDrawing {
 
   // back to front by the nearest corner, lower first
   const key = (x: Solid) => Math.max(...x.ring.map(([a, c]) => a + c)) * 0.5 + Math.min(...x.ring.map(([a, c]) => a + c)) * 0.5 + x.z * 0.01;
-  for (const x of [...above].sort((a, c) => key(a) - key(c))) {
+  // parts on a roof (windcatchers, stacks) are drawn right after the block they stand on
+  const onRoof = (x: Solid) => x.use === "built" && x.storeys === 0 && x.z > 0.5;
+  const hostOf = (x: Solid) => {
+    const [cx, cy] = centroid(x.ring as Pt[]);
+    return above.find((b) => b !== x && !onRoof(b) && Math.abs(b.z + b.h - x.z) < 0.05 && inside(b.ring as Pt[], cx, cy));
+  };
+  const parts = new Map<Solid, Solid[]>(), loose: Solid[] = [];
+  for (const x of above) if (onRoof(x)) { const h = hostOf(x); if (h) parts.set(h, [...(parts.get(h) ?? []), x]); else loose.push(x); }
+  const order = [...above.filter((x) => !onRoof(x)), ...loose].sort((a, c) => key(a) - key(c))
+    .flatMap((x) => [x, ...(parts.get(x) ?? []).sort((a, c) => key(a) - key(c))]);
+  for (const x of order) {
     if (x.use === "tree") s.tree({ kind: "tree", x: x.ring[0][0], y: x.ring[0][1], z: 0, s: x.h / 3 });
     else d.prism(x);
   }

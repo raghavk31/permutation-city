@@ -6,6 +6,7 @@
   import { onMount } from "svelte";
   import { LIBRARY } from "../../engine/typology/library";
   import { CLIMATES, MECHANISMS, PROGRAMMES, type Climate, type Mechanism, type Precedent, type Programme } from "../../engine/typology/types";
+  import type { Feature } from "../../engine/typology/grammar";
   import { drawTypology, fmt } from "../diagrams/typology";
 
   const drawings = new Map(LIBRARY.map((p) => [p.id, drawTypology(p.seed, p.name)]));
@@ -48,12 +49,15 @@
 
   const seedRows = (p: Precedent) => Object.entries(p.seed)
     .filter(([k]) => k !== "arrangement")
-    .map(([k, v]) => [SEED_WORDS[k] ?? k, typeof v === "object" ? `${v.width} × ${v.depth} m, ${v.storeys} storeys` : String(v)]);
+    .map(([k, v]) => [SEED_WORDS[k] ?? k, Array.isArray(v) ? v.map(featureWords).join("; ") : typeof v === "object" ? `${v.width} × ${v.depth} m, ${v.storeys} storeys` : String(v)]);
+  const featureWords = (f: Feature) =>
+    f.kind === "windcatcher" ? `windcatcher ${f.height} m` : f.kind === "stack" ? `stacks ${f.height} m` : f.kind === "dome" ? "dome"
+    : f.kind === "vault" ? "vault over the street" : f.kind === "arcade" ? `arcade ${f.depth} m deep` : `roof rising ${f.rise} m`;
   const SEED_WORDS: Record<string, string> = {
     footprint: "Unit shape", width: "Unit width (m)", depth: "Unit depth (m)", storeys: "Storeys", floorH: "Floor to floor (m)",
     count: "Units or rooms", rows: "Rows, rings or sides", court: "Court (m)", diameter: "Diameter (m)", street: "Street or lane (m)",
     gap: "Gap between units (m)", well: "Chowk or air well (share of plan)", raised: "Floor raised (m)", sunken: "Sunk below ground (m)",
-    steps: "Steps or terraces", tower: "Tower", trees: "Trees", eave: "Eave or gallery (m)", roof: "Roof", porosity: "Façade open (share)", wall: "Wall thickness (m)", water: "Water held (m deep)",
+    steps: "Steps or terraces", tower: "Tower", trees: "Trees", features: "Features", eave: "Eave or gallery (m)", roof: "Roof", porosity: "Façade open (share)", wall: "Wall thickness (m)", water: "Water held (m deep)",
   };
   const ARR_A: Record<string, string> = {
     row: "a row", ring: "a ring", court: "wings round a court", cluster: "a cluster round a yard", slab: "a slab", tower: "a podium and tower",
@@ -164,6 +168,7 @@
         <div class="ty-text">
           <p class="ty-lead">{p.summary}</p>
           <p>{p.how}</p>
+          <p class="ty-lesson"><span class="wb-label">For a future city</span>{p.lesson}</p>
           <dl class="ty-facts">
             <div><dt class="wb-label">Climate</dt><dd>{CLIMATES[p.climate].label} <span class="wb-mono ty-muted">{CLIMATES[p.climate].koppen}</span></dd></div>
             <div><dt class="wb-label">Materials</dt><dd>{p.materials.join(", ")}</dd></div>

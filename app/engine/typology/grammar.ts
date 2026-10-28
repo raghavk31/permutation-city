@@ -18,7 +18,23 @@ export type Arrangement =
   | "row" | "ring" | "court" | "cluster" | "slab" | "tower"
   | "sunken" | "terraces" | "ponds" | "shed" | "canopy";
 
-export type Roof = "flat" | "gable" | "cone" | "dome" | "vault";
+export type Roof = "flat" | "gable" | "cone" | "dome" | "vault" | "mono";
+
+/** The parts that make a precedent itself, beyond its massing: what catches the wind, lets the
+ *  heat out, covers the water or the street, or lifts the floor. */
+export type Feature =
+  /** Towers that catch the wind above the roofs and send it down (badgir, malqaf). */
+  | { kind: "windcatcher"; height: number; size?: number; count?: number }
+  /** Chimneys or towers that let warm air out at the top, or cooling towers (PDEC). */
+  | { kind: "stack"; height: number; size?: number; count?: number }
+  /** A dome over the pit (a cistern, an ice house) or over the middle of the plan. */
+  | { kind: "dome"; size?: number }
+  /** A vault over the lanes between rows (a covered bazaar). */
+  | { kind: "vault" }
+  /** The ground floor set back under the upper floors: an arcade, a portico, a five-foot way. */
+  | { kind: "arcade"; depth: number }
+  /** Roofs that rise from the front to the back by this much (m). */
+  | { kind: "slope"; rise: number };
 
 export interface Params {
   arrangement: Arrangement;
@@ -64,12 +80,13 @@ export interface Params {
   water?: number;
   /** Trees on the open ground: a homegarden, a planted court, willows on a chinampa. */
   trees?: number;
+  features?: Feature[];
 }
 
 export type Use = "built" | "water" | "green" | "ground" | "canopy" | "tree";
 
 /** A convex prism: a footprint ring (anticlockwise seen from above), a base and a height. */
-export interface Solid { ring: [number, number][]; z: number; h: number; use: Use; roof?: Roof; storeys?: number }
+export interface Solid { ring: [number, number][]; z: number; h: number; use: Use; roof?: Roof; storeys?: number; /** A mono roof's rise (m). */ rise?: number }
 
 export interface Built {
   solids: Solid[];
@@ -117,18 +134,28 @@ export function build(p: Params): Built {
       // Units side by side along a street; a lane between rows. A chowk cuts each unit into a
       // front and a back block.
       const n = p.count ?? 6, rows = p.rows ?? 1, st = p.street ?? 4, g = p.gap ?? 0;
+      const arcade = (p.features ?? []).find((f) => f.kind === "arcade") as { depth: number } | undefined;
+      // A unit's front block: with an arcade, its ground floor stands back behind posts.
+      const front = (x: number, y: number, w: number, d: number) => {
+        // (the arcade is on the side toward the viewer, +y, so the drawing shows it)
+        if (!arcade || p.storeys < 2 || arcade.depth >= d - 1) { add(rect(x, y, w, d), p.storeys); return; }
+        add(rect(x, y, w, d - arcade.depth), 1);
+        add(rect(x, y, w, d), p.storeys - 1, "built", z0 + fh);
+        const k = Math.max(1, Math.round(w / 3.5));
+        for (let j = 0; j <= k; j++) S.push({ ring: rect(x + Math.min(w - 0.4, (j * w) / k), y + d - 0.4, 0.4, 0.4), z: z0, h: fh, use: "built", roof: "flat", storeys: 0 });
+      };
       for (let r = 0; r < rows; r++) {
         const y = st / 2 + r * (p.depth + st);
         for (let i = 0; i < n; i++) {
           const x = i * (p.width + g);
           const well = p.well ?? 0;
           if (well > 0) {
-            const wd = Math.sqrt(well * p.width * p.depth), front = (p.depth - wd) / 2;
-            add(rect(x, y, p.width, front), p.storeys);
-            add(rect(x, y + front + wd, p.width, p.depth - front - wd), p.storeys);
+            const wd = Math.sqrt(well * p.width * p.depth), front0 = (p.depth - wd) / 2;
+            add(rect(x, y, p.width, front0), p.storeys);
+            front(x, y + front0 + wd, p.width, p.depth - front0 - wd);
             // the chowk's sides: thin wings either side of the well, when it is narrower than the unit
-            if (wd < p.width - 1) add(rect(x, y + front, (p.width - wd) / 2, wd), p.storeys);
-          } else add(rect(x, y, p.width, p.depth), p.storeys);
+            if (wd < p.width - 1) add(rect(x, y + front0, (p.width - wd) / 2, wd), p.storeys);
+          } else front(x, y, p.width, p.depth);
         }
       }
       W = n * p.width + (n - 1) * g; D = rows * (p.depth + st);
@@ -250,6 +277,12 @@ export function build(p: Params): Built {
     }
   }
 
+  features(p, S, fh, z0, W, D);
+
+  // Stilts under a raised floor: a post at each corner, from the ground up.
+  if (z0 > 0) for (const s of S.filter((x) => x.use === "built" && x.z === z0 && x.ring.length === 4))
+    for (const [x, y] of s.ring) S.push({ ring: rect(x - 0.15, y - 0.15, 0.3, 0.3), z: 0, h: z0, use: "built", roof: "flat", storeys: 0 });
+
   // Trees on open ground: placed by a seeded random, never inside a building.
   if (p.trees) {
     let seed = 7;
@@ -271,4 +304,73 @@ export function build(p: Params): Built {
   const floorArea = built.reduce((a, s) => a + ringArea(s.ring) * (s.storeys ?? 1), 0);
   const plotA = Math.max(1, W * D);
   return { solids: S, plot: { w: W, d: D }, footprint, floorArea, fsi: floorArea / plotA, gsi: footprint / plotA };
+}
+
+/** The features: parts placed on or over the massing. They add no floor area (storeys 0). */
+function features(p: Params, S: Solid[], fh: number, z0: number, W: number, D: number) {
+  const part = (ring: [number, number][], z: number, h: number, roof: Roof = "flat") => S.push({ ring, z, h, use: "built", roof, storeys: 0 });
+  const blocks = S.filter((s) => s.use === "built" && (s.storeys ?? 0) > 0);
+  const top = (s: Solid) => s.z + s.h;
+  const centre = (r: [number, number][]): [number, number] => [r.reduce((a, q) => a + q[0], 0) / r.length, r.reduce((a, q) => a + q[1], 0) / r.length];
+  // n parts spread over the blocks, the largest first
+  const pick = (n: number) => {
+    const big = [...blocks].sort((a, b) => ringArea(b.ring) - ringArea(a.ring));
+    return n >= big.length ? big : Array.from({ length: n }, (_, k) => big[Math.floor((k * big.length) / n)]);
+  };
+  for (const f of p.features ?? []) {
+    switch (f.kind) {
+      case "windcatcher":
+      case "stack": {
+        const a = f.size ?? (f.kind === "windcatcher" ? 2.5 : 3);
+        if (!blocks.length) {
+          // over a pit: towers on the ground at its edge
+          const pit = S.filter((s) => s.use === "ground" && s.z < 0).sort((x, y) => y.z - x.z)[0];
+          const xs = pit ? pit.ring.map((q) => q[0]) : [0], ys = pit ? pit.ring.map((q) => q[1]) : [0];
+          const n = f.count ?? 1;
+          for (let k = 0; k < n; k++) {
+            const t = (k + 0.5) / n, x = Math.min(...xs) + t * (Math.max(...xs) - Math.min(...xs));
+            part(rect(x - a / 2, Math.min(...ys) - a - 1, a, a), 0, f.height);
+          }
+          break;
+        }
+        // more parts than blocks: several along each block's longer side
+        const n = f.count ?? (f.kind === "windcatcher" ? 1 : 2), chosen = pick(n), per = Math.ceil(n / Math.max(1, chosen.length));
+        for (const b of chosen) {
+          const xs = b.ring.map((q) => q[0]), ys = b.ring.map((q) => q[1]);
+          const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys), along = x1 - x0 >= y1 - y0;
+          const [cx, cy] = centre(b.ring);
+          for (let k = 0; k < per; k++) {
+            const t = (k + 0.5) / per;
+            const px = along ? x0 + t * (x1 - x0) : cx, py = along ? cy : y0 + t * (y1 - y0);
+            part(rect(px - a / 2, py - a / 2, a, a), top(b), f.height);
+          }
+        }
+        break;
+      }
+      case "dome": {
+        // over the pit when there is one, else over the middle of the plan
+        const pit = S.filter((s) => s.use === "ground" && s.z < 0).sort((a, b) => b.z - a.z)[0];
+        const ring = pit ? pit.ring : ([[0, 0], [W, 0], [W, D], [0, D]] as [number, number][]);
+        const xs = ring.map((q) => q[0]), ys = ring.map((q) => q[1]);
+        const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+        const r = f.size ?? Math.min(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) * 0.5, n = 16;
+        part(Array.from({ length: n }, (_, i) => [cx + r * Math.cos((i / n) * 2 * Math.PI), cy + r * Math.sin((i / n) * 2 * Math.PI)] as [number, number]), pit ? 0 : z0 + p.storeys * fh, 1, "dome");
+        break;
+      }
+      case "vault": {
+        if (p.arrangement !== "row") break;
+        const rows = p.rows ?? 1, st = p.street ?? 4;
+        for (let r = 0; r + 1 < rows; r++) {
+          const y = st / 2 + r * (p.depth + st) + p.depth;
+          part(rect(0, y, W, st), z0 + p.storeys * fh - 0.3, 0.3, "vault");
+        }
+        break;
+      }
+      case "slope":
+        for (const b of blocks) { b.roof = "mono"; b.rise = f.rise; }
+        break;
+      case "arcade":
+        break; // built with the row
+    }
+  }
 }

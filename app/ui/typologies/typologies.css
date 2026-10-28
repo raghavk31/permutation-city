@@ -52,6 +52,7 @@ a { color: inherit; }
 .ty-text { display: grid; gap: var(--wb-s3); align-content: start; }
 .ty-text p { margin: 0; color: var(--pc-ink-2); }
 .ty-text .ty-lead { color: var(--pc-ink); }
+.ty-text .ty-lesson { display: grid; gap: 4px; padding: var(--wb-s3); border-left: 2px solid var(--pc-ink); background: var(--pc-surface-2); color: var(--pc-ink); }
 .ty-facts { margin: 0; display: grid; gap: var(--wb-s2); }
 .ty-facts div { display: grid; gap: 2px; }
 .ty-facts dd { margin: 0; }

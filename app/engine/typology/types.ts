@@ -78,6 +78,8 @@ export interface Precedent {
   summary: string;
   /** How it answers its climate or its need, in two or three plain sentences. */
   how: string;
+  /** What a future city can take from it: the principle, in one plain sentence. */
+  lesson: string;
   figures: Figure[];
   /** The grammar parameters the drawing and the search start from. */
   seed: Params;

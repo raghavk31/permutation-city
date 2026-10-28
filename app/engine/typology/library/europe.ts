@@ -1,0 +1,130 @@
+// The typology library: Europe (docs/typologies.md). Figures carry their source and
+// confidence; seed numbers not taken from a figure are placeholders, said so in `seedNote`.
+import type { Precedent } from "../types.js";
+import { src } from "./src.js";
+
+export const EUROPE: Precedent[] = [
+  {
+    id: "eixample", name: "Eixample block", local: "manzana, illa", place: "Barcelona", region: "Europe", at: [2.16, 41.39],
+    era: "Cerdà plan, 1859", climate: "mediterranean", programmes: ["housing", "commercial"],
+    mechanisms: ["court", "shared", "cross-vent"],
+    materials: ["masonry"],
+    summary: "Ildefons Cerdà's square block with cut corners, meant to be built on two or three sides round a garden.",
+    how: "Cerdà sized the grid for light, air and movement: blocks built shallow on some sides, open to a shared garden, with chamfered corners. Later building filled the blocks in, which is the lesson too.",
+    lesson: "A grid can be sized for light and air, but the block's open centre must be protected or it fills in.",
+    figures: [
+      { what: "Block side", value: "113.3 m", conf: "medium", src: 0 },
+      { what: "Planned building depth and height", value: "20 m deep, 16 m high", conf: "medium", src: 0 },
+      { what: "Corners", value: "cut at 45°", conf: "medium", src: 1 },
+      { what: "Streets", value: "20 m; the great avenues 50 m and more", conf: "low", src: 1 },
+    ],
+    seed: { arrangement: "court", width: 20, depth: 20, storeys: 5, court: 73.3, rows: 2, street: 20, roof: "flat", porosity: 0.2 },
+    seedNote: "Block, depth and height from the figures, built on two sides as Cerdà planned; corners not cut.",
+    sources: [
+      src("Failed Architecture, Behind four walls: Barcelona's lost utopia", "https://failedarchitecture.com/behind-four-walls-barcelonas-lost-utopia/"),
+      src("Equinox, Why the Eixample's crossings aren't square", "https://www.equinoxmagazine.fr/2023/07/16/pietons-a-barcelone-eixample"),
+    ],
+  },
+  {
+    id: "water-square", name: "Water square", place: "Benthemplein, Rotterdam", region: "Europe", at: [4.47, 51.93],
+    era: "2013", climate: "temperate", programmes: ["water", "cultural"], modern: true,
+    mechanisms: ["storage", "flood-room", "shared"],
+    materials: ["concrete", "stainless steel gutters"],
+    summary: "De Urbanisten's public square of sunken basins: courts and seating most days, a rain tank in a storm.",
+    how: "Two shallow basins take everyday rain from the surroundings and a deep one fills only in long downpours, then drains slowly. The square is a place to play the rest of the time.",
+    lesson: "Design public space to flood: basins that are courts most days and tanks in a storm.",
+    figures: [
+      { what: "Storage", value: "about 1,700-1,800 m³", conf: "medium", src: 0 },
+      { what: "Basins", value: "three: two shallow, one deep", conf: "medium", src: 0 },
+      { what: "Square", value: "about 9,000 m²", conf: "medium", src: 1 },
+    ],
+    seed: { arrangement: "sunken", width: 40, depth: 30, storeys: 0, sunken: 1.6, steps: 3, water: 1 },
+    seedNote: "The deep basin only; sized to hold about 1,800 m³ (derived).",
+    sources: [
+      src("Klimaatadaptatie Nederland, Rotterdam water squares", "https://klimaatadaptatienederland.nl/en/@163422/rotterdam-water"),
+      src("Public Space, Water square in Benthemplein", "https://publicspace.org/works/-/project/h034-water-square-in-benthemplein"),
+    ],
+  },
+  {
+    id: "copenhill", name: "CopenHill", local: "Amager Bakke", place: "Copenhagen", region: "Europe", at: [12.62, 55.68],
+    era: "2017-19", climate: "temperate", programmes: ["waste", "energy", "cultural"], modern: true,
+    mechanisms: ["loop", "shared"],
+    materials: ["steel", "aluminium", "planting"],
+    summary: "BIG's waste-to-energy plant with a ski slope and a hiking trail on its roof.",
+    how: "Burns the city's leftover waste for heat and power, and gives its roof back to the city as a park.",
+    lesson: "Put infrastructure inside the city and give its roof to people.",
+    figures: [
+      { what: "Waste", value: "about 590,000 t in 2023", conf: "medium", src: 0 },
+      { what: "Power", value: "283 GWh, about 94,000 households (2023)", conf: "medium", src: 0 },
+      { what: "Heat", value: "1,300 GWh, about 87,000 flats (2023)", conf: "medium", src: 0 },
+      { what: "Height", value: "about 85 m", conf: "medium", src: 1 },
+    ],
+    seed: { arrangement: "shed", width: 60, depth: 200, storeys: 1, floorH: 15, count: 1, street: 20, roof: "flat", porosity: 0.05, features: [{ kind: "slope", rise: 70 }] },
+    seedNote: "Massed as one hall with its roof rising to about 85 m (height from the figures); plan assumed.",
+    sources: [
+      src("Amager Resource Center (EESC presentation, 2025)", "https://www.eesc.europa.eu/sites/default/files/2025-07/8._nils_thor_rosted_amager_resource_center_0.pdf"),
+      src("District Energy, CopenHill", "https://www.districtenergy.org/blogs/district-energy/2019/10/24/projects-copenhill-ski-slope-and-energy-from-waste"),
+    ],
+  },
+  {
+    id: "hammarby", name: "Hammarby model", local: "Hammarby Sjöstad", place: "Stockholm", region: "Europe", at: [18.1, 59.3],
+    era: "1990s-2010s", climate: "continental", programmes: ["waste", "energy", "water", "housing"], modern: true,
+    mechanisms: ["loop", "shared"],
+    materials: ["district systems"],
+    summary: "A district planned as one loop: waste and sewage become heat, cooling, biogas and fertiliser for the same neighbourhood.",
+    how: "Heat is taken from treated sewage, waste is burned for heat and power, and digested sludge becomes biogas for buses. Half the district's energy comes from its own flows.",
+    lesson: "Plan a district as one loop: its waste and sewage become its heat, fuel and fertiliser.",
+    figures: [
+      { what: "District", value: "about 11,000 homes, 25,000 people, 130 ha", conf: "medium", src: 0 },
+      { what: "Energy from its own flows", value: "about half", conf: "medium", src: 1 },
+      { what: "Heat (2002)", value: "34% from treated sewage, 47% from household waste, 16% biofuel", conf: "low", src: 1 },
+      { what: "Non-renewable energy, against Stockholm", value: "28-42% lower", conf: "medium", src: 0 },
+    ],
+    seed: { arrangement: "court", width: 12, depth: 12, storeys: 6, court: 30, rows: 3, street: 18, roof: "flat", porosity: 0.3 },
+    seedNote: "Open perimeter blocks as built; sizes approximate.",
+    sources: [
+      src("Tsenkova and Haas, Hammarby Sjöstad (University of Calgary)", "https://live-sapl.ucalgary.ca/sites/default/files/tsenkova_and_haas_hammarby_paper.pdf"),
+      src("Grist, Hammarby Sjöstad eco-cycle", "https://grist.org/article/2010-06-16-local-power-tapping-distributed-energy-in-21st-century-cities"),
+    ],
+  },
+  {
+    id: "kalundborg", name: "Industrial symbiosis", place: "Kalundborg, Denmark", region: "Europe", at: [11.09, 55.68],
+    era: "since 1972", climate: "temperate", programmes: ["industrial", "energy", "waste", "water"], modern: true,
+    mechanisms: ["loop"],
+    materials: ["pipelines between plants"],
+    summary: "A power station, a refinery and pharmaceutical plants that live off each other's steam, water and waste.",
+    how: "Each plant's by-product is another's input: steam, cooling water, gypsum from flue gas, fly ash, biomass. The town's industry acts as one system.",
+    lesson: "Place industries so one's by-product is the next one's input.",
+    figures: [
+      { what: "Exchanges", value: "about 30 streams", conf: "low", src: 0 },
+      { what: "Gypsum", value: "about 170,000-200,000 t a year", conf: "low", src: 1 },
+      { what: "Water saved", value: "about 2.9 million m³ of groundwater a year (older figure)", conf: "low", src: 1 },
+    ],
+    seed: { arrangement: "shed", width: 40, depth: 80, storeys: 1, floorH: 14, count: 3, street: 30, roof: "flat", porosity: 0.05 },
+    seedNote: "Plants massed as sheds (assumed).",
+    sources: [
+      src("Corporate Knights, Kalundborg", "https://corporateknights.com/?p=14600"),
+      src("Yale School of the Environment, industrial symbiosis", "https://environment.yale.edu/news/article/yse-partners-world-bank-identifying-industrial-symbiosis-opportunities"),
+    ],
+  },
+  {
+    id: "portico", name: "Porticoes", local: "portici", place: "Bologna", region: "Europe", at: [11.34, 44.49],
+    era: "since the 12th century", climate: "humid-subtropical", programmes: ["mobility", "commercial", "housing"],
+    mechanisms: ["eaves", "mutual-shade", "shared"],
+    materials: ["timber, then brick and stone"],
+    summary: "Covered walks under the upper floors of houses along almost every street, 62 km of them.",
+    how: "The ground floor of private buildings is given to a public covered walk, out of sun and rain, by law since 1288.",
+    lesson: "Require private buildings to give their ground floor to a public covered walk.",
+    figures: [
+      { what: "Length", value: "about 62 km; 42 km in the old town", conf: "medium", src: 0 },
+      { what: "Minimum height", value: "7 Bolognese feet (2.66 m), for a rider on horseback", conf: "medium", src: 0 },
+      { what: "UNESCO", value: "inscribed 2021, twelve parts", conf: "high", src: 1 },
+    ],
+    seed: { arrangement: "row", width: 8, depth: 14, storeys: 4, count: 8, rows: 2, street: 8, roof: "gable", porosity: 0.25, features: [{ kind: "arcade", depth: 3.5 }] },
+    seedNote: "Portico height from the figures (one storey); house sizes and depth assumed.",
+    sources: [
+      src("Bologna Welcome, Top 6 facts about Bologna's porticoes", "https://bolognawelcome.com/en/blog/top-6-facts-about-bolognas-unesco-porticoes"),
+      src("Bologna Welcome, Porticoes in the UNESCO list", "https://www.bolognawelcome.com/en/press-news/porticoes-of-bologna-in-the-unesco-world-heritage-list"),
+    ],
+  },
+];
