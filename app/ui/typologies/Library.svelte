@@ -5,7 +5,7 @@
   // so a link opens it.
   import { onMount } from "svelte";
   import { LIBRARY } from "../../engine/typology/library";
-  import { CLIMATES, MECHANISMS, PROGRAMMES, type Climate, type Mechanism, type Precedent, type Programme } from "../../engine/typology/types";
+  import { CLIMATES, MECHANISMS, PROGRAMMES, REGIONS, type Climate, type Mechanism, type Precedent, type Programme, type Region } from "../../engine/typology/types";
   import type { Feature } from "../../engine/typology/grammar";
   import { drawTypology, fmt } from "../diagrams/typology";
 
@@ -16,6 +16,11 @@
   let climate = $state<Climate | "">("");
   let mechanism = $state<Mechanism | "">("");
   let kind = $state<"all" | "vernacular" | "modern">("all");
+  let region = $state<Region | "">("");
+  let sort = $state<"region" | "name" | "bengaluru">("region");
+  // Climates in order of likeness to Bengaluru's (tropical savanna, about 920 m): a plain ranking
+  // of the Köppen groups, not a measure; the site's own climate data will replace it.
+  const NEAR_BENGALURU: Climate[] = ["tropical-dry", "tropical-wet", "semi-arid", "humid-subtropical", "hot-arid", "mediterranean", "temperate", "continental", "cold"];
   let open = $state<Precedent | null>(null);
   let dialog: HTMLDialogElement;
 
@@ -24,8 +29,14 @@
     && (!climate || p.climate === climate)
     && (!mechanism || p.mechanisms.includes(mechanism))
     && (kind === "all" || (kind === "modern") === !!p.modern)
+    && (!region || p.region === region)
     && (!q || `${p.name} ${p.local ?? ""} ${p.place} ${p.summary} ${p.materials.join(" ")}`.toLowerCase().includes(q.toLowerCase()));
-  const shown = $derived(LIBRARY.filter(matches));
+  const shown = $derived.by(() => {
+    const list = LIBRARY.filter(matches);
+    if (sort === "name") return [...list].sort((a, b) => a.name.localeCompare(b.name));
+    if (sort === "bengaluru") return [...list].sort((a, b) => NEAR_BENGALURU.indexOf(a.climate) - NEAR_BENGALURU.indexOf(b.climate));
+    return list;
+  });
   const countBy = (k: Programme) => LIBRARY.filter((p) => p.programmes.includes(k)).length;
   const usedClimates = (Object.keys(CLIMATES) as Climate[]).filter((c) => LIBRARY.some((p) => p.climate === c));
   const usedMechs = (Object.keys(MECHANISMS) as Mechanism[]).filter((m) => LIBRARY.some((p) => p.mechanisms.includes(m)));
@@ -87,7 +98,8 @@
       and a few modern buildings that did the same with new means. Each one is written down as numbers, and every
       drawing here is made from those numbers. The design search will start from these forms and adapt them to a site.
     </p>
-    <p class="ty-stats wb-mono">{LIBRARY.length} precedents · {figures} figures, {sourced} from reliable sources · every figure says where it came from</p>
+    <p class="ty-stats wb-mono">{LIBRARY.length} precedents from {new Set(LIBRARY.map((p) => p.region)).size} regions and {new Set(LIBRARY.map((p) => p.climate)).size} climates · {figures} figures, {sourced} from reliable sources · every figure says where it came from</p>
+    {#if shown.length !== LIBRARY.length}<p class="ty-stats wb-mono">Showing {shown.length}</p>{/if}
   </section>
 
   <section class="ty-filters" aria-label="Filter the library">
@@ -110,6 +122,19 @@
         <select class="wb-select" bind:value={mechanism}>
           <option value="">Any</option>
           {#each usedMechs as m (m)}<option value={m}>{MECHANISMS[m]}</option>{/each}
+        </select>
+      </label>
+      <label class="ty-field"><span class="wb-label">Region</span>
+        <select class="wb-select" bind:value={region}>
+          <option value="">Anywhere</option>
+          {#each REGIONS as r (r)}{@const n = LIBRARY.filter((p) => p.region === r).length}{#if n}<option value={r}>{r} ({n})</option>{/if}{/each}
+        </select>
+      </label>
+      <label class="ty-field"><span class="wb-label">Order</span>
+        <select class="wb-select" bind:value={sort}>
+          <option value="region">By region</option>
+          <option value="name">A to Z</option>
+          <option value="bengaluru">Climate nearest Bengaluru's first</option>
         </select>
       </label>
       <div class="ty-field"><span class="wb-label">Made by</span>
@@ -141,7 +166,7 @@
       {/each}
     </ul>
   {:else}
-    <p class="ty-empty">Nothing matches. <button class="wb-btn is-quiet" onclick={() => { q = ""; programme = ""; climate = ""; mechanism = ""; kind = "all"; }}>Clear the filters</button></p>
+    <p class="ty-empty">Nothing matches. <button class="wb-btn is-quiet" onclick={() => { q = ""; programme = ""; climate = ""; mechanism = ""; kind = "all"; region = ""; }}>Clear the filters</button></p>
   {/if}
 </main>
 

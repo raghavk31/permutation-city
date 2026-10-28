@@ -302,4 +302,43 @@ export const WEST_ASIA_NORTH_AFRICA: Precedent[] = [
       src("Arid Lands Newsletter, the M'zab house", "https://cales.arizona.edu/oals/ALN/aln28/solieman.html"),
     ],
   },
+  {
+    id: "masdar", name: "Masdar City", place: "Abu Dhabi", region: "West Asia and North Africa", at: [54.62, 24.43],
+    era: "2008 onwards", climate: "hot-arid", programmes: ["housing", "commercial", "education", "mobility"], modern: true,
+    mechanisms: ["mutual-shade", "wind-catch", "compact"],
+    materials: ["terracotta screens", "concrete", "photovoltaics"],
+    summary: "A new town with short, narrow streets angled for shade and a 45 m wind tower that sends breezes down into a public square.",
+    how: "Narrow, short streets on a rotated grid shade each other; the wind tower's louvres turn to the wind and push cooler air down. Officials report the streets 10-20 °C cooler than the desert, but no independent study separates the effects.",
+    lesson: "The old desert town's narrow shaded streets still work in a new one; measure them before claiming numbers.",
+    figures: [
+      { what: "Wind tower", value: "about 45 m", conf: "medium", src: 0 },
+      { what: "Cooler than surroundings", value: "about 10 °C (other claims 15-20 °C)", conf: "low", src: 1 },
+    ],
+    seed: { arrangement: "row", width: 8, depth: 14, storeys: 5, floorH: 3.4, count: 8, rows: 3, street: 4, roof: "flat", porosity: 0.15, features: [{ kind: "windcatcher", height: 28, size: 5 }] },
+    seedNote: "Street width and blocks assumed; tower height from the figures.",
+    sources: [
+      src("Global Ecovillage Network, Masdar City", "https://ecovillage.org/resources-library/solutions/masdar-city/"),
+      src("The Carbon Almanac, Passive cooling design techniques", "https://thecarbonalmanac.org/passive-cooling-design-techniques/"),
+    ],
+  },
+  {
+    id: "aflaj", name: "Aflaj", local: "falaj", place: "Oman (Falaj Daris, Nizwa and others)", region: "West Asia and North Africa", at: [57.53, 22.93],
+    era: "about 500 AD or earlier; about 3,000 still working", climate: "hot-arid", programmes: ["water", "food"],
+    mechanisms: ["storage", "shared", "earth"],
+    materials: ["channels and tunnels", "watchtowers"],
+    summary: "Channels that bring groundwater or springs to villages and date-palm gardens, the water shared by time in half-hour units.",
+    how: "Water goes first to drinking, then washing, then mosques, then permanent palm gardens and last to seasonal crops; each share is timed by the sun and stars. The rota (dawran) runs 4 to 20 days.",
+    lesson: "Share scarce water by time and by priority, drinking first, and make the rules visible.",
+    figures: [
+      { what: "Working aflaj", value: "about 3,000 (3,108 of 4,112 counted)", conf: "high", src: 0 },
+      { what: "Unit of share", value: "athar, about 30 minutes; 48 a day", conf: "medium", src: 1 },
+      { what: "Falaj Al-Muyassar", value: "channels 5,783 m in total", conf: "medium", src: 1 },
+    ],
+    seed: { arrangement: "ponds", width: 2, depth: 70, storeys: 0, count: 1, rows: 1, street: 30, water: 0.4, trees: 40 },
+    seedNote: "A channel through a palm garden; sizes assumed.",
+    sources: [
+      src("UNESCO, Aflaj irrigation systems of Oman", "https://whc.unesco.org/document/152044"),
+      src("Oman Observer, What you should know about Oman's falaj system", "https://www.omanobserver.om/ampArticle/36247"),
+    ],
+  },
 ];

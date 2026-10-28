@@ -20,7 +20,7 @@ a { color: inherit; }
 .ty-muted { color: var(--pc-muted); }
 
 .ty-filters { position: sticky; top: 56px; z-index: 2; display: grid; gap: var(--wb-s3); padding: var(--wb-s3) 0; background: var(--pc-surface); border-bottom: var(--wb-hair); }
-.ty-row { display: grid; grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1.4fr)) auto; gap: var(--wb-s3); align-items: end; }
+.ty-row { display: grid; grid-template-columns: minmax(0, 1.6fr) repeat(4, minmax(0, 1fr)) auto; gap: var(--wb-s3); align-items: end; }
 .ty-field { display: grid; gap: 4px; }
 
 .ty-grid { list-style: none; margin: var(--wb-s5) 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--wb-s4); }
@@ -71,6 +71,7 @@ a { color: inherit; }
   .ty-top, .ty-main { padding-left: var(--wb-s4); padding-right: var(--wb-s4); }
   .ty-intro h1 { font-size: 32px; }
   .ty-row { grid-template-columns: 1fr 1fr; }
+  .ty-row > :first-child { grid-column: 1 / -1; }
   .ty-dbody { grid-template-columns: 1fr; padding: var(--wb-s4); }
   .ty-dhead { padding: var(--wb-s3) var(--wb-s4); }
   .ty-filters { position: static; }

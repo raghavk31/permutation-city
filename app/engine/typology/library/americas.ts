@@ -187,4 +187,24 @@ export const AMERICAS: Precedent[] = [
       src("Amusing Planet, The Moray agricultural terraces", "https://www.amusingplanet.com/2013/03/the-mysterious-moray-agricultural.html"),
     ],
   },
+  {
+    id: "metrocable", name: "Metrocable", place: "Line K, Medellín", region: "Americas", at: [-75.55, 6.29],
+    era: "2004", climate: "tropical-wet", programmes: ["mobility", "cultural"], modern: true,
+    mechanisms: ["shared"],
+    materials: ["cable car", "stations", "public buildings"],
+    summary: "The first cable car built as public transport, joining hillside neighbourhoods to the metro, with libraries and parks built at its stations.",
+    how: "Steep informal neighbourhoods got a ride of about 9 minutes to the metro instead of long bus trips; the stations became public places with the library-parks around them.",
+    lesson: "On steep ground, go over it: a cable car can join the hillside to the city, and its stations can be civic buildings.",
+    figures: [
+      { what: "Length", value: "about 2.07 km, four stations", conf: "medium", src: 0 },
+      { what: "Capacity", value: "about 2,800-3,000 passengers an hour each way", conf: "medium", src: 1 },
+      { what: "Opened", value: "7 August 2004", conf: "high", src: 0 },
+    ],
+    seed: { arrangement: "shed", width: 20, depth: 14, storeys: 1, floorH: 8, count: 1, street: 10, roof: "flat", porosity: 0.4, features: [{ kind: "stack", height: 14, size: 1.5, count: 2 }] },
+    seedNote: "One station; sizes assumed; the cable is not drawn.",
+    sources: [
+      src("Metrocable (Medellín), Wikipedia", "https://en.wikipedia.org/wiki/Metrocable_(Medell%C3%ADn)"),
+      src("POMA, Metrocable Medellín", "https://www.poma.net/en/work/page/13/"),
+    ],
+  },
 ];

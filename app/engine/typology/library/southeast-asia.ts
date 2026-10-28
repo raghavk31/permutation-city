@@ -181,4 +181,24 @@ export const SOUTHEAST_ASIA: Precedent[] = [
       src("ArchDaily, Vietnam's tube houses: architectural strategies under 100 m²", "https://www.archdaily.com/1036530"),
     ],
   },
+  {
+    id: "mesiniaga", name: "Menara Mesiniaga", place: "Subang Jaya, Selangor", region: "Southeast Asia", at: [101.59, 3.08],
+    era: "1992", climate: "tropical-wet", programmes: ["commercial"], modern: true,
+    mechanisms: ["eaves", "mutual-shade", "cross-vent", "evaporative"],
+    materials: ["steel", "glass", "aluminium louvres", "planting"],
+    summary: "Ken Yeang's 14-storey 'bioclimatic skyscraper': planted sky courts spiralling up the tower, louvres on the hot sides, the core as a sun buffer.",
+    how: "East and west faces get fins and louvres, the service core sits on the hot side to shield the offices, and recessed planted terraces shade the glass. A pool on the roof cools by evaporation.",
+    lesson: "A tower can be shaded by its own gardens: spiral the planting up and put the core on the hot side.",
+    figures: [
+      { what: "Storeys", value: "14", conf: "medium", src: 0 },
+      { what: "Shading", value: "aluminium fins and louvres on east and west", conf: "medium", src: 1 },
+      { what: "Award", value: "Aga Khan Award for Architecture (1995 cycle; sources differ)", conf: "low", src: 0 },
+    ],
+    seed: { arrangement: "tower", width: 34, depth: 34, storeys: 2, floorH: 4, tower: { width: 26, depth: 26, storeys: 12 }, street: 20, roof: "flat", porosity: 0.3, trees: 10 },
+    seedNote: "Storeys from the figures; the round tower drawn square.",
+    sources: [
+      src("Ken Yeang, Wikipedia", "https://en.wikipedia.org/wiki/Ken_Yeang"),
+      src("Solaripedia, Menara Mesiniaga", "https://www.solaripedia.com/13/302/3418/menara_mesiniaga.html"),
+    ],
+  },
 ];
