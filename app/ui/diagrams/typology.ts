@@ -16,7 +16,7 @@ const fillOf = (s: Solid) =>
   s.use === "water" ? { top: "var(--pc-water)", lit: "var(--pc-water)", dark: "var(--pc-water)" }
   : s.use === "green" ? { top: "var(--pc-green-light)", lit: "color-mix(in srgb, var(--pc-green) 70%, var(--pc-surface))", dark: "color-mix(in srgb, var(--pc-green) 85%, var(--pc-ink))" }
   : s.use === "ground" ? { top: GROUND, lit: CUT, dark: CUT }
-  : s.use === "canopy" ? { top: "color-mix(in srgb, var(--pc-ink) 70%, var(--pc-surface))", lit: "var(--pc-ink-2)", dark: "var(--pc-ink)" }
+  : s.use === "canopy" ? { top: "color-mix(in srgb, var(--pc-ink) 35%, var(--pc-surface))", lit: "color-mix(in srgb, var(--pc-ink) 50%, var(--pc-surface))", dark: "color-mix(in srgb, var(--pc-ink) 60%, var(--pc-surface))" }
   : PAPER;
 
 /** Shade of a vertical face by its outward normal: faces toward +y are lit, toward +x dark. */
@@ -77,7 +77,8 @@ class Drawing {
         if (mx + my < -0.3 * R && k === 0) continue;
         faces.push({ d: p[0][0] + p[0][1] + p[1][0] + p[1][1] + k, p, fill: mx - my > 0 ? c.dark : c.lit });
       }
-      faces.sort((a, b) => a.d - b.d).forEach((x) => this.poly(x.p, x.fill));
+      // faces sealed without hairlines, so small domes read as smooth, not as a cage
+      faces.sort((a, b) => a.d - b.d).forEach((x) => this.poly(x.p, x.fill, false));
       return;
     }
     if (kind === "mono" && r.length === 4) {
@@ -173,8 +174,13 @@ export function drawTypology(p: Params, title: string): TypologyDrawing {
   };
   const parts = new Map<Solid, Solid[]>(), loose: Solid[] = [];
   for (const x of above) if (onRoof(x)) { const h = hostOf(x); if (h) parts.set(h, [...(parts.get(h) ?? []), x]); else loose.push(x); }
-  const order = [...above.filter((x) => !onRoof(x)), ...loose].sort((a, c) => key(a) - key(c))
-    .flatMap((x) => [x, ...(parts.get(x) ?? []).sort((a, c) => key(a) - key(c))]);
+  // land first (mounds, fields, steps, water), then what stands on it
+  const land = (x: Solid) => x.use === "green" || x.use === "ground" || x.use === "water";
+  const order = [
+    ...above.filter(land).sort((a, c) => key(a) - key(c)),
+    ...[...above.filter((x) => !onRoof(x) && !land(x)), ...loose].sort((a, c) => key(a) - key(c))
+      .flatMap((x) => [x, ...(parts.get(x) ?? []).sort((a, c) => key(a) - key(c))]),
+  ];
   for (const x of order) {
     if (x.use === "tree") s.tree({ kind: "tree", x: x.ring[0][0], y: x.ring[0][1], z: 0, s: x.h / 3 });
     else d.prism(x);

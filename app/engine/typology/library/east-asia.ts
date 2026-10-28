@@ -245,4 +245,24 @@ export const EAST_ASIA: Precedent[] = [
       src("China Highlights, Dujiangyan irrigation system", "https://www.chinahighlights.com/chengdu/attraction/dujiangyan-irrigation-project.htm"),
     ],
   },
+  {
+    id: "qunli", name: "Stormwater park", local: "sponge city", place: "Qunli, Harbin", region: "East Asia", at: [126.52, 45.72],
+    era: "2009-11", climate: "continental", programmes: ["water", "cultural"], modern: true,
+    mechanisms: ["storage", "recharge", "flood-room", "shared"],
+    materials: ["cut-and-fill ponds and mounds", "native planting", "raised walkways"],
+    summary: "Turenscape's park that rescued a drying wetland by ringing it with ponds and mounds that clean the new town's runoff before it reaches the core.",
+    how: "Cut and fill made a ring of ponds and mounds round the old wetland; stormwater from the district is filtered in the ring and recharges the core. Paths and towers on the mounds make it a park.",
+    lesson: "Give the city's runoff to a park: a ring of ponds that cleans the water before it feeds the wetland.",
+    figures: [
+      { what: "Park", value: "about 30-34 ha", conf: "medium", src: 0 },
+      { what: "Qunli New Town", value: "2,733 ha; 16.4% of developable land permeable green", conf: "medium", src: 1 },
+      { what: "Recognition", value: "ASLA Award of Excellence 2012; national urban wetland park", conf: "high", src: 1 },
+    ],
+    seed: { arrangement: "ponds", width: 30, depth: 30, storeys: 0, count: 4, rows: 4, street: 10, water: 1, trees: 40 },
+    seedNote: "Ponds sized as an assumption.",
+    sources: [
+      src("The Cultural Landscape Foundation, Harbin Qunli stormwater park", "https://www.tclf.org/landscapes/harbin-qunli-stormwater-park"),
+      src("ASLA 2012, A green sponge for a water-resilient city", "https://www.asla.org/2012awards/026.html"),
+    ],
+  },
 ];

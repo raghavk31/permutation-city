@@ -295,7 +295,7 @@ export function build(p: Params): Built {
   if (p.trees) {
     let seed = 7;
     const rnd = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
-    const boxes = S.filter((s) => s.use === "built").map((s) => {
+    const boxes = S.filter((s) => s.use === "built" || s.use === "water").map((s) => {
       const xs = s.ring.map((q) => q[0]), ys = s.ring.map((q) => q[1]);
       return [Math.min(...xs) - 2, Math.min(...ys) - 2, Math.max(...xs) + 2, Math.max(...ys) + 2];
     });

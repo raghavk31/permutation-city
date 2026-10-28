@@ -201,4 +201,24 @@ export const SOUTHEAST_ASIA: Precedent[] = [
       src("Solaripedia, Menara Mesiniaga", "https://www.solaripedia.com/13/302/3418/menara_mesiniaga.html"),
     ],
   },
+  {
+    id: "sky-greens", name: "Rotating vertical farm", local: "Sky Greens", place: "Lim Chu Kang, Singapore", region: "Southeast Asia", at: [103.71, 1.43],
+    era: "2012", climate: "tropical-wet", programmes: ["food"], modern: true,
+    mechanisms: ["solar", "loop", "storage"],
+    materials: ["aluminium A-frames", "troughs", "water wheel"],
+    summary: "Nine-metre A-frame towers whose troughs of vegetables rotate slowly through the sunlight, turned by a water-driven pulley.",
+    how: "Daylight, not lamps: rotation gives every trough the same light. Gravity-assisted water wheels turn the towers with little power, and the water is recycled.",
+    lesson: "Vertical farms in the tropics can use the sun instead of LEDs by moving the plants through the light.",
+    figures: [
+      { what: "Tower", value: "up to about 9 m tall, about 5.5 m² of ground", conf: "medium", src: 0 },
+      { what: "Yield", value: "up to about a tonne a tower a year; company claims 10 times a field", conf: "low", src: 0 },
+      { what: "Water", value: "about 12 litres per kg of vegetables", conf: "low", src: 1 },
+    ],
+    seed: { arrangement: "row", width: 2.3, depth: 2.4, storeys: 1, floorH: 9, count: 10, rows: 3, street: 3, gap: 1.5, roof: "gable", porosity: 0.8 },
+    seedNote: "Tower height and footprint from the figures; spacing assumed.",
+    sources: [
+      src("Singapore International Foundation, Farming in the sky", "https://singaporemagazine.sif.org.sg/Stories/Data/Stories/Farming-In-The-Sky_2015Issue3"),
+      src("Amusing Planet, Singapore's vertical farms", "https://www.amusingplanet.com/2013/08/singapores-vertical-farms.html"),
+    ],
+  },
 ];

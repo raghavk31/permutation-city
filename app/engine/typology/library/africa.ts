@@ -180,4 +180,43 @@ export const AFRICA: Precedent[] = [
     seedNote: "Sizes assumed.",
     sources: [src("ArchDaily, The painted houses of Tiébélé", "https://www.archdaily.com/1002826/the-painted-houses-of-tiebele-a-model-for-communal-collaboration")],
   },
+  {
+    id: "umuzi", name: "Zulu homestead", local: "umuzi, indlu", place: "KwaZulu-Natal, South Africa", region: "Africa", at: [31.0, -28.5],
+    era: "traditional", climate: "humid-subtropical", programmes: ["housing", "food"],
+    mechanisms: ["shared", "compact", "insulation"],
+    materials: ["bent saplings", "grass thatch", "ant-heap clay floors"],
+    summary: "A ring of domed grass huts round a central cattle enclosure, on a slope with the entrance facing downhill.",
+    how: "Each beehive hut is a woven frame of saplings thatched with grass, warm in winter and shedding rain. The cattle at the centre are the family's wealth, kept safe and their manure close.",
+    lesson: "Arrange homes in a ring round what the community values most, and set the ring on the slope with the land.",
+    figures: [
+      { what: "Hut", value: "about 4-6 m across (older accounts 12-15 feet)", conf: "medium", src: 0 },
+      { what: "Entrance", value: "low, about 18 inches by 2 feet in old accounts", conf: "low", src: 1 },
+      { what: "Layout", value: "huts in a ring round the cattle kraal; entrance downhill", conf: "medium", src: 1 },
+    ],
+    seed: { arrangement: "cluster", footprint: "round", width: 5, depth: 5, diameter: 5, storeys: 1, floorH: 1, count: 9, court: 22, gap: 3, rows: 1, street: 8, roof: "dome", porosity: 0.03 },
+    seedNote: "Hut size from the figures; the kraal is the open centre (not drawn).",
+    sources: [
+      src("Britannica, Indlu (Zulu dwelling)", "https://www.britannica.com/topic/indlu"),
+      src("Kraal, Wikipedia", "https://en.wikipedia.org/wiki/Kraal"),
+    ],
+  },
+  {
+    id: "toguna", name: "Toguna", place: "Dogon villages, Bandiagara, Mali", region: "Africa", at: [-3.6, 14.35],
+    era: "traditional", climate: "semi-arid", programmes: ["cultural"],
+    mechanisms: ["mutual-shade", "porous", "shared"],
+    materials: ["carved wooden posts", "layers of millet stalks"],
+    summary: "The men's meeting shelter: a very low roof of stacked millet stalks on carved posts, too low to stand under.",
+    how: "Eight layers of millet stalks make a thick, shady roof that stays cool and lets air through the open sides. The low height makes everyone sit, so tempers cool too.",
+    lesson: "A public shade can shape behaviour as well as climate: thick, low and open on all sides.",
+    figures: [
+      { what: "Roof", value: "thick stacks of millet stalks, traditionally eight layers", conf: "medium", src: 0 },
+      { what: "Height", value: "about 1-1.5 m inside", conf: "low", src: 1 },
+    ],
+    seed: { arrangement: "canopy", width: 8, depth: 6, storeys: 0, floorH: 1.6, count: 1, street: 10, trees: 2 },
+    seedNote: "Height from the figures; plan assumed.",
+    sources: [
+      src("The Met, Togu na support post", "https://metmuseum.org/art/collection/search/310779"),
+      src("Galerie Flak, Togu na", "https://galerieflak.com/en/togu-na"),
+    ],
+  },
 ];
