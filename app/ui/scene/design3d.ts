@@ -20,6 +20,7 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { dayOfYear, solarHour, sunAt } from "../../engine/massing";
 import { sectionFor, sides, type Design, type Ground, type SiteExport } from "../../engine";
+import { massPlan } from "../../engine/plan/blockmass";
 import { inset, regions, shapeOf, type StreetLines } from "../draw";
 import { buildingAt, tokens as T } from "../tokens";
 
@@ -346,8 +347,19 @@ export class DesignView {
       add(merge(trees.map(([x, y]) => crown.clone().translate(x, y, 4.2 * ex))), flat(T.green.existing), true, false);
     }
     const groups = new Map<number, THREE.BufferGeometry[]>();
+    if (plan.types?.length) {
+      // version 3.1: every typed block massed as its type (plan/blockmass.ts), never plot
+      // extrusions; blocks no type fits keep their plots' extrusions below
+      const { masses } = massPlan(plan.types, (b) => plan.plots.filter((p) => p.block === b && p.use === 1).map((p) => p.ring));
+      for (const m of masses) {
+        const g = new THREE.ExtrudeGeometry(new THREE.Shape(m.ring.map(([x, y]) => new THREE.Vector2(x, y))), { depth: m.storeys * STOREY * ex, bevelEnabled: false });
+        g.translate(0, 0, m.z * ex);
+        const lv = Math.round(m.z / STOREY) + m.storeys, l = groups.get(lv); if (l) l.push(g); else groups.set(lv, [g]);
+      }
+    }
+    const typed = new Set((plan.types ?? []).filter((t) => t.type >= 0).map((t) => t.block));
     for (const p of plan.plots) {
-      if (p.use !== 1 || p.levels <= 0) continue;
+      if (p.use !== 1 || p.levels <= 0 || typed.has(p.block)) continue;
       const r = area2(p.ring) < 0 ? [...p.ring].reverse() : p.ring;
       const fp = inset(r, 1.5) ?? r;
       const g = new THREE.ExtrudeGeometry(new THREE.Shape(fp.map(([x, y]) => new THREE.Vector2(x, y))), { depth: p.levels * STOREY * ex, bevelEnabled: false });

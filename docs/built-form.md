@@ -258,6 +258,39 @@ Typing costs 2-10 ms a design, about 1-2% of a plan.
   generators (12 November checkpoint).
 - **Blocks no type fits** (about 1%: too narrow even for a row) keep what the genes grew.
 
+## Whole-site massing (29 October)
+
+`app/engine/plan/blockmass.ts`. Every typed block is massed as its type in the 3D view, never as
+plot extrusions (decision 1 of 12.12):
+
+- **Courtyard:** courtyard buildings tiled over the oriented box of the block's building plots,
+  each a ring of wings round a court at least `COURT_MIN_M` and as wide as the wings are high.
+- **Perimeter block:** one ring of wings of the type's depth along the outline of the land (its
+  convex hull), each side broken for passages (`BREAKS`).
+- **Row housing:** rows along the block's length, their height apart, broken into pieces of at
+  most 40 m.
+- **Podium with towers:** the podium at the type's coverage, the towers on it along the block.
+
+Each building is clipped to the block's building plots (Sutherland and Hodgman 1974); pieces under
+25 m² are dropped. Blocks no type fits keep their plot extrusions.
+
+**The consistency check found the bounding-box arithmetic wrong on real blocks.** Massed as laid
+out, most blocks missed their type's promised floor area by more than 10% (six random designs
+each on Bengaluru, Docks and Wadaj: 60-99% of blocks flagged, the box arithmetic over-promising
+on irregular blocks cut by shared ground). So a low type's coverage is now **measured**: the
+type is laid out on the block's own plots at each storey count and its covered share is what the
+choice reads (`BlockShape.measure`). After that, on the same designs, 34% of blocks stay
+flagged on Bengaluru, 12% on Docks and 11% on Wadaj. The likely cause is the rules' coverage or
+FAR capping a type below what its layout covers (the massing isn't thinned to the cap yet); not
+yet broken down by cause.
+Towers keep the arithmetic.
+
+Cost: growth is slower (per design, Bengaluru 476 to 618 ms, Docks 115 to 192 ms, Wadaj 591 to
+843 ms in Node), from laying out each low type at each distinct court width and row gap.
+
+Not yet: the capped blocks thinned to their cap; the check shown in the workbench; the Massing
+step's block search seeded from the same layout; library precedents as types.
+
 ## Steps 5-9: references to check
 
 Figures from books go in as **assumed** with the secondary source named until a copy is read

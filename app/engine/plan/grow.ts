@@ -218,6 +218,7 @@ function typeCells(G: Ground, use: Int8Array, fs: Face[], ps: Plot[], plotOf: In
     b.land += land; b.floor += floorArea[i]; b.road = Math.max(b.road, p.road); caps[p.block].push(G.cap[i]);
     if (R) fa[p.block] += farFor(R, p.road) * land;
   }
+  ps.forEach((p) => { if (p.use === BUILDING) (blocks[p.block].plots ??= []).push(p.ring); });
   blocks.forEach((b, k) => {
     if (!caps[k].length) return;
     const c = caps[k].sort((x, y) => x - y);

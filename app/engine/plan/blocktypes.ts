@@ -25,6 +25,7 @@
 //      the blocks furthest short of their density first (decision 8)
 import { STOREY_M } from "../config.js";
 import { BENGALURU, coverageFor, type PlotRules, roadStoreys } from "../regs.js";
+import { massBlock } from "./blockmass.js";
 import { centroid, obb, type Line, type Pt } from "./geom.js";
 
 export type TypeKey = "courtyard" | "perimeter" | "row" | "towers";
@@ -80,7 +81,10 @@ export interface Fit { gsi: number; storeys: number; fsi: number; towers: number
 
 /** The block as Spacematrix sees it: its building land, and the oriented bounding box of its
  *  outline scaled to that land (W across, L along, W <= L). */
-export interface BlockShape { land: number; W: number; L: number; road: number; cap: number; atNode: boolean }
+export interface BlockShape { land: number; W: number; L: number; road: number; cap: number; atNode: boolean;
+  /** The coverage a low type actually gets on the block's plots, laid out and clipped
+   *  (blockmass.ts), in place of the bounding-box arithmetic; null where it doesn't fit. */
+  measure?: (type: number, depth: number, storeys: number) => number | null }
 
 export function shapeOf(ring: Line, land: number): { W: number; L: number } {
   const b = obb(ring);
@@ -142,8 +146,8 @@ export function fitsOf(t: BlockType, b: BlockShape, depth: number, R: PlotRules 
   }
   const hi = Math.min(t.storeys[1], b.cap, roadCap);
   for (let n = t.storeys[0]; n <= hi; n++) {
-    const g = GSI[t.key](b.W, b.L, depth, n * STOREY_M);
-    if (g === null) continue;
+    const g = b.measure ? b.measure(BLOCK_TYPES.indexOf(t), depth, n) : GSI[t.key](b.W, b.L, depth, n * STOREY_M);
+    if (g === null || g <= 0) continue;
     const gsi = Math.min(g, covCap, farCap / n);
     out.push({ gsi, storeys: n, fsi: gsi * n, towers: 0 });
   }
@@ -165,7 +169,9 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 /** A block as growth hands it over: its outline, building land (m²), the floor area the genes
  *  grew on it (m²), the widest road its plots front (m), its storey cap and the FSI its plot
  *  rules allow (Infinity without rules). */
-export interface BlockIn { ring: Line; land: number; floor: number; road: number; cap: number; farCap: number }
+export interface BlockIn { ring: Line; land: number; floor: number; road: number; cap: number; farCap: number;
+  /** The block's building plots: when given, low types are measured on them (blockmass.ts). */
+  plots?: Line[] }
 
 /** Types for every block with building land (null for the others). prefs: the four type genes
  *  (0..1); depthT: where wing depth sits in each type's range (0..1, from the coverage gene);
@@ -176,7 +182,20 @@ export function typeBlocks(blocks: BlockIn[], prefs: number[], depthT: number, n
     if (blk.land <= 0) return null;
     const { W, L } = shapeOf(blk.ring, blk.land), c = centroid(blk.ring);
     const atNode = nodes.some((p) => Math.hypot(p[0] - c[0], p[1] - c[1]) <= NODE_M);
-    const shape: BlockShape = { land: blk.land, W, L, road: blk.road, cap: blk.cap, atNode };
+    const plots = blk.plots;
+    // the layout depends on storeys only through the court's width (courtyards) and the gap
+    // between rows, so equal layouts are measured once
+    const seen = new Map<string, number | null>();
+    const measure = plots?.length ? (k: number, depth: number, n: number) => {
+      const key = BLOCK_TYPES[k].key, H = n * STOREY_M;
+      const id = `${k}:${depth}:${key === "perimeter" ? 0 : key === "courtyard" ? Math.max(COURT_MIN_M, COURT_OF_HEIGHT * H) : Math.max(ROW_GAP_OF_HEIGHT * H, GAP_M)}`;
+      if (!seen.has(id)) {
+        const m = massBlock({ block: -1, type: k, gsi: 0, storeys: n, fsi: 0, depth, towers: 0, land: blk.land }, plots);
+        seen.set(id, m.gsi > 0 ? m.gsi : null);
+      }
+      return seen.get(id)!;
+    } : undefined;
+    const shape: BlockShape = { land: blk.land, W, L, road: blk.road, cap: blk.cap, atNode, measure };
     const depths = BLOCK_TYPES.map((t) => lerp(t.depth[0], t.depth[1], t.key === "towers" ? 0.5 : depthT));
     const fits = BLOCK_TYPES.map((t, k) => fitsOf(t, shape, depths[k], R, blk.farCap));
     const wanted = blk.floor / blk.land;
