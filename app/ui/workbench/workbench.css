@@ -269,3 +269,35 @@ a { color: inherit; }
 kbd { font: 500 11px / 1 var(--pc-mono); padding: 3px 5px; border: var(--wb-hair); border-bottom-width: 2px; border-radius: 4px; background: var(--pc-surface-2); }
 button.wb-pen-item { cursor: pointer; font: inherit; color: inherit; }
 button.wb-pen-item:hover { border-color: var(--wb-fill-2); }
+
+/* the Draw step: moves over the map (DrawMap) */
+.wb-draw-svg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; overflow: visible; }
+.wb-centre:has(.wb-draw-svg.is-tool) canvas { cursor: crosshair; }
+.wb-move polyline, .wb-move polygon { fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.wb-move[data-kind="street"] .case { stroke: var(--pc-ink); }
+.wb-move[data-kind="street"] .body { stroke: var(--pc-surface); }
+.wb-move[data-kind="spine"] .band { stroke: var(--pc-green-proposed); stroke-opacity: .7; }
+.wb-move[data-kind="spine"] .mid { stroke: var(--pc-green); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.wb-move[data-kind="plaza"] polygon { fill: color-mix(in srgb, var(--pc-accent) 16%, var(--pc-surface)); stroke: var(--pc-accent); stroke-width: 2; }
+.wb-move[data-kind="nobuild"] polygon { fill: color-mix(in srgb, var(--pc-ink) 8%, transparent); stroke: var(--pc-ink-2); stroke-width: 1.6; stroke-dasharray: 6 4; }
+.wb-move[data-kind="keep"] polygon { fill: var(--pc-ink-2); stroke: var(--pc-ink); stroke-width: 1.2; }
+.wb-move.is-bad polygon, .wb-move.is-bad .case { stroke: var(--pc-forbidden); }
+.wb-move.is-bad .band { stroke: color-mix(in srgb, var(--pc-forbidden) 45%, transparent); }
+.wb-move.is-hot polygon, .wb-move.is-hot .case { stroke-width: 3.5; }
+.wb-move .flag { fill: var(--pc-forbidden); stroke: var(--pc-surface); stroke-width: 1.5; }
+.wb-move .flag-t { fill: var(--pc-surface); font: 600 11px var(--pc-font); text-anchor: middle; }
+.wb-move-hover { fill: color-mix(in srgb, var(--pc-accent) 30%, transparent); stroke: var(--pc-accent); stroke-width: 1.5; }
+.wb-sketch { fill: none; stroke: var(--pc-accent); stroke-width: 2; stroke-dasharray: 6 4; }
+.wb-sketch.is-close { stroke-opacity: .45; }
+.wb-vertex { fill: var(--pc-surface); stroke: var(--pc-accent); stroke-width: 1.6; }
+.wb-vertex.is-first { fill: var(--pc-accent); }
+/* the Draw rail */
+.wb-tools { display: grid; gap: 4px; }
+.wb-tool { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 2px 10px; align-items: start; text-align: left; padding: 8px; border-radius: var(--pc-radius); border: 1px solid transparent; background: none; cursor: pointer; }
+.wb-tool:hover { background: var(--pc-surface-2); }
+.wb-tool[aria-pressed="true"] { border-color: var(--pc-ink); background: var(--pc-surface); }
+.wb-tool .wb-hint { grid-column: 2; }
+.wb-moves { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.wb-move-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; align-items: center; padding: 6px 8px; border-radius: var(--pc-radius); background: var(--pc-surface); }
+.wb-move-row.is-bad { box-shadow: inset 3px 0 0 var(--pc-forbidden); }
+.wb-move-row .wb-warn { grid-column: 1 / -1; color: var(--pc-forbidden); font-size: var(--pc-size-small); }

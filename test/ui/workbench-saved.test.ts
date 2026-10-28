@@ -16,11 +16,17 @@ const edited: E.RuleSet = { ...own, list: own.list.map((r, i) => (i === k ? { ..
 const inputs: Saved.RunInputs = {
   settings: { search: "map-elites", generations: 9, pop: 25, seed: 4242 }, rules: edited, brief: null,
   off: [3, 11], geneLocks: { coverage: 0.4127, local_spacing: 94.25 },
+  moves: [
+    { id: 1, kind: "street", pts: [[10.5, 20.1], [250.3, 40.7]], cls: 2 },
+    { id: 2, kind: "spine", pts: [[0, 0], [100, 0], [100, 80]], width: 24 },
+    { id: 3, kind: "plaza", pts: [[0, 0], [40, 0], [40, 40], [0, 40]] },
+    { id: 4, kind: "nobuild", pts: [[-50, -50], [-10, -50], [-30, -10]] },
+  ],
 };
 
 describe("workbench links", () => {
   it("round-trips a run's inputs, the design open and the pen", () => {
-    const text = Saved.writeLink({ site: "mumbai-docks", base: own, step: "explore", rules: null, brief: null,
+    const text = Saved.writeLink({ site: "mumbai-docks", base: own, step: "explore", rules: null, brief: null, moves: [],
       run: inputs, sel: "G9.03", keep: ["G9.03", "G4.11"] });
     const back = Saved.readLink(new URLSearchParams(text.slice(1)), site);
     expect(back.run).toEqual(inputs);
@@ -31,13 +37,21 @@ describe("workbench links", () => {
     expect(back.notes).toEqual([]);
   });
   it("without a run, keeps the site's rules as edited and no run", () => {
-    const text = Saved.writeLink({ site: "mumbai-docks", base: own, step: "rules", rules: edited, brief: null, run: null, sel: "x", keep: ["x"] });
+    const text = Saved.writeLink({ site: "mumbai-docks", base: own, step: "rules", rules: edited, brief: null, moves: [], run: null, sel: "x", keep: ["x"] });
     const q = new URLSearchParams(text.slice(1));
     expect(q.has("seed")).toBe(false);
     expect(q.has("sel")).toBe(false);
     const back = Saved.readLink(q, site);
     expect(back.run).toBeNull();
     expect(back.rules).toEqual(edited);
+  });
+  it("carries moves drawn before a run, a kept building by its index", () => {
+    const ring = site.context.buildings!.ground!.rings[5];
+    const keep: E.Move = { id: 5, kind: "keep", building: 5, pts: Array.from({ length: ring.length / 2 }, (_, i): [number, number] => [ring[2 * i], ring[2 * i + 1]]) };
+    const moves = [...inputs.moves, keep];
+    const text = Saved.writeLink({ site: "mumbai-docks", base: own, step: "draw", rules: null, brief: null, moves, run: null, sel: null, keep: [] });
+    expect(Saved.readLink(new URLSearchParams(text.slice(1)), site).moves).toEqual(moves);
+    expect(() => Saved.readLink(new URLSearchParams("site=mumbai-docks&moves=bm90IGpzb24"), site)).toThrow(/moves drawn in this link/);
   });
   it("reads a classic link, noting what the workbench can't do", () => {
     const q = Runs.writeLink(new URLSearchParams({ site: "mumbai-docks" }), {
@@ -79,6 +93,7 @@ describe("workbench run files", () => {
     expect(f.siteId).toBe("mumbai-docks");
     expect(f.run).toEqual({ settings: inputs.settings, off: inputs.off, geneLocks: inputs.geneLocks });
     expect(f.rulesText).toBeTruthy();
+    expect(Saved.decodeMoves(f.movesText!, site)).toEqual(inputs.moves);
     expect(f.result!.kept.map((x) => x.name)).toEqual(["G2.01", "G2.02"]);
     expect(Number.isNaN(f.result!.kept[0].metrics.legibility)).toBe(true);
     expect(Array.from(f.result!.genomes)).toEqual(Array.from(result.genomes));

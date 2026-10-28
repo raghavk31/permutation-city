@@ -11,9 +11,12 @@
   // k, tx, ty (zoom and pan) can be bound, so two maps share one camera (Explore's compare)
   // onpick: a click (not a drag) on the map, in site metres
   // bottom: pixels along the bottom that something sits over (Evolve's strip), left out of the fit
-  let { site, paint, version, label, onhover, onpick, tools, children, k = $bindable(1), tx = $bindable(0), ty = $bindable(0), bottom = 0 }: {
+  // onpoint: the pointer in site metres as it moves (drawing); onview: the view as it changes,
+  // for an overlay drawn in the same frame
+  let { site, paint, version, label, onhover, onpick, onpoint, onview, tools, children, k = $bindable(1), tx = $bindable(0), ty = $bindable(0), bottom = 0 }: {
     site: E.SiteExport; paint: (ctx: CanvasRenderingContext2D, v: Draw.View) => void; version: unknown;
-    label: string; onhover?: (i: number) => void; onpick?: (x: number, y: number) => void; tools?: Snippet; children?: Snippet;
+    label: string; onhover?: (i: number) => void; onpick?: (x: number, y: number) => void;
+    onpoint?: (x: number, y: number) => void; onview?: (v: Draw.View | null) => void; tools?: Snippet; children?: Snippet;
     k?: number; tx?: number; ty?: number; bottom?: number;
   } = $props();
 
@@ -61,6 +64,10 @@
     void version; void base; void paint;
     requestAnimationFrame(render);
   });
+  $effect(() => { onview?.(view); });
+  /** Site metres at a pixel (the view is linear in each axis: invert it from two points). */
+  const toSite = (v: Draw.View, px: number, py: number): [number, number] =>
+    [(px - v.px(0)) / (v.px(1) - v.px(0)), (py - v.py(0)) / (v.py(1) - v.py(0))];
 
   // a camera moved from outside (a bound twin) is followed quickly, then redrawn crisply
   $effect(() => {
@@ -88,13 +95,10 @@
   function onMove(e: PointerEvent) {
     if (drag) { tx = drag.tx + e.clientX - drag.x; ty = drag.ty + e.clientY - drag.y; quick(); return; }
     if (view && onhover) onhover(Draw.cellAt(view, site.grid.x, site.grid.y, e.offsetX, e.offsetY, shape.r));
+    if (view && onpoint) onpoint(...toSite(view, e.offsetX, e.offsetY));
   }
   function onUp(e?: PointerEvent) {
-    if (e && drag && onpick && view && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 4) {
-      // the view is linear in each axis: invert it from two points
-      const ax = view.px(1) - view.px(0), ay = view.py(1) - view.py(0);
-      onpick((e.offsetX - view.px(0)) / ax, (e.offsetY - view.py(0)) / ay);
-    }
+    if (e && drag && onpick && view && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 4) onpick(...toSite(view, e.offsetX, e.offsetY));
     drag = null;
   }
   function fit() { k = 1; tx = 0; ty = 0; render(); }
