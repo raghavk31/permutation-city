@@ -8,6 +8,8 @@
   import { CLIMATES, MECHANISMS, PROGRAMMES, REGIONS, type Climate, type Mechanism, type Precedent, type Programme, type Region } from "../../engine/typology/types";
   import type { Feature } from "../../engine/typology/grammar";
   import { drawTypology, fmt } from "../diagrams/typology";
+  import { CLIMATE, climateSites, differences, distance, matchLabel, profile } from "../../engine/typology/climate";
+  import ClimateChart from "./ClimateChart.svelte";
 
   const drawings = new Map(LIBRARY.map((p) => [p.id, drawTypology(p.seed, p.name)]));
 
@@ -17,10 +19,26 @@
   let mechanism = $state<Mechanism | "">("");
   let kind = $state<"all" | "vernacular" | "modern">("all");
   let region = $state<Region | "">("");
-  let sort = $state<"region" | "name" | "bengaluru">("region");
-  // Climates in order of likeness to Bengaluru's (tropical savanna, about 920 m): a plain ranking
-  // of the Köppen groups, not a measure; the site's own climate data will replace it.
-  const NEAR_BENGALURU: Climate[] = ["tropical-dry", "tropical-wet", "semi-arid", "humid-subtropical", "hot-arid", "mediterranean", "temperate", "continental", "cold"];
+  // Climate match: the precedents ordered by how close their measured climate is to a site's
+  // (engine/typology/climate.ts). Bengaluru by default; "" turns it off.
+  const SITES = climateSites();
+  let compare = $state(SITES.some(([id]) => id === "bengaluru-cascade") ? "bengaluru-cascade" : "");
+  let sort = $state<"climate" | "region" | "name">("climate");
+  const siteNormals = $derived(compare ? CLIMATE.places[`site:${compare}`] : undefined);
+  // the site's short name for sentences ("Bengaluru: Haralur to Saul Kere tank cascade" → "Bengaluru")
+  const siteName = $derived((SITES.find(([id]) => id === compare)?.[1] ?? "").split(":")[0].trim());
+  const siteProfile = $derived(siteNormals ? profile(siteNormals) : undefined);
+  const match = $derived.by(() => {
+    const m = new Map<string, { d: number; label: string; diffs: string[] }>();
+    if (!siteProfile) return m;
+    for (const p of LIBRARY) {
+      const n = CLIMATE.places[p.id];
+      if (!n) continue;
+      const pr = profile(n), d = distance(pr, siteProfile);
+      m.set(p.id, { d, label: matchLabel(d), diffs: differences(pr, siteProfile) });
+    }
+    return m;
+  });
   let open = $state<Precedent | null>(null);
   let dialog: HTMLDialogElement;
 
@@ -34,7 +52,7 @@
   const shown = $derived.by(() => {
     const list = LIBRARY.filter(matches);
     if (sort === "name") return [...list].sort((a, b) => a.name.localeCompare(b.name));
-    if (sort === "bengaluru") return [...list].sort((a, b) => NEAR_BENGALURU.indexOf(a.climate) - NEAR_BENGALURU.indexOf(b.climate));
+    if (sort === "climate" && match.size) return [...list].sort((a, b) => (match.get(a.id)?.d ?? 99) - (match.get(b.id)?.d ?? 99));
     return list;
   });
   const countBy = (k: Programme) => LIBRARY.filter((p) => p.programmes.includes(k)).length;
@@ -130,11 +148,17 @@
           {#each REGIONS as r (r)}{@const n = LIBRARY.filter((p) => p.region === r).length}{#if n}<option value={r}>{r} ({n})</option>{/if}{/each}
         </select>
       </label>
+      <label class="ty-field"><span class="wb-label">Compare climate with</span>
+        <select class="wb-select" bind:value={compare}>
+          <option value="">No site</option>
+          {#each SITES as [id, name] (id)}<option value={id}>{name}</option>{/each}
+        </select>
+      </label>
       <label class="ty-field"><span class="wb-label">Order</span>
         <select class="wb-select" bind:value={sort}>
+          {#if compare}<option value="climate">Closest climate first</option>{/if}
           <option value="region">By region</option>
           <option value="name">A to Z</option>
-          <option value="bengaluru">Climate nearest Bengaluru's first</option>
         </select>
       </label>
       <div class="ty-field"><span class="wb-label">Made by</span>
@@ -161,6 +185,12 @@
               {#each p.programmes as k (k)}<span class="wb-tag">{PROGRAMMES[k]}</span>{/each}
             </span>
             <span class="ty-mech">{p.mechanisms.slice(0, 3).map((m) => MECHANISMS[m]).join(" · ")}</span>
+            {#if match.get(p.id)}
+              {@const mt = match.get(p.id)!}
+              <span class="ty-match" data-d={mt.d < 0.5 ? "a" : mt.d < 1 ? "b" : mt.d < 1.8 ? "c" : "d"}>
+                <strong>{mt.label}</strong>&nbsp;· {#if mt.diffs.length}{mt.diffs[0]}{:else}much like {siteName}{/if}
+              </span>
+            {/if}
           </button>
         </li>
       {/each}
@@ -200,6 +230,16 @@
             <div><dt class="wb-label">How it works</dt><dd>{p.mechanisms.map((m) => MECHANISMS[m]).join(" · ")}</dd></div>
           </dl>
         </div>
+
+        {#if siteNormals && CLIMATE.places[p.id]}
+          {@const mt = match.get(p.id)}
+          <section class="ty-sec">
+            <h3 class="wb-label">Its climate against {siteName}</h3>
+            <p class="ty-climate-lead"><strong>{mt?.label}.</strong> {#if mt?.diffs.length}Compared with {siteName}: {mt.diffs.join("; ")}.{:else}Much like {siteName} on every count.{/if}</p>
+            <ClimateChart site={siteNormals} place={CLIMATE.places[p.id]} {siteName} placeName={p.name} />
+            <p class="ty-muted ty-small">Monthly normals {CLIMATE.years[0]}-{CLIMATE.years[1]} from NASA POWER (MERRA-2 reanalysis, cells about 50 km across, so a region's climate, not a street's). Daily highs and lows are the monthly mean plus or minus half the mean daily range.</p>
+          </section>
+        {/if}
 
         <section class="ty-sec">
           <h3 class="wb-label">What we know</h3>

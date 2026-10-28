@@ -41,6 +41,11 @@ class Drawing {
     if (edge) this.s.raw(0, 0, 0, 0, `<polygon points="${pts(p.map(iso))}" fill="none" ${EDGE}/>`);
   }
 
+  /** A hidden edge, dashed: what is behind or under the drawing but shapes it. */
+  dashed(p: P3[]) {
+    this.s.line(p, "var(--pc-ink)", 0.6, { dash: "2 1.6", opacity: 0.55, cap: "butt" });
+  }
+
   /** A prism: visible walls back to front, then its roof. */
   prism(s: Solid) {
     const c = fillOf(s), r = s.ring as Pt[], z0 = s.z, z1 = s.z + s.h, n = r.length;
@@ -77,8 +82,20 @@ class Drawing {
         if (mx + my < -0.3 * R && k === 0) continue;
         faces.push({ d: p[0][0] + p[0][1] + p[1][0] + p[1][1] + k, p, fill: mx - my > 0 ? c.dark : c.lit });
       }
-      // faces sealed without hairlines, so small domes read as smooth, not as a cage
-      faces.sort((a, b) => a.d - b.d).forEach((x) => this.poly(x.p, x.fill, false));
+      // A cone over a polygon of a few sides is a pyramid: its faces keep their edges and the
+      // edges behind it are drawn dashed, so it reads as a pyramid, not a flat shape. Domes and
+      // round cones are sealed without hairlines, so they read smooth, not as a cage.
+      const pyramid = kind === "cone" && r.length <= 8;
+      faces.sort((a, b) => a.d - b.d).forEach((x) => this.poly(x.p, x.fill, pyramid));
+      if (pyramid) {
+        const apex: P3 = [cx, cy, z + H], n = r.length;
+        const hidden = r.map((_, i) => { const j = (i + 1) % n; return (r[i][0] + r[j][0]) / 2 - cx + (r[i][1] + r[j][1]) / 2 - cy < -0.3 * R; });
+        for (let i = 0; i < n; i++) {
+          const j = (i + 1) % n;
+          if (hidden[i]) this.dashed([[r[i][0], r[i][1], z], [r[j][0], r[j][1], z]]);
+          if (hidden[i] && hidden[(i + n - 1) % n]) this.dashed([[r[i][0], r[i][1], z], apex]);
+        }
+      }
       return;
     }
     if (kind === "mono" && r.length === 4) {
@@ -150,6 +167,13 @@ function pit(d: Drawing, levels: Solid[], water: Solid[], plot: { w: number; d: 
   // the ground cut away at the near edges down to the pit's floor, as in a section model
   d.poly([[X1 + m, Y0 - m, 0], [X1 + m, Y1 + m, 0], [X1 + m, Y1 + m, depth], [X1 + m, Y0 - m, depth]], CUT);
   d.poly([[X0 - m, Y1 + m, 0], [X1 + m, Y1 + m, 0], [X1 + m, Y1 + m, depth], [X0 - m, Y1 + m, depth]], "color-mix(in srgb, var(--pc-ink) 10%, var(--pc-surface-2))");
+  // what the near ground hides, dashed: the pit's floor and the corners running down to it
+  if (sorted.length) {
+    const [b0, c0, b1, c1] = box(sorted[0]), zb = sorted[0].z + sorted[0].h;
+    d.dashed([[b0, c0, zb], [b1, c0, zb], [b1, c1, zb], [b0, c1, zb], [b0, c0, zb]]);
+    for (const [x, y, bx, by] of [[X1, Y0, b1, c0], [X1, Y1, b1, c1], [X0, Y1, b0, c1]] as [number, number, number, number][])
+      d.dashed([[x, y, 0], [bx, by, zb]]);
+  }
 }
 
 export interface TypologyDrawing { svg: string; fsi: number; gsi: number; floorArea: number; plot: { w: number; d: number } }

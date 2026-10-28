@@ -36,6 +36,24 @@ or sources that disagree).
    parameter. "A pol reaches FSI 2.5 with little change; a tulou needs a second ring and a
    narrower court" is a finding a designer can use.
 
+## Climate match
+
+Each precedent's location and each site have monthly normals from NASA POWER's climatology
+(MERRA-2 reanalysis, cells about 50 km across, 2001-2025), fetched by
+`pc/typology_climate.py` into `app/engine/typology/climate.json`. One source for every place,
+so a site and a precedent are compared like with like. Six numbers describe a climate:
+summer heat (mean daily maximum of the hottest month), winter cold (mean daily minimum of the
+coldest month), the day-night swing, annual rain, how much of it falls in the wettest three
+months, and humidity in the hottest month. Each difference is divided by a step a person would
+notice (3 °C, 4 °C, 3 °C, a doubling of rain, 15 points of seasonality, 12 points of humidity)
+and the steps are combined as a root mean square (`app/engine/typology/climate.ts`). The page
+orders the library by this distance to a chosen site and says the biggest differences in plain
+words; each precedent's panel draws the two climates month by month.
+
+Limits: 50 km cells give a region's climate, not a street's or a valley's; the mean daily
+maximum and minimum are the monthly mean plus or minus half the mean daily range; wind is not
+yet part of the match.
+
 ## Bengaluru's climate, and what transfers
 
 Bengaluru sits in the NBC 2016 **temperate** zone at about 920 m (ASHRAE/NBC paper below; medium).
