@@ -575,27 +575,46 @@ export function attractors(ctx: Ctx, v: View, d: Design) {
 
 /** A version 3 design as it is: plots coloured by use (buildings by storeys), its streets
  *  at their widths on top. No cells. */
-export function vectorPlan(ctx: Ctx, v: View, d: Design) {
+/** What a plan shows: the plan itself; its shared ground (parks and squares outlined,
+ *  buildings faded); or each street's frontage type. */
+export type PlanLayer = "plan" | "shared" | "frontage";
+const FRONTAGE_ORDER = ["active", "residential", "green", "lake"] as const;
+
+export function vectorPlan(ctx: Ctx, v: View, d: Design, layer: PlanLayer = "plan") {
   const plan = d.plan!;
   ctx.save();
   ctx.lineJoin = "round";
   const ring = (r: [number, number][]) => { ctx.beginPath(); r.forEach(([x, y], k) => (k ? ctx.lineTo(v.px(x), v.py(y)) : ctx.moveTo(v.px(x), v.py(y)))); ctx.closePath(); };
+  const faded = layer !== "plan";
   // Blocks first, in the street colour's neighbour (the ground between plots), then plots.
   for (const b of plan.blocks) { ring(b); ctx.fillStyle = T.paper2; ctx.fill(); }
   for (const p of plan.plots) {
     ring(p.ring);
-    const c = p.use === 1 ? buildingAt(p.levels) : p.use === 2 ? T.green.proposed : p.use === 3 ? T.water.storage : T.paper2;
+    const c = p.use === 1 ? (faded ? T.existingRamp[1] : buildingAt(p.levels)) : p.use === 2 ? T.green.proposed : p.use === 3 ? T.water.storage : T.paper2;
     ctx.fillStyle = c; ctx.fill();
     if (p.use === 2) { ctx.fillStyle = pattern(ctx, "dots", T.green.existing); ctx.fill(); }
     ctx.strokeStyle = p.use === 1 ? T.paper : c; ctx.lineWidth = p.use === 1 ? 0.5 : 0.8; ctx.stroke();
   }
+  if (layer === "shared" && plan.shared) {
+    // the parks the design reserved (whole blocks) and its squares (corner plots), outlined
+    ctx.strokeStyle = T.green.existing; ctx.lineWidth = 2;
+    for (const pk of plan.shared.parks) { const b = plan.blocks[pk.block]; if (b) { ring(b); ctx.stroke(); } }
+    ctx.setLineDash([3, 2]);
+    for (const sq of plan.shared.squares) { const pl = plan.plots[sq.plot]; if (pl) { ring(pl.ring); ctx.stroke(); } }
+    ctx.setLineDash([]);
+  }
   ctx.lineCap = "round";
   for (const pass of [0, 1]) for (const st of [...plan.streets].sort((a, b) => a.cls - b.cls)) {
-    if (pass === 1 && st.cls < 3) continue;
+    if (pass === 1 && st.cls < 3 && layer !== "frontage") continue;
     ctx.beginPath();
     st.pts.forEach(([x, y], k) => (k ? ctx.lineTo(v.px(x), v.py(y)) : ctx.moveTo(v.px(x), v.py(y))));
-    ctx.strokeStyle = pass ? T.street.primary : T.street.onDesign;
-    ctx.lineWidth = pass ? 0.5 : Math.max(st.w * v.s, 0.8);
+    if (layer === "frontage" && pass === 1) {
+      ctx.strokeStyle = T.frontage[FRONTAGE_ORDER[st.frontage ?? 1] ?? "residential"];
+      ctx.lineWidth = Math.max(st.w * v.s * 0.55, 1.6);
+    } else {
+      ctx.strokeStyle = pass ? T.street.primary : T.street.onDesign;
+      ctx.lineWidth = pass ? 0.5 : Math.max(st.w * v.s, 0.8);
+    }
     ctx.stroke();
   }
   ctx.restore();

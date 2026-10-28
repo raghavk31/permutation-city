@@ -126,6 +126,8 @@ class Bench {
   // of values), the design selected and pointed at (kept names), the pair compared
   exView = $state<"tradeoffs" | "compare" | "archive" | "tree">("tradeoffs");
   exPlot = $state<"matrix" | "parallel">("matrix");
+  /** What the Explore plan shows: the plan, its shared ground, or its street frontage. */
+  exLayer = $state<"plan" | "shared" | "frontage">("plan");
   exColour = $state("front");
   brush = $state.raw<Record<string, [number, number]>>({});
   exSel = $state<string | null>(null);

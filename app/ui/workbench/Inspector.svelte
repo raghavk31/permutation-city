@@ -91,6 +91,7 @@
   const meta = $derived(bench.site?.meta);
   const fmtHa = (v: number) => `${Math.round(v).toLocaleString("en-IN")} ha`;
   const TERRAIN: Record<string, string> = { fabdem: "FABDEM bare earth", "copernicus-surface": "Copernicus surface model (buildings and trees count as ground)" };
+  import StreetSection from "./StreetSection.svelte";
 </script>
 
 <div class="wb-insp-body">
@@ -180,6 +181,22 @@
             <button class="wb-link" type="button" onclick={() => (bench.exView = "tree")}>family tree</button></dd>
         </dl>
       </div>
+      {#if grown?.plan?.shared}
+        {@const sh = grown.plan.shared}
+        {@const widths = [...new Set(grown.plan.streets.map((st) => st.w))].sort((a, b) => b - a)}
+        <!-- COPY: shared ground and streets -->
+        <details class="wb-group"><summary>Shared ground and streets<span class="wb-meta">{Math.round(sh.share * 100)}% shared</span></summary>
+          <dl class="wb-facts">
+            <dt>Squares</dt><dd>{sh.squares.length}, at the busiest junctions</dd>
+            <dt>Parks reserved</dt><dd>{sh.parks.length ? `${sh.parks.length}, ${(sh.parks.reduce((a, p) => a + p.area, 0) / 1e4).toFixed(1)} ha` : "none needed: the green the genes chose is within a walk"}</dd>
+            <dt title="Share of the floor area within 100 m of a green of 125 m² or more">Doorstep green</dt><dd class="wb-num">{Math.round(sh.access.doorstep * 100)}% within 100 m</dd>
+            <dt title="Share of the floor area within 400 m of a park of 0.5 ha or more">Park</dt><dd class="wb-num">{Math.round(sh.access.housing * 100)}% within 400 m</dd>
+            <dt title="Share of the floor area within 1 km of a park of 1 ha or more">Neighbourhood park</dt><dd class="wb-num">{Math.round(sh.access.neighbourhood * 100)}% within 1 km</dd>
+          </dl>
+          <p class="wb-hint">Sizes from URDPFI 2015 (as NIUA's parks guide gives them); walking distances assumed. Walks are straight lines times 1.3.</p>
+          {#each widths as w}<StreetSection {w} label={w >= 18 ? "Primary" : w >= 12 ? "Secondary" : "Local"} />{/each}
+        </details>
+      {/if}
       {#if grown?.plan}
         {@const s = grown.settings as unknown as Record<string, number>}
         <details class="wb-group" open><summary>Genes, in plain words<span class="wb-meta">{Object.keys(bench.geneLocks).length ? `${Object.keys(bench.geneLocks).length} locked` : ""}</span></summary>

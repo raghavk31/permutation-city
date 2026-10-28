@@ -4,12 +4,12 @@
 import { SITE_WATER_REACH_M } from "./config.js";
 import { gridOf, passes } from "./graph.js";
 import { norm, pyRound, smooth } from "./num.js";
-import { CONSTRAINED, OPEN, type RuleResult } from "./rules.js";
+import { CONSTRAINED, FORBIDDEN, OPEN, type RuleResult } from "./rules.js";
 import { sides } from "./streets.js";
 import type { Ground, GroundSkeleton, SiteExport } from "./types.js";
 
 export function prepare(site: SiteExport): Ground {
-  const G = fromDesign(site, site.design);
+  const G = fromDesign(site, site.design, site.grid.state);
   if (site.skeleton) G.skeleton = skeletonOn(G, site.skeleton, site.skeleton.sides, site.skeleton.crossings, site.skeleton.road_sides);
   return G;
 }
@@ -38,7 +38,8 @@ export function withSkeleton(site: SiteExport, G: Ground, off: ReadonlySet<numbe
   return H;
 }
 
-function fromDesign(site: SiteExport, d: SiteExport["design"]): Ground {
+/** `state`: each grid cell's rule state, for the open land off the design ground (Ground.openLand). */
+function fromDesign(site: SiteExport, d: SiteExport["design"], state: ArrayLike<number>): Ground {
   const n = d.x.length;
   let xmin = Infinity, ymin = Infinity, xmax = -Infinity, ymax = -Infinity;
   for (let i = 0; i < n; i++) {
@@ -60,6 +61,7 @@ function fromDesign(site: SiteExport, d: SiteExport["design"]): Ground {
     syntaxStreets: site.syntax?.segments, buildings: site.context.buildings,
     ...(site.moves ? { forced: Int8Array.from(site.moves.forced), drawn: site.moves.streets } : {}),
     water: site.grid.x.flatMap((x, i) => (site.grid.water[i] ? [[x, site.grid.y[i]] as [number, number]] : [])),
+    openLand: site.grid.x.flatMap((x, i) => (!site.grid.water[i] && state[i] === FORBIDDEN ? [[x, site.grid.y[i]] as [number, number]] : [])),
     ...(d.z ? {
       z: Float64Array.from(d.z), valley: Int8Array.from(d.valley!), vbuf: Uint8Array.from(d.vbuf!),
       down: Int32Array.from(d.down!), ridge: Float64Array.from(d.ridge!),
@@ -135,7 +137,7 @@ export function designFromRules(site: SiteExport, res: RuleResult): SiteExport["
  *  site's own, mapped onto the new design ground from grid cells: sides whose cells are no
  *  longer design ground drop out (edited rules don't move the skeleton). */
 export function prepareFromRules(site: SiteExport, res: RuleResult): Ground {
-  const G = fromDesign(site, designFromRules(site, res));
+  const G = fromDesign(site, designFromRules(site, res), res.state);
   const sk = site.skeleton;
   if (sk?.grid_sides) {
     const pos = new Int32Array(res.n).fill(-1);

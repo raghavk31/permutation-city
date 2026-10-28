@@ -88,7 +88,8 @@
   const hovered = $derived(bench.exHover ? bench.grown.get(bench.exHover) ?? null : null);
   const selected = $derived(bench.designOf(bench.exSel));
   const shown = $derived(hovered ? { name: bench.exHover!, d: hovered } : selected ? { name: bench.exSel!, d: selected } : null);
-  const paintOf = (d: E.Design | null) => (ctx: CanvasRenderingContext2D, v: Draw.View) => { if (d) Paint.design(ctx, v, site, d, P); };
+  const paintOf = (d: E.Design | null, layer: Draw.PlanLayer = "plan") => (ctx: CanvasRenderingContext2D, v: Draw.View) => { if (d) Paint.design(ctx, v, site, d, P, layer); };
+  const sh = $derived(shown?.d.plan?.shared ?? null);
 
   // compare: one camera for both plans
   let cam = $state({ k: 1, tx: 0, ty: 0 });
@@ -217,8 +218,31 @@
     </div>
     <div class="wb-ex-map">
       {#if shown}
-        <MapCanvas {site} paint={paintOf(shown.d)} version={shown.name} label="Plan of {bench.titleOf(shown.name)}" />
+        <MapCanvas {site} paint={paintOf(shown.d, bench.exLayer)} version={`${shown.name}|${bench.exLayer}`} label="Plan of {bench.titleOf(shown.name)}" />
       {/if}
+      <!-- COPY: what the plan shows -->
+      <div class="wb-over bl wb-ex-layer">
+        <div class="wb-seg" role="group" aria-label="The plan shows">
+          {#each [["plan", "Plan"], ["shared", "Shared ground"], ["frontage", "Frontage"]] as [k, label]}
+            <button type="button" aria-pressed={bench.exLayer === k} onclick={() => (bench.exLayer = k as typeof bench.exLayer)}>{label}</button>
+          {/each}
+        </div>
+        {#if bench.exLayer === "shared" && sh}
+          <div class="wb-legend">
+            <div><i style="--c: {P.t.green.proposed}"></i><span>shared ground, {Math.round(sh.share * 100)}% of the land</span></div>
+            <div><i style="--c: transparent; box-shadow: inset 0 0 0 2px {P.t.green.existing}"></i><span>{sh.parks.length} parks reserved</span></div>
+            <div><i style="--c: transparent; border: 1px dashed {P.t.green.existing}"></i><span>{sh.squares.length} squares at junctions</span></div>
+            <span class="wb-quiet" title="Share of the design's floor area within a walk of each size of open space (sizes from URDPFI 2015 as NIUA gives them; walks assumed)">within a walk: doorstep green {Math.round(sh.access.doorstep * 100)}%, park {Math.round(sh.access.housing * 100)}%, neighbourhood park {Math.round(sh.access.neighbourhood * 100)}%</span>
+          </div>
+        {:else if bench.exLayer === "frontage"}
+          <div class="wb-legend">
+            <div><i class="is-line" style="--c: {P.t.frontage.active}"></i><span>active: shops at ground</span></div>
+            <div><i class="is-line" style="--c: {P.t.frontage.residential}"></i><span>residential</span></div>
+            <div><i class="is-line" style="--c: {P.t.frontage.green}"></i><span>green edge</span></div>
+            <div><i class="is-line" style="--c: {P.t.frontage.lake}"></i><span>lake edge</span></div>
+          </div>
+        {/if}
+      </div>
       <div class="wb-over tr"><span class="wb-pill">{bench.exSel ? bench.titleOf(shown?.name ?? bench.exSel) : "Click a design"}{bench.exSel && !shown ? " · growing" : ""}</span></div>
     </div>
   </div>

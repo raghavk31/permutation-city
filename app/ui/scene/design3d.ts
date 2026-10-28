@@ -19,7 +19,7 @@ import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { dayOfYear, solarHour, sunAt } from "../../engine/massing";
-import { sides, type Design, type Ground, type SiteExport } from "../../engine";
+import { sectionFor, sides, type Design, type Ground, type SiteExport } from "../../engine";
 import { inset, regions, shapeOf, type StreetLines } from "../draw";
 import { buildingAt, tokens as T } from "../tokens";
 
@@ -69,6 +69,51 @@ function ribbon(points: [number, number][], w: number, z: number): THREE.BufferG
   g.setIndex(idx);
   g.computeVertexNormals();
   return g;
+}
+
+/** A band of a polyline between offsets a and b (m, left of the line positive) at height z. */
+function band(points: [number, number][], a: number, b: number, z: number): THREE.BufferGeometry | null {
+  if (points.length < 2) return null;
+  const pos: number[] = [], idx: number[] = [];
+  points.forEach(([x, y], k) => {
+    const [px, py] = points[Math.max(0, k - 1)], [qx, qy] = points[Math.min(points.length - 1, k + 1)];
+    let tx = qx - px, ty = qy - py;
+    const l = Math.hypot(tx, ty) || 1;
+    tx /= l; ty /= l;
+    pos.push(x - ty * a, y + tx * a, z, x - ty * b, y + tx * b, z);
+    if (k) { const i = 2 * (k - 1); idx.push(i, i + 1, i + 2, i + 1, i + 3, i + 2); }
+  });
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
+const TREE_EVERY_M = 15;   // trees along a planted strip at least 1.5 m wide (SP:118 templates draw them about this far apart)
+
+/** A street as its cross-section (engine/config.ts sectionFor): footpaths, planted strips,
+ *  carriageway or shared lane as bands, and trees along the planted strips. */
+function streetBands(points: [number, number][], w: number) {
+  const out: { kind: string; g: THREE.BufferGeometry | null }[] = [], trees: [number, number][] = [];
+  let at = w / 2;
+  for (const part of sectionFor(w).parts) {
+    const a = at, b = at - part.w;
+    out.push({ kind: part.kind, g: band(points, a, b, part.kind === "footpath" ? 0.35 : 0.2) });
+    if (part.kind === "planted" && part.w >= 1.5) {
+      const mid = (a + b) / 2;
+      let run = TREE_EVERY_M / 2;
+      for (let k = 1; k < points.length; k++) {
+        const [x0, y0] = points[k - 1], [x1, y1] = points[k], L = Math.hypot(x1 - x0, y1 - y0);
+        if (!L) continue;
+        const tx = (x1 - x0) / L, ty = (y1 - y0) / L;
+        for (; run < L; run += TREE_EVERY_M) trees.push([x0 + tx * run - ty * mid, y0 + ty * run + tx * mid]);
+        run -= L;
+      }
+    }
+    at = b;
+  }
+  return { bands: out, trees };
 }
 
 function merge(geoms: THREE.BufferGeometry[]): THREE.BufferGeometry | null {
@@ -287,7 +332,19 @@ export class DesignView {
     const byUse = (u: number) => plan.plots.filter((p) => p.use === u).map((p) => (area2(p.ring) < 0 ? [...p.ring].reverse() : p.ring));
     add(sheet(byUse(3), 0.12), new THREE.MeshStandardMaterial({ color: T.water.storage, roughness: 0.15, metalness: 0, envMapIntensity: 1.2 }));
     add(sheet(byUse(2), 0.1), new THREE.MeshStandardMaterial({ color: T.green.proposed, roughness: 1, map: grainTexture() }));
-    add(merge(plan.streets.map((st) => ribbon(st.pts, st.w, 0.2)).filter((x): x is THREE.BufferGeometry => !!x)), flat(T.street.onDesign));
+    // streets as their cross-sections (IRC:SP:118 templates), trees in the planted strips
+    const parts = new Map<string, THREE.BufferGeometry[]>(), trees: [number, number][] = [];
+    for (const st of plan.streets) {
+      const { bands, trees: t } = streetBands(st.pts, st.w);
+      for (const b of bands) if (b.g) { const l = parts.get(b.kind); if (l) l.push(b.g); else parts.set(b.kind, [b.g]); }
+      trees.push(...t);
+    }
+    const SECTION_LOOK: Record<string, string> = { footpath: T.street.onDesign, planted: T.green.proposed, carriageway: T.street.primary, shared: T.street.onGround };
+    for (const [kind, gs] of parts) add(merge(gs), flat(SECTION_LOOK[kind] ?? T.street.onDesign));
+    if (trees.length) {
+      const crown = new THREE.IcosahedronGeometry(2.6, 0);
+      add(merge(trees.map(([x, y]) => crown.clone().translate(x, y, 4.2 * ex))), flat(T.green.existing), true, false);
+    }
     const groups = new Map<number, THREE.BufferGeometry[]>();
     for (const p of plan.plots) {
       if (p.use !== 1 || p.levels <= 0) continue;

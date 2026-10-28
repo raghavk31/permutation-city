@@ -301,3 +301,5 @@ button.wb-pen-item:hover { border-color: var(--wb-fill-2); }
 .wb-move-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; align-items: center; padding: 6px 8px; border-radius: var(--pc-radius); background: var(--pc-surface); }
 .wb-move-row.is-bad { box-shadow: inset 3px 0 0 var(--pc-forbidden); }
 .wb-move-row .wb-warn { grid-column: 1 / -1; color: var(--pc-forbidden); font-size: var(--pc-size-small); }
+.wb-ex-layer { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.wb-section { margin: 8px 0 0; } .wb-section figcaption { font-size: var(--pc-size-small); margin-bottom: 2px; }

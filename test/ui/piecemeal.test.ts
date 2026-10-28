@@ -56,7 +56,9 @@ describe("growing in increments, version 3", () => {
     expect(f1.frame).not.toBeNull();
     expect(f1.streets).toBeNull();
     for (const d of [d2, d3]) {
-      expect(d.plan!.streets).toEqual(d1.plan!.streets);
+      // the same streets (their frontage follows each increment's uses)
+      const geometry = (p: E.VectorPlan) => p.streets.map(({ pts, cls, w }) => ({ pts, cls, w }));
+      expect(geometry(d.plan!)).toEqual(geometry(d1.plan!));
       expect(d.plan!.blocks).toEqual(d1.plan!.blocks);
       expect(d.plan!.plots.map((p) => p.ring)).toEqual(d1.plan!.plots.map((p) => p.ring));
       expect(Array.from(d.street!)).toEqual(Array.from(d1.street!));

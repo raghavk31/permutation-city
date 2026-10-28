@@ -13,8 +13,8 @@ with the reason).
 | Step | What it does | Scale | Status |
 |---|---|---|---|
 | 1 Rules and brief | plot rules by road width, plot size and height; what the site can hold; the target | every design | **built for Bengaluru** (below) |
-| 2 Streets, frontage | a frontage type per street segment | every design | to come (section 4) |
-| 3 Shared ground first | lake edge, valley corridors, squares, open-space hierarchy | every design | to come (section 4) |
+| 2 Streets, frontage | a frontage type and a cross-section per street | every design | **built** (below) |
+| 3 Shared ground first | lake edge, valley corridors, squares, open-space hierarchy | every design | **built** (below) |
 | 4 Building type per block | the block's type as coverage, storeys and floor area | every design | to come (section 5) |
 | 5 Place buildings | along frontage and shared-ground edges, with spacing rules | opened design | to come |
 | 6 Draw plots | territories round the placed buildings, every plot on a street | opened design | to come |
@@ -55,14 +55,17 @@ Steps 1-4 run on every design in a run, so a run stays fast and the urban scores
 
 | Lake buffer | Site can hold (90th percentile) | Median plan | Brief | Can't fit |
 |---|---:|---:|---:|---:|
-| 75 m (design default) | 186 ha | 142 ha | 591 ha | 69% |
-| 30 m (the law only) | 228 ha | 173 ha | 591 ha | 61% |
+| 75 m (design default) | 181 ha | 140 ha | 591 ha | 69% |
+| 30 m (the law only) | 222 ha | 171 ha | 591 ha | 62% |
 
 The brief (FAR 2.0 over the 295.5 ha of design ground left by the legal buffer, assumed) is
 about three times what the plots can hold. The reason is the one found on 26 October
 (`architecture-v3.md` 12.2): FAR in Bengaluru applies to a plot, not to the whole site. Once
 streets, the lake edge, valleys and parks are taken out, the plots are a fraction of the
 ground, and FAR 1.75-3.25 on that fraction can't reach 2.0 over the whole.
+
+(Measured again on 27 October after shared ground took its parks and squares from the plots:
+186 and 228 ha before.)
 
 ### The numbers
 
@@ -110,12 +113,70 @@ Corpus notes, with the full tables and how each was found:
   decision 4). They keep their brief as the target.
 - The Python engine has no plot rules, so the parity test turns capacity off.
 
-## Steps 2-9: references to check
+## Steps 2 and 3: streets and shared ground
+
+`app/engine/plan/shared.ts`, run in every design between laying out the plots and filling
+them (`plan/grow.ts` step 8).
+
+### Shared ground, in the brief's order
+
+1. **Lake buffer, tank edges, valleys, drainage lines.** The rules already keep these open:
+   forbidden ground off the design ground (`Ground.openLand`) and constrained cells that take
+   only water, wetland or landscape. They count as shared ground; nothing is claimed again.
+2. **Squares at the important junctions.** Where two or more secondary or primary streets
+   meet, ranked by the classes meeting there and nearness to a centre (a proxy for choice and
+   integration: the routes are the streets that carry through-movement by construction). The
+   corner plot of 150-1,200 m² nearest the junction becomes the square; squares stand at least
+   300 m apart (design).
+3. **The open-space hierarchy.** For each level, a building plot with no open ground of the
+   level's size within its walk is unserved; the block serving the most unserved plot land per
+   hectare of park becomes a park, until every plot is served or 25% of the land is claimed
+   (design cap). Under Bengaluru's plot rules, blocks are then added until parks reach 15% of
+   the land (RMP 2015 6.1 c). Walks are straight lines times 1.3 (SP:118 3.2.1.4: route
+   directness 1.1-1.5), stepped over the cells.
+
+| Level | Least size | Walk | Reserved here? | Source |
+|---|---:|---:|---|---|
+| doorstep green | 125 m² | 100 m | no: built at block scale (courts) | size URDPFI 2015 via NIUA (secondary); walk Fields in Trust 2015 (assumed) |
+| housing area park | 5,000 m² | 400 m | yes | as above |
+| neighbourhood park | 10,000 m² | 1,000 m | yes | as above |
+
+Correa's four levels (family, doorstep, neighbourhood, city) give the structure; his book
+gives no sizes, so the URDPFI figures stand in (assumed, decision 7). Corpus:
+`corpus/regulations/urdpfi-open-space-hierarchy.md`.
+
+### Frontage per street
+
+Sampled either side of each segment's middle, just past its width: **lake edge** within 40 m
+of water or the lake buffer; **green edge** beside shared ground; **active** on a secondary or
+primary street within 250 m of a centre or a square; else **residential**. All four are design
+rules (no regulation sets them). Buildings will read them when they are placed (step 5).
+
+### Cross-sections
+
+Every street is drawn as its IRC:SP:118-2018 template (Annexure 3: 18A, 12A, 9A, 6A; the 7.5 m
+street assumed between 9A and 6A), in the Massing step's 3D ground, the plan's 3D view and as a
+diagram in Explore's inspector. Trees stand every 15 m in planted strips of 1.5 m or more.
+SP:118 draws no swale: the planted zones are where one would go (design choice). Corpus:
+`corpus/regulations/irc-sp118-street-templates.md`.
+
+### Access (the score)
+
+`plan.shared.access`: per level, the share of the design's floor area within its walk. Shown
+in Explore (the plan's "Shared ground" view and the inspector). It is a readout until the
+scores are revised (section 10); the urban objectives are unchanged.
+
+### Cost
+
+Shared ground, frontage and access add 8-61 ms a design (Docks, Bengaluru, Wadaj; Node), against
+120-500 ms for the rest of the plan.
+
+## Steps 4-9: references to check
 
 Figures from books go in as **assumed** with the secondary source named until a copy is read
 (decision 7). The ones the next steps will lean on:
 
-- Open-space hierarchy and sizes: Charles Correa, *The New Landscape* (1985).
+- Open-space hierarchy: Charles Correa, *The New Landscape* (1985) (structure; used, above).
 - Block types as coverage, storeys and floor area: Berghauser Pont and Haupt, *Spacematrix*
   (2010).
 - Alexander, *A Pattern Language* (1977): 21 Four-Story Limit, 107 Wings of Light, 115

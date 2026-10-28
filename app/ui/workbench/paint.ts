@@ -102,9 +102,9 @@ export function landform(ctx: Ctx, v: Draw.View, site: E.SiteExport, G: E.Ground
 
 /** A design: the existing city round it, its plan (plots, streets, green and water), then
  *  the boundary and names. */
-export function design(ctx: Ctx, v: Draw.View, site: E.SiteExport, d: E.Design, P: Draw.Palette) {
+export function design(ctx: Ctx, v: Draw.View, site: E.SiteExport, d: E.Design, P: Draw.Palette, layer: Draw.PlanLayer = "plan") {
   Draw.footprints(ctx, v, site);
-  if (d.plan) Draw.vectorPlan(ctx, v, d);
+  if (d.plan) Draw.vectorPlan(ctx, v, d, layer);
   Draw.groundBuildings(ctx, v, site, "kept", P);
   moveOutlines(ctx, v, site, P);
   Draw.context(ctx, v, site.context, P, { labels: true, roads: false });

@@ -43,6 +43,7 @@ when and how it was checked. `npm run corpus` (in `app/`) turns the files into
 | Folder | What | Source |
 |---|---|---|
 | `regulations/` | Mumbai DCPR 2034 (FSI, open space, margins and heights) and Gujarat CGDCR 2017 (FSI, height and margins, common plot, Gandhi Ashram, riverfront and restricted zones) | the two PDFs above |
+| `regulations/` (2026-10-27) | IRC:SP:118-2018 street templates (cross-sections); the open space hierarchy (URDPFI 2015 as reproduced by NIUA's child-friendly parks guide; Correa's levels) | `_sources/irc-sp-118-2018.pdf`; the NIUA guide (niua.in, not copied) |
 | `cept/` | Sem 06 (densification at Wadaj; the evolutionary workshop and block evolution) and Sem 07 (Eco-machine) | the studio reports and presentations under `D:\Work\Academic-CEPT\` (not copied into the repo), quoted with credit to the studio, semester and tutors |
 | `typologies/` | courtyard, L, U, tower, slab, podium and tower | Sem 06 report, CGDCR 6.14.2, DCPR Reg. 27; the slab entry is the author's |
 | `patterns/` | six cards from *A Pattern Language* (21, 60, 61, 106, 107, 159) | paraphrased, no quotation; page numbers and dimensions not yet checked against the book (see `docs/alexander.md`) |

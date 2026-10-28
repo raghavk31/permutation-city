@@ -119,3 +119,35 @@ export const versionOf = (genome: ArrayLike<number>): 1 | 2 | 3 =>
   genome.length === LENGTH_V3 ? 3 : genome.length === PRE_STREET_LENGTH ? 1 : 2;
 /** How many numbers a genome of a version has. */
 export const lengthOf = (version: number) => (version >= 3 ? LENGTH_V3 : version === 1 ? PRE_STREET_LENGTH : LENGTH);
+
+// --- street cross-sections (corpus: irc-sp118-street-templates) ---------------------------
+
+/** A street's parts across its width, left kerb to right: footpath, planted (trees, and where a
+ *  swale would go: the multi-utility zone, buffer or tree pits), carriageway, or shared lane. */
+export type SectionPart = { kind: "footpath" | "planted" | "carriageway" | "shared"; w: number; label: string };
+/** By width: IRC:SP:118-2018 Annexure 3 templates 18A, 12A, 9A, 6A (read off the drawings; the
+ *  ranges' lower ends, so the parts add up to the width); 7.5 m is assumed between 9A and 6A. */
+export const CROSS_SECTIONS: { w: number; template: string; parts: SectionPart[] }[] = [
+  { w: 18, template: "SP:118 18A", parts: [
+    { kind: "footpath", w: 3.5, label: "footpath" }, { kind: "planted", w: 2, label: "trees and parking" },
+    { kind: "carriageway", w: 7, label: "carriageway" }, { kind: "planted", w: 1.5, label: "trees and swale" },
+    { kind: "footpath", w: 4, label: "footpath and bus stop" }] },
+  { w: 12, template: "SP:118 12A", parts: [
+    { kind: "footpath", w: 3, label: "footpath" }, { kind: "planted", w: 2, label: "trees and parking" },
+    { kind: "carriageway", w: 6, label: "carriageway" }, { kind: "planted", w: 1, label: "planted buffer" }] },
+  { w: 9, template: "SP:118 9A", parts: [
+    { kind: "planted", w: 0.5, label: "buffer" }, { kind: "shared", w: 4.5, label: "mixed traffic" },
+    { kind: "footpath", w: 4, label: "footpath with tree pits" }] },
+  { w: 7.5, template: "assumed (between 9A and 6A)", parts: [
+    { kind: "footpath", w: 1, label: "paved buffer" }, { kind: "shared", w: 4, label: "shared lane" },
+    { kind: "planted", w: 2.5, label: "tree pits" }] },
+  { w: 6, template: "SP:118 6A", parts: [
+    { kind: "footpath", w: 1.5, label: "paved buffer" }, { kind: "shared", w: 3, label: "shared lane" },
+    { kind: "planted", w: 1.5, label: "tree pit" }] },
+];
+/** The section for a street `w` metres wide: the template of the nearest width, scaled to it. */
+export function sectionFor(w: number): { template: string; parts: SectionPart[] } {
+  const s = CROSS_SECTIONS.reduce((a, b) => (Math.abs(b.w - w) < Math.abs(a.w - w) ? b : a));
+  const k = w / s.w;
+  return { template: s.template, parts: s.parts.map((p) => ({ ...p, w: p.w * k })) };
+}

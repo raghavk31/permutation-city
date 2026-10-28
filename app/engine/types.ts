@@ -144,6 +144,9 @@ export interface Ground {
   activities?: Activities;       // shops, schools, transit points, same frame (semilattice richness)
   buildings?: ExistingBuildings; // existing buildings near the design ground, same frame (building-scale shade)
   water?: [number, number][];    // centres of the site's water cells (any grid cell), same frame (building-scale massing)
+  /** Centres of the land cells the rules keep unbuilt off the design ground (a lake buffer, deep
+   *  flooding): open ground the design's people can walk to (plan/shared.ts). */
+  openLand?: [number, number][];
   syntaxStreets?: number[][];    // existing streets to 1 km round the site, [x0, y0, x1, y1] (space syntax)
   // Landform (export format 4; pc/landform.py): per cell, and the street skeleton
   z?: Float64Array;              // ground height (m)
@@ -201,7 +204,8 @@ export interface SettingsV3 {
  *  blocks (faces of the network), the plots, and what the rules repaired or flagged. */
 export interface VectorPlan {
   family: string;
-  streets: { pts: [number, number][]; cls: number; w: number }[];
+  /** frontage: index into plan/shared.ts FRONTAGES (active, residential, green, lake). */
+  streets: { pts: [number, number][]; cls: number; w: number; frontage?: number }[];
   vx: number[]; vy: number[]; edges: { u: number; v: number; cls: number }[];
   blocks: [number, number][][];
   plots: { ring: [number, number][]; block: number; use: number; levels: number; frontage: number; road?: number }[];
@@ -212,6 +216,11 @@ export interface VectorPlan {
    *  may hold (m²), the share of its land in building plots and in parks, and the floor area
    *  the rules took off what the genes asked for (m²). */
   rules?: { capacity: number; plotShare: number; parkShare: number; trimmed: number };
+  /** Shared ground reserved before buildings (plan/shared.ts): squares at junctions, parks
+   *  (blocks) by open-space level, the share of floor area within a walk of each level, and
+   *  the share of the land that is shared ground. */
+  shared?: { squares: { at: [number, number]; plot: number }[]; parks: { level: "doorstep" | "housing" | "neighbourhood"; block: number; area: number }[];
+    access: Record<"doorstep" | "housing" | "neighbourhood", number>; share: number };
 }
 
 export interface Scores {
