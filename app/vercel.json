@@ -35,6 +35,10 @@
     {
       "source": "/classic",
       "destination": "/classic.html"
+    },
+    {
+      "source": "/typologies",
+      "destination": "/typologies.html"
     }
   ]
 }

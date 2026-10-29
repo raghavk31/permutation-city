@@ -33,6 +33,7 @@
   <a class="st-mark" href="./">Permutation City</a>
   <nav aria-label="Pages">
     <a href="#found" class="wb-btn is-quiet">Results</a>
+    <a href="typologies" class="wb-btn is-quiet">Typologies</a>
     <a href="workbench" class="wb-btn">Open the workbench</a>
   </nav>
 </header>
