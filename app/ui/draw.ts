@@ -580,7 +580,7 @@ export function attractors(ctx: Ctx, v: View, d: Design) {
  *  building plot is for, facilities outlined and bus stops marked. */
 export type PlanLayer = "plan" | "shared" | "frontage" | "types" | "programme";
 const PROGRAMME_ORDER = ["homes", "shops", "education", "health", "culture", "industry", "water", "waste"] as const;
-const TYPE_ORDER = ["courtyard", "perimeter", "row", "towers"] as const;
+const TYPE_ORDER = ["court", "yard", "row", "tall"] as const;
 const FRONTAGE_ORDER = ["active", "residential", "green", "lake"] as const;
 
 export function vectorPlan(ctx: Ctx, v: View, d: Design, layer: PlanLayer = "plan") {
@@ -590,9 +590,9 @@ export function vectorPlan(ctx: Ctx, v: View, d: Design, layer: PlanLayer = "pla
   const ring = (r: [number, number][]) => { ctx.beginPath(); r.forEach(([x, y], k) => (k ? ctx.lineTo(v.px(x), v.py(y)) : ctx.moveTo(v.px(x), v.py(y)))); ctx.closePath(); };
   const faded = layer !== "plan";
   const typeOf = new Map<number, number>();
-  if (layer === "types") for (const t of plan.types ?? []) typeOf.set(t.block, t.type);
-  const typed = (block: number) => {
-    const k = typeOf.get(block);
+  if (layer === "types") for (const t of plan.types ?? []) for (const p of t.plots ?? []) typeOf.set(p, t.type);
+  const typed = (plot: number) => {
+    const k = typeOf.get(plot);
     return k === undefined ? T.existingRamp[1] : k < 0 ? T.blockType.none : T.blockType[TYPE_ORDER[k]];
   };
   // Blocks first, in the street colour's neighbour (the ground between plots), then plots.
@@ -600,7 +600,7 @@ export function vectorPlan(ctx: Ctx, v: View, d: Design, layer: PlanLayer = "pla
   plan.plots.forEach((p, k) => {
     ring(p.ring);
     const prog = layer === "programme" ? plan.programme?.plot[k] ?? -1 : -1;
-    const c = p.use === 1 ? (layer === "types" ? typed(p.block) : prog >= 0 ? T.programme[PROGRAMME_ORDER[prog]]
+    const c = p.use === 1 ? (layer === "types" ? typed(k) : prog >= 0 ? T.programme[PROGRAMME_ORDER[prog]]
       : faded ? T.existingRamp[1] : buildingAt(p.levels))
       : p.use === 2 ? T.green.proposed : p.use === 3 ? T.water.storage : T.paper2;
     ctx.fillStyle = c; ctx.fill();

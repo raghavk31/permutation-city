@@ -15,8 +15,9 @@
 //      field as before, one height per plot
 //   9  programme: what each building plot is for, from the people the homes hold and the
 //      ground (programme.ts)
-//  10  version 3.1: a building type per block, its coverage and storeys as Spacematrix
-//      numbers (blocktypes.ts); then the site's plot rules hold each plot to its FAR, coverage
+//  10  version 3.1: a building type per lot (a block's plots of one programme): a library
+//      precedent for the programme, its coverage and storeys as Spacematrix numbers
+//      (blocktypes.ts, precedents.ts); then the site's plot rules hold each plot to its FAR, coverage
 //      and height
 //
 // Steps 2-7 are the design's frame. Grown with another design's frame (piecemeal growth: the
@@ -26,7 +27,7 @@ import { BUILDING, DEFAULT_RANGES, type Family, LANDSCAPE, LENGTH_V3_0, PRIMARY_
 import { claimUses, decodeV3 } from "../genome.js";
 import { roundHalfEven } from "../num.js";
 import { coverageFor, farFor, plotRulesOf, roadStoreys } from "../regs.js";
-import { BLOCK_TYPES, type BlockIn, type BlockTyping, typeBlocks } from "./blocktypes.js";
+import { type LotIn, typeBlocks } from "./blocktypes.js";
 import { makeRng } from "../rng.js";
 import { sides } from "../streets.js";
 import type { Design, Ground, SettingsV3, VectorPlan } from "../types.js";
@@ -38,7 +39,7 @@ import { applyBlockRepairs, blockRepairs, type Edge, type Face, faces, type Flag
 import { type Plot, plotUse, plots as splitPlots } from "./plots.js";
 import { type Raster, rasterise } from "./raster.js";
 import { route } from "./route.js";
-import { placeProgramme } from "./programme.js";
+import { placeProgramme, type ProgrammeResult } from "./programme.js";
 import { accessOf, FRONTAGES, frontages, reserveShared } from "./shared.js";
 
 /** Milliseconds per stage, summed over designs, when profiling (scripts/plan-profile.ts). */
@@ -130,8 +131,8 @@ export function growV3(genome: number[], G: Ground, locked: ArrayLike<number> | 
   // 10. A building type per block (version 3.1): the block's coverage and storeys become its
   // type's, as Spacematrix numbers (blocktypes.ts).
   const types = s.t_courtyard === undefined ? null
-    : typeCells(G, use, fs, ps, ras.plotOf, share, levels, coverage, floorArea, s, ranges,
-      [...centres, ...shared.squares.map((q) => q.at)]);
+    : typeCells(G, use, ps, ras.plotOf, share, coverage, levels, floorArea, s,
+      [...centres, ...shared.squares.map((q) => q.at)], programme);
   t = tick("types", t);
   const rules = plotRules(G, use, ps, ras.plotOf, share, plotLevels, levels, coverage, floorArea);
   if (types) {
@@ -217,65 +218,56 @@ function plotRules(G: Ground, use: Int8Array, ps: Plot[], plotOf: Int32Array, sh
   return { capacity, plotShare: land ? plotLand / land : 0, parkShare: land ? park / land : 0, trimmed: before - after };
 }
 
-/** A building type for each block with building plots (blocktypes.ts), applied to its cells in
- *  place: low types give every building cell the type's coverage and storeys (within the cell's
- *  cap); podium with towers gives the podium's, and the cells nearest the block's node a tower
- *  each, its floor plate's floor area added. Blocks no type fits keep what the genes grew.
- *  Returns the plan's typing, one entry per typed block. */
-function typeCells(G: Ground, use: Int8Array, fs: Face[], ps: Plot[], plotOf: Int32Array, share: Float64Array, levels: Int32Array,
-  coverage: Float64Array, floorArea: Float64Array, s: SettingsV3, ranges: Ranges, nodes: Pt[]): NonNullable<VectorPlan["types"]> {
+/** A building type for each lot (a block's building plots of one programme; blocktypes.ts),
+ *  applied to its cells in place: every building cell takes the lot's coverage, and storeys
+ *  that keep its floor area (within the cell's cap). Lots no precedent fits keep what the genes
+ *  grew. Returns the plan's typing, one entry per lot. */
+function typeCells(G: Ground, use: Int8Array, ps: Plot[], plotOf: Int32Array, share: Float64Array,
+  coverage: Float64Array, levels: Int32Array, floorArea: Float64Array, s: SettingsV3, nodes: Pt[], programme: ProgrammeResult): NonNullable<VectorPlan["types"]> {
   const R = plotRulesOf(G.meta.id), n = G.n;
-  const cellsOf: number[][] = fs.map(() => []);
-  const blocks: BlockIn[] = fs.map((f) => ({ ring: f.ring, land: 0, floor: 0, road: 0, cap: 0, farCap: Infinity }));
-  const fa = new Float64Array(fs.length), caps: number[][] = fs.map(() => []);
+  // one lot per block and programme, in plot order
+  const lotOf = new Map<string, number>(), lots: LotIn[] = [], cellsOf: number[][] = [], caps: number[][] = [], fa: number[] = [];
+  const lotFor = (k: number) => {
+    const p = ps[k], prog = Math.max(programme.plot[k] ?? 0, 0), key = `${p.block}:${prog}`;
+    let l = lotOf.get(key);
+    if (l === undefined) {
+      lotOf.set(key, (l = lots.length));
+      lots.push({ block: p.block, plots: [], rings: [], programme: prog, land: 0, floor: 0, road: 0, cap: 0, farCap: Infinity });
+      cellsOf.push([]); caps.push([]); fa.push(0);
+    }
+    return l;
+  };
+  ps.forEach((p, k) => { if (p.use === BUILDING) { const l = lots[lotFor(k)]; l.plots.push(k); l.rings.push(p.ring); } });
   for (let i = 0; i < n; i++) {
     if (use[i] !== BUILDING || plotOf[i] < 0) continue;
-    const p = ps[plotOf[i]], b = blocks[p.block], land = G.cellArea * (1 - share[i]);
-    cellsOf[p.block].push(i);
-    b.land += land; b.floor += floorArea[i]; b.road = Math.max(b.road, p.road); caps[p.block].push(G.cap[i]);
-    if (R) fa[p.block] += farFor(R, p.road) * land;
+    const k = plotOf[i], l = lotFor(k), lot = lots[l], land = G.cellArea * (1 - share[i]);
+    cellsOf[l].push(i);
+    lot.land += land; lot.floor += floorArea[i]; lot.road = Math.max(lot.road, ps[k].road); caps[l].push(G.cap[i]);
+    if (R) fa[l] += farFor(R, ps[k].road) * land;
   }
-  ps.forEach((p) => { if (p.use === BUILDING) (blocks[p.block].plots ??= []).push(p.ring); });
-  blocks.forEach((b, k) => {
-    if (!caps[k].length) return;
-    const c = caps[k].sort((x, y) => x - y);
-    b.cap = c[c.length >> 1];
-    if (R && b.land > 0) b.farCap = fa[k] / b.land;
+  lots.forEach((lot, l) => {
+    if (!caps[l].length) return;
+    const c = caps[l].sort((x, y) => x - y);
+    lot.cap = c[c.length >> 1];
+    if (R && lot.land > 0) lot.farCap = fa[l] / lot.land;
   });
-  const depthT = (s.coverage - ranges.coverage[0]) / (ranges.coverage[1] - ranges.coverage[0] || 1);
   const prefs = [s.t_courtyard ?? 0, s.t_perimeter ?? 0, s.t_row ?? 0, s.t_towers ?? 0];
-  const typed = typeBlocks(blocks, prefs, Math.min(Math.max(depthT, 0), 1), nodes, R);
+  const typed = typeBlocks(lots, prefs, nodes, R, G.meta.id);
   const out: NonNullable<VectorPlan["types"]> = [];
-  typed.forEach((t, k) => {
+  typed.forEach((t, l) => {
     if (!t) return;
     out.push(t);
-    if (t.type < 0) return;
-    const cells = cellsOf[k], tower = BLOCK_TYPES[t.type].key === "towers";
-    const pod = tower ? Math.min(2, t.storeys) : t.storeys;
-    for (const i of cells) {
-      levels[i] = Math.max(1, Math.min(pod, G.cap[i]));
-      coverage[i] = Math.max(Math.min(t.gsi * (1 - share[i]), 1 - G.minPerm[i] - share[i]), 0);
-      floorArea[i] = G.cellArea * coverage[i] * levels[i];
-    }
-    if (!tower || !cells.length) return;
-    // The towers: on the cells nearest the block's nearest node, one each.
-    const c = centroidOf(cells.map((i) => [G.x[i], G.y[i]] as Pt));
-    const node = nodes.reduce((a, q) => (Math.hypot(q[0] - c[0], q[1] - c[1]) < Math.hypot(a[0] - c[0], a[1] - c[1]) ? q : a), nodes[0] ?? c);
-    const near = [...cells].sort((a, b) => Math.hypot(G.x[a] - node[0], G.y[a] - node[1]) - Math.hypot(G.x[b] - node[0], G.y[b] - node[1]) || a - b);
-    for (const i of near.slice(0, t.towers)) {
-      const add = t.depth * t.depth * (t.storeys - levels[i]);
-      levels[i] = t.storeys;
-      coverage[i] = Math.min((floorArea[i] + add) / (G.cellArea * t.storeys), 1);
+    if (t.type < 0 || t.gsi <= 0) return;
+    // the lot's floor area kept: storeys from its FSI over its coverage (no more than its
+    // precedent's, whose upper floors can overhang the ground: an arcade), coverage to match
+    const st = Math.min(t.storeys, Math.max(1, Math.round(t.fsi / t.gsi)));
+    for (const i of cellsOf[l]) {
+      levels[i] = Math.max(1, Math.min(st, G.cap[i]));
+      coverage[i] = Math.max(Math.min((t.fsi / levels[i]) * (1 - share[i]), 1 - G.minPerm[i] - share[i]), 0);
       floorArea[i] = G.cellArea * coverage[i] * levels[i];
     }
   });
   return out;
-}
-
-function centroidOf(pts: Pt[]): Pt {
-  let x = 0, y = 0;
-  for (const p of pts) { x += p[0]; y += p[1]; }
-  return [x / pts.length, y / pts.length];
 }
 
 /** Steps 2-7: the streets, blocks and plots a genome lays out, and their raster. */

@@ -391,7 +391,8 @@ Facilities get on average 75-80% of their land; the rest is short because blocks
 
 Not done yet: police, fire and the post (Tables 8.58-8.59), food and energy (readouts only in
 the plan above), the brief's programme mix (recorded, not applied), school playfields as shared
-ground, and building types chosen by programme (the library's precedents: the next step).
+ground. Building types chosen by programme: built 30 October (`docs/built-form.md`, "Precedents
+as types").
 
 ### Flows between the public systems
 

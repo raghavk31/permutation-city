@@ -24,8 +24,8 @@
 //   5  bus stops at the junctions of the wide streets, so most homes are within 400 m of one
 //      (Table 6.1)
 //
-// Everything else is homes. Programme labels plots; building types (blocktypes.ts) don't read
-// it yet: the library's precedents for each programme are the next step.
+// Everything else is homes. Building types (blocktypes.ts) read it: each lot, a block's plots of
+// one programme, is built as a library precedent for that programme (precedents.ts).
 import { BUILDING, LANDSCAPE, PRIMARY_W_M, SECONDARY_W_M } from "../config.js";
 import type { Ground } from "../types.js";
 import { area, centroid, dist, type Pt } from "./geom.js";

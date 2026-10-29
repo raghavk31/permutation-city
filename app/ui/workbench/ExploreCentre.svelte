@@ -266,11 +266,15 @@
         {:else if bench.exLayer === "types"}
           <div class="wb-legend">
             {#if ty}
-              {#each E.BLOCK_TYPES as t, k}
-                <div><i style="--c: {P.t.blockType[t.key]}"></i><span>{t.name}: {ty.blocks[k]} block{ty.blocks[k] === 1 ? "" : "s"}{t.key === "towers" && ty.towers ? `, ${ty.towers} tower${ty.towers === 1 ? "" : "s"}` : ""}</span></div>
+              {#each E.FAMILIES as t, k}
+                <div><i style="--c: {P.t.blockType[t.key]}"></i><span>{t.name}: {ty.blocks[k]} lot{ty.blocks[k] === 1 ? "" : "s"}{t.key === "tall" && ty.towers ? `, ${ty.towers} tower${ty.towers === 1 ? "" : "s"}` : ""}</span></div>
               {/each}
-              {#if ty.none}<div><i style="--c: {P.t.blockType.none}"></i><span>no type fits: {ty.none}</span></div>{/if}
-              <span class="wb-quiet" title="Floor area over building land (FSI): what the genes asked of the typed blocks, and what their types give within the plot rules (Spacematrix)">density asked {ty.asked.toFixed(2)}, given {ty.given.toFixed(2)}</span>
+              {#if ty.none}<div><i style="--c: {P.t.blockType.none}"></i><span>no precedent fits: {ty.none}</span></div>{/if}
+              <span class="wb-quiet" title="Floor area over building land (FSI): what the genes asked of the typed lots, and what their precedents give within the plot rules (Spacematrix)">density asked {ty.asked.toFixed(2)}, given {ty.given.toFixed(2)}</span>
+              {#each ty.precedents.slice(0, 5) as u}
+                {@const p = E.PRECEDENT.get(u.id)}
+                <span class="wb-quiet" title="{p?.place ?? ''}: {p?.lesson ?? ''}">{p?.name ?? u.id}: {u.lots} lot{u.lots === 1 ? "" : "s"}, {Math.round(u.storeys) === u.own ? `${u.own} storey${u.own === 1 ? "" : "s"} as built` : `${u.storeys.toFixed(1)} storeys (built ${u.own})`}</span>
+              {/each}
             {:else}
               <span class="wb-quiet">This design was bred before building types (genome version 3).</span>
             {/if}

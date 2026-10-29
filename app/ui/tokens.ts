@@ -36,8 +36,9 @@ export const tokens = {
   /** Street frontage types (plan/shared.ts FRONTAGES order): shops at ground, homes, beside
    *  shared ground, along the water. */
   frontage: { active: "#c98a2b", residential: "#a39f96", green: "#2f8a85", lake: "#3d74b0" },
-  /** Building type per block (plan/blocktypes.ts BLOCK_TYPES order), and blocks no type fits. */
-  blockType: { courtyard: "#b0603f", perimeter: "#d9a441", row: "#8aa36b", towers: "#5b4a7a", none: "#c5c9cc" },
+  /** Building type per lot, by family of arrangement (plan/precedents.ts FAMILIES order), and
+   *  lots no precedent fits. */
+  blockType: { court: "#b0603f", yard: "#d9a441", row: "#8aa36b", tall: "#5b4a7a", none: "#c5c9cc" },
   /** What each building plot is for (plan/programme.ts PROGRAMMES order). */
   programme: { homes: "#e8d6b2", shops: "#e0a030", education: "#6c4fa0", health: "#d4688c", culture: "#1f6f68",
     industry: "#4d4a45", water: "#4f86c6", waste: "#8c5a2b" },

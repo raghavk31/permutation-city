@@ -318,7 +318,68 @@ Cost: growth is slower (per design, Bengaluru 476 to 618 ms, Docks 115 to 192 ms
 843 ms in Node), from laying out each low type at each distinct court width and row gap.
 
 Not yet: the check shown in the workbench; the Massing
-step's block search seeded from the same layout; library precedents as types.
+step's block search seeded from the same layout.
+
+## Precedents as types (30 October)
+
+`app/engine/plan/precedents.ts`, `blocktypes.ts`, `blockmass.ts`. The four fixed types are
+gone: every lot is built as a precedent from the typology library (`docs/typologies.md`),
+chosen for its programme and the site's climate and taken to the density the genes ask for.
+
+- **A lot** is a block's building plots of one programme (`programme.ts`): a block's homes are
+  one lot, a school in the same block another, so the school is built as a school.
+- **Candidates** are the library's building precedents for the programme (no ponds, terraces,
+  pits, canopies or houses on water), nearest the site's climate first (`typology/climate.ts`).
+  The library has no clinics and no treatment plants with buildings: health takes education's
+  and culture's precedents, sewage and waste take waste's and industry's (assumed). The first
+  `CANDIDATES` (8) whose tile fits the lot are tried.
+- **Laid out:** the precedent's seed is built by the grammar and its plot (with half its street)
+  tiled over the oriented box of the lot's plots, turned where more tiles fit; each building is
+  clipped to the plots, and a building with less than 60% of its footprint on the land is left
+  out rather than cut to a sliver. A building the land doesn't cut keeps its precedent's roof
+  in the 3D view (gable, mono, vault, cone, dome).
+- **Drift:** a precedent may be raised or lowered to any storey count the lot's caps allow.
+  Raised past its own height, its court (or the street between its rows) widens to the new
+  height, light at 45° to the ground floor, as the fixed types' rows had. Each lot reports its
+  drift: storeys, court, street, from and to.
+- **Choice:** every candidate at every storey count is first estimated (tiles that fit times the
+  precedent's floor area, as if the land filled its box), thinned to the plot rules' coverage
+  and FAR; the best three by score are laid out and measured, and the best measured wins. The
+  score: the gene for the precedent's family, plus Martin and March's prior for courts at FSI 1
+  and over, less 6 times the relative miss of the wanted FSI (density all but a constraint, as
+  asked on 28 October), 0.25 per noticeable step of climate difference and 0.15 per doubling or
+  halving of the precedent's height (weights assumed).
+- **The type genes** of genome 3.1 are now preferences for four families of arrangement: round a
+  court (court, ring), round a shared yard (cluster), rows (row, shed), slabs and towers (slab,
+  tower). Towers keep their limits: at a node, where nothing lower reaches the density, at most
+  two on the site.
+
+Six random designs a site, against the fixed types on the same designs:
+
+| site | FSI asked | given (fixed types) | given (precedents) | floor area, fixed / precedents | climate (steps) | typing a plan |
+| --- | --- | --- | --- | --- | --- | --- |
+| Bengaluru | 0.94 | 1.10 | 0.93 | 80 / 70 ha | 0.67 | 143 ms |
+| Wadaj | 2.44 | 2.12 | 2.10 | 292 / 292 ha | 0.47 | 299 ms |
+| Wadaj (quad) | 2.49 | 2.16 | 2.17 | 292 / 297 ha | 0.45 | 229 ms |
+| Mumbai Docks | 1.79 | 1.71 | 1.50 | 36 / 34 ha | 0.60 | 45 ms |
+| Mumbai EWF | 2.11 | 1.94 | 1.69 | 98 / 90 ha | 0.60 | 99 ms |
+| Guwahati | 2.51 | 2.17 | 2.04 | 203 / 199 ha | 0.96 | 171 ms |
+
+No lot's massing is off its promise by more than 10%: the choice measures the same layout the
+3D view draws. Bengaluru now gets what was asked (the fixed types over-gave). On the dense sites
+the precedents fall short where the fixed types had towers (about one a design, none now: few
+tower precedents are near these climates) and where courts widen with height. Precedents used
+most on Bengaluru: the vatara (28% of typed land, raised from 1 to 2.6 storeys on average),
+Chettinad houses (23%), Padmanabhapuram (11%), Malleswaram's rows (8%), the agraharam (6%).
+
+What the dense sites show: to reach FSI 2 and more, single-storey courtyard houses are raised
+to eight storeys and more (thotti-mane 1 to 8.7 on Mumbai, sangath 1 to 6.5 on Wadaj). The drift
+readout says so per lot; whether a precedent so far from its own height is still that precedent
+is open (a cap on drift is one answer, a denser precedent another).
+
+Not yet: crossing two precedents (a hybrid), drift in unit sizes and counts (only storeys, court
+and street move), water and waste precedents without buildings (ponds, wetlands) for the sewage
+and waste lots, and the Massing step's search starting from the lot's precedent.
 
 ## Steps 5-9: references to check
 

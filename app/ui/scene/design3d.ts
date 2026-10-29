@@ -20,7 +20,7 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { dayOfYear, solarHour, sunAt } from "../../engine/massing";
 import { sectionFor, sides, type Design, type Ground, type SiteExport } from "../../engine";
-import { massPlan } from "../../engine/plan/blockmass";
+import { massPlan, type Mass } from "../../engine/plan/blockmass";
 import { inset, regions, shapeOf, type StreetLines } from "../draw";
 import { buildingAt, tokens as T } from "../tokens";
 
@@ -115,6 +115,55 @@ function streetBands(points: [number, number][], w: number) {
     at = b;
   }
   return { bands: out, trees };
+}
+
+/** A precedent's roof over a whole building (plan/blockmass.ts Mass), as the library page
+ *  draws it (ui/diagrams/typology.ts): a gable or vault with its ridge along the longer sides,
+ *  a mono roof rising to the back, a cone or a dome over the footprint. z: the eaves (m, already
+ *  exaggerated by ex). Flat roofs and footprints a pitched roof can't cover give null. */
+function roofGeometry(ring: [number, number][], z: number, roof: NonNullable<Mass["roof"]>, ex: number): THREE.BufferGeometry | null {
+  const tri: number[] = [];
+  const T3 = (a: number[], b: number[], c: number[]) => tri.push(...a, ...b, ...c);
+  const cx = ring.reduce((a, p) => a + p[0], 0) / ring.length, cy = ring.reduce((a, p) => a + p[1], 0) / ring.length;
+  const P = (p: [number, number], h = 0) => [p[0], p[1], z + h * ex];
+  if (roof.kind === "cone" || roof.kind === "dome") {
+    const R = Math.max(...ring.map(([x, y]) => Math.hypot(x - cx, y - cy)));
+    const H = roof.kind === "cone" ? R * Math.tan(((roof.pitch ?? 45) * Math.PI) / 180) : R * (roof.pitch ? Math.tan((roof.pitch * Math.PI) / 180) : 0.75);
+    const tiers = roof.kind === "cone" ? 1 : 4;
+    const lv = (k: number) => {
+      const t = k / tiers, rr = roof.kind === "cone" ? 1 - t : Math.cos((t * Math.PI) / 2), hh = roof.kind === "cone" ? H * t : H * Math.sin((t * Math.PI) / 2);
+      return ring.map(([x, y]) => [cx + (x - cx) * rr, cy + (y - cy) * rr, z + hh * ex]);
+    };
+    for (let k = 0; k < tiers; k++) {
+      const a = lv(k), b = lv(k + 1);
+      for (let i = 0; i < ring.length; i++) { const j = (i + 1) % ring.length; T3(a[i], a[j], b[j]); if (k < tiers - 1) T3(a[i], b[j], b[i]); }
+    }
+  } else if (ring.length === 4 && roof.kind === "mono") {
+    const R = roof.rise ?? 3;
+    T3(P(ring[0]), P(ring[1]), P(ring[2], R)); T3(P(ring[0]), P(ring[2], R), P(ring[3], R));
+    T3(P(ring[1]), P(ring[2]), P(ring[2], R)); T3(P(ring[3]), P(ring[0]), P(ring[3], R));
+  } else if (ring.length === 4) {
+    // gable, saddle or vault: the ridge along the longer pair of sides (or across, ridgeShort)
+    const e0 = Math.hypot(ring[1][0] - ring[0][0], ring[1][1] - ring[0][1]), e1 = Math.hypot(ring[2][0] - ring[1][0], ring[2][1] - ring[1][1]);
+    const q = (e0 >= e1) !== !!roof.ridgeShort ? ring : [ring[1], ring[2], ring[3], ring[0]];
+    const span = Math.hypot(q[3][0] - q[0][0], q[3][1] - q[0][1]);
+    const H = roof.kind === "vault" ? span * 0.5 : (span / 2) * Math.tan(((roof.pitch ?? 35) * Math.PI) / 180);
+    // across the span, a profile: two slopes, or a half round for a vault
+    const segs = roof.kind === "vault" ? 6 : 2;
+    const at = (a: [number, number], b: [number, number], t: number) =>
+      [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, z + H * (roof.kind === "vault" ? Math.sin(t * Math.PI) : 1 - Math.abs(2 * t - 1)) * ex];
+    for (let k = 0; k < segs; k++) {
+      const t0 = k / segs, t1 = (k + 1) / segs;
+      const a0 = at(q[0], q[3], t0), a1 = at(q[0], q[3], t1), b0 = at(q[1], q[2], t0), b1 = at(q[1], q[2], t1);
+      T3(a0, b0, b1); T3(a0, b1, a1);
+      // the gable ends
+      T3(P(q[0]), a0, a1); T3(P(q[1]), b1, b0);
+    }
+  } else return null;
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(tri, 3));
+  g.computeVertexNormals();
+  return g;
 }
 
 function merge(geoms: THREE.BufferGeometry[]): THREE.BufferGeometry | null {
@@ -348,23 +397,27 @@ export class DesignView {
     }
     const groups = new Map<number, THREE.BufferGeometry[]>();
     if (plan.types?.length) {
-      // version 3.1: every typed block massed as its type (plan/blockmass.ts), never plot
-      // extrusions; blocks no type fits keep their plots' extrusions below
-      const { masses } = massPlan(plan.types, (b) => plan.plots.filter((p) => p.block === b && p.use === 1).map((p) => p.ring));
+      // version 3.1: every typed lot massed as its precedent (plan/blockmass.ts), never plot
+      // extrusions; lots no precedent fits keep their plots' extrusions below
+      const { masses } = massPlan(plan.types, (t) => (t.plots ?? []).map((k) => plan.plots[k].ring));
       for (const m of masses) {
         const g = new THREE.ExtrudeGeometry(new THREE.Shape(m.ring.map(([x, y]) => new THREE.Vector2(x, y))), { depth: m.storeys * STOREY * ex, bevelEnabled: false });
         g.translate(0, 0, m.z * ex);
-        const lv = Math.round(m.z / STOREY) + m.storeys, l = groups.get(lv); if (l) l.push(g); else groups.set(lv, [g]);
+        const lv = Math.round(m.z / STOREY) + m.storeys, l = groups.get(lv) ?? [];
+        l.push(g);
+        const r = m.roof && roofGeometry(m.ring, (m.z + m.storeys * STOREY) * ex, m.roof, ex);
+        if (r) l.push(r);
+        groups.set(lv, l);
       }
     }
-    const typed = new Set((plan.types ?? []).filter((t) => t.type >= 0).map((t) => t.block));
-    for (const p of plan.plots) {
-      if (p.use !== 1 || p.levels <= 0 || typed.has(p.block)) continue;
+    const typed = new Set((plan.types ?? []).filter((t) => t.type >= 0).flatMap((t) => t.plots ?? []));
+    plan.plots.forEach((p, k) => {
+      if (p.use !== 1 || p.levels <= 0 || typed.has(k)) return;
       const r = area2(p.ring) < 0 ? [...p.ring].reverse() : p.ring;
       const fp = inset(r, 1.5) ?? r;
       const g = new THREE.ExtrudeGeometry(new THREE.Shape(fp.map(([x, y]) => new THREE.Vector2(x, y))), { depth: p.levels * STOREY * ex, bevelEnabled: false });
       const l = groups.get(p.levels); if (l) l.push(g); else groups.set(p.levels, [g]);
-    }
+    });
     for (const [lv, gs] of groups) add(merge(gs), new THREE.MeshStandardMaterial({ color: buildingAt(lv), roughness: 0.85, metalness: 0 }), true, true);
   }
 
