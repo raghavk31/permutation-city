@@ -82,6 +82,13 @@ export function growV3(genome: number[], G: Ground, locked: ArrayLike<number> | 
   const centres: Pt[] = attractors.filter((a) => a.kind === "core").map((a) => [a.x, a.y]);
   const shared = reserveShared(G, use, frame.vx, frame.vy, edges, fs, ps, ras.plotOf, centres, cellOf, locked);
   t = tick("shared", t);
+  // The plot decides a cell's use: building cells in a plot voted landscape or water hold no
+  // building (none is drawn there), so they're open ground; never water, which no claim drew.
+  // Cells earlier increments built stay.
+  for (let i = 0; i < n; i++) {
+    const k = ras.plotOf[i];
+    if (use[i] === BUILDING && k >= 0 && ps[k].use !== BUILDING && G.canGreen[i] && !(locked && locked[i] > 0)) use[i] = LANDSCAPE;
+  }
 
   const share = Float64Array.from(ras.share, (v) => Math.min(v, STREET_SHARE_MAX));
   const sd = sides(G), fronts = new Uint8Array(n);

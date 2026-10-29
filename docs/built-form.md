@@ -300,16 +300,24 @@ small blocks overlapped at the corners. Six random designs each, flagged blocks:
 | Docks | 0% | 0% | 11% | 11% |
 | Wadaj | 0% | 0% | 11% | 11% |
 
-**What's left is a cell/plot mismatch, not the massing.** Nearly every block still under is a
-block whose building cells sit in plots voted another use (one unsplit plot, mostly landscape,
-sometimes water; `plotUse`): 11-13% of typed floor area is counted on cells and never drawn. The
-same leak exists for untyped designs (plot extrusions draw only building plots). Also seen: a
-self-intersecting plot now and then (about one block in a thousand) undercounts its own area.
+**What was left was a cell/plot mismatch, not the massing.** Nearly every block still under
+was a block whose building cells sat in plots voted another use (one unsplit plot, mostly
+landscape, sometimes water; `plotUse`): 11-13% of typed floor area was counted on cells and never
+drawn, and untyped designs leaked the same way (plot extrusions draw only building plots). Now
+**the plot decides** (user's choice, 29 October; `growV3` after shared ground): a building cell in
+a plot of another use becomes open ground (landscape, never water, which no claim drew; cells
+earlier increments built stay). Floor area per random design falls by what had leaked
+(Bengaluru 102 to 88 ha, Wadaj 337 to 307, Docks 42 to 39, Guwahati 231 to 216; 12 designs
+each). The capacity readout is unchanged (181.0 ha on Bengaluru's rules, 221.7 ha on the law's
+buffer only): the plot rules already counted building plots only. Flagged blocks after both
+fixes: Bengaluru 4.0% (2.9% over, small blocks a whole building too coarse to thin), Docks 0.5%,
+Wadaj 0.2%. Also seen: a self-intersecting plot now and then (about one block in a thousand)
+undercounts its own area.
 
 Cost: growth is slower (per design, Bengaluru 476 to 618 ms, Docks 115 to 192 ms, Wadaj 591 to
 843 ms in Node), from laying out each low type at each distinct court width and row gap.
 
-Not yet: the cell/plot mismatch above; the check shown in the workbench; the Massing
+Not yet: the check shown in the workbench; the Massing
 step's block search seeded from the same layout; library precedents as types.
 
 ## Steps 5-9: references to check

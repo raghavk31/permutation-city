@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import * as E from "../../app/engine";
 import { clip, GAP_FLAG, massBlock, massPlan } from "../../app/engine/plan/blockmass";
 import { BLOCK_TYPES } from "../../app/engine/plan/blocktypes";
+import { frameOf } from "../../app/engine/plan/grow";
 import { area, type Line } from "../../app/engine/plan/geom";
 
 const sq = (x: number, y: number, w: number, h: number): Line => [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
@@ -70,8 +71,12 @@ describe.each(["bengaluru-cascade", "mumbai-docks"])("massing the typed blocks o
     expect(r.masses.length).toBeGreaterThan(0);
     expect(new Set(r.masses.map((m) => m.block)).size).toBeGreaterThan(plan.types!.filter((t) => t.type >= 0).length * 0.8);
   });
-  it("delivers each low type's floor area within the flag on most blocks", () => {
+  it("delivers each low type's floor area within the flag on nearly every block", () => {
     const low = r.checks.filter((c) => BLOCK_TYPES[c.type].key !== "towers");
-    expect(low.filter((c) => Math.abs(c.gap) <= GAP_FLAG).length / low.length).toBeGreaterThan(0.6);
+    expect(low.filter((c) => Math.abs(c.gap) <= GAP_FLAG).length / low.length).toBeGreaterThan(0.9);
+  });
+  it("counts floor area only where a building is drawn: no building cell in a plot of another use", () => {
+    const f = frameOf(d)!;
+    for (let i = 0; i < G.n; i++) if (d.use[i] === E.BUILDING && f.ras.plotOf[i] >= 0) expect(plan.plots[f.ras.plotOf[i]].use).toBe(E.BUILDING);
   });
 });
