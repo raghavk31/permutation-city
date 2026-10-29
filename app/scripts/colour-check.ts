@@ -61,6 +61,17 @@ const PAIRS: [string, string, string, string, boolean?][] = [
   ["accent", t.accent, "green (existing)", t.green.existing, true],
   ["accent", t.accent, "water (deep)", t.water.deep, true],
   ["accent", t.accent, "measure, deep", t.measure[4], true],
+  // Programme per plot (one map): every pair of programmes, and each beside landscape and water.
+  // Facilities are outlined in the plan, so a low pair is backed.
+  ...(() => {
+    const G = t.programme as Record<string, string>, ks = Object.keys(G), out: [string, string, string, string, boolean?][] = [];
+    for (let i = 0; i < ks.length; i++) {
+      for (let j = i + 1; j < ks.length; j++) out.push([`programme: ${ks[i]}`, G[ks[i]], `programme: ${ks[j]}`, G[ks[j]], ks[i] !== "homes" && ks[j] !== "homes"]);
+      out.push([`programme: ${ks[i]}`, G[ks[i]], "green (proposed)", t.green.proposed, true]);
+      out.push([`programme: ${ks[i]}`, G[ks[i]], "water (storage)", t.water.storage]);
+    }
+    return out;
+  })(),
 ];
 const RAMPS: [string, string[]][] = [
   ["building", B], ["elevation", t.elevation], ["heat", t.heat], ["measure", t.measure],

@@ -128,7 +128,7 @@ class Bench {
   exPlot = $state<"matrix" | "parallel">("matrix");
   /** What the Explore plan shows: the plan, its shared ground, its street frontage, or its
    *  building types. */
-  exLayer = $state<"plan" | "shared" | "frontage" | "types">("plan");
+  exLayer = $state<"plan" | "shared" | "frontage" | "types" | "programme">("plan");
   exColour = $state("front");
   brush = $state.raw<Record<string, [number, number]>>({});
   exSel = $state<string | null>(null);

@@ -355,14 +355,43 @@ water; junctions get shade and seats; every few hundred metres, a small doorstep
 
 ### How much
 
-From the housing's population, through:
-- **URDPFI Guidelines (2015):** schools, colleges, health and land-use shares;
-- **CPHEEO Manual:** water supply of 135 litres per person per day, and sewage;
-- **Solid Waste Management Rules 2016:** waste per person;
-- **energy:** load per m² by use.
+Built 29 October 2026 (`app/engine/plan/programme.ts`, the Explore view "Programme",
+`npm run programme-survey`). Every building plot gets a programme after shared ground and
+before building types. The figures were read in the URDPFI Guidelines 2014 (published January
+2015), Vol I, Chapter 8 (`corpus/_sources/urdpfi-2015-vol1.pdf`; Vol II A and B beside it):
 
-All of these are **to read in the source** before any figure enters the engine. The brief's own
-mix wins where it gives one.
+| What | Figure | Source | Confidence |
+|---|---|---|---|
+| People | the homes' floor area at 20 m² a person | assumed (about 4.5 people in a 90 m² gross flat; Census household size not yet read) | assumed |
+| Schools | nursery 2,500 people, 0.08 ha; primary 5,000, 0.4 ha; senior secondary 7,500, 1.8 ha; college 1.25 lakh, 5 ha; anganwadi 5,000, 250 m² | Tables 8.48, 8.49, 8.51 | high |
+| Health | dispensary 15,000, 0.1 ha; maternity 45,000, 0.25 ha; polyclinic and 80-bed hospital 1 lakh, 0.25 and 1 ha | Table 8.50 | high |
+| Culture | community room and place of worship 5,000; community hall and library 15,000, 2,000 m²; music, dance and drama centre 1 lakh | Table 8.51 | high |
+| Shops | convenience 5,000, 1,500 m²; local shopping 15,000, 4,600 m²; community centre 1 lakh, 5 ha | Table 8.61 | high |
+| Water | 150 litres a person a day (metropolitan, sewered) | Table 8.26 (CPHEEO 1999) | high |
+| Sewage | 80% of the water | CPHEEO, not yet read | assumed |
+| Sewage plant land | 5 MLD 0.10 ha ... 50 MLD 0.93 ha | Table 8.35 (CPHEEO) | high |
+| Waste | 0.45 kg a person a day (middle of 0.3-0.6) | Table 8.44 (CPHEEO 2000) | high |
+| Waste yard land | 200 m² a tonne a day | none found | assumed |
+| Industry | 7% of the land (metropolitan cities, 7-8% of the developed area) | Table 5.2 | high; applying a city share to one site is assumed |
+| Bus stops | within 400 m of homes (rail 800 m) | Table 6.1 (IGBC 2011) | high |
+
+A facility is placed once per its population served, rounded, and not at all below half of one
+(the site leans on its district's). People are solved once before placing (homes are the floor
+left after industry and the facilities the people need, at the design's mean density); the
+readout then recounts them on the homes actually placed. A facility takes its best plot by the
+rules in the table above (scores in `SUIT`), spread over its catchment, then the plots of the
+same block nearest it until it has its land; a block too small gives what it has.
+
+First survey (random designs, six a site): 15,000 people on Mumbai Docks, 27,000 on
+Bengaluru, 99,000 on Wadaj. The norms take 10% (Bengaluru) to 21% (Wadaj) of the building land
+for schools: URDPFI's school land is fixed per child, so the denser the homes, the larger the
+share the schools need (a senior secondary school is 1.8 ha, a playfield of 1 ha in it).
+Facilities get on average 75-80% of their land; the rest is short because blocks are small
+(median building land 0.2 ha a block). Placing adds 50 ms to a Bengaluru plan (about 8%).
+
+Not done yet: police, fire and the post (Tables 8.58-8.59), food and energy (readouts only in
+the plan above), the brief's programme mix (recorded, not applied), school playfields as shared
+ground, and building types chosen by programme (the library's precedents: the next step).
 
 ### Flows between the public systems
 

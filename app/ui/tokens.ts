@@ -38,6 +38,9 @@ export const tokens = {
   frontage: { active: "#c98a2b", residential: "#a39f96", green: "#2f8a85", lake: "#3d74b0" },
   /** Building type per block (plan/blocktypes.ts BLOCK_TYPES order), and blocks no type fits. */
   blockType: { courtyard: "#b0603f", perimeter: "#d9a441", row: "#8aa36b", towers: "#5b4a7a", none: "#c5c9cc" },
+  /** What each building plot is for (plan/programme.ts PROGRAMMES order). */
+  programme: { homes: "#e8d6b2", shops: "#e0a030", education: "#6c4fa0", health: "#d4688c", culture: "#1f6f68",
+    industry: "#4d4a45", water: "#4f86c6", waste: "#8c5a2b" },
 
   /** Ground height: rose to umber, a redder hue than the building ramp. */
   elevation: ["#f6eeea", "#ead5cb", "#d9b5a5", "#c1907d", "#a06b58", "#7a4a3b"],

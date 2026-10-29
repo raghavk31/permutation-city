@@ -13,7 +13,9 @@
 //   8  shared ground before buildings: squares at the important junctions, parks where plots
 //      lack one within a walk, frontage types per street (shared.ts); then heights from the core
 //      field as before, one height per plot
-//   9  version 3.1: a building type per block, its coverage and storeys as Spacematrix
+//   9  programme: what each building plot is for, from the people the homes hold and the
+//      ground (programme.ts)
+//  10  version 3.1: a building type per block, its coverage and storeys as Spacematrix
 //      numbers (blocktypes.ts); then the site's plot rules hold each plot to its FAR, coverage
 //      and height
 //
@@ -36,6 +38,7 @@ import { applyBlockRepairs, blockRepairs, type Edge, type Face, faces, type Flag
 import { type Plot, plotUse, plots as splitPlots } from "./plots.js";
 import { type Raster, rasterise } from "./raster.js";
 import { route } from "./route.js";
+import { placeProgramme } from "./programme.js";
 import { accessOf, FRONTAGES, frontages, reserveShared } from "./shared.js";
 
 /** Milliseconds per stage, summed over designs, when profiling (scripts/plan-profile.ts). */
@@ -118,7 +121,13 @@ export function growV3(genome: number[], G: Ground, locked: ArrayLike<number> | 
     floorArea[i] = G.cellArea * coverage[i] * levels[i];
     gross += G.cellArea * open * levels[i];
   }
-  // 9. A building type per block (version 3.1): the block's coverage and storeys become its
+  // 9. Programme before buildings: what each building plot is for (programme.ts).
+  const plotFloor = new Float64Array(ps.length);
+  for (let i = 0; i < n; i++) if (use[i] === BUILDING && ras.plotOf[i] >= 0) plotFloor[ras.plotOf[i]] += floorArea[i];
+  const programme = placeProgramme(G, ps, plotFloor, [...centres, ...shared.squares.map((q) => q.at)], use,
+    edges.filter((e) => e.cls > 0));
+  t = tick("programme", t);
+  // 10. A building type per block (version 3.1): the block's coverage and storeys become its
   // type's, as Spacematrix numbers (blocktypes.ts).
   const types = s.t_courtyard === undefined ? null
     : typeCells(G, use, fs, ps, ras.plotOf, share, levels, coverage, floorArea, s, ranges,
@@ -147,6 +156,7 @@ export function growV3(genome: number[], G: Ground, locked: ArrayLike<number> | 
     shared,
     ...(rules ? { rules } : {}),
     ...(types ? { types } : {}),
+    programme,
   };
   plan.plots.forEach((p, k) => { p.road = ps[k].road; });
   const widths: [number, number, number, number] = [0, widthOf(1), widthOf(2), widthOf(3)];

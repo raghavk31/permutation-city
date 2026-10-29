@@ -36,3 +36,4 @@ export * from "./scenarios.js";
 export * from "./piecemeal.js";
 export * from "./moves.js";
 export { BLOCK_TYPES, typeSummary, type BlockType } from "./plan/blocktypes.js";
+export { FACILITIES, PROGRAMMES as PLOT_PROGRAMMES, PROGRAMME_LABELS, type ProgrammeKey, type ProgrammeResult } from "./plan/programme.js";

@@ -41,6 +41,50 @@ in `app/`, so rerun it after changing a colour.
 | accent `#f26b1d` | green (existing) `#2f8a85` | 0.279 | 0.126 | 0.204 | pass |
 | accent `#f26b1d` | water (deep) `#3d74b0` | 0.318 | 0.220 | 0.298 | pass |
 | accent `#f26b1d` | measure, deep `#5a3f94` | 0.357 | 0.297 | 0.374 | pass |
+| programme: homes `#e8d6b2` | programme: shops `#e0a030` | 0.161 | 0.184 | 0.154 | pass |
+| programme: homes `#e8d6b2` | programme: education `#6c4fa0` | 0.422 | 0.419 | 0.431 | pass |
+| programme: homes `#e8d6b2` | programme: health `#d4688c` | 0.269 | 0.286 | 0.228 | pass |
+| programme: homes `#e8d6b2` | programme: culture `#1f6f68` | 0.402 | 0.356 | 0.401 | pass |
+| programme: homes `#e8d6b2` | programme: industry `#4d4a45` | 0.473 | 0.465 | 0.477 | pass |
+| programme: homes `#e8d6b2` | programme: water `#4f86c6` | 0.317 | 0.281 | 0.332 | pass |
+| programme: homes `#e8d6b2` | programme: waste `#8c5a2b` | 0.371 | 0.391 | 0.366 | pass |
+| programme: homes `#e8d6b2` | green (proposed) `#7fc4c0` | 0.146 | 0.091 | 0.136 | pass |
+| programme: homes `#e8d6b2` | water (storage) `#b9d4f1` | 0.103 | 0.094 | 0.106 | pass |
+| programme: shops `#e0a030` | programme: education `#6c4fa0` | 0.357 | 0.341 | 0.370 | pass |
+| programme: shops `#e0a030` | programme: health `#d4688c` | 0.198 | 0.201 | 0.161 | pass |
+| programme: shops `#e0a030` | programme: culture `#1f6f68` | 0.315 | 0.238 | 0.312 | pass |
+| programme: shops `#e0a030` | programme: industry `#4d4a45` | 0.364 | 0.331 | 0.373 | pass |
+| programme: shops `#e0a030` | programme: water `#4f86c6` | 0.291 | 0.253 | 0.301 | pass |
+| programme: shops `#e0a030` | programme: waste `#8c5a2b` | 0.243 | 0.239 | 0.246 | pass |
+| programme: shops `#e0a030` | green (proposed) `#7fc4c0` | 0.184 | 0.170 | 0.160 | pass |
+| programme: shops `#e0a030` | water (storage) `#b9d4f1` | 0.221 | 0.244 | 0.212 | pass |
+| programme: education `#6c4fa0` | programme: health `#d4688c` | 0.211 | 0.145 | 0.215 | pass |
+| programme: education `#6c4fa0` | programme: culture `#1f6f68` | 0.170 | 0.125 | 0.098 | pass |
+| programme: education `#6c4fa0` | programme: industry `#4d4a45` | 0.160 | 0.151 | 0.142 | pass |
+| programme: education `#6c4fa0` | programme: water `#4f86c6` | 0.147 | 0.149 | 0.113 | pass |
+| programme: education `#6c4fa0` | programme: waste `#8c5a2b` | 0.193 | 0.195 | 0.196 | pass |
+| programme: education `#6c4fa0` | green (proposed) `#7fc4c0` | 0.321 | 0.332 | 0.299 | pass |
+| programme: education `#6c4fa0` | water (storage) `#b9d4f1` | 0.377 | 0.392 | 0.374 | pass |
+| programme: health `#d4688c` | programme: culture `#1f6f68` | 0.270 | 0.080 | 0.174 | low; pattern or outline |
+| programme: health `#d4688c` | programme: industry `#4d4a45` | 0.281 | 0.190 | 0.250 | pass |
+| programme: health `#d4688c` | programme: water `#4f86c6` | 0.210 | 0.088 | 0.143 | pass |
+| programme: health `#d4688c` | programme: waste `#8c5a2b` | 0.189 | 0.151 | 0.157 | pass |
+| programme: health `#d4688c` | green (proposed) `#7fc4c0` | 0.241 | 0.205 | 0.114 | pass |
+| programme: health `#d4688c` | water (storage) `#b9d4f1` | 0.263 | 0.278 | 0.203 | pass |
+| programme: culture `#1f6f68` | programme: industry `#4d4a45` | 0.114 | 0.111 | 0.082 | pass |
+| programme: culture `#1f6f68` | programme: water `#4f86c6` | 0.161 | 0.155 | 0.149 | pass |
+| programme: culture `#1f6f68` | programme: waste `#8c5a2b` | 0.149 | 0.085 | 0.102 | pass |
+| programme: culture `#1f6f68` | green (proposed) `#7fc4c0` | 0.281 | 0.280 | 0.280 | pass |
+| programme: culture `#1f6f68` | water (storage) `#b9d4f1` | 0.373 | 0.355 | 0.366 | pass |
+| programme: industry `#4d4a45` | programme: water `#4f86c6` | 0.235 | 0.252 | 0.225 | pass |
+| programme: industry `#4d4a45` | programme: waste `#8c5a2b` | 0.132 | 0.100 | 0.132 | pass |
+| programme: industry `#4d4a45` | green (proposed) `#7fc4c0` | 0.370 | 0.391 | 0.360 | pass |
+| programme: industry `#4d4a45` | water (storage) `#b9d4f1` | 0.453 | 0.467 | 0.448 | pass |
+| programme: water `#4f86c6` | programme: waste `#8c5a2b` | 0.226 | 0.235 | 0.212 | pass |
+| programme: water `#4f86c6` | green (proposed) `#7fc4c0` | 0.192 | 0.191 | 0.197 | pass |
+| programme: water `#4f86c6` | water (storage) `#b9d4f1` | 0.257 | 0.244 | 0.265 | pass |
+| programme: waste `#8c5a2b` | green (proposed) `#7fc4c0` | 0.298 | 0.328 | 0.270 | pass |
+| programme: waste `#8c5a2b` | water (storage) `#b9d4f1` | 0.373 | 0.409 | 0.359 | pass |
 
 ## Ramps
 
