@@ -9,6 +9,10 @@
 // the block's land, against what the type promised. A gap over GAP_FLAG is flagged; the gap is
 // where a block's real shape (not a rectangle, cut by shared ground) loses what the arithmetic
 // on its bounding box assumed.
+//
+// A block the rules cap below its type's layout (coverage, or FAR over the storeys) is thinned
+// to the cap: whole buildings left out, spread evenly over the block (whole courts, row pieces,
+// perimeter pieces, so the passages widen), wing depth kept as the daylight rule set it.
 import { STOREY_M } from "../config.js";
 import { BLOCK_TYPES, BREAKS, COURT_MIN_M, COURT_OF_HEIGHT, GAP_M, PODIUM_STOREYS, ROW_GAP_OF_HEIGHT } from "./blocktypes.js";
 import { area, convexHull, obb, offsetRing, type Line, type Pt } from "./geom.js";
@@ -58,36 +62,44 @@ function prepared(land: Line[]) {
 
 export interface Typed { block: number; type: number; gsi: number; storeys: number; fsi: number; depth: number; towers: number; land: number }
 
-/** One block's buildings. land: the block's building plots. */
+/** Thin a layout only where it covers more than its cap by this share. */
+const THIN_OVER = 0.02;
+
+/** One block's buildings. land: the block's building plots. t.gsi is the coverage the type holds
+ *  the block to; a low type's layout over it is thinned to it (0 lays the type out unthinned, as
+ *  the type's choice measures it). */
 export function massBlock(t: Typed, land: Line[]): { masses: Mass[]; gsi: number; fsi: number } {
   if (t.type < 0 || !land.length) return { masses: [], gsi: 0, fsi: 0 };
   const pre = prepared(land), box = pre.box;
   const L = 2 * box.hl, W = 2 * box.hw, hl = L / 2, hw = W / 2;
   // local (u along the length, v across) to world, the box's corner at (0, 0)
   const at = (u: number, v: number): Pt => [box.c[0] + (u - hl) * box.ux - (v - hw) * box.uy, box.c[1] + (u - hl) * box.uy + (v - hw) * box.ux];
-  const rects: { u: number; v: number; du: number; dv: number; z: number; storeys: number }[] = [];
+  // g: the building a piece belongs to, the unit thinning leaves out whole
+  const rects: { u: number; v: number; du: number; dv: number; z: number; storeys: number; g: number }[] = [];
   // convex windows in world coordinates, for wings that follow the block's outline
-  const wins: { ring: Line; z: number; storeys: number }[] = [];
+  const wins: { ring: Line; z: number; storeys: number; g: number }[] = [];
   const key = BLOCK_TYPES[t.type].key, d = t.depth, n = t.storeys, H = n * STOREY_M;
   const pieces = (u0: number, len: number, v: number, dv: number, z = 0, st = n) => {
     // a run broken into pieces with BREAKS of its length left open between them
     const k = Math.max(1, Math.ceil(len / PIECE_M)), open = k > 1 ? (BREAKS * len) / (k - 1) : 0, pl = (len - open * (k - 1)) / k;
-    for (let j = 0; j < k; j++) rects.push({ u: u0 + j * (pl + open), v, du: pl, dv, z, storeys: st });
+    for (let j = 0; j < k; j++) rects.push({ u: u0 + j * (pl + open), v, du: pl, dv, z, storeys: st, g: rects.length });
   };
   if (key === "courtyard") {
     const c = Math.max(COURT_MIN_M, COURT_OF_HEIGHT * H), side = c + 2 * d;
     const nW = Math.floor((W + GAP_M) / (side + GAP_M)), nL = Math.floor((L + GAP_M) / (side + GAP_M));
     const Lu = nL ? (L - (nL - 1) * GAP_M) / nL : 0;
     for (let i = 0; i < nL; i++) for (let j = 0; j < nW; j++) {
-      const u = i * (Lu + GAP_M), v = j * (side + GAP_M);
-      rects.push({ u, v, du: Lu, dv: d, z: 0, storeys: n }, { u, v: v + side - d, du: Lu, dv: d, z: 0, storeys: n },
-        { u, v: v + d, du: d, dv: side - 2 * d, z: 0, storeys: n }, { u: u + Lu - d, v: v + d, du: d, dv: side - 2 * d, z: 0, storeys: n });
+      // a block of fewer than three courts is thinned a wing at a time, opening a court on a side
+      const u = i * (Lu + GAP_M), v = j * (side + GAP_M), g = nW * nL < 3 ? -1 : i * nW + j;
+      rects.push({ u, v, du: Lu, dv: d, z: 0, storeys: n, g }, { u, v: v + side - d, du: Lu, dv: d, z: 0, storeys: n, g },
+        { u, v: v + d, du: d, dv: side - 2 * d, z: 0, storeys: n, g }, { u: u + Lu - d, v: v + d, du: d, dv: side - 2 * d, z: 0, storeys: n, g });
     }
+    rects.forEach((q, k) => { if (q.g < 0) q.g = k; });
   } else if (key === "perimeter") {
     // one ring of depth d along the outline of the land (its convex hull), each side broken
-    // for passages
-    const hull = pre.hull, inner = offsetRing(hull, d);
-    if (inner) for (let i = 0; i < hull.length; i++) {
+    // for passages, round a yard at least COURT_MIN_M and as wide as the ring is high
+    const hull = pre.hull, inner = offsetRing(hull, d), yard = inner && obb(inner);
+    if (inner && yard && 2 * Math.min(yard.hl, yard.hw) >= Math.max(COURT_MIN_M, COURT_OF_HEIGHT * H)) for (let i = 0; i < hull.length; i++) {
       const j = (i + 1) % hull.length, a = hull[i], b = hull[j], ai = inner[i], bi = inner[j];
       const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
       const k = Math.max(1, Math.ceil(len / PIECE_M)), open = k > 1 ? BREAKS / (k - 1) : 0, pl = (1 - open * (k - 1)) / k;
@@ -95,7 +107,7 @@ export function massBlock(t: Typed, land: Line[]): { masses: Mass[]; gsi: number
       for (let m = 0; m < k; m++) {
         const f0 = m * (pl + open), f1 = f0 + pl;
         // the inner edge's ends, between the corner mitres, at the same fractions
-        wins.push({ ring: [mix(a, b, f0), mix(a, b, f1), mix(ai, bi, f1), mix(ai, bi, f0)], z: 0, storeys: n });
+        wins.push({ ring: [mix(a, b, f0), mix(a, b, f1), mix(ai, bi, f1), mix(ai, bi, f0)], z: 0, storeys: n, g: wins.length });
       }
     }
   } else if (key === "row") {
@@ -106,16 +118,15 @@ export function massBlock(t: Typed, land: Line[]): { masses: Mass[]; gsi: number
     // podium with towers: the podium at the type's coverage, centred; towers along its length
     const pod = Math.min(PODIUM_STOREYS, n), a = Math.sqrt(Math.max(t.gsi, 0) * t.land / (L * W || 1));
     const pu = L * a, pv = W * a;
-    rects.push({ u: (L - pu) / 2, v: (W - pv) / 2, du: pu, dv: pv, z: 0, storeys: pod });
+    rects.push({ u: (L - pu) / 2, v: (W - pv) / 2, du: pu, dv: pv, z: 0, storeys: pod, g: 0 });
     for (let k = 0; k < t.towers; k++) {
       const cu = (L * (k + 1)) / (t.towers + 1);
-      rects.push({ u: cu - d / 2, v: (W - d) / 2, du: d, dv: d, z: pod * STOREY_M, storeys: n - pod });
+      rects.push({ u: cu - d / 2, v: (W - d) / 2, du: d, dv: d, z: pod * STOREY_M, storeys: n - pod, g: 1 + k });
     }
   }
   // each building clipped to the block's building plots; slivers dropped
-  const masses: Mass[] = [];
-  let foot = 0, floor = 0;
-  for (const q of rects) if (q.du > 0.5 && q.dv > 0.5) wins.push({ ring: [at(q.u, q.v), at(q.u + q.du, q.v), at(q.u + q.du, q.v + q.dv), at(q.u, q.v + q.dv)], z: q.z, storeys: q.storeys });
+  const built: (Mass & { g: number; a: number })[] = [];
+  for (const q of rects) if (q.du > 0.5 && q.dv > 0.5) wins.push({ ring: [at(q.u, q.v), at(q.u + q.du, q.v), at(q.u + q.du, q.v + q.dv), at(q.u, q.v + q.dv)], z: q.z, storeys: q.storeys, g: q.g });
   const boxes = pre.boxes;
   for (const q of wins) {
     if (q.storeys <= 0) continue;
@@ -126,10 +137,29 @@ export function massBlock(t: Typed, land: Line[]): { masses: Mass[]; gsi: number
       const piece = clip(r, area(rect) > 0 ? rect : [...rect].reverse());
       const a = piece.length >= 3 ? Math.abs(area(piece)) : 0;
       if (a < MIN_PIECE_M2) continue;
-      masses.push({ ring: area(piece) > 0 ? piece : [...piece].reverse(), z: q.z, storeys: q.storeys, block: t.block });
-      if (q.z === 0) foot += a;
-      floor += a * q.storeys;
+      built.push({ ring: area(piece) > 0 ? piece : [...piece].reverse(), z: q.z, storeys: q.storeys, block: t.block, g: q.g, a });
     }
+  }
+  // thinned to the cap: buildings kept in their order while the area kept stays under the
+  // share of the area passed (error diffusion), so the ones left out are spread evenly
+  let foot = built.reduce((s, p) => s + (p.z === 0 ? p.a : 0), 0);
+  const cap = t.gsi * pre.own;
+  let keep = (_: number) => true;
+  if (key !== "towers" && t.gsi > 0 && foot > cap * (1 + THIN_OVER)) {
+    const by = new Map<number, number>();
+    for (const p of built) by.set(p.g, (by.get(p.g) ?? 0) + p.a);
+    const kept = new Set<number>(), f = cap / foot;
+    let passed = 0, held = 0;
+    for (const [g, a] of by) { passed += a; if (held + a <= f * passed + a / 2) { kept.add(g); held += a; } }
+    keep = (g) => kept.has(g);
+  }
+  const masses: Mass[] = [];
+  let floor = 0;
+  foot = 0;
+  for (const p of built) if (keep(p.g)) {
+    masses.push({ ring: p.ring, z: p.z, storeys: p.storeys, block: p.block });
+    if (p.z === 0) foot += p.a;
+    floor += p.a * p.storeys;
   }
   // over the plots' own area, so a type's promise and its check count the same land
   const own = pre.own;

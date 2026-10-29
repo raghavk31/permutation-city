@@ -10,7 +10,9 @@ import { area, type Line } from "../../app/engine/plan/geom";
 
 const sq = (x: number, y: number, w: number, h: number): Line => [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
 const T = (key: string) => BLOCK_TYPES.findIndex((t) => t.key === key);
-const typed = (key: string, depth: number, storeys: number, land: number) => ({ block: 0, type: T(key), gsi: 0.5, storeys, fsi: 0, depth, towers: key === "towers" ? 1 : 0, land });
+// gsi: the coverage the type holds the block to (1 lays a low type out unthinned)
+const typed = (key: string, depth: number, storeys: number, land: number, gsi = key === "towers" ? 0.5 : 1) =>
+  ({ block: 0, type: T(key), gsi, storeys, fsi: 0, depth, towers: key === "towers" ? 1 : 0, land });
 
 describe("clipping", () => {
   it("cuts a polygon to a convex window", () => {
@@ -32,6 +34,27 @@ describe("a 60 x 90 m block", () => {
     const ring = (90 * 60 - 66 * 36) / 5400;
     expect(m.gsi).toBeGreaterThan(0.8 * ring);
     expect(m.gsi).toBeLessThan(ring + 1e-6);
+  });
+  it("thins a capped block to its cap, leaving whole buildings out", () => {
+    const full = massBlock(typed("row", 10, 3, 5400), land), thin = massBlock(typed("row", 10, 3, 5400, 0.25), land);
+    expect(thin.gsi).toBeLessThan(0.25 * (1 + GAP_FLAG));
+    expect(thin.gsi).toBeGreaterThan(0.25 * (1 - GAP_FLAG));
+    // the pieces kept are the full layout's, unchanged
+    const key = (r: Line) => r.map(([x, y]) => `${x.toFixed(3)},${y.toFixed(3)}`).join(" ");
+    const all = new Set(full.masses.map((m) => key(m.ring)));
+    expect(thin.masses.every((m) => all.has(key(m.ring)))).toBe(true);
+    // courtyards: a court opened on a side where the block holds fewer than three
+    const court = massBlock(typed("courtyard", 10, 3, 5400, 0.3), land);
+    expect(court.gsi).toBeLessThan(0.3 * (1 + GAP_FLAG));
+  });
+  it("leaves a block over its cap untouched only within the margin", () => {
+    const full = massBlock(typed("perimeter", 12, 4, 5400), land);
+    expect(massBlock(typed("perimeter", 12, 4, 5400, full.gsi), land).masses.length).toBe(full.masses.length);
+  });
+  it("lays no perimeter ring round a yard narrower than the ring is high", () => {
+    // 40 m across, 12 m wings: a 16 m yard, under 6 storeys' 19.2 m
+    expect(massBlock(typed("perimeter", 12, 6, 3600), [sq(0, 0, 90, 40)]).masses.length).toBe(0);
+    expect(massBlock(typed("perimeter", 12, 4, 3600), [sq(0, 0, 90, 40)]).masses.length).toBeGreaterThan(0);
   });
   it("keeps every building on the land", () => {
     for (const key of ["courtyard", "perimeter", "row", "towers"]) for (const x of massBlock(typed(key, 12, 4, 5400), land).masses)

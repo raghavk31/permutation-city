@@ -183,12 +183,12 @@ export function typeBlocks(blocks: BlockIn[], prefs: number[], depthT: number, n
     const { W, L } = shapeOf(blk.ring, blk.land), c = centroid(blk.ring);
     const atNode = nodes.some((p) => Math.hypot(p[0] - c[0], p[1] - c[1]) <= NODE_M);
     const plots = blk.plots;
-    // the layout depends on storeys only through the court's width (courtyards) and the gap
+    // the layout depends on storeys only through the court's or the yard's width and the gap
     // between rows, so equal layouts are measured once
     const seen = new Map<string, number | null>();
     const measure = plots?.length ? (k: number, depth: number, n: number) => {
       const key = BLOCK_TYPES[k].key, H = n * STOREY_M;
-      const id = `${k}:${depth}:${key === "perimeter" ? 0 : key === "courtyard" ? Math.max(COURT_MIN_M, COURT_OF_HEIGHT * H) : Math.max(ROW_GAP_OF_HEIGHT * H, GAP_M)}`;
+      const id = `${k}:${depth}:${key !== "row" ? Math.max(COURT_MIN_M, COURT_OF_HEIGHT * H) : Math.max(ROW_GAP_OF_HEIGHT * H, GAP_M)}`;
       if (!seen.has(id)) {
         const m = massBlock({ block: -1, type: k, gsi: 0, storeys: n, fsi: 0, depth, towers: 0, land: blk.land }, plots);
         seen.set(id, m.gsi > 0 ? m.gsi : null);

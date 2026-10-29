@@ -285,10 +285,31 @@ FAR capping a type below what its layout covers (the massing isn't thinned to th
 yet broken down by cause.
 Towers keep the arithmetic.
 
+**Capped blocks thinned (29 October).** The over-promise left on Bengaluru was the rules: its
+coverage and FAR cap a type below what its layout covers (20% of blocks massed over their cap,
+mostly perimeter blocks). A block over its cap by more than 2% now has whole buildings left out,
+spread evenly by error diffusion: whole courts (a wing at a time where a block holds fewer than
+three, opening a court on a side), row pieces, perimeter pieces (wider passages). Wing depth is
+kept, since the daylight rule set it. The measured perimeter also needs its yard now (at least
+`COURT_MIN_M` and as wide as the ring is high), as the box arithmetic did; without it, rings on
+small blocks overlapped at the corners. Six random designs each, flagged blocks:
+
+| site | over before | over after | under | of which no building plot |
+| --- | --- | --- | --- | --- |
+| Bengaluru | 20% | 3% | 15% | 14% |
+| Docks | 0% | 0% | 11% | 11% |
+| Wadaj | 0% | 0% | 11% | 11% |
+
+**What's left is a cell/plot mismatch, not the massing.** Nearly every block still under is a
+block whose building cells sit in plots voted another use (one unsplit plot, mostly landscape,
+sometimes water; `plotUse`): 11-13% of typed floor area is counted on cells and never drawn. The
+same leak exists for untyped designs (plot extrusions draw only building plots). Also seen: a
+self-intersecting plot now and then (about one block in a thousand) undercounts its own area.
+
 Cost: growth is slower (per design, Bengaluru 476 to 618 ms, Docks 115 to 192 ms, Wadaj 591 to
 843 ms in Node), from laying out each low type at each distinct court width and row gap.
 
-Not yet: the capped blocks thinned to their cap; the check shown in the workbench; the Massing
+Not yet: the cell/plot mismatch above; the check shown in the workbench; the Massing
 step's block search seeded from the same layout; library precedents as types.
 
 ## Steps 5-9: references to check
