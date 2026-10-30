@@ -1,8 +1,71 @@
 # Research claim
 
 Draft, 2026-10-21, for refining together. Brief: `docs/permutation-city-v3-prompt.md`.
+Re-centred on losses 2026-10-28 (below), before the A4 runs; the 21 October wording is kept
+under it as history.
 
-## The working claim (as given)
+## The main claim (28 October)
+
+### As given
+
+> Designing with nature avoids the losses that cities now take as normal. Our cities flood in
+> light rain because they have no stormwater system, have little green space within reach,
+> and build the same buildings everywhere, which ignore the climate and lean on air
+> conditioning to make up for it. Their programmes aren't worked out as systems. This way of
+> designing brings the climate system and the design system together.
+
+### Proposed wording
+
+> On real sites, under the same bye-laws and the same floor-area target, a plan generated
+> from the land's water, ground and climate loses less floor area to rain, sea and heat
+> shocks (H3), and gives more people green space within a walk, than the plan the same rules
+> produce when plots are laid out first and water is handled afterwards. The cost is stated:
+> the floor area given back to water and green ground.
+
+The headline sentence the A4 results should fill in:
+
+> On the Bengaluru tank cascade, designing with nature cuts the floor area lost to a
+> 100-year rain by X% and heat exposure by Y%, at a cost of Z% of buildable floor area.
+
+What changed from 21 October and why:
+- **Losses lead.** H3 ("share failed and floor lost" under the shock battery) measures the
+  built mass a city loses, which is the claim's own subject. It moves to the front; H1
+  (range) and H2 (intelligibility) become supporting results.
+- **The baseline is how cities are built now**, not only a fixed grid (below).
+- **The cost is part of the claim.** Bengaluru's rules already show that reserving water and
+  green ground first lowers what plans can hold (`docs/built-form.md`: 181 ha against a
+  591 ha brief). A claim that states its cost is easier to believe than one that doesn't.
+- **Lineage.** The idea is McHarg's *Design with Nature* (1969), with Spirn's *The Granite
+  Garden* (1984) and sponge-city practice. What is new here is making it generative, under
+  real Indian rules, and measuring the losses avoided.
+
+### The business-as-usual baseline
+
+The plan the same rules give when plots come first, built from the ablations below together:
+- the same site, bye-laws, floor-area target and search budget;
+- streets as a plain grid on a bearing, joined to the existing roads (no Otto connectivity,
+  no tensor-field infill);
+- rules from flooding and zoning only: no valleys, ridges or flow lines, and lake and drain
+  buffers at the legal minimum (Bengaluru: 30 m), not the 75 m design default;
+- parks at the bye-law minimum share, placed on leftover ground, not reserved first;
+- one block pattern everywhere.
+
+The fixed-grid generator of 21 October stays as a second comparison. If a real layout can be
+had (a development authority plan or an approved layout near the site), it is scored by the
+same code as a reference value.
+
+### What each part of the claim rests on in Milestone A
+
+| Part of the claim | Status | Evidence |
+|---|---|---|
+| Cities flood in light rain, with no stormwater system | measured | rain shock (100-year one-day rain), flow lines over the catchment, valleys and buffers kept open, storage score |
+| Little green space within reach | measured | shared ground reserved first, park hierarchy, access to each level of open space |
+| Heat | measured, as proxies | heatwave shock (+4.5 °C), land surface temperature, wind; heat model and LST agree only weakly (see below) |
+| Buildings ignore the climate and lean on air conditioning | argued, not measured | needs building-scale stand-ins (sun on façades, depth for cross-ventilation, breezeways) from the type generators; open, decide by 12 November |
+| Buildings all look the same | partly measured | diversity of the front between designs; variety between buildings in one design is not measured |
+| Programmes aren't worked out as systems | not claimed in A | programme was cut from Milestone A; future work |
+
+## The working claim (21 October, as given)
 
 > Urban form generated from the land (landform-derived rules, street networks found the way
 > Frei Otto found path systems, and block patterns chosen by search rather than fixed by a
@@ -10,7 +73,7 @@ Draft, 2026-10-21, for refining together. Brief: `docs/permutation-city-v3-promp
 > better under climate shocks than form generated on a fixed grid. Growing it in steps with
 > foresight beats designing it all at once.
 
-## Proposed wording
+## Proposed wording (21 October)
 
 Narrower and testable. The changes are explained under it.
 
@@ -102,6 +165,9 @@ Components and the ablation that tests each:
 
 ## Not claimed
 
+- That the buildings use less energy or need less air conditioning (Milestone A has no
+  building energy model).
+- That programmes are worked out as systems (programme is not in Milestone A).
 - That the tool finds beautiful designs, or optimises beauty.
 - That designs would perform as scored when built.
 - That it replaces design judgement. The designer selects; the search proposes.
@@ -115,3 +181,7 @@ Components and the ablation that tests each:
    properties separately everywhere else?
 3. Should H2 also score a patch of old, organically grown fabric (for example Ahmedabad's
    walled city, a few kilometres from Wadaj) as a "what good looks like" reference?
+4. (28 October) The business-as-usual baseline: is the recipe above close enough to how
+   these sites would be built now, or is there a real layout to score instead?
+5. (28 October) Climate-responsive buildings: add building-scale stand-ins for cooling to
+   the type generators (12 November), or keep that part of the claim as an argument?
