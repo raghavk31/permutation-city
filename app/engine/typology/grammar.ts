@@ -183,8 +183,13 @@ export function build(p: Params): Built {
             const wd = Math.sqrt(well * p.width * p.depth), front0 = (p.depth - wd) / 2;
             add(rect(x, y, p.width, front0), p.storeys);
             front(x, y + front0 + wd, p.width, p.depth - front0 - wd);
-            // the chowk's sides: thin wings either side of the well, when it is narrower than the unit
-            if (wd < p.width - 1) add(rect(x, y + front0, (p.width - wd) / 2, wd), p.storeys);
+            // the chowk's sides: thin wings either side of the well, when it is narrower than the
+            // unit, so the well is a court closed on four sides
+            if (wd < p.width - 1) {
+              const side = (p.width - wd) / 2;
+              add(rect(x, y + front0, side, wd), p.storeys);
+              add(rect(x + side + wd, y + front0, side, wd), p.storeys);
+            }
           } else front(x, y, p.width, p.depth);
         }
       }

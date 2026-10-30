@@ -381,6 +381,52 @@ Not yet: crossing two precedents (a hybrid), drift in unit sizes and counts (onl
 and street move), water and waste precedents without buildings (ponds, wetlands) for the sewage
 and waste lots, and the Massing step's search starting from the lot's precedent.
 
+## Buildings, not pieces (30 October)
+
+`app/engine/plan/blockmass.ts`, `clipper.ts`, `precedents.ts` (`maxStoreys`). Screenshots of the
+massing showed odd extrusions: thin fins, seams, saw-tooth tops, buildings cut at angles. A
+count over random designs found 38% (Bengaluru) to 81% (Guwahati) of drawn masses under 6 m
+wide and more than twice as tall as wide. The causes and what changed:
+
+- **Every unit was its own block.** A row's shared-wall houses and a court's wings were separate
+  boxes pressed together (seams, flickering faces). Now the solids of one base and height that
+  touch are joined into one outline (Clipper, on whole millimetres): a terrace is one building, a
+  court house one ring round its court, drawn with the court as a hole.
+- **A well was drawn as fins.** A pol's or a tube house's chowk was a front block, a back block and
+  one side wing 0.7 to 1.4 m wide. The grammar now puts a wing on both sides, so the well is a
+  court closed on four sides, and the joined outline has it as a hole.
+- **Plot lines and the land's edge sliced buildings.** Each building was clipped to every plot it
+  crossed. Now a lot's plots are joined into one outline first, so the lines between them cut
+  nothing; at the outline a building is trimmed by whole units or wings: a unit stays where 85%
+  of it is on the land (its overhang cut off), the rest are left out, and a terrace of houses
+  under 6 m wide trimmed to one house is left out rather than standing as a fin.
+- **Raised without limit.** A one-storey court house could be drawn nine storeys tall on 4 to 6 m
+  wings. Now a precedent is raised to at most twice its own height (one storey more for a
+  one-storey precedent), and no taller than 2.5 times the depth of its wings, rows or units (a
+  free-standing house by its narrower side). Both numbers are assumed until each type has its
+  own ranges (next: typologies as ranges of their features).
+- **Measuring stays fast.** Choosing a type needs floor areas, not outlines, so the choice reads a
+  trimmed building's area from its units; the exact outline is cut only to draw. Typing a plan
+  takes as long as before.
+
+Afterwards, fins are 2 to 11% of masses (Wadaj highest: haveli wings), and the precedents give
+less floor area where they had been raised past these limits. Six random designs a site:
+
+| site | FSI asked | given before | given now | typing a plan |
+| --- | --- | --- | --- | --- |
+| Bengaluru | 0.93 | 0.93 | 0.85 | 225 ms |
+| Wadaj | 2.43 | 2.10 | 1.49 | 497 ms |
+| Mumbai Docks | 1.77 | 1.50 | 1.16 | 59 ms |
+| Mumbai EWF | 2.11 | 1.69 | 1.27 | 144 ms |
+| Guwahati | 2.52 | 2.04 | 1.41 | 289 ms |
+
+The shortfall on the dense sites is what the old drawings hid by stretching vernacular houses
+upward. Reaching those densities honestly is the next step's job: each type's features (height,
+voids, staggers, openings, unit sizes) given ranges from case studies, evolved per lot and by a
+few site-wide genes toward the site's climate, and hybrids of two precedents where no single one
+reaches the lot's density and climate within its ranges. Still not done here: laying rows along
+the street rather than along the lot's bounding box.
+
 ## Steps 5-9: references to check
 
 Figures from books go in as **assumed** with the secondary source named until a copy is read
