@@ -1,0 +1,18 @@
+<!doctype html><html><head><meta charset="utf-8"><title>massview</title>
+<!-- Dev only (not in the build): one design's default massing in 3D, for screenshots. ?site= &seed= &k= &type= &nth= &r= -->
+<style>html,body{margin:0;height:100%;background:#f4f3ef}canvas{width:100vw;height:100vh;display:block}</style></head>
+<body><canvas id="c"></canvas><script type="module">
+import * as E from "/engine/index.ts";
+import { DesignView } from "/ui/scene/design3d.ts";
+const q = new URLSearchParams(location.search), id = q.get("site") ?? "bengaluru-cascade", seed = +(q.get("seed") ?? 7);
+const site = await (await fetch(`/sites/${id}.json`)).json();
+const G = E.prepare(site), rng = E.makeRng(seed);
+let g; for (let k = 0; k <= +(q.get("k") ?? 0); k++) g = E.randomGenome(rng, 3.1);
+const d = E.grow(g, G);
+const v = new DesignView(document.getElementById("c"));
+v.show({ site, G, d, roads: null }); v.setSun({ month: 3, day: 15, clock: 16 }, site); v.frameSite();
+const want = q.get("type"), ty = d.plan.types.filter((t) => t.type >= 0 && (want === null || t.type === +want)).sort((a, b) => b.land - a.land)[+(q.get("nth") ?? 0)];
+if (ty) { const ps = ty.plots.flatMap((k) => d.plan.plots[k].ring); const cx = ps.reduce((a, p) => a + p[0], 0) / ps.length, cy = ps.reduce((a, p) => a + p[1], 0) / ps.length, R = +(q.get("r") ?? 220);
+  v.controls.target.set(cx, cy, 0); v.camera.position.set(cx - R * 0.6, cy - R * 0.9, R * 0.75); v.controls.update(); document.title = JSON.stringify(ty); } for (let i = 0; i < 5; i++) { await new Promise((r) => setTimeout(r, 200)); v.render(); }
+window.done = true;
+</script></body></html>
