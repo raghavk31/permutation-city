@@ -91,6 +91,11 @@
   const paintOf = (d: E.Design | null, layer: Draw.PlanLayer = "plan") => (ctx: CanvasRenderingContext2D, v: Draw.View) => { if (d) Paint.design(ctx, v, site, d, P, layer); };
   const sh = $derived(shown?.d.plan?.shared ?? null);
   const ty = $derived(shown?.d.plan?.types ? E.typeSummary(shown.d.plan.types) : null);
+  const pg = $derived(shown?.d.plan?.programme ?? null);
+  /** Facilities by programme: how many the homes' people need, and how many the plan placed. */
+  const pgCount = (prog: string, of: "needed" | "got") =>
+    E.FACILITIES.reduce((a, f, i) => a + (f.programme === prog ? pg![of][i] : 0), 0);
+  const pgLand = $derived(pg ? pg.land.reduce((a, v) => a + v, 0) : 0);
 
   // compare: one camera for both plans
   let cam = $state({ k: 1, tx: 0, ty: 0 });
@@ -224,7 +229,7 @@
       <!-- COPY: what the plan shows -->
       <div class="wb-over bl wb-ex-layer">
         <div class="wb-seg" role="group" aria-label="The plan shows">
-          {#each [["plan", "Plan"], ["shared", "Shared ground"], ["frontage", "Frontage"], ["types", "Building types"]] as [k, label]}
+          {#each [["plan", "Plan"], ["shared", "Shared ground"], ["frontage", "Frontage"], ["types", "Building types"], ["programme", "Programme"]] as [k, label]}
             <button type="button" aria-pressed={bench.exLayer === k} onclick={() => (bench.exLayer = k as typeof bench.exLayer)}>{label}</button>
           {/each}
         </div>
@@ -242,14 +247,34 @@
             <div><i class="is-line" style="--c: {P.t.frontage.green}"></i><span>green edge</span></div>
             <div><i class="is-line" style="--c: {P.t.frontage.lake}"></i><span>lake edge</span></div>
           </div>
+        {:else if bench.exLayer === "programme"}
+          <div class="wb-legend">
+            {#if pg}
+              {#each E.PLOT_PROGRAMMES as k, i}
+                {#if pg.land[i] > 0}
+                  {@const n = pgCount(k, "got")}
+                  {@const need = pgCount(k, "needed")}
+                  <div><i style="--c: {P.t.programme[k]}"></i><span>{E.PROGRAMME_LABELS[k]}: {pg.land[i] / pgLand < 0.01 ? "under 1" : Math.round((pg.land[i] / pgLand) * 100)}% of building land{need || n ? `, ${n} of ${need} needed` : ""}</span></div>
+                {/if}
+              {/each}
+              <div><i style="--c: {P.t.paper}; border-radius: 50%; box-shadow: inset 0 0 0 2px {P.t.ink}"></i><span>{pg.stops.length} bus stops: {Math.round(pg.stopAccess * 100)}% of homes within 400 m</span></div>
+              <span class="wb-quiet" title="People: the homes' floor area at 20 m² a person (assumed). Facilities and their land from the URDPFI Guidelines 2014, Vol I, Tables 8.48-8.61; water at 150 litres a person a day (Table 8.26); waste at 0.45 kg (Table 8.44); industry 7% of the land (Table 5.2)">{Math.round(pg.people).toLocaleString()} people; water {pg.water.mld.toFixed(1)} million litres a day, waste {pg.waste_tpd.toFixed(0)} tonnes a day</span>
+            {:else}
+              <span class="wb-quiet">This design was grown before programmes were placed.</span>
+            {/if}
+          </div>
         {:else if bench.exLayer === "types"}
           <div class="wb-legend">
             {#if ty}
-              {#each E.BLOCK_TYPES as t, k}
-                <div><i style="--c: {P.t.blockType[t.key]}"></i><span>{t.name}: {ty.blocks[k]} block{ty.blocks[k] === 1 ? "" : "s"}{t.key === "towers" && ty.towers ? `, ${ty.towers} tower${ty.towers === 1 ? "" : "s"}` : ""}</span></div>
+              {#each E.FAMILIES as t, k}
+                <div><i style="--c: {P.t.blockType[t.key]}"></i><span>{t.name}: {ty.blocks[k]} lot{ty.blocks[k] === 1 ? "" : "s"}{t.key === "tall" && ty.towers ? `, ${ty.towers} tower${ty.towers === 1 ? "" : "s"}` : ""}</span></div>
               {/each}
-              {#if ty.none}<div><i style="--c: {P.t.blockType.none}"></i><span>no type fits: {ty.none}</span></div>{/if}
-              <span class="wb-quiet" title="Floor area over building land (FSI): what the genes asked of the typed blocks, and what their types give within the plot rules (Spacematrix)">density asked {ty.asked.toFixed(2)}, given {ty.given.toFixed(2)}</span>
+              {#if ty.none}<div><i style="--c: {P.t.blockType.none}"></i><span>no precedent fits: {ty.none}</span></div>{/if}
+              <span class="wb-quiet" title="Floor area over building land (FSI): what the genes asked of the typed lots, and what their precedents give within the plot rules (Spacematrix)">density asked {ty.asked.toFixed(2)}, given {ty.given.toFixed(2)}</span>
+              {#each ty.precedents.slice(0, 5) as u}
+                {@const p = E.PRECEDENT.get(u.id)}
+                <span class="wb-quiet" title="{p?.place ?? ''}: {p?.lesson ?? ''}">{p?.name ?? u.id}: {u.lots} lot{u.lots === 1 ? "" : "s"}, {Math.round(u.storeys) === u.own ? `${u.own} storey${u.own === 1 ? "" : "s"} as built` : `${u.storeys.toFixed(1)} storeys (built ${u.own})`}</span>
+              {/each}
             {:else}
               <span class="wb-quiet">This design was bred before building types (genome version 3).</span>
             {/if}

@@ -576,9 +576,11 @@ export function attractors(ctx: Ctx, v: View, d: Design) {
 /** A version 3 design as it is: plots coloured by use (buildings by storeys), its streets
  *  at their widths on top. No cells. */
 /** What a plan shows: the plan itself; its shared ground (parks and squares outlined,
- *  buildings faded); each street's frontage type; or each block's building type. */
-export type PlanLayer = "plan" | "shared" | "frontage" | "types";
-const TYPE_ORDER = ["courtyard", "perimeter", "row", "towers"] as const;
+ *  buildings faded); each street's frontage type; each block's building type; or what each
+ *  building plot is for, facilities outlined and bus stops marked. */
+export type PlanLayer = "plan" | "shared" | "frontage" | "types" | "programme";
+const PROGRAMME_ORDER = ["homes", "shops", "education", "health", "culture", "industry", "water", "waste"] as const;
+const TYPE_ORDER = ["court", "yard", "row", "tall"] as const;
 const FRONTAGE_ORDER = ["active", "residential", "green", "lake"] as const;
 
 export function vectorPlan(ctx: Ctx, v: View, d: Design, layer: PlanLayer = "plan") {
@@ -588,21 +590,23 @@ export function vectorPlan(ctx: Ctx, v: View, d: Design, layer: PlanLayer = "pla
   const ring = (r: [number, number][]) => { ctx.beginPath(); r.forEach(([x, y], k) => (k ? ctx.lineTo(v.px(x), v.py(y)) : ctx.moveTo(v.px(x), v.py(y)))); ctx.closePath(); };
   const faded = layer !== "plan";
   const typeOf = new Map<number, number>();
-  if (layer === "types") for (const t of plan.types ?? []) typeOf.set(t.block, t.type);
-  const typed = (block: number) => {
-    const k = typeOf.get(block);
+  if (layer === "types") for (const t of plan.types ?? []) for (const p of t.plots ?? []) typeOf.set(p, t.type);
+  const typed = (plot: number) => {
+    const k = typeOf.get(plot);
     return k === undefined ? T.existingRamp[1] : k < 0 ? T.blockType.none : T.blockType[TYPE_ORDER[k]];
   };
   // Blocks first, in the street colour's neighbour (the ground between plots), then plots.
   for (const b of plan.blocks) { ring(b); ctx.fillStyle = T.paper2; ctx.fill(); }
-  for (const p of plan.plots) {
+  plan.plots.forEach((p, k) => {
     ring(p.ring);
-    const c = p.use === 1 ? (layer === "types" ? typed(p.block) : faded ? T.existingRamp[1] : buildingAt(p.levels))
+    const prog = layer === "programme" ? plan.programme?.plot[k] ?? -1 : -1;
+    const c = p.use === 1 ? (layer === "types" ? typed(k) : prog >= 0 ? T.programme[PROGRAMME_ORDER[prog]]
+      : faded ? T.existingRamp[1] : buildingAt(p.levels))
       : p.use === 2 ? T.green.proposed : p.use === 3 ? T.water.storage : T.paper2;
     ctx.fillStyle = c; ctx.fill();
     if (p.use === 2) { ctx.fillStyle = pattern(ctx, "dots", T.green.existing); ctx.fill(); }
     ctx.strokeStyle = p.use === 1 ? T.paper : c; ctx.lineWidth = p.use === 1 ? 0.5 : 0.8; ctx.stroke();
-  }
+  });
   if (layer === "shared" && plan.shared) {
     // the parks the design reserved (whole blocks) and its squares (corner plots), outlined
     ctx.strokeStyle = T.green.existing; ctx.lineWidth = 2;
@@ -610,6 +614,11 @@ export function vectorPlan(ctx: Ctx, v: View, d: Design, layer: PlanLayer = "pla
     ctx.setLineDash([3, 2]);
     for (const sq of plan.shared.squares) { const pl = plan.plots[sq.plot]; if (pl) { ring(pl.ring); ctx.stroke(); } }
     ctx.setLineDash([]);
+  }
+  if (layer === "programme" && plan.programme) {
+    // each facility's plots outlined together, in ink
+    ctx.strokeStyle = T.ink; ctx.lineWidth = 1.2;
+    for (const f of plan.programme.placed) for (const k of f.plots) { const pl = plan.plots[k]; if (pl) { ring(pl.ring); ctx.stroke(); } }
   }
   ctx.lineCap = "round";
   for (const pass of [0, 1]) for (const st of [...plan.streets].sort((a, b) => a.cls - b.cls)) {
@@ -624,6 +633,13 @@ export function vectorPlan(ctx: Ctx, v: View, d: Design, layer: PlanLayer = "pla
       ctx.lineWidth = pass ? 0.5 : Math.max(st.w * v.s, 0.8);
     }
     ctx.stroke();
+  }
+  if (layer === "programme" && plan.programme) {
+    // bus stops: a ring on the street
+    for (const [x, y] of plan.programme.stops) {
+      ctx.beginPath(); ctx.arc(v.px(x), v.py(y), 3.5, 0, 2 * Math.PI);
+      ctx.fillStyle = T.paper; ctx.fill(); ctx.lineWidth = 1.6; ctx.strokeStyle = T.ink; ctx.stroke();
+    }
   }
   ctx.restore();
 }

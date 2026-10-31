@@ -640,6 +640,288 @@ One PR per item.
 - **Place matching** depends on street names in the site exports (re-export approved).
 - **Sources.** URDPFI arrives from you; Guwahati FAR may stay assumed.
 
+## 12. Built form re-plan (approved 26 October, with the changes in 12.12)
+
+The built form brief (`docs/built-form-brief.md`, 26 October) reverses the order of work:
+shared ground first, buildings placed to shape it, plots drawn last. This section re-plans the
+rest of Milestone A around it. Nothing is built until you approve.
+
+### 12.1 Where things stand
+
+- **Final-stretch section 1 (your priority 2) is done:** PRs #19, #20 and #21 merged on 25
+  October, deployed and smoke-tested. Only PR #22 (Assamese font) is open.
+- **Section 2 is half done:** items 2.1 and 2.2 (drawing tools, moves in the engine, conflicts
+  hold the run, saved in links) are on branch `drawn-constraints`, pushed, no PR yet.
+- **Calendar:** 22 days from 27 October to 17 November (feature complete), weekends counted.
+  The day unit is the one in section 7. Sections 1 and 2.1-2.2 (5.25 units) took two calendar
+  days, but the brief's complaints are about quality, so this plan doesn't bank that speed.
+
+### 12.2 Why block 206 asks for FSI 5.4
+
+`floorAreaTarget` is `target_far × the whole design ground` (`engine/fitness.ts`). For
+Bengaluru that is FAR 2.0 (assumed) over ground that includes the tank edges, valleys and
+landscape. All of it lands on the building plots, so a plot's net FSI is several times 2.0,
+and the cap that stops it is the assumed 15 storeys in `sites/bengaluru-cascade/rules.yaml`.
+Real rules (FAR by road width on the plot, coverage, setbacks by height) cap the plot, not the
+site. So section 3 comes first: it turns the brief from "fill to the target" into "capacity
+under the rules, and the brief's shortfall against it".
+
+### 12.3 One decision that shapes the estimate: what each scale builds
+
+The new pipeline has nine steps. Building all nine for every design in a run (480 per run, at
+66-321 ms each today) would make runs several times slower, and every step after 4 would move
+the urban scores that A4 freezes. Proposal:
+
+| Step | Urban scale (every design in a run) | Opened design and the Massing step |
+|---|---|---|
+| 1 rules and brief | plot rules by road width, plot size, height; capacity | same |
+| 2 streets, frontage types | yes | yes, plus cross-sections in 3D |
+| 3 shared ground first | yes (a layer with its own outline) | yes, down to cluster courts |
+| 4 building type per block | yes, as Spacematrix numbers: each block's type gives its coverage (GSI), storeys and floor area analytically | the type, then its parameters evolve |
+| 5-8 place, plots, shape, voids | no | yes: the opened design's whole 3D view (type defaults) and the picked block (searched) |
+| 9 score | urban scores read block-level coverage and storeys | building scores per block, with neighbours massed |
+
+This keeps runs fast, makes the urban scores final once steps 1-4 land, and lets building-scale
+work continue after the A4 freeze without invalidating it. The cost: the urban scores see a
+block's type through its density numbers, not its exact buildings. **Question Q1.**
+
+### 12.4 Estimate
+
+Full scope against the proposal. "Old" rows are what remains of section 11.
+
+| Item | Full | Proposed |
+|---|---:|---:|
+| **Quick fixes (brief section 12)** | **1.0** | **1.0** |
+| street view camera on the nearest street | 0.25 | 0.25 |
+| other buildings and existing buildings in distinct colours, estimated heights hatched | 0.25 | 0.25 |
+| plot panel "no existing buildings" bug; plain massing names; "beaten 87%" reworded | 0.25 | 0.25 |
+| larger thumbnails; explainer collapses; Voxel field and CPPN "experimental", Typologies default | 0.25 | 0.25 |
+| **References and docs/built-form.md** (pipeline, the reference behind each step, every number checked or marked) | **1.0** | **0.5** |
+| **3. Rules and brief** | **3.75** | **2.25** |
+| Bengaluru: RMP 2015 zoning regulations and amendments, bye-laws, fire rules, URDPFI; a corpus note, every figure cited | 0.75 | 0.75 |
+| engine: FAR, coverage, height and setbacks per plot by road width, plot size and height; fire open space; capacity of the site | 0.75 | 0.75 |
+| brief against capacity: the shortfall said plainly in the Brief step, Evolve and Massing | 0.5 | 0.5 |
+| lake and drain buffers: legal figure plus a wider design setting (12.6) | 0.25 | 0.25 |
+| other sites: Wadaj (CGDCR), Docks and EWF (DCPR), Guwahati (Bye-laws) | 1.5 | 0 (B, Q4) |
+| **4. Streets and shared ground** | **3.0** | **2.25** |
+| frontage type per segment (active by integration and choice, residential, green edge, lake edge) | 0.5 | 0.5 |
+| cross-section per class: plan diagram, applied to the 3D street ribbons | 0.75 | 0.25 |
+| shared ground first: lake buffer, valley corridors, squares at high-choice junctions, open-space hierarchy (Correa's sizes as settings) | 1.25 | 1.25 |
+| walking access to each level of open space (score) | 0.5 | 0.25 |
+| **5. Building type per block, urban scale** | **1.5** | **1.5** |
+| Spacematrix feasibility per block; the family rules table in one documented file | 1.0 | 1.0 |
+| type gene within the feasible set, genome v3.1, old links regrow as v3 | 0.5 | 0.5 |
+| **5-7. Buildings at block scale** | **4.5** | **4.25** |
+| placement along frontage and shared-ground edges with spacing rules; six type generators built floor by floor (depth limit, floor heights, grid, core, height ceiling, stepping down to water, ground floor by frontage and flood) | 3.0 | 2.75 |
+| violations reported, repair counted, penalty over a threshold | 0.25 | 0.25 |
+| one island per feasible type, best of each side by side with key scores, then variations in the chosen type | 1.0 | 1.0 |
+| neighbouring blocks massed with their type's defaults | 0.25 | 0.25 |
+| **6. Plots drawn after placement** | **1.75** | **1.75** |
+| territories clipped to the block, every plot on a street; skeleton splits for irregular blocks, OBB for regular; least width and depth, depth-to-width ratio, merge; corner plots; mixed sizes | 1.25 | 1.25 |
+| plots follow the land (nothing on a drainage line, stepping with slope); plot table with type and the rule that set its size | 0.5 | 0.5 |
+| **8. Voids** | **1.75** | **1.25** |
+| courtyards sized by winter sun on the court floor and hot-afternoon shade | 0.5 | 0.5 |
+| breezeways aligned to the hot-afternoon wind axis | 0.5 | 0.5 |
+| view corridors to the lake | 0.5 | 0 (B) |
+| raised ground where flood depth needs it | 0.25 | 0.25 |
+| **10. Scores** | **1.5** | **1.25** |
+| habitability: floor within the depth limit, daylight on facades per floor (sky view at facade points), cross-ventilation share, sun on court floors | 0.75 | 0.75 |
+| buildability, site response | 0.5 | 0.25 |
+| hide scores constant across a run; names from what a design does at the scale shown | 0.25 | 0.25 |
+| **New work** | **19.75** | **16.0** |
+| **Old: drawn constraints, rest** (street edits rebuild and re-score; building edits; locked edits; undo and tests) | 3.0 | 1.0 |
+| **Old: A4** harness, runs, statistics, figure script, masterplan report, video script, demo mode | 2.0 | 2.0 |
+| **Old: stress tests in the workbench** | 0.75 | 0 (B, Q4) |
+| **Old: score maps, click-through, area statement and CSV** | 2.25 | 0.5 (area statement and CSV only) |
+| **Old: growing over time in the workbench** | 1.0 | 0 (B) |
+| **Old: context box** | 3.25 | 0 (B) |
+| **Old: programme** | 1.5 | 0 (active ground floors come from frontage types) |
+| **Old: GeoJSON export** | 0.25 | 0.25 |
+| **Old: quality before the freeze** (browsers, budget in CI, hallway script) | 0.75 | 0.75 |
+| **Review rounds and surprises** | 1.5 | 1.0 |
+| **Total before 17 November** | **36.0** | **21.5** |
+
+22 days are available, so the proposal leaves half a day of margin besides the review
+allowance. Full scope is 14 days over. The riskiest row is the six type generators (2.75): it is
+where slips will show first, and the reserve cuts in 12.5 start there.
+
+### 12.5 Cuts
+
+To Milestone B, from your list of acceptable candidates:
+
+| # | Cut | Saves | Damage |
+|---|---|---:|---|
+| D1 | Context box | 3.25 | the "set by you" list, keep / repair / replace wait; drawn "keep building" still works |
+| D2 | Growing over time in the workbench | 1.0 | the classic page and the H4 write-up keep piecemeal visible |
+| D3 | Programme beyond frontage-driven ground floors (brief mix, population, URDPFI check) | 1.5 | no land-use mix or population figure in A |
+| D4 | Plan export beyond GeoJSON | 0 | already cut (C1) |
+
+Beyond your list, needing your approval (Q4):
+
+| # | Cut | Saves | Damage |
+|---|---|---:|---|
+| D5 | Score maps and click-through to B; the area statement and CSV stay | 1.75 | scores stay as numbers and bars, not maps |
+| D6 | Stress tests in the workbench to B | 0.75 | the classic page still runs them; the workbench doesn't |
+| D7 | Drawn constraints: building delete and height edits, locked edits to B. Street edits rebuild and re-score stay. A building edit becomes "change this block's type" | 2.0 | fewer direct edits on the demo |
+| D8 | Real rules for Bengaluru only; the other sites keep today's rules, marked assumed | 1.5 | A4's other sites run on assumed plot rules |
+| D9 | View corridors to B | 0.5 | lake views are kept only by stepping down to water |
+| D10 | Narrower rows: 3D cross-sections as ribbon widths, access score folded into section 10, lighter built-form doc | 1.75 | less finish |
+
+Reserve, in this order, if a row slips:
+- E1: neighbouring blocks as prisms at their type's density, not massed (0.25)
+- E2: raised ground flagged and drawn as a plinth line only (0.25)
+- E3: the Massing step shows the best of each type side by side, without exploring variations inside the chosen one (0.5)
+- E4: OBB splits with the shape rules for every block; skeleton splits for irregular blocks in B (0.5)
+- E5: five type generators, pavilions in B (0.5)
+
+### 12.6 Rules: what is known today, and confidence
+
+From a first search (26 October), to be read in the sources themselves before any figure enters
+the engine:
+- **Lake buffer.** RMP 2015's zoning regulations set 30 m around lakes and 50, 25 and 15 m
+  along primary, secondary and tertiary drains. The NGT raised the lake buffer to 75 m in May 2016
+  (the Bellandur and Mantri case). Most sources, including a 2023 Karnataka High Court judgment,
+  say the Supreme Court set the 75 m direction aside in March 2019, which returns lakes to
+  30 m. One case summary says the opposite, and later reports describe a state move to lower
+  buffers for smaller lakes.
+  **Confidence: medium** that 30 m is the operative figure for these four tanks, all large;
+  **low** on any later amendment until its notification is read.
+  Proposal: the legal figure (30 m) is the rule; a design setting defaults to 75 m (the NGT's
+  ecological case), with the capacity shown both ways (Q6).
+- **FAR, coverage and setbacks.** RMP 2015 Zoning Regulations (BBMP's PDF of
+  `Zoning_Regulations_RMP2015f`, Table 10 for Residential (Main), building lines by road width)
+  and BDA's compiled amendments. A February 2026 amendment reportedly changes setbacks to
+  depend on plot size (above 4,000 m², 5 m on all sides); sources disagree on the details, so the
+  notification itself has to be found. Bengaluru's civic body became the Greater Bengaluru
+  Authority in 2025; which bye-laws are "latest" (BBMP Building Bye-laws 2003, or a newer set)
+  is to be settled.
+- **Fire:** Karnataka Fire and Emergency Services rules and NBC 2016 Part 4 for buildings over
+  15 m: access width and open space round the building.
+- **Alexander's dimensions** (107, 115, 122, 159) are still unchecked against the book
+  (`docs/alexander.md`). Without a copy they stay "assumed" with a secondary source (Q7).
+
+Sources found so far:
+[Citizen Matters on shrinking buffers](https://citizenmatters.in/shrinking-lake-buffers-zones-bengaluru-citizens-need-to-know/),
+[Citizen Matters on the NGT 75 m order](https://citizenmatters.in/bellandur-lake-ngt-final-judgment-on-mantri-sez-bangalore/),
+[Deccan Herald on the Supreme Court hearing](https://www.deccanherald.com/india/karnataka/bengaluru/can-ngt-alter-lake-buffer-zone-713458.html),
+[Karnataka High Court, SJR Prime v. BBMP, 2023](https://indiankanoon.org/doc/105341693/),
+[Lawtext summary (contradicts the others)](https://lawtext.in/judgement.php?bid=6149),
+[RMP 2015 Zoning Regulations, BBMP](https://site.bbmp.gov.in/PDF/townplanning/Zoning_Regulations_RMP2015f%20(1).pdf),
+[BDA amendments to the zoning regulations](https://bdabangalore.org/uploads/files/TPM_Documents/Amendments_to_Zoning_Regulation_All.pdf),
+[Cyril Amarchand on the 2026 setback amendment](https://corporate.cyrilamarchandblogs.com/2026/02/amendment-to-zonal-regulations-under-revised-master-plan-2015-streamlining-setback-requirements-and-parking-provisions-in-bengaluru/).
+
+### 12.7 Islands or MAP-Elites for building types
+
+**Islands, one per feasible type, each with its own NSGA-II front.** Why:
+- What you want to see is the best of each type with its trade-offs. An island gives each type
+  a front directly; MAP-Elites with type as one axis keeps one elite per cell, so each type's
+  "best" depends on a second axis we'd have to invent.
+- Parameters can't cross between types by construction: each island has its own genome schema,
+  which is how `Representation` in `engine/massing/context.ts` already works.
+- Budgets are fair and predictable: each feasible type gets the same number of massings, and the
+  islands run in parallel workers. A block usually has 2-4 feasible types.
+- MAP-Elites is better for the second stage (variations inside the chosen type). It can come back
+  there in B, with descriptors such as court proportion and height variation.
+
+### 12.8 A4 dates
+
+The urban scores change with steps 1-4 (rules, frontage, shared ground, block types). With
+12.3, the building-scale steps don't touch them.
+- **Scores and genome v3.1 frozen: 7 November** (was 4 November).
+- **Runs:** nights of 7-10 November, 10 seeds, matched budgets. One more night (by 14 November) if a
+  fix forces a rerun.
+- **Statistics and the figure script:** 13-16 November; the figure script run on 17 November, as
+  before.
+- The baselines and ablations go through the same rules, shared ground and block types, so
+  comparisons stay matched. The v2 grid baseline keeps its own growth (as now).
+- H1 counts designs "on brief". Where the brief exceeds the site's capacity, on brief has to mean
+  "within 10% of the lesser of brief and capacity" (Q2), recorded in each run file.
+
+### 12.9 Schedule
+
+| Dates | Work | Checkpoint |
+|---|---|---|
+| 27 Oct | Quick fixes; PR for `drawn-constraints` as it stands | |
+| 28-30 Oct | Section 3 for Bengaluru; references and `docs/built-form.md` | **30 Oct:** real rules, capacity against the brief, the lake buffer finding |
+| 31 Oct-2 Nov | Section 4: frontage types, cross-sections, shared ground first, access | |
+| 3-4 Nov | Section 5 at urban scale: feasibility, type gene, genome v3.1 | **4 Nov:** shared ground, frontage and block types on the plan (replaces the 2 Nov checkpoint) |
+| 5 Nov | Street edits rebuild and re-score | |
+| 6-7 Nov | A4 harness on the new pipeline; area statement and CSV; GeoJSON | **7 Nov:** scores frozen; runs start that night |
+| 8-12 Nov | Type generators with the habitability rules; islands and the side-by-side view; neighbours massed | **12 Nov:** building types side by side on Bengaluru |
+| 13-16 Nov | Plots after placement; courtyards, breezeways, raised ground; new scores; A4 statistics | none |
+| 17 Nov | Figure script on the A4 results; golden path complete | **17 Nov:** feature complete |
+| 18-25 Nov | As section 11.3: hallway tests, browsers, freeze 20 Nov, paper draft, video | **25 Nov:** Milestone A |
+
+13-16 November is the densest window (about 5 units in 4 days); reserve cuts E1-E5 apply there
+first. One PR per item, as before.
+
+### 12.10 Risks
+
+- **The brief may not fit.** With real plot rules, a 30-75 m lake buffer and shared ground
+  reserved first, Bengaluru's FAR 2.0 over the whole ground will probably not fit. The page will
+  say by how much. That is the honest result, but it changes what "on brief" means for A4 (Q2).
+- **The type generators are new geometry** (six families, floor by floor, cores and grids) in
+  2.75 days. If they slip, E3-E5 apply, and building-scale work can run past the A4 freeze
+  without harm.
+- **Sources.** The 2026 setback amendment, the GBA bye-laws and any later lake-buffer change may
+  not be findable as notifications; those figures stay "assumed" with the secondary source named.
+  Spacematrix (2010) and Urban Space and Structures (1972) are books; their relationships are
+  well published, but the exact figures need a copy or a paper that quotes them (Steadman 2014).
+- **Fewer buildable plots** after shared ground pushes density up, which pushes towards towers.
+  The tower limit per site and the height ceiling hold it; the capacity statement shows the cost.
+- **Genome v3.1** changes saved v3 links: they regrow as v3 (frozen), labelled, as v2 links do.
+- **Checkpoints get later.** Drawn constraints' checkpoint moves from 2 to 4 November, and you
+  see building types only on 12 November, the day before the no-checkpoint window.
+
+### 12.11 Questions
+
+1. **Scales (12.3).** Urban scale uses steps 1-4 with block types as density numbers; placement,
+   plots, shaping and voids are built for the opened design and the Massing step. Agreed?
+2. **Brief over capacity.** Keep the brief as given, show the shortfall, and search towards the
+   lesser of brief and capacity (A4's "on brief" the same)? Or treat the capacity as a hard
+   finding and change Bengaluru's brief?
+3. **Islands (12.7)** rather than MAP-Elites with type as an axis?
+4. **Cuts beyond your list:** D5 score maps, D6 workbench stress tests, D7 building and locked
+   edits, D8 other sites' rules, D9 view corridors, D10 narrower rows. Any you'd keep, and what
+   would you drop instead?
+5. **A4 freeze on 7 November**, runs on the nights of 7-10 November?
+6. **Lake buffer design default:** 75 m (the NGT's figure) with the legal 30 m as the rule, or
+   another width?
+7. **Books.** Do you have *A Pattern Language*, *Spacematrix*, *Urban Space and Structures* or
+   *Occupying and Connecting* at hand (page numbers or photos of the relevant pages)? Otherwise
+   their numbers go in as "assumed" with a secondary source.
+8. **Height ceiling.** Four storeys as the default everywhere (Pattern 21), raised per block only
+   where the block's density needs it or a landmark is justified, with at most N towers per site:
+   what N for Bengaluru (I'd say 2)?
+
+### 12.12 Decisions (26 October)
+
+1. **Scales:** the split in 12.3 is approved, with two conditions:
+   - **Consistency check.** Each run masses a sample of blocks per type and reports the gap
+     between the density numbers the type promised (coverage, storeys, floor area) and what the
+     massing produced. A type whose gap is over 10% is flagged.
+   - **Unopened blocks in 3D** get a cheap default massing for their type (a courtyard reads as a
+     courtyard), never plot extrusions.
+2. **Target:** the lesser of the brief and the rules' capacity. In A4, "on brief" means within
+   10% of the rule-capped target. The UI shows the shortfall against the original brief.
+3. **Islands,** one per feasible type. MAP-Elites later, for variations inside a chosen type.
+4. **Cuts:** stress tests stay in the workbench. Score maps (D5), building and locked edits (D7),
+   other sites' rules (D8) and view corridors (D9) move to B, with D1-D3. To make room, Milestone A
+   ships **four types: courtyard, perimeter block, row housing, podium with towers.** Clusters
+   around courts and pavilions move to B.
+5. **A4:** scores and genome v3.1 frozen on 7 November.
+6. **Lake buffer:** the legal rule is 30 m; the design default is 75 m, labelled as a design
+   choice beyond the legal minimum. Keep looking for any later notification and report it.
+7. **Books:** none named yet. Figures from the books go in as "assumed", with the secondary
+   source named.
+8. **Height:** four storeys by default. At most two towers per site, only at major nodes, and only
+   where the lower types can't reach the density.
+
+Effect on the estimate: stress tests +0.75; four generators instead of six, -0.75 (2.75 to 2.0);
+consistency check +0.25 (the default massing for unopened blocks was already in the generators).
+Total still 21.75 of 22 days, so the margin is thin and E1-E4 stay ready. Stress tests go on
+5 November with the street edits; the street edits move to 6 November alongside the A4 harness.
+
 ---
 
 ## A1 log (2026-10-21): quick visual fixes

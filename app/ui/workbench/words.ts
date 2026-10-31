@@ -110,12 +110,13 @@ export const GENE_GROUPS: [string, GeneWords[]][] = [
     { gene: "f_edges", label: "water edges and roads", fmt: weight },
     { gene: "f_wind", label: "the wind", fmt: weight },
   ]],
-  // version 3.1 only: a block takes the type it allows that the genes prefer most, near its density
+  // version 3.1 only: a lot takes the library precedent for its programme the genes prefer most,
+  // near its density (plan/precedents.ts FAMILIES)
   ["Building types preferred", [
-    { gene: "t_courtyard", label: "courtyards", fmt: weight },
-    { gene: "t_perimeter", label: "perimeter blocks", fmt: weight },
-    { gene: "t_row", label: "row housing", fmt: weight },
-    { gene: "t_towers", label: "podium with towers", fmt: weight },
+    { gene: "t_courtyard", label: "round a court", fmt: weight },
+    { gene: "t_perimeter", label: "round a shared yard", fmt: weight },
+    { gene: "t_row", label: "rows", fmt: weight },
+    { gene: "t_towers", label: "slabs and towers", fmt: weight },
   ]],
 ];
 

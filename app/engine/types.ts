@@ -1,5 +1,7 @@
 // Shapes shared by the engine and the UI.
 import type { SiteMoves } from "./moves.js";
+import type { BlockTyping } from "./plan/blocktypes.js";
+import type { ProgrammeResult } from "./plan/programme.js";
 
 /** A site as `pc export` writes it (app/public/sites/<id>.json). */
 export interface SiteExport {
@@ -223,11 +225,12 @@ export interface VectorPlan {
    *  the share of the land that is shared ground. */
   shared?: { squares: { at: [number, number]; plot: number }[]; parks: { level: "doorstep" | "housing" | "neighbourhood"; block: number; area: number }[];
     access: Record<"doorstep" | "housing" | "neighbourhood", number>; share: number };
-  /** Version 3.1: each block's building type (plan/blocktypes.ts BLOCK_TYPES; -1 where none
-   *  fits), the types it allows, its building land (m²), the FSI the genes asked for, and the
-   *  type's coverage, storeys, FSI, wing depth (m) and towers. */
-  types?: { block: number; type: number; feasible: number[]; land: number; wanted: number; gsi: number; storeys: number;
-    fsi: number; depth: number; towers: number }[];
+  /** Version 3.1: each lot's building type (plan/blocktypes.ts): a library precedent for its
+   *  programme, the density it gives and how far it drifted from the precedent. */
+  types?: BlockTyping[];
+  /** What each building plot is for, how many people the homes hold, the facilities placed and
+   *  needed, water and waste, and bus stops (plan/programme.ts). */
+  programme?: ProgrammeResult;
 }
 
 export interface Scores {

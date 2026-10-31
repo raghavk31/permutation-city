@@ -15,3 +15,7 @@ corpus/_sources/
 
 # design references (large images, kept local)
 reference/
+
+# local test site (Rajgir box), not a benchmark
+sites/rajgir-test/
+app/public/sites/rajgir-test.json
