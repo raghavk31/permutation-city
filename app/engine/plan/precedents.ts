@@ -11,6 +11,7 @@
 // for four families of arrangement.
 import { LIBRARY } from "../typology/library.js";
 import { build, DEFAULT_FLOOR_H, type Arrangement, type Built, type Params } from "../typology/grammar.js";
+import { answer, needs } from "../typology/challenges.js";
 import { CLIMATE, distance, profile } from "../typology/climate.js";
 import type { Precedent, Programme } from "../typology/types.js";
 import type { ProgrammeKey } from "./programme.js";
@@ -43,8 +44,12 @@ const STREET: Partial<Record<Arrangement, number>> = { row: 4, ring: 6, court: 0
 export interface Candidate {
   p: Precedent;
   family: number;
-  /** Climate distance to the site, in noticeable steps (0 where the site has no climate data). */
+  /** Climate distance to the site, in noticeable steps (0 where the site has no climate data):
+   *  reported, no longer scored. */
   climate: number;
+  /** How well its mechanisms answer the site's climate challenges, 0..1 (typology/challenges.ts;
+   *  0.5 where the site has no climate data). */
+  fit: number;
   /** The precedent's own storeys (a tower's podium and tower together). */
   own: number;
 }
@@ -72,13 +77,14 @@ export const isBuilding = (p: Precedent) => familyOf(p.seed.arrangement) >= 0 &&
 
 const BY_SITE = new Map<string, Map<ProgrammeKey, Candidate[]>>();
 
-/** The building precedents for a programme, nearest the site's climate first. */
+/** The building precedents for a programme, best answer to the site's climate challenges first
+ *  (user, 31 October: by the challenge they answer, not by climate likeness). */
 export function candidatesFor(prog: ProgrammeKey, siteId: string): Candidate[] {
   let site = BY_SITE.get(siteId);
   if (!site) BY_SITE.set(siteId, (site = new Map()));
   let out = site.get(prog);
   if (out) return out;
-  const n = CLIMATE.places[`site:${siteId}`], here = n ? profile(n) : null;
+  const n = CLIMATE.places[`site:${siteId}`], here = n ? profile(n) : null, ns = n ? needs(n) : [];
   const seen = new Set<string>();
   out = [];
   // the first library programme's precedents first, then the next one's
@@ -87,16 +93,17 @@ export function candidatesFor(prog: ProgrammeKey, siteId: string): Candidate[] {
     for (const p of LIBRARY) {
       if (seen.has(p.id) || !p.programmes.includes(lib) || !isBuilding(p)) continue;
       const c = CLIMATE.places[p.id];
-      these.push({ p, family: familyOf(p.seed.arrangement), climate: here && c ? distance(profile(c), here) : 0, own: storeysOf(p.seed) });
+      these.push({ p, family: familyOf(p.seed.arrangement), climate: here && c ? distance(profile(c), here) : 0, fit: ns.length ? answer(p.mechanisms, ns).fit : 0.5, own: storeysOf(p.seed) });
       seen.add(p.id);
     }
-    out.push(...these.sort((a, b) => a.climate - b.climate || (a.p.id < b.p.id ? -1 : 1)));
+    out.push(...these.sort((a, b) => b.fit - a.fit || a.climate - b.climate || (a.p.id < b.p.id ? -1 : 1)));
   }
   site.set(prog, out);
   return out;
 }
 
-export interface Drift { what: "storeys" | "court" | "street"; from: number; to: number }
+/** What moved from a precedent: its storeys, or one of its settings (ranges.ts SETTINGS). */
+export interface Drift { what: "storeys" | "width" | "depth" | "count" | "rows" | "court" | "street" | "gap"; from: number; to: number }
 
 /** The seed at n storeys, and what changed from the precedent. Raised past its own height, its
  *  court (court, ring) or its street (the rest) widens to at least the new height. */
@@ -127,6 +134,24 @@ export function variant(seed: Params, n: number): { params: Params; drift: Drift
 }
 
 const BUILT = new Map<string, Built>();
+
+/** A precedent with its settings changed (a variant from ranges.ts, named by vkey), at n
+ *  storeys: its params (the court or street widened when raised) and solids (cached). */
+export function builtAs(p: Precedent, vkey: string, params: Params, n: number): { params: Params; built: Built; drift: Drift[] } {
+  const k = `${p.id}:${vkey}:${n}`;
+  let hit = BUILT_AS.get(k);
+  if (!hit) {
+    const v = variant(params, n), drift: Drift[] = [];
+    if (n !== storeysOf(p.seed)) drift.push({ what: "storeys", from: storeysOf(p.seed), to: n });
+    for (const s of ["width", "depth", "count", "rows", "court", "street", "gap"] as const) {
+      const a = p.seed[s] as number | undefined, b = v.params[s] as number | undefined;
+      if (a != null && b != null && Math.abs(a - b) > 0.25) drift.push({ what: s, from: a, to: Math.round(b * 10) / 10 });
+    }
+    BUILT_AS.set(k, (hit = { params: v.params, built: build(v.params), drift }));
+  }
+  return hit;
+}
+const BUILT_AS = new Map<string, { params: Params; built: Built; drift: Drift[] }>();
 
 /** A precedent built at n storeys (cached). */
 export function built(p: Precedent, n: number): Built {

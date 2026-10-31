@@ -18,14 +18,18 @@
 //      the tiles that fit; the best MEASURED by score are laid out on the plots and measured
 //   4  the best measured score wins: the gene for the candidate's family of arrangement (the search's
 //      preference), Martin and March's prior for courts at medium and higher density, less how
-//      far it falls from the wanted FSI, how far its climate is from the site's, and how far it
-//      drifted from its own height
+//      far it falls from the wanted FSI, how much of the site's climate challenges it leaves
+//      unanswered (typology/challenges.ts; not how alike its climate is: user, 31 October), how
+//      far it drifted from its own height, and a little for a variant (shrunk to fit, deeper
+//      units: ranges.ts) over the precedent as built
 //   5  towers only at major nodes (a square or a centre), where nothing lower reaches the wanted
 //      FSI; at most MAX_TOWERS_SITE on the whole site, the lots furthest short first
 import { coverageFor, type PlotRules, roadStoreys } from "../regs.js";
 import { keepShare, massLot, tiles } from "./blockmass.js";
 import { area, centroid, convexHull, obb, type Line, type Pt } from "./geom.js";
-import { built, CANDIDATES, candidatesFor, type Drift, FAMILIES, maxStoreys, PRECEDENT, variant } from "./precedents.js";
+import { built, builtAs, CANDIDATES, candidatesFor, type Candidate, type Drift, FAMILIES, maxStoreys, PRECEDENT, variant } from "./precedents.js";
+import { rangeOf, USES } from "./ranges.js";
+import type { Params } from "../typology/grammar.js";
 import { PROGRAMMES } from "./programme.js";
 
 /** The type genes (config.ts), one per family of arrangement (precedents.ts FAMILIES). */
@@ -36,8 +40,10 @@ export const NODE_M = 150;              // a lot whose middle is this close to a
 export const PRIOR = 0.25;              // Martin and March: courts preferred ...
 export const PRIOR_FSI = 1;             // ... at this FSI and above (medium density; assumed threshold)
 export const FIT = 6;                   // weight on falling short of (or over) the wanted FSI, relative: density all but a constraint (user, 28 October)
-export const CLIMATE_W = 0.25;          // per noticeable step between the precedent's climate and the site's (assumed)
+export const CHALLENGE_W = 0.5;         // per share of the site's climate challenges the precedent leaves unanswered (assumed; replaces climate likeness, 31 October)
+export const VARIANT_W = 0.1;           // a precedent with its settings changed (shrunk to fit, deeper units), not as built (assumed)
 export const DRIFT_W = 0.15;            // per doubling or halving of the precedent's own height (assumed)
+export const OVER_CAP = 0.1;           // a measured layout over its FAR or coverage cap by more than this is left out
 export const MEASURED = 3;              // options per lot laid out and measured, the best by estimate
 
 /** A lot's type: its block and plots (indices into the plan's plots), programme (PROGRAMMES
@@ -49,6 +55,10 @@ export interface BlockTyping {
   block: number; plots: number[]; programme: number; type: number; precedent: string; feasible: number[];
   land: number; wanted: number; gsi: number; storeys: number; fsi: number; cap: [number, number];
   climate: number; drift: Drift[]; towers: number;
+  /** How well the precedent answers the site's climate challenges (0..1). */
+  fit: number;
+  /** Its settings changed from the precedent's own (ranges.ts), when they were. */
+  variant?: { key: string; params: Params };
 }
 
 /** A lot as growth hands it over: its block, plots (indices and outlines), programme, building
@@ -56,10 +66,41 @@ export interface BlockTyping {
  *  its storey cap and the FSI its plot rules allow (Infinity without rules). */
 export interface LotIn { block: number; plots: number[]; rings: Line[]; programme: number; land: number; floor: number; road: number; cap: number; farCap: number }
 
-interface Option { k: number; family: number; precedent: string; own: number; n: number; gsi: number; fsi: number; tiles: number; climate: number; drift: Drift[]; score: number; tower: boolean }
+interface Option { k: number; family: number; precedent: string; own: number; n: number; gsi: number; fsi: number; tiles: number; climate: number; fit: number; drift: Drift[]; score: number; tower: boolean; variant?: { key: string; params: Params } }
+
+/** A precedent's variants at urban scale (B7): as built; shrunk to fit (fewest units in a row
+ *  and rows, so a lane too long for the lot fits); deeper units (depth at the top of its range,
+ *  for density). The full range search is one plot's (massing/precedent.ts); here a few fixed
+ *  variants keep typing fast enough to run for every design. */
+function variantsOf(seed: Params): { key: string; params: Params }[] {
+  const out: { key: string; params: Params }[] = [{ key: "own", params: seed }];
+  const uses = USES[seed.arrangement] ?? [];
+  const fit: Params = { ...seed };
+  for (const k of ["count", "rows"] as const) if (uses.includes(k)) fit[k] = rangeOf(seed, k)[0];
+  if (fit.count !== seed.count || fit.rows !== seed.rows) { delete fit.omit; out.push({ key: "fit", params: fit }); }
+  if (uses.includes("depth")) {
+    const deep: Params = { ...seed, depth: rangeOf(seed, "depth")[1] };
+    if (deep.depth > seed.depth + 0.5) out.push({ key: "deep", params: deep });
+  }
+  return out;
+}
+
+/** Candidates taken in turn from each family of arrangement, best answer first within each, so
+ *  the first CANDIDATES that fit hold courts, yards, rows and tall types alike: ranked by
+ *  challenge alone, the same few row houses lead on every site with similar challenges. */
+const FAMILY_ORDER = new WeakMap<Candidate[], Candidate[]>();
+function byFamily(cs: Candidate[]): Candidate[] {
+  let out = FAMILY_ORDER.get(cs);
+  if (out) return out;
+  const lists = FAMILIES.map((_, f) => cs.filter((c) => c.family === f));
+  out = [];
+  for (let k = 0; out.length < cs.length; k++) for (const l of lists) if (k < l.length) out.push(l[k]);
+  FAMILY_ORDER.set(cs, out);
+  return out;
+}
 
 /** Types for every lot with building land (null for the others). prefs: the four type genes
- *  (0..1); nodes: squares and centres; siteId: for the climate match. */
+ *  (0..1); nodes: squares and centres; siteId: for the site's climate challenges. */
 export function typeBlocks(lots: LotIn[], prefs: number[], nodes: Pt[], R: PlotRules | null, siteId: string): (BlockTyping | null)[] {
   const all = lots.map((lot) => {
     if (lot.land <= 0 || !lot.rings.length) return null;
@@ -77,33 +118,40 @@ export function typeBlocks(lots: LotIn[], prefs: number[], nodes: Pt[], R: PlotR
     const box = obb(hull), L = 2 * box.hl, W = 2 * box.hw, fill = Math.min(1, lot.land / (L * W || 1));
     const guesses: Option[] = [], feasible = new Set<number>();
     let fitted = 0;
-    for (const cand of candidatesFor(prog, siteId)) {
+    for (const cand of byFamily(candidatesFor(prog, siteId))) {
       if (fitted >= CANDIDATES) break;
       const tower = cand.p.seed.arrangement === "tower";
       if (tower && !atNode) continue;
       const lo = tower ? 2 : 1;
       let any = false;
-      for (let n = lo, hi = Math.min(top, maxStoreys(cand.p.seed)); n <= hi; n++) {
-        const b = built(cand.p, n), t = tiles(b.plot.w, b.plot.d, L, W);
-        if (!t) continue;
-        any = true;
-        const k = t.nU * t.nV * fill / lot.land, f = keepShare(b.footprint * k, b.floorArea * k, 1, caps[0], caps[1]);
-        guesses.push({ k: 0, family: cand.family, precedent: cand.p.id, own: cand.own, n, gsi: b.footprint * k * f, fsi: b.floorArea * k * f,
-          tiles: Math.max(1, Math.round(t.nU * t.nV * f)), climate: cand.climate, drift: [], score: 0, tower });
+      for (const v of tower ? [{ key: "own", params: cand.p.seed }] : variantsOf(cand.p.seed)) {
+        for (let n = lo, hi = Math.min(top, maxStoreys(v.params)); n <= hi; n++) {
+          const own = v.key === "own", b = own ? built(cand.p, n) : builtAs(cand.p, v.key, v.params, n).built, t = tiles(b.plot.w, b.plot.d, L, W);
+          if (!t) continue;
+          any = true;
+          const k = t.nU * t.nV * fill / lot.land, f = keepShare(b.footprint * k, b.floorArea * k, 1, caps[0], caps[1]);
+          guesses.push({ k: 0, family: cand.family, precedent: cand.p.id, own: cand.own, n, gsi: b.footprint * k * f, fsi: b.floorArea * k * f,
+            tiles: Math.max(1, Math.round(t.nU * t.nV * f)), climate: cand.climate, fit: cand.fit, drift: [], score: 0, tower,
+            ...(own ? {} : { variant: { key: v.key, params: builtAs(cand.p, v.key, v.params, n).params } }) });
+        }
       }
       if (any) { fitted++; feasible.add(cand.family); }
     }
     const scoreOf = (o: Option) => (prefs[o.family] ?? 0) + (o.family === 0 && wanted >= PRIOR_FSI ? PRIOR : 0)
-      - FIT * Math.abs(o.fsi - wanted) / Math.max(wanted, 0.05) - CLIMATE_W * o.climate - DRIFT_W * Math.abs(Math.log2(o.n / o.own));
+      - FIT * Math.abs(o.fsi - wanted) / Math.max(wanted, 0.05) - CHALLENGE_W * (1 - o.fit) - DRIFT_W * Math.abs(Math.log2(o.n / o.own))
+      - (o.variant ? VARIANT_W : 0);
     for (const o of guesses) o.score = scoreOf(o);
     // The best MEASURED of them (and the best tower) laid out on the plots and measured.
     const ranked = [...guesses].sort((x, y) => y.score - x.score || x.n - y.n);
     const pick = [...ranked.filter((o) => !o.tower).slice(0, MEASURED), ...ranked.filter((o) => o.tower).slice(0, 1)];
     const options: Option[] = [];
     for (const g of pick) {
-      const m = massLot({ block: lot.block, type: g.family, precedent: g.precedent, storeys: g.n, gsi: 0, fsi: 0, land: lot.land, cap: caps }, lot.rings, false);
+      const m = massLot({ block: lot.block, type: g.family, precedent: g.precedent, storeys: g.n, gsi: 0, fsi: 0, land: lot.land, cap: caps, ...(g.variant ? { variant: g.variant } : {}) }, lot.rings, false);
       if (m.fsi <= 0) continue;
-      const o: Option = { ...g, k: options.length, gsi: m.gsi, fsi: m.fsi, tiles: m.tiles, drift: variant(PRECEDENT.get(g.precedent)!.seed, g.n).drift };
+      // a layout too coarse to thin (one big tile) may still break the plot rules: left out
+      if ((caps[1] > 0 && m.fsi > caps[1] * (1 + OVER_CAP)) || (caps[0] > 0 && caps[0] < 1 && m.gsi > caps[0] * (1 + OVER_CAP))) continue;
+      const p = PRECEDENT.get(g.precedent)!;
+      const o: Option = { ...g, k: options.length, gsi: m.gsi, fsi: m.fsi, tiles: m.tiles, drift: g.variant ? builtAs(p, g.variant.key, variantsOf(p.seed).find((v) => v.key === g.variant!.key)!.params, g.n).drift : variant(p.seed, g.n).drift };
       o.score = scoreOf(o);
       options.push(o);
     }
@@ -120,9 +168,9 @@ export function typeBlocks(lots: LotIn[], prefs: number[], nodes: Pt[], R: PlotR
     }
     const lot = a.lot;
     const base = { block: lot.block, plots: lot.plots, programme: lot.programme, feasible: a.feasible, land: lot.land, wanted: a.wanted, cap: a.caps };
-    if (!best) return { ...base, type: -1, precedent: "", gsi: 0, storeys: 0, fsi: 0, climate: 0, drift: [], towers: 0 };
+    if (!best) return { ...base, type: -1, precedent: "", gsi: 0, storeys: 0, fsi: 0, climate: 0, fit: 0, drift: [], towers: 0 };
     return { ...base, type: best.family, precedent: best.precedent, gsi: best.gsi, storeys: best.n, fsi: best.fsi, climate: best.climate,
-      drift: best.drift, towers: best.tower ? best.tiles : 0 };
+      fit: best.fit, drift: best.drift, towers: best.tower ? best.tiles : 0, ...(best.variant ? { variant: best.variant } : {}) };
   };
   // At most MAX_TOWERS_SITE towers on the site: the lots furthest short of their density choose
   // first, while towers are left; then every other lot, with none.

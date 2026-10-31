@@ -329,10 +329,18 @@ chosen for its programme and the site's climate and taken to the density the gen
 - **A lot** is a block's building plots of one programme (`programme.ts`): a block's homes are
   one lot, a school in the same block another, so the school is built as a school.
 - **Candidates** are the library's building precedents for the programme (no ponds, terraces,
-  pits, canopies or houses on water), nearest the site's climate first (`typology/climate.ts`).
-  The library has no clinics and no treatment plants with buildings: health takes education's
-  and culture's precedents, sewage and waste take waste's and industry's (assumed). The first
-  `CANDIDATES` (8) whose tile fits the lot are tried.
+  pits, canopies or houses on water), best answer to the site's climate challenges first
+  (`typology/challenges.ts`; since 31 October, not nearest climate: user), taken in turn from
+  each family of arrangement so courts, yards, rows and tall types are all tried. The library
+  has no clinics and no treatment plants with buildings: health takes education's and culture's
+  precedents, sewage and waste take waste's and industry's (assumed). The first `CANDIDATES` (8)
+  whose tile fits the lot are tried.
+- **Variants** (B7, 31 October; `plan/ranges.ts`): each candidate is also tried shrunk to fit
+  (fewest units in a row and rows) and with deeper units (depth at the top of its range), at
+  every storey count; a variant costs `VARIANT_W` against the precedent as built. A measured
+  layout over its FAR or coverage cap by more than 10% (one tile too big to thin) is left out.
+  One plot's search (`massing/precedent.ts`) varies every setting; here three fixed variants keep
+  typing fast enough for every design.
 - **Laid out:** the precedent's seed is built by the grammar and its plot (with half its street)
   tiled over the oriented box of the lot's plots, turned where more tiles fit; each building is
   clipped to the plots, and a building with less than 60% of its footprint on the land is left
@@ -439,3 +447,23 @@ Figures from books go in as **assumed** with the secondary source named until a 
   Courtyards Which Live, 122 Building Fronts, 159 Light on Two Sides of Every Room
   (`docs/alexander.md`).
 - Daylight depth and room sizes: Bye-laws 2003, 20.1 and 20.11 (read, above).
+
+
+### Challenges, variants and families at urban scale (B7, 31 October)
+
+Types survey, 8 random version 3.1 designs a site (`npm run types-survey -- --n 8`), FSI given
+over typed land, before (nearest climate, as built) and after (challenge, variants, by family):
+
+| Site | FSI asked | Given before | Given after | Lots no precedent fits |
+|---|---|---|---|---|
+| Mumbai EWF | 2.01 | 1.21 | 1.43 | 4% to 1% |
+| Ahmedabad Wadaj | 2.28 | 1.44 | 1.61 | 2% to 1% |
+| Mumbai Docks | 1.66 | 1.09 | 1.26 | 4% to 0% |
+| Bengaluru cascade | 0.94 | 0.86 | 0.89 | 2% to 0% |
+| Guwahati Bharalu | 2.35 | 1.39 | 1.46 | 3% to 1% |
+
+Rows are chosen on 63-87% of lots (64-66% before); courts fell on the Ahmedabad sites (29% to
+8%). The precedents now come from farther climates (1.1-1.9 noticeable steps, from 0.5-0.9),
+and each site's homes lead with a few that answer heat, swing and monsoon well (Chettinad,
+pol, Hoi An, Golconde, Huizhou); Mumbai's chawl and Kumbharwada no longer lead. Open for the
+user: whether local precedents get a nudge. Typing takes 90-720 ms a plan (70-640 before).

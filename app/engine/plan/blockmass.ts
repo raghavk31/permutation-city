@@ -159,7 +159,7 @@ function nearRing(r: Line, [x, y]: Pt) {
 /** A lot's typing as massing reads it: its block, precedent, storeys, the coverage and FSI it
  *  gives, and the caps it was thinned to (coverage, FSI; 0 for none; without them, its own
  *  coverage and FSI). */
-export interface Typed { block: number; type: number; precedent: string; storeys: number; gsi: number; fsi: number; land: number; cap?: [number, number] }
+export interface Typed { block: number; type: number; precedent: string; storeys: number; gsi: number; fsi: number; land: number; cap?: [number, number]; variant?: { key: string; params: Params } }
 
 /** A piece of a laid-out precedent: g is its tile, the unit thinning leaves out whole; a
  *  building's outline with its courts and wells as holes; whole where the land left all of it. */
@@ -317,7 +317,7 @@ export const keepShare = (foot: number, floor: number, own: number, gsi: number,
 
 /** One lot's buildings. land: the lot's building plots. */
 export function massLot(t: Typed, land: Line[], exact = true): { masses: Mass[]; gsi: number; fsi: number; tiles: number } {
-  const lay = t.type >= 0 && land.length ? layLot(t.precedent, t.storeys, land, exact) : null;
+  const lay = t.type >= 0 && land.length ? layLot(t.precedent, t.storeys, land, exact, t.variant ? { params: t.variant.params, key: `${t.precedent}:${t.variant.key}:${t.storeys}` } : undefined) : null;
   if (!lay) return { masses: [], gsi: 0, fsi: 0, tiles: 0 };
   const own = prepared(land).own, [cg, cf] = t.cap ?? [t.gsi, t.fsi], f = keepShare(lay.foot, lay.floor, own, cg, cf);
   let keep = (_: number) => true;

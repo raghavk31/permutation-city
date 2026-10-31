@@ -1,5 +1,5 @@
 // Building type per lot (app/engine/plan/blocktypes.ts, precedents.ts): candidates by programme
-// and climate, a precedent's drift, the choice, the tower limit, and version 3.1 growth against
+// and climate challenge, a precedent's drift, the choice, the tower limit, and version 3.1 growth against
 // version 3.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -16,13 +16,14 @@ const rect = (x: number, w: number, l: number): Line => [[x, 0], [x + w, 0], [x 
 const F = (key: string) => FAMILIES.findIndex((f) => f.key === key);
 
 describe("candidates", () => {
-  it("lists a programme's building precedents, nearest the site's climate first", () => {
+  it("lists a programme's building precedents, best answer to the site's climate challenges first", () => {
     const c = candidatesFor("homes", "bengaluru-cascade");
     expect(c.length).toBeGreaterThan(20);
     expect(c.every((x) => x.p.programmes.includes("housing") && x.family >= 0)).toBe(true);
-    for (let k = 1; k < c.length; k++) expect(c[k].climate).toBeGreaterThanOrEqual(c[k - 1].climate);
-    // Bengaluru's own types come first: the vatara and Malleswaram's rows are in its climate
-    expect(c.slice(0, 4).map((x) => x.p.id)).toEqual(expect.arrayContaining(["vatara", "malleswaram"]));
+    for (let k = 1; k < c.length; k++) expect(c[k].fit).toBeLessThanOrEqual(c[k - 1].fit + 1e-12);
+    // not by climate likeness (user, 31 October): Ahmedabad's pol answers Bengaluru's heat and
+    // day-night swing as well as anything, though Ahmedabad is hotter and drier
+    expect(c.slice(0, 4).map((x) => x.p.id)).toContain("pol");
   });
   it("leaves out what holds no floor: ponds, terraces, pits, canopies, houses on water", () => {
     for (const prog of PROGRAMMES) for (const x of candidatesFor(prog, "bengaluru-cascade")) {
