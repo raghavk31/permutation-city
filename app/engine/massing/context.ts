@@ -1,5 +1,6 @@
 // What a building-scale run shares: the envelope, where the site is (for the sun), the sun each column
 // gets past the context (a CPPN input), and the representations' common interface.
+import type { PlotCandidate } from "./precedent.js";
 import type { Rng } from "../types.js";
 import type { Envelope } from "./envelope.js";
 import { probe, blocked, type Where } from "./scores.js";
@@ -17,6 +18,8 @@ export interface MassContext {
   typeWeights: number[] | null;
   /** NEAT innovation numbers for this run (cppn.ts). */
   innov: { conns: Map<string, number>; nodes: Map<number, number>; nextConn: number; nextNode: number };
+  /** One plot's precedents, best answer to the climate first (precedent.ts). */
+  candidates?: PlotCandidate[];
 }
 
 export function massContext(E: Envelope, where: Where, narrowWings = false, typeWeights: number[] | null = null): MassContext {
@@ -41,9 +44,11 @@ export interface Representation<G> {
   build(g: G, ctx: MassContext): Massing;
   /** 0 for identical genomes; about 1 for unrelated ones (families). */
   distance(a: G, b: G): number;
+  /** Genomes the first generation starts from (the rest random). */
+  seeds?(ctx: MassContext): G[];
 }
 
-export type RepKind = "typology" | "field" | "cppn";
+export type RepKind = "typology" | "field" | "cppn" | "precedent";
 
 export const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 

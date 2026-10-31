@@ -68,7 +68,7 @@ export function maxStoreys(s: Params): number {
   return Math.max(own, Math.min(Math.max(own + 1, Math.floor(STRETCH * own)), slender));
 }
 
-const isBuilding = (p: Precedent) => familyOf(p.seed.arrangement) >= 0 && p.seed.ground !== "water" && built(p, storeysOf(p.seed)).floorArea > 0;
+export const isBuilding = (p: Precedent) => familyOf(p.seed.arrangement) >= 0 && p.seed.ground !== "water" && built(p, storeysOf(p.seed)).floorArea > 0;
 
 const BY_SITE = new Map<string, Map<ProgrammeKey, Candidate[]>>();
 

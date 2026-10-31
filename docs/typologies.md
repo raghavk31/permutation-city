@@ -488,3 +488,27 @@ programmes it links. An objective in B.
 - Arts Illustrated, Laurie Baker. <https://artsillustrated.in/architecture/brick-by-brick/>
 - Harvard GSD, Natural Ventilation in the Work of Laurie Baker. <https://www.gsd.harvard.edu/project/natural-ventilation-in-the-work-of-laurie-baker-1>
 - ASHRAE 2018 Building Performance Analysis paper, India's climate zones (Bengaluru temperate). <https://www.ashrae.org/File%20Library/Conferences/Specialty%20Conferences/2018%20Building%20Performance%20Analysis%20Conference%20and%20SimBuild/Papers/C070.pdf>
+
+## Climate challenges
+
+Added 31 October 2026 (`app/engine/typology/challenges.ts`). For one plot, precedents are chosen
+by the climate challenges they answer, not by how alike their climate is (user, 31 October): a
+precedent from anywhere can teach a place about a problem they share.
+
+- **Challenges** are read from the monthly normals, each weighted 0 to 1 between two
+  thresholds (assumed, design judgement): hot days (hottest month's mean maximum 30 to 38 °C),
+  humid heat and dry heat (read month by month: a warm month's humidity 60 to 80%, a hot
+  month's 50 down to 30%), a day-night swing (8 to 14 °C), cold (coldest month's mean minimum
+  8 down to -8 °C), heavy rain (800 to 2000 mm), rain in one season (45 to 70% of the year's
+  rain in three months), little rain (600 down to 250 mm). The person can add floods or a water
+  shortage, or change a weight.
+- **Answers:** each challenge lists the mechanisms that answer it and those that work against
+  it (evaporative cooling and compact, closed forms in humid heat; open skins in the cold).
+  Each answering mechanism a precedent has answers half of what is left of the challenge (one
+  1/2, two 3/4); each one against costs a quarter of its weight.
+- **Bias to know:** a precedent with more mechanisms written down scores higher; mechanisms
+  are tagged, not measured.
+
+Bengaluru (Haralur cascade) reads as hot days 0.67, day-night swing 0.65, dry heat 0.20, humid
+heat 0.15, rain in one season 0.12. Its best-answering houses: pol, Huizhou, Straits shophouse,
+Oaxaca patio house, Chettinad. Mumbai's: Chettinad, Malnad house, nalukettu, Hoi An.

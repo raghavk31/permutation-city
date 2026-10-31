@@ -3,6 +3,8 @@
 import { describe, expect, it } from "vitest";
 import * as M from "../../app/engine/massing";
 import { floorArea } from "../../app/engine/massing/voxels";
+import { CLIMATE } from "../../app/engine/typology/climate";
+import { area } from "../../app/engine/plan/geom";
 
 const BENGALURU: M.Where = { lat: 12.97, lon: 77.59, utc: 5.5 };
 
@@ -55,5 +57,40 @@ describe("plot envelope", () => {
       expect(floorArea(E, ind.massing.occ)).toBe(ind.floor);
     }
     expect(Math.min(...run.front.map((p) => p.scores.gap))).toBeLessThan(0.5);
+  });
+});
+
+describe("precedents on one plot", () => {
+  const normals = CLIMATE.places["site:bengaluru-cascade"];
+  const spec: M.PlotSpec = { ...M.rectPlot(48, 36, 0, 12), storeys: 5, target: 48 * 36 * 1.0, setbacks: { front: 3, side: 1.5, rear: 3 } };
+  const E = M.plotEnvelope(spec);
+
+  it("lays out the buildable land inside the setbacks", () => {
+    const a = E.land!.reduce((s, r) => s + Math.abs(area(r)), 0);
+    expect(a).toBeCloseTo((48 - 3) * (36 - 6), -1);
+  });
+
+  it("chooses candidates by the challenges they answer", () => {
+    const { needs, candidates } = M.plotChoices({ programme: "homes", normals }, E.land!, 5);
+    expect(needs.map((n) => n.key)).toContain("heat");
+    expect(candidates.length).toBeGreaterThan(2);
+    expect(candidates.length).toBeLessThanOrEqual(M.PLOT_CANDIDATES);
+    for (let k = 1; k < candidates.length; k++) expect(candidates[k].answer.fit).toBeLessThanOrEqual(candidates[k - 1].answer.fit + 1e-9);
+  });
+
+  it("breeds precedent variants that stay on the plot and keep their source", () => {
+    const { candidates } = M.plotChoices({ programme: "homes", normals }, E.land!, 5);
+    const ctx = { ...M.massContext(E, BENGALURU), candidates };
+    const run = M.evolveMassing(ctx, { kind: "precedent", population: 24, generations: 6, seed: 3 });
+    expect(run.front.length).toBeGreaterThan(0);
+    const N = E.nx * E.ny;
+    for (const ind of run.pop) {
+      if (ind.massing.rejected) continue;
+      expect(ind.massing.source?.precedent).toBeTruthy();
+      for (let v = 0; v < ind.massing.occ.length; v++) if (ind.massing.occ[v]) expect(E.plotOf[v % N]).toBe(0);
+    }
+    // the front reaches near the floor wanted
+    expect(Math.min(...run.front.map((p) => p.scores.gap))).toBeLessThan(0.1);
+
   });
 });

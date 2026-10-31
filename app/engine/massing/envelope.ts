@@ -59,6 +59,9 @@ export interface Envelope {
   setbacks: Setbacks;
   target: number;         // m², all plots
   note: string[];
+  /** The buildable land as outlines, inside the setbacks (one plot from an outline: plot.ts),
+   *  for representations that lay out precedents by geometry rather than columns. */
+  land?: [number, number][][];
 }
 
 /** Point to segment distance. */

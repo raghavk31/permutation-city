@@ -14,6 +14,7 @@
 // The result is the same Envelope the block massing uses (envelope.ts), with one plot, no
 // design cells (cellOf -1) and an empty design context, so every representation, score and
 // readout runs on it unchanged.
+import { subtract, type Poly } from "../plan/clipper.js";
 import { DEFAULT_SETBACKS, MARGIN_M, RES_M, WATER_REACH_M, type Envelope, type Plot, type Setbacks } from "./envelope.js";
 
 type Pt = [number, number];
@@ -138,6 +139,23 @@ export function plotEnvelope(spec: PlotSpec): Envelope {
     capLevels: cap, maxCover: Math.min(1, Math.max(0, spec.maxCover ?? 1)), area, buildable: m * res * res,
     target: spec.target, frontage: [...streetOf.keys()].reduce((s, k) => s + len(k), 0),
   };
+  // The buildable land as outlines: the plot less a band along each side as deep as its
+  // setback (any simple outline, convex or not).
+  const ccw = ring.reduce((t, [x, y], i) => { const [u, v] = ring[(i + 1) % n]; return t + x * v - u * y; }, 0) > 0;
+  const bands: Poly[] = [];
+  for (let k = 0; k < n; k++) {
+    const d = back(k);
+    if (!(d > 0)) continue;
+    const [p, q] = sideVec(k), L = len(k) || 1, ux = (q[0] - p[0]) / L, uy = (q[1] - p[1]) / L;
+    // inward normal; the band runs the side's length (at a corner the next side's band covers
+    // the rest) and a metre outside
+    const [nxv, nyv] = ccw ? [-uy, ux] : [uy, -ux], e = 0;
+    const at = (s: number, t: number): Pt => [p[0] + ux * s + nxv * t, p[1] + uy * s + nyv * t];
+    bands.push({ outer: [at(-e, -1), at(L + e, -1), at(L + e, d), at(-e, d)], holes: [] });
+  }
+  const outer = ccw ? ring : [...ring].reverse();
+  const land = bands.length ? subtract([{ outer, holes: [] }], bands) : [{ outer, holes: [] }];
+
   const note: string[] = [];
   if (!streetOf.size) note.push("no side faces a street: the plot's axis follows its longest side");
   if (!m) note.push("no room inside the setbacks");
@@ -146,6 +164,7 @@ export function plotEnvelope(spec: PlotSpec): Envelope {
   return {
     block: 0, cells: [], plots: [plot], ox, oy, nx, ny, nz: Math.max(1, cap), res, cellOf, plotOf, inPlot, capZ, street, publicGround,
     context, existing, neighbours, water, setbacks, target: spec.target, note,
+    land: land.filter((pg) => !pg.holes.length).map((pg) => pg.outer),
   };
 }
 
