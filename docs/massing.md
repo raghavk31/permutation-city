@@ -413,3 +413,13 @@ their courts, trees, ponds on the ground, a 15 April afternoon sun) with what mo
 genes and six scores, and every distinct design as a card drawn in the library's isometric
 style. `/build?run` starts a search with the defaults. A quick search (24 x 8) takes about 2 s.
 Places are those with climate data until B6.
+
+### Climate for any place (B6, 31 October)
+
+`app/engine/typology/climatefetch.ts`. On the /build page, "Any point" takes a latitude and
+longitude (`/build?at=13.08,80.27` sets it). Its monthly normals come from NASA POWER's
+climatology API, called from the browser (it allows it), with the same parameters and
+conversion as `pc/typology_climate.py`, so a point and a library place are read alike; the
+answer is remembered in the browser. When NASA POWER doesn't answer within 60 s, the nearest
+place in `climate.json` stands in and the page says which and how far. Tested against a recorded
+answer (`test/fixtures/nasa-power-bengaluru.json`), which matches the Bengaluru site's normals.

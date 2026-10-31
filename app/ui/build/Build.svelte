@@ -6,6 +6,7 @@
   import * as Comlink from "comlink";
   import { onDestroy, onMount } from "svelte";
   import { CLIMATE, type Normals } from "../../engine/typology/climate";
+  import { climateAt, type PlaceClimate } from "../../engine/typology/climatefetch";
   import { CHALLENGES, type Challenge } from "../../engine/typology/challenges";
   import { LIBRARY } from "../../engine/typology/library";
   import { PROGRAMMES, PROGRAMME_LABELS, type ProgrammeKey } from "../../engine/plan/programme";
@@ -29,6 +30,22 @@
 
   // The form (defaults: a Bengaluru plot of homes).
   let place = $state("site:bengaluru-cascade");
+  let where = $state<"known" | "point">("known"), point = $state("12.97, 77.59");
+  let climate = $state<{ note: string } | null>(null), fetching = $state(false);
+  const parsed = $derived.by(() => {
+    const m = point.match(/(-?\d+(?:\.\d+)?)\s*[,\s]\s*(-?\d+(?:\.\d+)?)/);
+    if (!m) return null;
+    const lat = +m[1], lon = +m[2];
+    return Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? { lat, lon } : null;
+  });
+  /** A point's climate: remembered in this browser, else fetched (climatefetch.ts). */
+  async function pointClimate(lat: number, lon: number): Promise<PlaceClimate> {
+    const key = `pc-climate:${lat.toFixed(2)},${lon.toFixed(2)}`;
+    try { const hit = localStorage.getItem(key); if (hit) return JSON.parse(hit); } catch { /* storage blocked: fetch */ }
+    const c = await climateAt(lon, lat);
+    if (c.from === "power") try { localStorage.setItem(key, JSON.stringify(c)); } catch { /* not remembered */ }
+    return c;
+  }
   let width = $state(48), depth = $state(36), side = $state<(typeof SIDES)[number]["k"]>("south"), streetW = $state(12);
   let storeys = $state(5), fsi = $state(1.0), front = $state(3), sideSet = $state(1.5), rear = $state(3);
   let programme = $state<ProgrammeKey>("homes");
@@ -43,28 +60,45 @@
 
   let running = $state(false), progress = $state(0), error = $state("");
   let result = $state<PlotResult | null>(null);
-  let shown = $state<{ spec: PlotSpec; E: ReturnType<typeof plotEnvelope> } | null>(null);
+  let shown = $state<{ spec: PlotSpec; E: ReturnType<typeof plotEnvelope>; lat: number } | null>(null);
   let open = $state<PlotDesign | null>(null);
 
   let raw: Worker | null = null, api: Comlink.Remote<PlotWorker> | null = null;
   function stop() { raw?.terminate(); raw = null; api = null; running = false; }
   onDestroy(() => { stop(); viewer?.dispose(); });
   // /build?run starts a search with the defaults (a link that shows results)
-  onMount(() => { if (new URLSearchParams(location.search).has("run")) run(); });
+  // and /build?at=12.97,77.59 sets the point
+  onMount(() => {
+    const q = new URLSearchParams(location.search), at = q.get("at");
+    if (at) { where = "point"; point = at; }
+    if (q.has("run")) run();
+  });
 
   async function run() {
     stop();
     raw = new Worker(new URL("../../engine/massing/plotworker.ts", import.meta.url), { type: "module" });
     api = Comlink.wrap<PlotWorker>(raw);
     running = true; progress = 0; error = ""; open = null;
-    const [lon, lat] = normals.at, utc = lon >= 68 && lon <= 97.5 && lat >= 6 && lat <= 37.5 ? 5.5 : Math.round(lon / 15);
+    let n = $state.snapshot(normals) as Normals, lon = n.at[0], lat = n.at[1];
+    climate = { note: `Climate of ${PLACES.find((p) => p.id === place)?.name ?? place} (NASA POWER, as the library).` };
+    if (where === "point") {
+      if (!parsed) { error = "Type the point as latitude, longitude (for example 12.97, 77.59)."; running = false; return; }
+      ({ lat, lon } = parsed);
+      fetching = true;
+      const c = await pointClimate(lat, lon);
+      fetching = false;
+      if (!running) return;
+      n = c.normals;
+      climate = { note: c.from === "power" ? `${c.note.replace("this point", `${lat.toFixed(3)}, ${lon.toFixed(3)}`)}` : `${c.note} (${PLACES.find((p) => p.id === c.near!.id)?.name ?? c.near!.id})` };
+    }
+    const utc = lon >= 68 && lon <= 97.5 && lat >= 6 && lat <= 37.5 ? 5.5 : Math.round(lon / 15);
     const extra: Partial<Record<Challenge, number>> = { ...(floods ? { flood: 1 } : {}), ...(short ? { "water-short": 1 } : {}) };
     const s = $state.snapshot(spec) as PlotSpec;
     const opts = size === "quick" ? { population: 24, generations: 8, seed: 1 } : { population: 40, generations: 16, seed: 1 };
     try {
-      const r = await api.run(s, { lat, lon, utc }, { programme, normals: $state.snapshot(normals) as Normals, extra }, opts,
+      const r = await api!.run(s, { lat, lon, utc }, { programme, normals: n, extra }, opts,
         Comlink.proxy((gen: number, of: number) => { progress = gen / of; }));
-      result = r; shown = { spec: s, E: plotEnvelope(s) };
+      result = r; shown = { spec: s, E: plotEnvelope(s), lat };
       open = r.designs[0] ?? null;
     } catch (e) { error = String(e); }
     running = false; raw?.terminate(); raw = null; api = null;
@@ -87,7 +121,7 @@
       }, framed === sh.spec);
       framed = sh.spec;
       // a hot-season afternoon sun (15 April, 15:00 solar time), as the shade scores read it
-      const sun = sunAt(normals.at[1], dayOfYear(4, 15), 15);
+      const sun = sunAt(sh.lat, dayOfYear(4, 15), 15);
       viewer.sun(sun.altitude > 0 ? sun.dir : null);
     })();
   });
@@ -130,12 +164,23 @@
     <form class="bd-form" onsubmit={(e) => { e.preventDefault(); run(); }}>
       <fieldset>
         <legend class="wb-label">Place</legend>
-        <label class="wb-field"><span class="wb-field-label">Climate from</span>
-          <select class="wb-select" bind:value={place}>
-            {#each PLACES as p (p.id)}<option value={p.id}>{p.name}</option>{/each}
-          </select>
-        </label>
-        <p class="bd-hint">Places with climate data: the sites and the library's places. Any place comes next.</p>
+        <div class="wb-seg" role="group" aria-label="Place">
+          <button type="button" aria-pressed={where === "known"} onclick={() => (where = "known")}>A known place</button>
+          <button type="button" aria-pressed={where === "point"} onclick={() => (where = "point")}>Any point</button>
+        </div>
+        {#if where === "known"}
+          <label class="wb-field"><span class="wb-field-label">Climate from</span>
+            <select class="wb-select" bind:value={place}>
+              {#each PLACES as p (p.id)}<option value={p.id}>{p.name}</option>{/each}
+            </select>
+          </label>
+          <p class="bd-hint">The sites and the library's places, with their climate already read.</p>
+        {:else}
+          <label class="wb-field"><span class="wb-field-label">Latitude, longitude</span>
+            <input class="wb-input" type="text" inputmode="decimal" placeholder="12.97, 77.59" bind:value={point} aria-invalid={!parsed}>
+          </label>
+          <p class="bd-hint">Paste it from any map. Its climate comes from NASA POWER, the library's source; if that doesn't answer, from the nearest known place.</p>
+        {/if}
       </fieldset>
 
       <fieldset>
@@ -186,6 +231,7 @@
           <button type="submit" class="wb-btn is-primary">Find buildings</button>
         {/if}
       </div>
+      {#if fetching}<p class="bd-hint">Fetching the climate for this point…</p>{/if}
       {#if running}<div class="bd-progress" role="progressbar" aria-valuenow={Math.round(progress * 100)} aria-valuemin="0" aria-valuemax="100"><span style="width: {progress * 100}%"></span></div>{/if}
       {#if error}<p class="bd-error">{error}</p>{/if}
     </form>
@@ -198,6 +244,7 @@
       {:else}
         <div class="bd-asks">
           <h2 class="wb-label">What this climate asks</h2>
+          {#if climate}<p class="bd-note">{climate.note}</p>{/if}
           <ul class="bd-needs">
             {#each result.needs as n (n.key)}
               <li><span class="bd-bar"><span style="width: {n.weight * 100}%"></span></span><strong>{CHALLENGES[n.key]}</strong> <span class="ty-muted">{n.why}</span></li>
