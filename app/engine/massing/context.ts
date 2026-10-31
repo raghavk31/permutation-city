@@ -1,6 +1,8 @@
 // What a building-scale run shares: the envelope, where the site is (for the sun), the sun each column
 // gets past the context (a CPPN input), and the representations' common interface.
 import type { PlotCandidate } from "./precedent.js";
+import type { Need } from "../typology/challenges.js";
+import type { Objective } from "../rank.js";
 import type { Rng } from "../types.js";
 import type { Envelope } from "./envelope.js";
 import { probe, blocked, type Where } from "./scores.js";
@@ -26,6 +28,12 @@ export interface MassContext {
   hybrids?: boolean;
   /** Genomes the first generation starts from, before the representation's own seeds. */
   start?: unknown[];
+  /** The climate's challenges (one plot's search). */
+  needs?: Need[];
+  /** Scores beyond the five (one plot's: plotnature.ts), merged into each massing's scores. */
+  extra?: (m: Massing) => Record<string, number>;
+  /** The objectives ranked on, when not MASS_OBJECTIVES. */
+  objectives?: Objective[];
 }
 
 export function massContext(E: Envelope, where: Where, narrowWings = false, typeWeights: number[] | null = null): MassContext {

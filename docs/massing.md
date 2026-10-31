@@ -370,3 +370,33 @@ columns, repaired and scored like the rest.
 On a 48 x 36 m Bengaluru plot, FSI 1.5 at five storeys: single precedents (pol, tube house,
 merchant house) come within 4-9% without hybrids; before the ranges the best was 25% short.
 FSI 2.6 turns hybrids on. A search of 32 designs over 10 generations takes about 2 s.
+
+### Nature's rules on one plot (B4, 31 October)
+
+`plotnature.ts`. Five of the genes from `typology/nature.ts` act inside one plot, as precedent
+genes 14-18: pond or wetland share of the plot (0-15%), canopy share of the open ground
+(0-60%), planted roofs (0-100%), eave depth (0-2.5 m), façade openness (5-60%). Ponds in
+series, stream bands and the other site genes wait for the site scale (B7).
+
+- **Where:** ponds where the open ground is widest (farthest from the buildings), then
+  farthest from the street; trees on the rest, nearest the buildings (courts and lanes
+  first). On a plot the buildings nearly fill, the widest ground left is the setback strip,
+  so the ponds run along the boundary as a swale.
+- **Scores** (higher is better; stand-ins until checked against models):
+  - *rain held*: share of a 75 mm storm held on the plot; run-off coefficients roof 0.9,
+    planted roof 0.5, open ground 0.4, under trees 0.25 (assumed, rational-method tables);
+    roofs and ground drain to the ponds, which store 0.6 m deep.
+  - *plot shade*: share of the plot's open ground in shade in the hot hours, from buildings
+    and from crowns 8 m high that stop 75% of the sun.
+  - *climate fit*: eave depth and openness against the ideal ranges of the place's challenges
+    (`IDEAL`: deep and open for humid heat, fine and closed for dry heat and cold). A rule,
+    not a thermal model.
+- **Objectives:** the plot search ranks on street shade, sky view, frontal area, rain held,
+  plot shade and climate fit; winter sun only where cold matters (weight over 0.3), sun taken
+  only when there are neighbours. Eight at once leave nearly every design undominated.
+- **Starting designs:** a candidate too big for the plot as it is starts shrunk (fewest units
+  and rows, then smallest units) so the first generation doesn't waste a place.
+
+On the 48 x 36 m Bengaluru plot at FSI 1.0, the front trades rain held (36% for a bare tube
+house terrace, 100% with ponds and planted roofs) against plot shade (19-50%) and climate fit
+(38-90%).

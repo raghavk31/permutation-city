@@ -115,10 +115,15 @@ describe("one plot's search: ranges, placement, hybrids", () => {
   });
 
   it("allows hybrids only when no single precedent reaches the floor wanted", () => {
-    const S = M.searchPlot(at(2.6), BENGALURU, { programme: "homes", normals }, { population: 24, generations: 6, seed: 3 });
+    const S = M.searchPlot(at(3.5), BENGALURU, { programme: "homes", normals }, { population: 24, generations: 6, seed: 3 });
     expect(S.hybrids).toBe(true);
     expect(S.note.join(" ")).toMatch(/hybrids allowed/);
-    expect(S.run.pop.some((p) => p.massing.source?.donor)).toBe(true);
+    // a hybrid builds as one precedent's arrangement with another's units
+    const E = at(3.5), ctx = { ...M.massContext(E, BENGALURU), candidates: S.candidates, front: M.frontOf(E), hybrids: true };
+    const g = new Array(19).fill(0.5); g[0] = 0.5 / S.candidates.length; g[12] = 1; g[13] = 0.99;
+    const src = M.precedent.build(g, ctx).source!;
+    expect(src.donor).toBe(S.candidates[S.candidates.length - 1].p.id);
+    expect(src.drift[0].what === "units" || src.drift[1].what === "units").toBe(true);
   });
 
   it("moves the buildings toward the street or away from it", () => {
@@ -129,11 +134,62 @@ describe("one plot's search: ranges, placement, hybrids", () => {
     const k = candidates.findIndex((c) => c.p.id === "casa-de-patio");
     expect(k).toBeGreaterThanOrEqual(0);
     const mid = (v: number) => {
-      const g = new Array(14).fill(0.5); g[0] = (k + 0.5) / candidates.length; g[1] = 0; g[2] = 1; g[4] = v; g[8] = 0;
+      const g = new Array(19).fill(0.5); g[0] = (k + 0.5) / candidates.length; g[1] = 0; g[2] = 1; g[4] = v; g[8] = 0;
       const m = M.precedent.build(g, ctx).source!.masses;
       return m.reduce((s, x) => s + x.ring.reduce((t, p) => t + p[1], 0) / x.ring.length, 0) / m.length;
     };
     // the street is on the south side (y < 0): against it the buildings sit lower in y
     expect(mid(0)).toBeLessThan(mid(1) - 2);
+  });
+});
+
+describe("nature's rules on one plot", () => {
+  const normals = CLIMATE.places["site:bengaluru-cascade"];
+  const E = M.plotEnvelope({ ...M.rectPlot(48, 36, 0, 12), storeys: 5, target: 1728, setbacks: { front: 3, side: 1.5, rear: 3 } });
+  const { needs, candidates } = M.plotChoices({ programme: "homes", normals }, E.land!, 5);
+  const ctx = { ...M.massContext(E, BENGALURU), candidates, front: M.frontOf(E), needs };
+  const with_ = (over: Record<number, number>) => {
+    const g = M.ownGenes(ctx, 0);
+    for (const [k, v] of Object.entries(over)) g[+k] = v;
+    const m = M.precedent.build(g, ctx);
+    expect(m.rejected).toBeNull();
+    return { m, s: M.plotScores(E, m.occ, m.source!.nature!, needs, BENGALURU) };
+  };
+
+  it("holds more rain with ponds and planted roofs", () => {
+    const bare = with_({}).s.rain, ponds = with_({ 14: 1 }).s.rain, roofs = with_({ 16: 1 }).s.rain;
+    expect(ponds).toBeGreaterThan(bare + 0.05);
+    expect(roofs).toBeGreaterThan(bare);
+    expect(ponds).toBeLessThanOrEqual(1);
+  });
+
+  it("shades more of the plot with trees", () => {
+    expect(with_({ 15: 1 }).s.plotShade).toBeGreaterThan(with_({}).s.plotShade + 0.1);
+  });
+
+  it("puts ponds at the back and trees by the buildings", () => {
+    const { m } = with_({ 14: 1, 15: 0.5 }), n = m.source!.nature!, f = M.frontOf(E)!;
+    const y = (q: number) => E.oy + (Math.floor(q / E.nx) + 0.5) * E.res;
+    const mean = (a: Int32Array) => a.reduce((s, q) => s + y(q), 0) / a.length;
+    expect(mean(n.water)).toBeGreaterThan(mean(n.trees));
+    expect(f[1]).toBeLessThan(0);
+  });
+
+  it("scores eaves and openings by the climate", () => {
+    // Bengaluru: hot days, a dry spell, some humid heat; deep eaves and middling openness suit
+    expect(M.climateFit({ eave: 1.5, porosity: 0.25 }, needs)).toBeGreaterThan(M.climateFit({ eave: 0, porosity: 0.6 }, needs));
+    const cold = [{ key: "cold" as const, weight: 1, why: "" }];
+    expect(M.climateFit({ eave: 0.3, porosity: 0.1 }, cold)).toBe(1);
+    expect(M.climateFit({ eave: 2, porosity: 0.5 }, cold)).toBeLessThan(0.3);
+  });
+
+  it("ranks the plot search on its own scores", () => {
+    const S = M.searchPlot(E, BENGALURU, { programme: "homes", normals }, { population: 24, generations: 6, seed: 4 });
+    expect(S.objectives.map(([k]) => k)).toEqual(["shade", "sky", "wind", "rain", "plotShade", "fit"]);
+    const front = S.run.front.filter((p) => !p.massing.rejected);
+    expect(front.length).toBeGreaterThan(0);
+    for (const p of front) for (const k of ["rain", "plotShade", "fit"]) expect(Number.isFinite((p.scores as unknown as Record<string, number>)[k])).toBe(true);
+    // the front holds more rain than the precedents as they came (no ponds, no planted roofs)
+    expect(Math.max(...front.map((p) => (p.scores as unknown as Record<string, number>).rain))).toBeGreaterThan(0.6);
   });
 });

@@ -28,6 +28,8 @@
 //    4 back      how far from the street   11 gap      between free-standing units
 //    5 width     a unit's width            12 hybrid   on above 0.5 (hybrid runs only)
 //    6 depth     a unit's depth            13 donor    whose units
+//   14-18        nature's rules on the plot: water, canopy, planted roofs, eave, openness
+//                (plotnature.ts)
 import { STOREY_M } from "../config.js";
 import { layLot, type Mass } from "../plan/blockmass.js";
 import type { Line, Pt } from "../plan/geom.js";
@@ -42,11 +44,12 @@ import type { Precedent } from "../typology/types.js";
 import type { Rng } from "../types.js";
 import { clamp01, jiggle, vecDistance, type MassContext, type Representation } from "./context.js";
 import type { Envelope } from "./envelope.js";
+import { natureGeneValues, placeNature, type PlotNature } from "./plotnature.js";
 import { repair, type Massing } from "./voxels.js";
 
 export const CANDIDATES = 8;
 export const KEEP_MIN = 0.4;
-export const GENES = 14;
+export const GENES = 19;
 /** A setting may move from RANGE[0] to RANGE[1] times its own value (assumed). */
 export const RANGE: [number, number] = [0.6, 1.6];
 
@@ -137,7 +140,7 @@ export function plotChoices(brief: PlotBrief, land: Line[], cap: number): { need
 export interface Change { what: Setting | "storeys" | "units"; from: number | string; to: number | string }
 
 /** What a precedent massing came from: kept with the massing for the readout and the viewer. */
-export interface Source { precedent: string; storeys: number; own: number; keep: number; drift: Change[]; donor?: string; params: Params; masses: Mass[] }
+export interface Source { precedent: string; storeys: number; own: number; keep: number; drift: Change[]; donor?: string; params: Params; masses: Mass[]; nature?: PlotNature }
 
 const lerp = ([lo, hi]: [number, number], x: number, int: boolean) => { const v = lo + clamp01(x) * (hi - lo); return int ? Math.round(v) : Math.round(v * 2) / 2; };
 const unlerp = ([lo, hi]: [number, number], v: number) => (hi > lo ? clamp01((v - lo) / (hi - lo)) : 0.5);
@@ -167,12 +170,24 @@ export function decode(ctx: MassContext, g: number[]) {
   return { c, k, n, keep: KEEP_MIN + (1 - KEEP_MIN) * clamp01(g[2]), place: [clamp01(g[3]), clamp01(g[4])] as [number, number], params, drift, hybrid };
 }
 
+const settingsKey = (p: Params) => SETTINGS.map((k) => p[k] ?? "-").join(",");
+
 /** The genes that give a candidate as it is: own settings, own height (or its cap), all its
- *  buildings, centred along the street and against it. */
+ *  buildings, centred along the street and against it; shrunk where it doesn't fit as it is. */
 export function ownGenes(ctx: MassContext, k: number): number[] {
   const cs = ctx.candidates ?? [], c = cs[k], n = Math.min(c.own, c.max), g = new Array(GENES).fill(0.5);
   g[0] = (k + 0.5) / cs.length; g[1] = c.max > 1 ? (n - 1) / (c.max - 1) : 0; g[2] = 1; g[4] = 0; g[12] = 0;
   for (const s of c.uses) g[5 + SETTINGS.indexOf(s)] = unlerp(rangeOf(c.p.seed, s), valueOf(c.p.seed, s));
+  // no ponds, trees or planted roofs of its own; its own eave and openness (or plain ones)
+  natureGeneValues({ water: 0, canopy: 0, green: 0, eave: c.p.seed.eave ?? 0.6, porosity: c.p.seed.porosity ?? 0.2 }).forEach((v, i) => { g[14 + i] = v; });
+  // too big for the plot as it is: its units in a row and rows at their fewest, then its units
+  // at their smallest, until it lays
+  const land = ctx.E.land ?? [];
+  const lays = () => { const d = decode(ctx, g); return !!layLot(c.p.id, d.n, land, false, { params: d.params, key: `${c.p.id}:${settingsKey(d.params)}:${d.n}` }); };
+  for (const shrink of [["count", "rows"], ["width", "depth", "street"]] as Setting[][]) {
+    if (!land.length || lays()) break;
+    for (const s of shrink) if (c.uses.includes(s)) g[5 + SETTINGS.indexOf(s)] = 0;
+  }
   return g;
 }
 
@@ -195,7 +210,6 @@ export function rasterize(E: Envelope, masses: Mass[]): Uint8Array {
   return occ;
 }
 
-const settingsKey = (p: Params) => SETTINGS.map((k) => p[k] ?? "-").join(",");
 
 export const precedent: Representation<number[]> = {
   kind: "precedent",
@@ -234,7 +248,8 @@ export const precedent: Representation<number[]> = {
     }
     const occ = rasterize(E, masses);
     const repairs = repair(E, occ);
-    const source: Source = { precedent: d.c.p.id, storeys: d.n, own: d.c.own, keep: d.keep, drift: d.drift, ...(d.hybrid ? { donor: d.hybrid.p.id } : {}), params: d.params, masses };
+    const nature = placeNature(E, occ, g, ctx.front);
+    const source: Source = { precedent: d.c.p.id, storeys: d.n, own: d.c.own, keep: d.keep, drift: d.drift, ...(d.hybrid ? { donor: d.hybrid.p.id } : {}), params: d.params, masses, nature };
     return { occ, repairs, rejected: masses.length ? null : `${d.c.p.name} does not fit at ${d.n} storeys with these settings`, source };
   },
   distance: (a, b) => vecDistance(a, b),

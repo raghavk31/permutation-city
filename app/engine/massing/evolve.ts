@@ -38,15 +38,15 @@ export interface MassOptions {
 
 const asScores = (s: MassScores) => s as unknown as Scores;
 
-function rankAll(pop: MassIndividual[]): Float64Array {
+function rankAll(pop: MassIndividual[], objectives: Objective[] = MASS_OBJECTIVES): Float64Array {
   const s = pop.map((p) => (p.massing.rejected ? { ...p.scores, gap: Infinity } : p.scores));
-  const r = paretoRanks(s.map(asScores), undefined, MASS_OBJECTIVES);
+  const r = paretoRanks(s.map(asScores), undefined, objectives);
   pop.forEach((p, i) => { p.rank = r[i]; });
   const crowd = new Float64Array(pop.length);
   const byRank = new Map<number, number[]>();
   pop.forEach((p, i) => { if (!byRank.has(p.rank)) byRank.set(p.rank, []); byRank.get(p.rank)!.push(i); });
   for (const idx of byRank.values()) {
-    const d = crowding(s.map(asScores), idx, MASS_OBJECTIVES);
+    const d = crowding(s.map(asScores), idx, objectives);
     idx.forEach((i, k) => { crowd[i] = d[k]; });
   }
   return crowd;
@@ -68,13 +68,14 @@ export function evolveMassing(ctx: MassContext, opts: MassOptions): MassRun {
   let count = 0;
   const make = (genome: unknown, parents: string[], gen: number): MassIndividual => {
     const massing = rep.build(genome, ctx);
-    const scores = massScores(ctx.E, massing.occ, ctx.where);
+    const scores = { ...massScores(ctx.E, massing.occ, ctx.where), ...(ctx.extra?.(massing) ?? {}) } as MassScores;
     count++;
     return { name: `M${gen}.${count}`, genome, parents, massing, scores, floor: floorArea(ctx.E, massing.occ), rank: 0 };
   };
   const seeds = [...(ctx.start ?? []), ...(rep.seeds?.(ctx) ?? [])].slice(0, P);
   let pop = [...seeds.map((g) => make(g, [], 0)), ...Array.from({ length: P - seeds.length }, () => make(rep.random(rng, ctx), [], 0))];
-  let crowd = rankAll(pop);
+  const objs = ctx.objectives ?? MASS_OBJECTIVES;
+  let crowd = rankAll(pop, objs);
   const run: MassRun = { kind: opts.kind, pop, front: [], history: [], everyone: count, ms: 0 };
   const record = (gen: number) => {
     const valid = pop.filter((p) => !p.massing.rejected);
@@ -105,12 +106,12 @@ export function evolveMassing(ctx: MassContext, opts: MassOptions): MassRun {
     // Survivors: best ranks first, then the least crowded within the last rank that fits; an
     // exact copy of a massing already kept waits until every distinct one has a place, so the
     // population can't fill with one design.
-    const all = [...pop, ...kids], c = rankAll(all);
+    const all = [...pop, ...kids], c = rankAll(all, objs);
     const order = all.map((_, i) => i).sort((i, j) => all[i].rank - all[j].rank || c[j] - c[i] || i - j);
     const seen = new Set<number>(), first: number[] = [], copies: number[] = [];
     for (const i of order) { const h = occHash(all[i].massing.occ); (seen.has(h) ? copies : first).push(i); seen.add(h); }
     pop = [...first, ...copies].slice(0, P).map((i) => all[i]);
-    crowd = rankAll(pop);
+    crowd = rankAll(pop, objs);
     run.pop = pop;
     record(gen);
     opts.onGeneration?.(gen, run);
