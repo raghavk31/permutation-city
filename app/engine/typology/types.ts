@@ -48,6 +48,10 @@ export const MECHANISMS = {
   shade: "A roof of shade over open ground",
   filter: "Plants and soil clean the water",
   sound: "Carries sound to a crowd",
+  reflect: "Reflects the sun",
+  structure: "Carries load with little material",
+  restore: "Calms people and restores attention",
+  habitat: "Lets wildlife live and move",
 } as const;
 export type Mechanism = keyof typeof MECHANISMS;
 
