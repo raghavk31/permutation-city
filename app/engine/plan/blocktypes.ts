@@ -13,7 +13,7 @@
 //      land, the "wanted" FSI
 //   2  the candidates: the library's building precedents for the lot's programme, nearest the
 //      site's climate first, the first CANDIDATES whose tile fits the lot
-//   3  each candidate at every storey count within the lot's height caps, raised or lowered
+//   3  each candidate at every storey count within the lot's height caps and its own (maxStoreys), raised or lowered
 //      from its own, thinned to the plot rules' coverage and FAR, its density estimated from
 //      the tiles that fit; the best MEASURED by score are laid out on the plots and measured
 //   4  the best measured score wins: the gene for the candidate's family of arrangement (the search's
@@ -25,7 +25,7 @@
 import { coverageFor, type PlotRules, roadStoreys } from "../regs.js";
 import { keepShare, massLot, tiles } from "./blockmass.js";
 import { area, centroid, convexHull, obb, type Line, type Pt } from "./geom.js";
-import { built, CANDIDATES, candidatesFor, type Drift, FAMILIES, PRECEDENT, variant } from "./precedents.js";
+import { built, CANDIDATES, candidatesFor, type Drift, FAMILIES, maxStoreys, PRECEDENT, variant } from "./precedents.js";
 import { PROGRAMMES } from "./programme.js";
 
 /** The type genes (config.ts), one per family of arrangement (precedents.ts FAMILIES). */
@@ -83,7 +83,7 @@ export function typeBlocks(lots: LotIn[], prefs: number[], nodes: Pt[], R: PlotR
       if (tower && !atNode) continue;
       const lo = tower ? 2 : 1;
       let any = false;
-      for (let n = lo; n <= top; n++) {
+      for (let n = lo, hi = Math.min(top, maxStoreys(cand.p.seed)); n <= hi; n++) {
         const b = built(cand.p, n), t = tiles(b.plot.w, b.plot.d, L, W);
         if (!t) continue;
         any = true;
@@ -101,7 +101,7 @@ export function typeBlocks(lots: LotIn[], prefs: number[], nodes: Pt[], R: PlotR
     const pick = [...ranked.filter((o) => !o.tower).slice(0, MEASURED), ...ranked.filter((o) => o.tower).slice(0, 1)];
     const options: Option[] = [];
     for (const g of pick) {
-      const m = massLot({ block: lot.block, type: g.family, precedent: g.precedent, storeys: g.n, gsi: 0, fsi: 0, land: lot.land, cap: caps }, lot.rings);
+      const m = massLot({ block: lot.block, type: g.family, precedent: g.precedent, storeys: g.n, gsi: 0, fsi: 0, land: lot.land, cap: caps }, lot.rings, false);
       if (m.fsi <= 0) continue;
       const o: Option = { ...g, k: options.length, gsi: m.gsi, fsi: m.fsi, tiles: m.tiles, drift: variant(PRECEDENT.get(g.precedent)!.seed, g.n).drift };
       o.score = scoreOf(o);

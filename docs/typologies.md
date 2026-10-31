@@ -335,6 +335,48 @@ For the search, these are the open ground the city's programme sits round: a blo
 space should be chosen by the job its land can do (low ground and flow lines hold and clean
 water; junctions get shade and seats; every few hundred metres, a small doorstep space).
 
+## Nature's rules
+
+Added 31 October 2026. Data in `app/engine/typology/nature.ts` (the source of truth),
+diagrams in `app/ui/diagrams/nature.ts`, shown on /typologies under "Nature's rules".
+
+What living things and landscapes do that a building or a site can borrow, written as
+**genes**. Two kinds: performance genes (biomimicry, leading: they move a score in the
+claim's terms: rain, heat, green) and experience genes (biophilia: what makes people feel
+well). Two scales, matching the two products: one building on one plot, and the whole site.
+
+Rules for a gene:
+
+- **Ratios carry, sizes don't.** A gene is a ratio, an angle or a share (bifurcation ratio,
+  wavelength in channel widths, canopy share, turn between floors), never a size.
+- **Two ranges.** The range found in nature, and the range carried into the design, which is
+  what the search may use. The second is often `assumed` until a building study is found.
+- **Modifiers, not precedents.** In part B a gene adds a range to any precedent's grammar
+  (`built.drives` names the setting); it is not a building of its own.
+- **Say how it is checked.** `scored` (the engine measures it now: `green_walk`,
+  `water_walk`, `valley_free`, the rain shock, shade on public ground), `proxy` (a stand-in
+  could be computed) or `argued`.
+- **Myth check.** Where the popular story outruns the evidence it is said on the card: the
+  Eastgate termite story (the mound breathes with the day's swing, not the colony's heat;
+  King, Ocko and Mahadevan 2015), the golden angle as optimal for light (contested; Strauss
+  et al. 2020), Murray's law for open drains (derived for full pipes), the fractal stress
+  figure (small samples), 40% canopy (measured in one temperate city).
+
+First round, 30 genes:
+
+| Scale | Genes |
+|---|---|
+| Site, water | river branching (Horton 3-5), Murray's law at drain joins, meanders (10-14 widths, radius 2-3), wetland share (5-10%), forest floor / sponge (70% of the year's rain held), ponds in series (beaver; kere, ahar-pyne), riparian band (15-45 m), mangrove belt (100-500 m) |
+| Site, heat and green | canopy share (~40%), forest edge (30-60 m; cool parks 60-120 m across), forest layers (3-5 height bands), wildlife corridors, 3-30-300, fractal skyline (D 1.3-1.5), water in view |
+| Building | termite breathing (day-night swing), burrow openings at two heights, cactus ribs (+54% area), elephant skin (water-holding texture), silver ant (reflect and radiate), leaf size by climate (Wright 2017), stomata (openings that close), weaver nest (rooms buried in buffer), penguin huddle (shared walls in the cold), tree shade (60-90% of sun stopped), phyllotaxis (turned floors), fog nets (2-5 L/m2/day), tree-like columns, water-lily ribs, prospect and refuge |
+
+Weak spots: many built ranges are `assumed` (termite's 8 K threshold, fin depth to spacing,
+corridor width in a city, shared-wall share); several figures rest on press summaries
+(elephant skin 5-10x, penguin 74%); no gene is yet tested in a monsoon city. Candidates to
+wire into part B first: wetland share, ponds in series, riparian band, canopy share, tree
+shade and leaf size (eave and porosity), as they map to settings the grammar and site already
+have and to scores the engine already computes.
+
 ## Programme
 
 ### Where each goes

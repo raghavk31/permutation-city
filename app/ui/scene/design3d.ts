@@ -401,12 +401,16 @@ export class DesignView {
       // extrusions; lots no precedent fits keep their plots' extrusions below
       const { masses } = massPlan(plan.types, (t) => (t.plots ?? []).map((k) => plan.plots[k].ring));
       for (const m of masses) {
-        const g = new THREE.ExtrudeGeometry(new THREE.Shape(m.ring.map(([x, y]) => new THREE.Vector2(x, y))), { depth: m.storeys * STOREY * ex, bevelEnabled: false });
+        const shape = new THREE.Shape(m.ring.map(([x, y]) => new THREE.Vector2(x, y)));
+        for (const h of m.holes ?? []) shape.holes.push(new THREE.Path(h.map(([x, y]) => new THREE.Vector2(x, y))));
+        const g = new THREE.ExtrudeGeometry(shape, { depth: m.storeys * STOREY * ex, bevelEnabled: false });
         g.translate(0, 0, m.z * ex);
         const lv = Math.round(m.z / STOREY) + m.storeys, l = groups.get(lv) ?? [];
         l.push(g);
-        const r = m.roof && roofGeometry(m.ring, (m.z + m.storeys * STOREY) * ex, m.roof, ex);
-        if (r) l.push(r);
+        if (m.roof) for (const u of m.roofs ?? [m.ring]) {
+          const r = roofGeometry(u, (m.z + m.storeys * STOREY) * ex, m.roof, ex);
+          if (r) l.push(r);
+        }
         groups.set(lv, l);
       }
     }

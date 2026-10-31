@@ -86,3 +86,11 @@ a { color: inherit; }
   .ty-dhead { padding: var(--wb-s3) var(--wb-s4); }
   .ty-filters { position: static; }
 }
+
+/* Nature's rules (NatureGenes.svelte) */
+.ty-views { justify-self: start; }
+.ty-row.is-genes { grid-template-columns: auto auto minmax(0, 1fr); }
+.ty-card.is-gene { grid-template-rows: 200px auto auto auto auto auto 1fr; }
+.ty-range { font-size: var(--pc-size-small); color: var(--pc-ink-2); }
+.ty-range .wb-label { margin-right: 4px; }
+@media (max-width: 720px) { .ty-row.is-genes { grid-template-columns: 1fr; } }

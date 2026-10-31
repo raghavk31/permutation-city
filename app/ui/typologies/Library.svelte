@@ -10,6 +10,8 @@
   import { drawTypology, fmt } from "../diagrams/typology";
   import { CLIMATE, climateSites, differences, distance, matchLabel, profile } from "../../engine/typology/climate";
   import ClimateChart from "./ClimateChart.svelte";
+  import NatureGenes from "./NatureGenes.svelte";
+  import { GENES } from "../../engine/typology/nature";
 
   const drawings = new Map(LIBRARY.map((p) => [p.id, drawTypology(p.seed, p.name)]));
 
@@ -39,6 +41,9 @@
     }
     return m;
   });
+  // Two views: the precedents, and nature's rules (genes; NatureGenes.svelte). A #gene- link
+  // opens the second.
+  let view = $state<"precedents" | "nature">(typeof location !== "undefined" && location.hash.startsWith("#gene-") ? "nature" : "precedents");
   let open = $state<Precedent | null>(null);
   let dialog: HTMLDialogElement;
 
@@ -70,7 +75,10 @@
   }
 
   onMount(() => {
-    const fromHash = () => { const p = LIBRARY.find((x) => x.id === location.hash.slice(1)); if (p) show(p); };
+    const fromHash = () => {
+      if (location.hash.startsWith("#gene-")) { view = "nature"; return; }
+      const p = LIBRARY.find((x) => x.id === location.hash.slice(1)); if (p) { view = "precedents"; show(p); }
+    };
     fromHash();
     addEventListener("hashchange", fromHash);
     return () => removeEventListener("hashchange", fromHash);
@@ -109,7 +117,21 @@
 <main class="ty-main">
   <section class="ty-intro">
     <p class="wb-label">Typology library</p>
-    <!-- COPY: title and lead are drafts for the user to rewrite. -->
+    <div class="wb-seg ty-views" role="group" aria-label="Library view">
+      <button aria-pressed={view === "precedents"} onclick={() => (view = "precedents")}>What people built <span class="wb-mono">{LIBRARY.length}</span></button>
+      <button aria-pressed={view === "nature"} onclick={() => (view = "nature")}>Nature's rules <span class="wb-mono">{GENES.length}</span></button>
+    </div>
+    <!-- COPY: titles and leads are drafts for the user to rewrite. -->
+    {#if view === "nature"}
+    <h1>What nature does that a building can borrow</h1>
+    <p class="ty-lead">
+      Rivers, forests, leaves and animals solve the problems a city has: shedding heat, holding rain, moving air, carrying load,
+      and making a place people want to stay. Each rule here is kept as a ratio, an angle or a share, because a termite mound
+      does not work at a building's size but its proportions can. Each has the range found in nature and the range the design
+      search may use, and says where the popular story goes beyond the evidence.
+    </p>
+    <p class="ty-stats wb-mono">{GENES.length} rules · {GENES.filter((g) => g.scale === "building").length} for one building, {GENES.filter((g) => g.scale === "site").length} for a whole site · {GENES.reduce((a, g) => a + g.figures.length, 0)} figures, every one says where it came from</p>
+    {:else}
     <h1>What people built for their climate</h1>
     <p class="ty-lead">
       Houses, water systems, farms, markets and public spaces that people shaped over centuries for a climate, a material or a need,
@@ -118,7 +140,12 @@
     </p>
     <p class="ty-stats wb-mono">{LIBRARY.length} precedents from {new Set(LIBRARY.map((p) => p.region)).size} regions and {new Set(LIBRARY.map((p) => p.climate)).size} climates · {figures} figures, {sourced} from reliable sources · every figure says where it came from</p>
     {#if shown.length !== LIBRARY.length}<p class="ty-stats wb-mono">Showing {shown.length}</p>{/if}
+    {/if}
   </section>
+
+  {#if view === "nature"}
+    <NatureGenes />
+  {:else}
 
   <section class="ty-filters" aria-label="Filter the library">
     <div class="wb-chips" role="group" aria-label="Programme">
@@ -197,6 +224,7 @@
     </ul>
   {:else}
     <p class="ty-empty">Nothing matches. <button class="wb-btn is-quiet" onclick={() => { q = ""; programme = ""; climate = ""; mechanism = ""; kind = "all"; region = ""; }}>Clear the filters</button></p>
+  {/if}
   {/if}
 </main>
 

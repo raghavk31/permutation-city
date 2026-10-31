@@ -52,6 +52,22 @@ export interface Candidate {
 /** A precedent's own height in storeys. */
 export const storeysOf = (s: Params) => s.arrangement === "tower" ? s.storeys + (s.tower?.storeys ?? 20) : s.storeys;
 
+/** How far a precedent may be raised (assumed, until each type has its own ranges): to at most
+ *  STRETCH times its own height, and no taller than SLENDER times the depth of its wings, rows
+ *  or units, so a one-storey court house isn't drawn as a nine-storey wall. Never below its own
+ *  height; a tower keeps its own rule (the tower takes the rest). */
+export const STRETCH = 2, SLENDER = 2.5;
+export function maxStoreys(s: Params): number {
+  const own = storeysOf(s);
+  if (s.arrangement === "tower") return Infinity;
+  // a house standing free (a cluster's, a row's with gaps or of one) by its narrower side; a
+  // terrace, a court's wings, a slab by their depth
+  const free = s.arrangement === "cluster" || (s.arrangement === "row" && ((s.gap ?? 0) > 0 || (s.count ?? 6) === 1));
+  const narrow = free ? Math.min(s.width, s.depth) : s.depth;
+  const slender = Math.floor((SLENDER * narrow) / (s.floorH ?? DEFAULT_FLOOR_H));
+  return Math.max(own, Math.min(Math.max(own + 1, Math.floor(STRETCH * own)), slender));
+}
+
 const isBuilding = (p: Precedent) => familyOf(p.seed.arrangement) >= 0 && p.seed.ground !== "water" && built(p, storeysOf(p.seed)).floorArea > 0;
 
 const BY_SITE = new Map<string, Map<ProgrammeKey, Candidate[]>>();
