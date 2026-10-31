@@ -922,6 +922,112 @@ consistency check +0.25 (the default massing for unopened blocks was already in 
 Total still 21.75 of 22 days, so the margin is thin and E1-E4 stay ready. Stress tests go on
 5 November with the street edits; the street edits move to 6 November alongside the A4 harness.
 
+## 13. Part B: one plot, one building (draft, 31 October; awaiting approval)
+
+Dates no longer drive the work (28 October): the order below is by value, with a checkpoint
+after each step.
+
+### 13.1 Two products
+
+The user split the tool in two on 31 October:
+
+| | One plot | Whole site |
+|---|---|---|
+| Input | a location, a plot outline, a brief | a site (today's engine) |
+| Output | a few evolved buildings for that plot, each traced to its precedents and genes | evolved site designs |
+| Scores | building scale: sun, shade, sky, wind, rain held, gap to the brief | urban scale, shocks |
+
+They share the grammar, the precedent library, nature's rules and the climate profile. The
+one-plot engine is part B's "fit each lot" step built to stand on its own: the site scale
+later calls it once per lot (measure-only, as `blocktypes.ts` does now).
+
+### 13.2 What exists to reuse
+
+- `engine/massing/`: breeding inside a block's envelopes (NSGA-II, `evolve.ts`), the 2 m
+  column raster (`envelope.ts`), five scores (`scores.ts`: winter sun on the ground,
+  hot-season shade on public ground, sun taken from neighbours, sky view, frontal area) and
+  the gap to a floor-area target; readouts (`readouts.ts`); meshes and the chapter 09 page.
+  Its envelope is built from a grown design; one plot needs an envelope built from a polygon.
+- `engine/typology/grammar.ts`: any precedent's seed as solids, with FSI and GSI.
+- `engine/plan/precedents.ts`, `blockmass.ts`: candidates by programme and climate, variants
+  raised to a density with drift, tiling a seed over a lot and trimming by whole units.
+- `engine/typology/climate.ts`: a six-number climate profile and distance.
+- `engine/typology/nature.ts`: 30 genes with numeric design ranges.
+
+### 13.3 The pipeline
+
+1. **Brief (a form first):** programme (from the eight plot programmes), floor area or FSI,
+   storey cap, setbacks, and must-haves (a court, shops on the ground, rain held). Free text
+   read by a model can fill the form later.
+2. **Plot and place:** the plot as a polygon (drawn on a map or typed as width × depth ×
+   orientation), its latitude and longitude, optional neighbours' heights.
+3. **Climate:** the profile for the place (13.6).
+4. **Candidates:** the library's precedents for the programme, nearest climate first; the
+   first 8 whose tile fits the plot.
+5. **Genome, one per design:** which precedent (an index), its grammar settings as 0..1
+   within ranges (13.4), and the nature genes in play as 0..1 within their ranges.
+6. **Build:** grammar → tile and trim to the plot (`blockmass.ts`) → columns (`voxels.ts`).
+7. **Score:** the five massing scores and the gap, plus new ones from the genes (13.5).
+8. **Breed:** NSGA-II as `massing/evolve.ts`, a new representation "precedent" beside
+   typology, field and CPPN. The first generation is the candidates at their own settings.
+9. **Show:** the front, each design with its precedent, its drift from it, the genes it took
+   and the scores; one opened in 3D.
+10. **Hybrids** only when no single precedent reaches the brief and the climate within its
+    ranges (decision of 30 October): a child may take the arrangement of one and the
+    settings of another.
+
+### 13.4 Ranges
+
+A setting's range starts from the precedent's own value and widens to the spread of its
+family (court, yard, row, tall) in the library, then is capped by the rules and the brief.
+Storeys keep the caps of part A (twice the precedent's height, 2.5 times its wings' depth;
+`maxStoreys`). Nature genes use `built.lo`..`built.hi`; a gene limited to some climates is
+switched off elsewhere. Drift is reported per setting, as now for storeys, court and street.
+
+### 13.5 Scores
+
+Kept: winter sun, hot-season shade, sun taken, sky view, frontal area, gap. Added, each a
+stand-in until checked against a simulation:
+
+| Score | From the genes | How |
+|---|---|---|
+| Rain held on the plot | forest floor, wetland share, ponds in series | share of a design storm held by open ground, planted roofs, courts and ponds (run-off coefficients per surface; assumed) |
+| Shade on the plot's open ground | tree shade, canopy share | the existing shade score over the plot's own courts and yards, trees counted at 60-90% |
+| Shade fit to climate | leaf size, stomata | eave depth and façade porosity against the climate profile (deep and open where hot-wet, fine and closed where hot-dry); a rule score, said so |
+
+The six genes to wire first (31 October): wetland share, ponds in series, riparian band
+(when the plot touches a stream), canopy share, tree shade, leaf size.
+
+### 13.6 Climate for any place
+
+Today `climate.json` holds the library's places and the sites, fetched offline from NASA
+POWER (`pc/typology_climate.py`). For any plot: (a) fetch NASA POWER from the page when a
+place is chosen and cache it, if its API allows requests from a browser (not checked: the
+check from this machine timed out); (b) a small server function that fetches and caches;
+(c) the nearest place already in `climate.json`, said so. **Question Q1.**
+
+### 13.7 Steps, in order of value
+
+| Step | What | Checkpoint |
+|---|---|---|
+| B1 | Envelope from a polygon: plot, setbacks, caps, empty context; the five scores run on it | the old massing breeds on a typed plot |
+| B2 | The "precedent" representation: candidates, genome, build through the grammar and blockmass, drift | a plot in Bengaluru gives a front of precedent variants, drawn |
+| B3 | Ranges from the library's families; storeys within caps; hybrids | drift readout per setting; hybrids only when needed |
+| B4 | The six nature genes as modifiers and the three new scores | genes change the front in the direction their card says, tested |
+| B5 | The page: form, plot, front, 3D, traces to precedent and genes | usable by someone new (plain words, a diagram per step) |
+| B6 | Climate for any place (13.6) | a plot outside the known places |
+| B7 | Site scale calls B2-B4 per lot (measure-only) and the consistency check | site densities as before or better; fins stay low |
+
+### 13.8 Questions
+
+- **Q1.** Climate for any place: (a), (b) or (c)? Proposal: (c) first, then (a) if allowed.
+- **Q2.** Where does the page live: a new page (`/build`) or chapter 09 with a "plot only"
+  mode? Proposal: a new page, sharing chapter 09's viewer.
+- **Q3.** Neighbours: none at first, or typed heights round the plot? Proposal: optional
+  typed heights, since sun taken and shade need them.
+- **Q4.** Which of the five old representations stay offered beside "precedent"? Proposal:
+  precedent by default, the old three behind "more ways".
+
 ---
 
 ## A1 log (2026-10-21): quick visual fixes
