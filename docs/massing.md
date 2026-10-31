@@ -343,3 +343,30 @@ one plot, no design cells and no design context, so every representation, score 
 runs on it unchanged. `rectPlot(w, d, turn)` gives the rectangle a form asks for. The street
 band outside the street sides is the public ground the shade and sky scores read; with no
 neighbours, the sun taken from neighbours is 0.
+
+### Precedents on one plot (B2-B3, 31 October)
+
+`precedent.ts`, `plotsearch.ts`. A fourth representation: the building is a library precedent
+for the programme, chosen by the climate challenges it answers (`typology/challenges.ts`),
+its settings varied within ranges, laid over the plot's buildable land with the urban scale's
+layout (`plan/blockmass.ts` `layLot`, given the changed settings and a placement), set on the
+columns, repaired and scored like the rest.
+
+- **Genes (14):** which candidate, storeys, share of floor kept (whole buildings left out,
+  spread evenly), placement along the street and back from it, unit width and depth, units in
+  a row, rows, court, street or lane, gap; and, in a hybrid run, hybrid on and the donor.
+- **Ranges:** a setting moves from 0.6 to 1.6 times its own value, inside the spread of its
+  family in the library but always including its own; units in a row down to one (a lane of
+  pol houses too long for the plot shrinks to fit), rows by one either way, gap 0 (shared
+  walls) to twice its own. Storeys to `maxStoreys` and the plot's cap; raised past its own
+  height, the court or street widens to the height.
+- **Drift:** each setting that moved, from and to, kept with the massing (`Source.drift`).
+- **First generation:** every candidate as it is, against the street.
+- **Hybrids** only when no single precedent comes within the tolerance of the floor wanted:
+  `searchPlot` runs again from the first run's population with a donor's units as the centre
+  of the ranges.
+- **Survivors** skip exact copies of a massing already kept (all representations).
+
+On a 48 x 36 m Bengaluru plot, FSI 1.5 at five storeys: single precedents (pol, tube house,
+merchant house) come within 4-9% without hybrids; before the ranges the best was 25% short.
+FSI 2.6 turns hybrids on. A search of 32 designs over 10 generations takes about 2 s.

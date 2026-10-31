@@ -94,3 +94,46 @@ describe("precedents on one plot", () => {
 
   });
 });
+
+describe("one plot's search: ranges, placement, hybrids", () => {
+  const normals = CLIMATE.places["site:bengaluru-cascade"];
+  const at = (fsi: number) => M.plotEnvelope({ ...M.rectPlot(48, 36, 0, 12), storeys: 5, target: 48 * 36 * fsi, setbacks: { front: 3, side: 1.5, rear: 3 } });
+
+  it("lets a precedent whose own tile is too big shrink to fit", () => {
+    const E = at(1);
+    const { candidates } = M.plotChoices({ programme: "homes", normals }, E.land!, 5);
+    expect(candidates.map((c) => c.p.id)).toContain("pol");
+  });
+
+  it("reaches a denser brief with single precedents, saying what moved", () => {
+    const S = M.searchPlot(at(1.5), BENGALURU, { programme: "homes", normals }, { population: 32, generations: 10, seed: 3 });
+    expect(S.hybrids).toBe(false);
+    const near = S.run.pop.filter((p) => !p.massing.rejected && p.scores.gap <= 0.1);
+    expect(near.length).toBeGreaterThan(3);
+    expect(near.some((p) => p.massing.source!.drift.some((c) => c.what !== "storeys"))).toBe(true);
+    for (const p of near) for (const c of p.massing.source!.drift) if (typeof c.to === "number") expect(Math.abs(c.to * 10 - Math.round(c.to * 10))).toBeLessThan(1e-9);
+  });
+
+  it("allows hybrids only when no single precedent reaches the floor wanted", () => {
+    const S = M.searchPlot(at(2.6), BENGALURU, { programme: "homes", normals }, { population: 24, generations: 6, seed: 3 });
+    expect(S.hybrids).toBe(true);
+    expect(S.note.join(" ")).toMatch(/hybrids allowed/);
+    expect(S.run.pop.some((p) => p.massing.source?.donor)).toBe(true);
+  });
+
+  it("moves the buildings toward the street or away from it", () => {
+    // a deep plot, so one row of houses leaves slack front to back
+    const E = M.plotEnvelope({ ...M.rectPlot(48, 70, 0, 12), storeys: 5, target: 1000, setbacks: { front: 3, side: 1.5, rear: 3 } });
+    const { candidates } = M.plotChoices({ programme: "homes", normals }, E.land!, 5);
+    const ctx = { ...M.massContext(E, BENGALURU), candidates, front: M.frontOf(E) };
+    const k = candidates.findIndex((c) => c.p.id === "casa-de-patio");
+    expect(k).toBeGreaterThanOrEqual(0);
+    const mid = (v: number) => {
+      const g = new Array(14).fill(0.5); g[0] = (k + 0.5) / candidates.length; g[1] = 0; g[2] = 1; g[4] = v; g[8] = 0;
+      const m = M.precedent.build(g, ctx).source!.masses;
+      return m.reduce((s, x) => s + x.ring.reduce((t, p) => t + p[1], 0) / x.ring.length, 0) / m.length;
+    };
+    // the street is on the south side (y < 0): against it the buildings sit lower in y
+    expect(mid(0)).toBeLessThan(mid(1) - 2);
+  });
+});

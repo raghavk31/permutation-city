@@ -20,6 +20,12 @@ export interface MassContext {
   innov: { conns: Map<string, number>; nodes: Map<number, number>; nextConn: number; nextNode: number };
   /** One plot's precedents, best answer to the climate first (precedent.ts). */
   candidates?: PlotCandidate[];
+  /** Where the plot's street is (precedent placement). */
+  front?: [number, number];
+  /** Hybrids allowed (precedent.ts searchPlot). */
+  hybrids?: boolean;
+  /** Genomes the first generation starts from, before the representation's own seeds. */
+  start?: unknown[];
 }
 
 export function massContext(E: Envelope, where: Where, narrowWings = false, typeWeights: number[] | null = null): MassContext {

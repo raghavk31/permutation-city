@@ -72,7 +72,7 @@ export function evolveMassing(ctx: MassContext, opts: MassOptions): MassRun {
     count++;
     return { name: `M${gen}.${count}`, genome, parents, massing, scores, floor: floorArea(ctx.E, massing.occ), rank: 0 };
   };
-  const seeds = (rep.seeds?.(ctx) ?? []).slice(0, P);
+  const seeds = [...(ctx.start ?? []), ...(rep.seeds?.(ctx) ?? [])].slice(0, P);
   let pop = [...seeds.map((g) => make(g, [], 0)), ...Array.from({ length: P - seeds.length }, () => make(rep.random(rng, ctx), [], 0))];
   let crowd = rankAll(pop);
   const run: MassRun = { kind: opts.kind, pop, front: [], history: [], everyone: count, ms: 0 };

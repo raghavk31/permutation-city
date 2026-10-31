@@ -11,7 +11,7 @@
 // whole tiles left out, spread evenly over the lot by error diffusion, so a pol stays a pol with
 // fewer houses rather than thinner ones.
 import { intersect, type Poly, polysArea, subtract, unite } from "./clipper.js";
-import type { Built, Roof } from "../typology/grammar.js";
+import { build, type Built, type Params, type Roof } from "../typology/grammar.js";
 import { area, centroid, convexHull, inside, obb, type Line, type Pt } from "./geom.js";
 import { built, PRECEDENT } from "./precedents.js";
 
@@ -203,23 +203,30 @@ interface Shape { pieces: (Pick<Piece, "ring" | "holes" | "g" | "a" | "whole" | 
 const LAID = new WeakMap<Line[], Map<string, { pieces: Piece[]; foot: number; floor: number } | null>>();
 const SHAPES = new WeakMap<Line[], Map<string, Shape | null>>();
 
+/** How one plot's search varies a layout (massing/precedent.ts): the precedent's settings
+ *  changed (`params`, named by `key` for the cache), and where the tiles sit in the slack the
+ *  land leaves: `place` 0..1 along and across, with 0 across the side nearest `front` (the
+ *  street). Without it, the precedent at n storeys, centred, as the urban scale lays lots. */
+export interface LayOptions { params: Params; key: string; place?: [number, number]; front?: Pt }
+
 /** A precedent at n storeys laid over a lot, unthinned: its pieces, ground coverage and floor
  *  area (m²); null where not one tile fits. Cached per land. */
-export function layLot(id: string, n: number, land: Line[], exact = true) {
+export function layLot(id: string, n: number, land: Line[], exact = true, opt?: LayOptions) {
   let per = LAID.get(land), shapes = SHAPES.get(land);
   if (!per) LAID.set(land, (per = new Map()));
   if (!shapes) SHAPES.set(land, (shapes = new Map()));
-  const key = `${id}:${n}:${exact}`;
+  const where = opt?.place ? `@${opt.place[0].toFixed(2)},${opt.place[1].toFixed(2)}` : "";
+  const key = opt ? `${opt.key}${where}:${exact}` : `${id}:${n}:${exact}`;
   if (per.has(key)) return per.get(key)!;
   const p = PRECEDENT.get(id);
-  const b = p && land.length ? built(p, n) : null;
+  const b = p && land.length ? (opt ? build(opt.params) : built(p, n)) : null;
   const solids = b ? b.solids.filter((s) => s.use === "built" && (s.storeys ?? 0) > 0 && s.ring.length >= 3) : [];
   // storey counts that change only the floors share one geometry
-  let sig = `${id}|${b?.plot.w}|${b?.plot.d}|${solids.length}|${exact}`;
+  let sig = `${id}|${b?.plot.w}|${b?.plot.d}|${solids.length}|${exact}${where}`;
   for (const s of solids) sig += `|${s.ring[0][0].toFixed(2)},${s.ring[0][1].toFixed(2)},${s.z.toFixed(2)}`;
   const bs = b ? buildingsOf(sig, solids) : [];
   let shape = shapes.get(sig);
-  if (shape === undefined) shapes.set(sig, (shape = b && solids.length ? shapeOf(b.plot.w, b.plot.d, bs, solids, land, exact) : null));
+  if (shape === undefined) shapes.set(sig, (shape = b && solids.length ? shapeOf(b.plot.w, b.plot.d, bs, solids, land, exact, opt) : null));
   if (!shape) { per.set(key, null); return null; }
   const zBase = Math.min(...solids.map((s) => s.z));
   const pieces: Piece[] = [];
@@ -241,12 +248,22 @@ export function layLot(id: string, n: number, land: Line[], exact = true) {
  *  land. At the land's edge a building is trimmed by whole units or wings, never sliced: a
  *  unit stays where KEEP_OF_UNIT of it is on the land (the sliver it overhangs cut off), the
  *  rest are left out; null where not one tile fits. */
-function shapeOf(w: number, d: number, bs: Building[], solids: Built["solids"], land: Line[], exact: boolean): Shape | null {
+function shapeOf(w: number, d: number, bs: Building[], solids: Built["solids"], land: Line[], exact: boolean, opt?: LayOptions): Shape | null {
   const pre = prepared(land), box = pre.box, L = 2 * box.hl, W = 2 * box.hw;
   const fit = tiles(w, d, L, W);
   if (!fit) return null;
   const { nU, nV, turned } = fit, tu = turned ? d : w, tv = turned ? w : d;
-  const u0 = (L - nU * tu) / 2, v0 = (W - nV * tv) / 2, hl = L / 2, hw = W / 2;
+  const hl = L / 2, hw = W / 2;
+  let u0 = (L - nU * tu) / 2, v0 = (W - nV * tv) / 2;
+  if (opt?.place) {
+    // the slack shared out by the genes; across, from the street's side of the box
+    // the street's side of the box: the one its middle lies beyond, relative to the box's size
+    const [a, c] = opt.place, su = L - nU * tu, sv = W - nV * tv;
+    const f = opt.front ?? [box.c[0] + box.uy, box.c[1] - box.ux];
+    const fu = (f[0] - box.c[0]) * box.ux + (f[1] - box.c[1]) * box.uy, fv = (f[0] - box.c[0]) * -box.uy + (f[1] - box.c[1]) * box.ux;
+    if (Math.abs(fu) / Math.max(hl, 1e-6) > Math.abs(fv) / Math.max(hw, 1e-6)) { v0 = a * sv; u0 = fu < 0 ? c * su : su - c * su; }
+    else { u0 = a * su; v0 = fv < 0 ? c * sv : sv - c * sv; }
+  }
   // local (u along the box's length, v across) to world, the box's corner at (0, 0)
   const at = (u: number, v: number): Pt => [box.c[0] + (u - hl) * box.ux - (v - hw) * box.uy, box.c[1] + (u - hl) * box.uy + (v - hw) * box.ux];
   const pieces: Shape["pieces"] = [];
