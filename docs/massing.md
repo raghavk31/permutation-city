@@ -400,3 +400,16 @@ series, stream bands and the other site genes wait for the site scale (B7).
 On the 48 x 36 m Bengaluru plot at FSI 1.0, the front trades rain held (36% for a bare tube
 house terrace, 100% with ponds and planted roofs) against plot shade (19-50%) and climate fit
 (38-90%).
+
+### The /build page (B5, 31 October)
+
+`app/build.html`, `app/ui/build/` (Build.svelte, scene3d.ts, build.css),
+`app/ui/diagrams/plotcard.ts`, `app/engine/massing/plotworker.ts`. A form (place with climate
+data, plot size, street side and width, setbacks, programme, floor over plot area, storeys,
+floods and water shortage) runs `searchPlot` in a worker. The page shows what the climate asks
+(each challenge with its weight and why), the precedents tried (linked to the library), the
+notes (hybrids, raster), the opened design in the massing chapter's 3D viewer (masses with
+their courts, trees, ponds on the ground, a 15 April afternoon sun) with what moved, the nature
+genes and six scores, and every distinct design as a card drawn in the library's isometric
+style. `/build?run` starts a search with the defaults. A quick search (24 x 8) takes about 2 s.
+Places are those with climate data until B6.

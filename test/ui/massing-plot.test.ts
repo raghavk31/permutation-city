@@ -193,3 +193,19 @@ describe("nature's rules on one plot", () => {
     expect(Math.max(...front.map((p) => (p.scores as unknown as Record<string, number>).rain))).toBeGreaterThan(0.6);
   });
 });
+
+describe("the /build page's search (plotworker.runPlot)", () => {
+  it("returns distinct designs with their sources, the challenges and the candidates", async () => {
+    const { runPlot } = await import("../../app/engine/massing/plotworker");
+    const spec: M.PlotSpec = { ...M.rectPlot(40, 30, 90, 9), storeys: 4, target: 1200, setbacks: { front: 3, side: 1.5, rear: 3 } };
+    const r = runPlot(spec, BENGALURU, { programme: "homes", normals: CLIMATE.places["site:bengaluru-cascade"], extra: { flood: 1 } }, { population: 16, generations: 4, seed: 2 });
+    expect(r.needs.some((n) => n.key === "flood")).toBe(true);
+    expect(r.candidates.length).toBeGreaterThan(0);
+    expect(r.designs.length).toBeGreaterThan(3);
+    const keys = new Set(r.designs.map((d) => JSON.stringify([d.source.precedent, d.source.params, d.source.storeys, d.source.keep, d.source.nature?.water.length, d.source.nature?.trees.length, d.source.nature?.green, d.source.nature?.eave, d.source.nature?.porosity])));
+    expect(keys.size).toBe(r.designs.length);
+    for (const d of r.designs) { expect(d.source.masses.length).toBeGreaterThan(0); expect(Number.isFinite(d.scores.rain)).toBe(true); }
+    // structured-clone safe: what the worker posts back survives a round trip
+    expect(structuredClone(r).designs.length).toBe(r.designs.length);
+  });
+});

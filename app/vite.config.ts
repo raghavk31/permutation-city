@@ -48,8 +48,8 @@ export default defineConfig({
     target: "es2022",
     // Pages: the story (index.html), the six chapters (classic.html), the site picker with the layer
     // cake (new.html), the workbench (workbench.html, at /workbench) and the typology library
-    // (typologies.html, at /typologies).
-    rolldownOptions: { input: { main: resolve(__dirname, "index.html"), classic: resolve(__dirname, "classic.html"), new: resolve(__dirname, "new.html"), workbench: resolve(__dirname, "workbench.html"), typologies: resolve(__dirname, "typologies.html") } },
+    // (typologies.html, at /typologies) and one plot (build.html, at /build).
+    rolldownOptions: { input: { main: resolve(__dirname, "index.html"), classic: resolve(__dirname, "classic.html"), new: resolve(__dirname, "new.html"), workbench: resolve(__dirname, "workbench.html"), typologies: resolve(__dirname, "typologies.html"), build: resolve(__dirname, "build.html") } },
   },
   server: { fs: { allow: [".."] } },
   // MapLibre loads its own worker by URL; pre-bundling breaks that URL in dev.
