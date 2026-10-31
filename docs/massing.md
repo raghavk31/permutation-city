@@ -332,3 +332,14 @@ Vitest rebuilds them from their genomes and expects the same voxels and scores. 
 - **Interior plots** are reached through their neighbours. No lane is cut to them.
 - **Echoes** come from wall directions only, not proportions.
 - **Pattern 107's width (12 m) is assumed** until checked against the book.
+
+## One plot, with no site (31 October)
+
+`plot.ts` (architecture-v3 section 13, step B1). `plotEnvelope` builds the same Envelope from a
+plot's outline: the sides that face a street (with the street's width), the storeys allowed,
+the floor area wanted, setbacks (front from the street sides, rear from the side most opposite
+the main street, side from the rest), and optional neighbours as prisms with a height. It has
+one plot, no design cells and no design context, so every representation, score and readout
+runs on it unchanged. `rectPlot(w, d, turn)` gives the rectangle a form asks for. The street
+band outside the street sides is the public ground the shade and sky scores read; with no
+neighbours, the sun taken from neighbours is 0.
