@@ -452,18 +452,20 @@ Figures from books go in as **assumed** with the secondary source named until a 
 ### Challenges, variants and families at urban scale (B7, 31 October)
 
 Types survey, 8 random version 3.1 designs a site (`npm run types-survey -- --n 8`), FSI given
-over typed land, before (nearest climate, as built) and after (challenge, variants, by family):
+over typed land: before (nearest climate, as built); by challenge with variants and families;
+and with the small local nudge the user chose (31 October: `LOCAL_W`, a quarter of the old
+climate-likeness weight, in both the candidates' order and the score).
 
-| Site | FSI asked | Given before | Given after | Lots no precedent fits |
-|---|---|---|---|---|
-| Mumbai EWF | 2.01 | 1.21 | 1.43 | 4% to 1% |
-| Ahmedabad Wadaj | 2.28 | 1.44 | 1.61 | 2% to 1% |
-| Mumbai Docks | 1.66 | 1.09 | 1.26 | 4% to 0% |
-| Bengaluru cascade | 0.94 | 0.86 | 0.89 | 2% to 0% |
-| Guwahati Bharalu | 2.35 | 1.39 | 1.46 | 3% to 1% |
+| Site | FSI asked | Before | By challenge | With local nudge | Homes lead with (nudged) |
+|---|---|---|---|---|---|
+| Mumbai EWF | 2.01 | 1.21 | 1.43 | 1.38 | Chettinad, Hoi An, Golconde, pol, nalukettu |
+| Ahmedabad Wadaj | 2.28 | 1.44 | 1.61 | 1.58 | pol, tube house, IIM Ahmedabad, Golconde |
+| Mumbai Docks | 1.66 | 1.09 | 1.26 | 1.24 | Chettinad, Hoi An, nalukettu, Golconde |
+| Bengaluru cascade | 0.94 | 0.86 | 0.89 | 0.88 | pol, Padmanabhapuram, Chettinad, Oaxaca patio |
+| Guwahati Bharalu | 2.35 | 1.39 | 1.46 | 1.46 | Chettinad, Padmanabhapuram, Hoi An, chang ghar |
 
-Rows are chosen on 63-87% of lots (64-66% before); courts fell on the Ahmedabad sites (29% to
-8%). The precedents now come from farther climates (1.1-1.9 noticeable steps, from 0.5-0.9),
-and each site's homes lead with a few that answer heat, swing and monsoon well (Chettinad,
-pol, Hoi An, Golconde, Huizhou); Mumbai's chawl and Kumbharwada no longer lead. Open for the
-user: whether local precedents get a nudge. Typing takes 90-720 ms a plan (70-640 before).
+Lots no precedent fits: 2-6% before, 0-2% after. With the nudge, Ahmedabad's own pol and tube
+house lead again (climate distance 0.65 steps, from 1.15), Bengaluru's courts return (32% of
+lots), Guwahati's chang ghar appears; Mumbai's chawl still doesn't (its mechanisms, shared
+ground and cross ventilation, answer less of Mumbai's heat, rain and monsoon than the Chettinad
+house's). Rows are chosen on 63-80% of lots. Typing takes 100-800 ms a plan (70-640 before).

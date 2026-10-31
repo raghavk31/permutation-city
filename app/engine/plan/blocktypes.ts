@@ -19,7 +19,8 @@
 //   4  the best measured score wins: the gene for the candidate's family of arrangement (the search's
 //      preference), Martin and March's prior for courts at medium and higher density, less how
 //      far it falls from the wanted FSI, how much of the site's climate challenges it leaves
-//      unanswered (typology/challenges.ts; not how alike its climate is: user, 31 October), how
+//      unanswered (typology/challenges.ts; not how alike its climate is: user, 31 October) with a
+//      small nudge toward precedents from a like climate (precedents.ts LOCAL_W), how
 //      far it drifted from its own height, and a little for a variant (shrunk to fit, deeper
 //      units: ranges.ts) over the precedent as built
 //   5  towers only at major nodes (a square or a centre), where nothing lower reaches the wanted
@@ -27,7 +28,7 @@
 import { coverageFor, type PlotRules, roadStoreys } from "../regs.js";
 import { keepShare, massLot, tiles } from "./blockmass.js";
 import { area, centroid, convexHull, obb, type Line, type Pt } from "./geom.js";
-import { built, builtAs, CANDIDATES, candidatesFor, type Candidate, type Drift, FAMILIES, maxStoreys, PRECEDENT, variant } from "./precedents.js";
+import { built, builtAs, CANDIDATES, candidatesFor, CHALLENGE_W, LOCAL_W, type Candidate, type Drift, FAMILIES, maxStoreys, PRECEDENT, variant } from "./precedents.js";
 import { rangeOf, USES } from "./ranges.js";
 import type { Params } from "../typology/grammar.js";
 import { PROGRAMMES } from "./programme.js";
@@ -40,7 +41,6 @@ export const NODE_M = 150;              // a lot whose middle is this close to a
 export const PRIOR = 0.25;              // Martin and March: courts preferred ...
 export const PRIOR_FSI = 1;             // ... at this FSI and above (medium density; assumed threshold)
 export const FIT = 6;                   // weight on falling short of (or over) the wanted FSI, relative: density all but a constraint (user, 28 October)
-export const CHALLENGE_W = 0.5;         // per share of the site's climate challenges the precedent leaves unanswered (assumed; replaces climate likeness, 31 October)
 export const VARIANT_W = 0.1;           // a precedent with its settings changed (shrunk to fit, deeper units), not as built (assumed)
 export const DRIFT_W = 0.15;            // per doubling or halving of the precedent's own height (assumed)
 export const OVER_CAP = 0.1;           // a measured layout over its FAR or coverage cap by more than this is left out
@@ -138,7 +138,7 @@ export function typeBlocks(lots: LotIn[], prefs: number[], nodes: Pt[], R: PlotR
       if (any) { fitted++; feasible.add(cand.family); }
     }
     const scoreOf = (o: Option) => (prefs[o.family] ?? 0) + (o.family === 0 && wanted >= PRIOR_FSI ? PRIOR : 0)
-      - FIT * Math.abs(o.fsi - wanted) / Math.max(wanted, 0.05) - CHALLENGE_W * (1 - o.fit) - DRIFT_W * Math.abs(Math.log2(o.n / o.own))
+      - FIT * Math.abs(o.fsi - wanted) / Math.max(wanted, 0.05) - CHALLENGE_W * (1 - o.fit) - LOCAL_W * o.climate - DRIFT_W * Math.abs(Math.log2(o.n / o.own))
       - (o.variant ? VARIANT_W : 0);
     for (const o of guesses) o.score = scoreOf(o);
     // The best MEASURED of them (and the best tower) laid out on the plots and measured.

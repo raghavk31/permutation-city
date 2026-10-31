@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import * as E from "../../app/engine";
 import { MAX_TOWERS_SITE, typeBlocks, type LotIn } from "../../app/engine/plan/blocktypes";
-import { candidatesFor, FAMILIES, PRECEDENT, storeysOf, variant } from "../../app/engine/plan/precedents";
+import { candidatesFor, FAMILIES, PRECEDENT, rankValue, storeysOf, variant } from "../../app/engine/plan/precedents";
 import { PROGRAMMES } from "../../app/engine/plan/programme";
 import type { Line } from "../../app/engine/plan/geom";
 import { BENGALURU } from "../../app/engine/regs";
@@ -16,11 +16,12 @@ const rect = (x: number, w: number, l: number): Line => [[x, 0], [x + w, 0], [x 
 const F = (key: string) => FAMILIES.findIndex((f) => f.key === key);
 
 describe("candidates", () => {
-  it("lists a programme's building precedents, best answer to the site's climate challenges first", () => {
+  it("lists a programme's building precedents, best answer to the site's climate challenges first, nudged toward like climates", () => {
     const c = candidatesFor("homes", "bengaluru-cascade");
     expect(c.length).toBeGreaterThan(20);
     expect(c.every((x) => x.p.programmes.includes("housing") && x.family >= 0)).toBe(true);
-    for (let k = 1; k < c.length; k++) expect(c[k].fit).toBeLessThanOrEqual(c[k - 1].fit + 1e-12);
+    // mostly by challenge, with a small nudge toward like climates (rankValue)
+    for (let k = 1; k < c.length; k++) expect(rankValue(c[k].fit, c[k].climate)).toBeLessThanOrEqual(rankValue(c[k - 1].fit, c[k - 1].climate) + 1e-12);
     // not by climate likeness (user, 31 October): Ahmedabad's pol answers Bengaluru's heat and
     // day-night swing as well as anything, though Ahmedabad is hotter and drier
     expect(c.slice(0, 4).map((x) => x.p.id)).toContain("pol");

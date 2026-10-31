@@ -77,8 +77,14 @@ export const isBuilding = (p: Precedent) => familyOf(p.seed.arrangement) >= 0 &&
 
 const BY_SITE = new Map<string, Map<ProgrammeKey, Candidate[]>>();
 
-/** The building precedents for a programme, best answer to the site's climate challenges first
- *  (user, 31 October: by the challenge they answer, not by climate likeness). */
+/** How a candidate ranks: mostly the share of the climate's challenges it answers (user, 31
+ *  October: by the challenge it answers, not by climate likeness), with a small nudge toward
+ *  precedents from a like climate (user, 31 October: so local types compete without leading
+ *  everywhere). LOCAL_W is a quarter of the old climate-likeness weight, CHALLENGE_W per share. */
+export const CHALLENGE_W = 0.5, LOCAL_W = 0.0625;
+export const rankValue = (fit: number, climate: number) => CHALLENGE_W * fit - LOCAL_W * climate;
+
+/** The building precedents for a programme, best ranked first (rankValue). */
 export function candidatesFor(prog: ProgrammeKey, siteId: string): Candidate[] {
   let site = BY_SITE.get(siteId);
   if (!site) BY_SITE.set(siteId, (site = new Map()));
@@ -96,7 +102,7 @@ export function candidatesFor(prog: ProgrammeKey, siteId: string): Candidate[] {
       these.push({ p, family: familyOf(p.seed.arrangement), climate: here && c ? distance(profile(c), here) : 0, fit: ns.length ? answer(p.mechanisms, ns).fit : 0.5, own: storeysOf(p.seed) });
       seen.add(p.id);
     }
-    out.push(...these.sort((a, b) => b.fit - a.fit || a.climate - b.climate || (a.p.id < b.p.id ? -1 : 1)));
+    out.push(...these.sort((a, b) => rankValue(b.fit, b.climate) - rankValue(a.fit, a.climate) || (a.p.id < b.p.id ? -1 : 1)));
   }
   site.set(prog, out);
   return out;

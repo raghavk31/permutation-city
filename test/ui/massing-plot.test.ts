@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import * as M from "../../app/engine/massing";
 import { floorArea } from "../../app/engine/massing/voxels";
 import { CLIMATE } from "../../app/engine/typology/climate";
+import { rankValue } from "../../app/engine/plan/precedents";
 import { area } from "../../app/engine/plan/geom";
 
 const BENGALURU: M.Where = { lat: 12.97, lon: 77.59, utc: 5.5 };
@@ -75,7 +76,7 @@ describe("precedents on one plot", () => {
     expect(needs.map((n) => n.key)).toContain("heat");
     expect(candidates.length).toBeGreaterThan(2);
     expect(candidates.length).toBeLessThanOrEqual(M.PLOT_CANDIDATES);
-    for (let k = 1; k < candidates.length; k++) expect(candidates[k].answer.fit).toBeLessThanOrEqual(candidates[k - 1].answer.fit + 1e-9);
+    for (let k = 1; k < candidates.length; k++) expect(rankValue(candidates[k].answer.fit, candidates[k].climate)).toBeLessThanOrEqual(rankValue(candidates[k - 1].answer.fit, candidates[k - 1].climate) + 1e-9);
   });
 
   it("breeds precedent variants that stay on the plot and keep their source", () => {

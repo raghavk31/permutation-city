@@ -34,12 +34,12 @@ import { STOREY_M } from "../config.js";
 import { layLot, type Mass } from "../plan/blockmass.js";
 import type { Line, Pt } from "../plan/geom.js";
 import { inside } from "../plan/geom.js";
-import { isBuilding, maxStoreys, PROGRAMME_PRECEDENTS, storeysOf, variant } from "../plan/precedents.js";
+import { isBuilding, maxStoreys, PROGRAMME_PRECEDENTS, rankValue, storeysOf, variant } from "../plan/precedents.js";
 import { INTEGER, RANGE, rangeOf, SETTINGS, SETTING_WORDS, smallest, USES, valueOf, type Setting } from "../plan/ranges.js";
 export { RANGE, rangeOf, SETTINGS, SETTING_WORDS, type Setting };
 import type { ProgrammeKey } from "../plan/programme.js";
 import { answer, needs, type Answer, type Challenge, type Need } from "../typology/challenges.js";
-import type { Normals } from "../typology/climate.js";
+import { CLIMATE, distance, profile, type Normals } from "../typology/climate.js";
 import type { Params } from "../typology/grammar.js";
 import { LIBRARY } from "../typology/library.js";
 import type { Precedent } from "../typology/types.js";
@@ -52,22 +52,26 @@ import { repair, type Massing } from "./voxels.js";
 export const CANDIDATES = 8;
 export const KEEP_MIN = 0.4;
 export const GENES = 19;
-export interface PlotCandidate { p: Precedent; own: number; max: number; answer: Answer; uses: Setting[] }
+/** climate: distance from the place's climate in noticeable steps (the local nudge). */
+export interface PlotCandidate { p: Precedent; own: number; max: number; answer: Answer; uses: Setting[]; climate: number }
 
 
 /** The building precedents for a programme, best answer to the climate's challenges first, the
  *  first CANDIDATES whose smallest tile lays on the land. */
-export function plotCandidates(prog: ProgrammeKey, ns: readonly Need[], land: Line[], cap: number): PlotCandidate[] {
+export function plotCandidates(prog: ProgrammeKey, ns: readonly Need[], land: Line[], cap: number, here?: Normals): PlotCandidate[] {
+  const mine = here ? profile(here) : null;
   const libs = PROGRAMME_PRECEDENTS[prog], seen = new Set<string>(), all: PlotCandidate[] = [];
   for (const p of LIBRARY) {
     if (seen.has(p.id) || !p.programmes.some((k) => libs.includes(k)) || !isBuilding(p)) continue;
     seen.add(p.id);
     const own = storeysOf(p.seed);
-    all.push({ p, own, max: Math.max(1, Math.min(maxStoreys(p.seed), cap)), answer: answer(p.mechanisms, ns), uses: USES[p.seed.arrangement] ?? [] });
+    const theirs = CLIMATE.places[p.id];
+    all.push({ p, own, max: Math.max(1, Math.min(maxStoreys(p.seed), cap)), answer: answer(p.mechanisms, ns), uses: USES[p.seed.arrangement] ?? [],
+      climate: mine && theirs ? distance(profile(theirs), mine) : 0 });
   }
   // the programme's own library first (homes from housing), then the borrowed ones
   const rank = (c: PlotCandidate) => libs.findIndex((k) => c.p.programmes.includes(k));
-  all.sort((a, b) => rank(a) - rank(b) || b.answer.fit - a.answer.fit || (a.p.id < b.p.id ? -1 : 1));
+  all.sort((a, b) => rank(a) - rank(b) || rankValue(b.answer.fit, b.climate) - rankValue(a.answer.fit, a.climate) || (a.p.id < b.p.id ? -1 : 1));
   const out: PlotCandidate[] = [];
   for (const c of all) {
     if (out.length >= CANDIDATES) break;
@@ -81,7 +85,7 @@ export function plotCandidates(prog: ProgrammeKey, ns: readonly Need[], land: Li
 export interface PlotBrief { programme: ProgrammeKey; normals: Normals; extra?: Partial<Record<Challenge, number>> }
 export function plotChoices(brief: PlotBrief, land: Line[], cap: number): { needs: Need[]; candidates: PlotCandidate[] } {
   const ns = needs(brief.normals, brief.extra);
-  return { needs: ns, candidates: plotCandidates(brief.programme, ns, land, cap) };
+  return { needs: ns, candidates: plotCandidates(brief.programme, ns, land, cap, brief.normals) };
 }
 
 /** What moved from the precedent, one setting at a time. */
