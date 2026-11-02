@@ -126,9 +126,11 @@ class Bench {
   // of values), the design selected and pointed at (kept names), the pair compared
   exView = $state<"tradeoffs" | "compare" | "archive" | "tree">("tradeoffs");
   exPlot = $state<"matrix" | "parallel">("matrix");
-  /** What the Explore plan shows: the plan, its shared ground, its street frontage, or its
-   *  building types. */
-  exLayer = $state<"plan" | "shared" | "frontage" | "types" | "programme">("plan");
+  /** What the Explore plan shows: the plan, its shared ground, its street frontage, its
+   *  building types, its programme, or its lots' nature. */
+  exLayer = $state<"plan" | "shared" | "frontage" | "types" | "programme" | "nature">("plan");
+  /** Explore's design: as a plan, or in 3D (every typed lot as its precedent). */
+  exSolid = $state(false);
   exColour = $state("front");
   brush = $state.raw<Record<string, [number, number]>>({});
   exSel = $state<string | null>(null);
@@ -171,17 +173,23 @@ class Bench {
   /** Open a kept design in the Massing step (it must have grown). */
   massDesign(name: string) {
     const site = this.runSite, d = this.grown.get(name);
-    const genome = this.genomeOf(name);
-    if (!site || !d || !genome) return false;
-    if (this.ground?.site !== site) this.ground = { site, G: Sites.groundOf(site, this.runOff) };
+    const genome = this.genomeOf(name), G = this.runGround();
+    if (!site || !d || !genome || !G) return false;
     this.mass.open({
-      src: { siteId: `${this.siteId}-run${this.runCount}`, site, G: this.ground.G, skeletonOff: this.runOff, name, genome,
+      src: { siteId: `${this.siteId}-run${this.runCount}`, site, G, skeletonOff: this.runOff, name, genome,
         locks: null, ranges: this.runRanges, brief: this.briefLocked ? this.brief : null },
       design: d, title: this.titleOf(name),
     });
     return true;
   }
   private runRanges: E.Ranges = E.DEFAULT_RANGES;
+  /** The ground the run grew on (the Massing step and Explore's 3D view). */
+  runGround() {
+    const site = this.runSite;
+    if (!site) return null;
+    if (this.ground?.site !== site) this.ground = { site, G: Sites.groundOf(site, this.runOff) };
+    return this.ground.G;
+  }
 
   /** The front's families as a few representatives, the most distinct first, each named for
    *  what sets it apart (families.ts), with how many designs on the front are like it. */
