@@ -6,6 +6,7 @@
 // (`regions`), so a design reads as shapes, not a board of tiles. The grid stays for analysis;
 // the hover readouts still find the cell under the pointer.
 import { circumradius, corners, gridOf, type Design, type SiteExport } from "../engine";
+import { planGround } from "../engine/plan/blockmass";
 import { buildingAt, neutrals, tokens as T } from "./tokens";
 
 export type Palette = ReturnType<typeof palette>;
@@ -576,9 +577,10 @@ export function attractors(ctx: Ctx, v: View, d: Design) {
 /** A version 3 design as it is: plots coloured by use (buildings by storeys), its streets
  *  at their widths on top. No cells. */
 /** What a plan shows: the plan itself; its shared ground (parks and squares outlined,
- *  buildings faded); each street's frontage type; each block's building type; or what each
- *  building plot is for, facilities outlined and bus stops marked. */
-export type PlanLayer = "plan" | "shared" | "frontage" | "types" | "programme";
+ *  buildings faded); each street's frontage type; each block's building type; what each
+ *  building plot is for, facilities outlined and bus stops marked; or each lot's buildings
+ *  and open ground, the ground its programme needs, its ponds and its trees. */
+export type PlanLayer = "plan" | "shared" | "frontage" | "types" | "programme" | "nature";
 const PROGRAMME_ORDER = ["homes", "shops", "education", "health", "culture", "industry", "water", "waste"] as const;
 const TYPE_ORDER = ["court", "yard", "row", "tall"] as const;
 const FRONTAGE_ORDER = ["active", "residential", "green", "lake"] as const;
@@ -590,7 +592,7 @@ export function vectorPlan(ctx: Ctx, v: View, d: Design, layer: PlanLayer = "pla
   const ring = (r: [number, number][]) => { ctx.beginPath(); r.forEach(([x, y], k) => (k ? ctx.lineTo(v.px(x), v.py(y)) : ctx.moveTo(v.px(x), v.py(y)))); ctx.closePath(); };
   const faded = layer !== "plan";
   const typeOf = new Map<number, number>();
-  if (layer === "types") for (const t of plan.types ?? []) for (const p of t.plots ?? []) typeOf.set(p, t.type);
+  if (layer === "types" || layer === "nature") for (const t of plan.types ?? []) for (const p of t.plots ?? []) typeOf.set(p, t.type);
   const typed = (plot: number) => {
     const k = typeOf.get(plot);
     return k === undefined ? T.existingRamp[1] : k < 0 ? T.blockType.none : T.blockType[TYPE_ORDER[k]];
@@ -601,12 +603,29 @@ export function vectorPlan(ctx: Ctx, v: View, d: Design, layer: PlanLayer = "pla
     ring(p.ring);
     const prog = layer === "programme" ? plan.programme?.plot[k] ?? -1 : -1;
     const c = p.use === 1 ? (layer === "types" ? typed(k) : prog >= 0 ? T.programme[PROGRAMME_ORDER[prog]]
-      : faded ? T.existingRamp[1] : buildingAt(p.levels))
+      : layer === "nature" && (typeOf.get(k) ?? -1) >= 0 ? T.paper : faded ? T.existingRamp[1] : buildingAt(p.levels))
       : p.use === 2 ? T.green.proposed : p.use === 3 ? T.water.storage : T.paper2;
     ctx.fillStyle = c; ctx.fill();
     if (p.use === 2) { ctx.fillStyle = pattern(ctx, "dots", T.green.existing); ctx.fill(); }
     ctx.strokeStyle = p.use === 1 ? T.paper : c; ctx.lineWidth = p.use === 1 ? 0.5 : 0.8; ctx.stroke();
   });
+  if (layer === "nature" && plan.types?.length) {
+    // each typed lot's buildings, then its ground by cell: the programme's, ponds, trees
+    // (plan/blockmass.ts planGround, as the 3D view draws them)
+    const { masses, lots } = planGround(plan);
+    const cells = (pts: [number, number][], h: number, c: string) => {
+      ctx.beginPath();
+      for (const [x, y] of pts) ctx.rect(v.px(x - h), v.py(y + h), 2 * h * v.s, 2 * h * v.s);
+      ctx.fillStyle = c; ctx.fill();
+    };
+    for (const at of lots) {
+      const h = at.cell / 2;
+      cells(at.use, h, T.green.light); cells(at.pond, h, T.water.storage); cells(at.trees, h, T.green.proposed);
+    }
+    ctx.beginPath();
+    for (const m of masses) if (m.z <= 0.01) for (const r of [m.ring, ...(m.holes ?? [])]) r.forEach(([x, y], k) => (k ? ctx.lineTo(v.px(x), v.py(y)) : ctx.moveTo(v.px(x), v.py(y))));
+    ctx.fillStyle = T.existingRamp[3]; ctx.fill("evenodd");
+  }
   if (layer === "shared" && plan.shared) {
     // the parks the design reserved (whole blocks) and its squares (corner plots), outlined
     ctx.strokeStyle = T.green.existing; ctx.lineWidth = 2;

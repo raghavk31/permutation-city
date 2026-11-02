@@ -223,3 +223,23 @@ export function typeSummary(types: readonly BlockTyping[]) {
   const precedents = [...used.values()].map((u) => ({ ...u, storeys: u.storeys / u.land })).sort((a, b) => b.land - a.land || (a.id < b.id ? -1 : 1));
   return { blocks, land, none, towers, asked: all ? asked / all : 0, given: all ? given / all : 0, precedents };
 }
+
+/** The typed lots' nature (lotnature.ts), for the plan's legend: per programme, its land and
+ *  the share of the open ground it needs that it has; over the lots, ponds and trees as shares
+ *  of their land, the planted share of their roofs, and the climate's work. */
+export function natureSummary(types: readonly BlockTyping[]) {
+  const prog = PROGRAMMES.map(() => ({ land: 0, need: 0, got: 0 }));
+  let land = 0, pond = 0, trees = 0, roofs = 0, green = 0, climate = 0;
+  for (const t of types) {
+    const n = t.nature;
+    if (t.type < 0 || !n) continue;
+    const p = prog[t.programme];
+    p.land += t.land; p.need += n.need; p.got += n.got;
+    land += t.land; pond += n.pond; trees += n.trees; roofs += t.gsi * t.land; green += n.green * t.gsi * t.land; climate += n.climate * t.land;
+  }
+  if (!land) return null;
+  return {
+    programmes: prog.map((p, k) => ({ programme: PROGRAMMES[k], land: p.land, need: p.need, met: p.need ? p.got / p.need : 1 })).filter((p) => p.land > 0),
+    pond: pond / land, trees: trees / land, green: roofs ? green / roofs : 0, climate: climate / land,
+  };
+}

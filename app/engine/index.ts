@@ -35,6 +35,6 @@ export * from "./shocks.js";
 export * from "./scenarios.js";
 export * from "./piecemeal.js";
 export * from "./moves.js";
-export { typeSummary, type BlockTyping } from "./plan/blocktypes.js";
+export { natureSummary, typeSummary, type BlockTyping } from "./plan/blocktypes.js";
 export { FAMILIES, PRECEDENT } from "./plan/precedents.js";
 export { FACILITIES, PROGRAMMES as PLOT_PROGRAMMES, PROGRAMME_LABELS, type ProgrammeKey, type ProgrammeResult } from "./plan/programme.js";

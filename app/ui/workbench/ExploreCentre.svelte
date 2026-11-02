@@ -3,7 +3,11 @@
   // five scores, or parallel lines across every measure, brushable), beside the plan of the
   // design selected; pointing at a design anywhere shows it on the plan. Compare: two plans on
   // one camera, and their scores against the run's range. Every kind: MAP-Elites' archive.
+  // The selected design can also be seen in 3D, every typed lot built as its precedent with its
+  // ponds and trees (ui/scene/design3d.ts, as on the classic page).
+  import { onDestroy } from "svelte";
   import * as E from "../../engine";
+  import type { DesignView } from "../scene/design3d";
   import type { Kept } from "../../engine/worker";
   import * as Draw from "../draw";
   import * as X from "../explore";
@@ -92,6 +96,25 @@
   const sh = $derived(shown?.d.plan?.shared ?? null);
   const ty = $derived(shown?.d.plan?.types ? E.typeSummary(shown.d.plan.types) : null);
   const pg = $derived(shown?.d.plan?.programme ?? null);
+  const nat = $derived(shown?.d.plan?.types ? E.natureSummary(shown.d.plan.types) : null);
+
+  // the selected design in 3D (three.js, loaded the first time it's asked for)
+  let solid = $state<HTMLCanvasElement | null>(null);
+  let view: DesignView | null = null, viewOf: E.Design | null = null;
+  $effect(() => {
+    const c = solid, d = selected, G = bench.runGround();
+    if (!bench.exSolid || !c || !d || !G) return;
+    void (async () => {
+      const { DesignView: View } = await import("../scene/design3d");
+      if (!view || view.canvas !== c) { view?.dispose(); view = new View(c); viewOf = null; }
+      if (viewOf === d) return;
+      viewOf = d;
+      view.show({ site, G, d, roads: null });
+      view.setSun({ month: 3, day: 15, clock: 16 }, site);
+      view.frameSite();
+    })();
+  });
+  onDestroy(() => { view?.dispose(); view = null; });
   /** Facilities by programme: how many the homes' people need, and how many the plan placed. */
   const pgCount = (prog: string, of: "needed" | "got") =>
     E.FACILITIES.reduce((a, f, i) => a + (f.programme === prog ? pg![of][i] : 0), 0);
@@ -113,6 +136,7 @@
   const aspect = $derived(Math.min(1.25, Draw.aspectOf(site.design.x, site.design.y)));
   $effect(() => { if (bench.exView === "archive") bench.growMany(kept.map((k) => k.name)); });
   const fmt = (v: number) => String(+v.toFixed(2));
+  const pctOf = (v: number) => `${Math.round(v * 100)}%`;
 
   // the family tree: the kept designs and their ancestors (or every design), by generation
   let treeAll = $state(false);
@@ -223,13 +247,19 @@
       {/if}
     </div>
     <div class="wb-ex-map">
-      {#if shown}
+      {#if bench.exSolid}
+        <div class="wb-mass-3d"><canvas bind:this={solid} aria-label="The selected design in 3D: drag to turn, scroll to zoom"></canvas></div>
+      {:else if shown}
         <MapCanvas {site} paint={paintOf(shown.d, bench.exLayer)} version={`${shown.name}|${bench.exLayer}`} label="Plan of {bench.titleOf(shown.name)}" />
       {/if}
+      {#if bench.exSolid}
+        <!-- COPY: what the 3D view shows -->
+        <div class="wb-over bl"><p class="wb-legend wb-hint" style="margin: 0; max-width: 420px">{selected?.plan?.types ? "Every lot built as its precedent, with its ponds and trees. Drag to turn, scroll to zoom; heights ×1.5. Sun: 15 March, 16:00." : selected ? "This design was bred before building types (genome version 3): its plots are drawn as boxes." : ""}</p></div>
+      {:else}
       <!-- COPY: what the plan shows -->
       <div class="wb-over bl wb-ex-layer">
         <div class="wb-seg" role="group" aria-label="The plan shows">
-          {#each [["plan", "Plan"], ["shared", "Shared ground"], ["frontage", "Frontage"], ["types", "Building types"], ["programme", "Programme"]] as [k, label]}
+          {#each [["plan", "Plan"], ["shared", "Shared ground"], ["frontage", "Frontage"], ["types", "Building types"], ["programme", "Programme"], ["nature", "Nature"]] as [k, label]}
             <button type="button" aria-pressed={bench.exLayer === k} onclick={() => (bench.exLayer = k as typeof bench.exLayer)}>{label}</button>
           {/each}
         </div>
@@ -279,9 +309,29 @@
               <span class="wb-quiet">This design was bred before building types (genome version 3).</span>
             {/if}
           </div>
+        {:else if bench.exLayer === "nature"}
+          <div class="wb-legend">
+            {#if nat}
+              <div><i style="--c: {P.t.existingRamp[3]}"></i><span>buildings, as their precedents</span></div>
+              <div><i style="--c: {P.t.green.light}"></i><span>open ground the programme needs</span></div>
+              <div><i style="--c: {P.t.water.storage}"></i><span>ponds, {pctOf(nat.pond)} of the lots' land</span></div>
+              <div><i style="--c: {P.t.green.proposed}"></i><span>under trees, {pctOf(nat.trees)}</span></div>
+              <span class="wb-quiet" title="The share of the open ground each programme needs that it has. Gardens and playgrounds: Mumbai DCPR 2034 Reg. 27, in pieces at least 7.5 m across and 125 m². Playfields: URDPFI Table 8.48, at least 18 x 36 m. Smaller pieces don't count.">open ground needed, share had: {nat.programmes.filter((p) => p.need > 0).map((p) => `${E.PROGRAMME_LABELS[p.programme].toLowerCase()} ${pctOf(p.met)}`).join(", ")}</span>
+              <span class="wb-quiet" title="Rain a 75 mm storm leaves on the lots (ponds, planted roofs, ground under trees) and the share of their open ground under trees or water, averaged">roofs planted {pctOf(nat.green)}; climate work {pctOf(nat.climate)}</span>
+            {:else}
+              <span class="wb-quiet">This design was bred before building types (genome version 3).</span>
+            {/if}
+          </div>
         {/if}
       </div>
-      <div class="wb-over tr"><span class="wb-pill">{bench.exSel ? bench.titleOf(shown?.name ?? bench.exSel) : "Click a design"}{bench.exSel && !shown ? " · growing" : ""}</span></div>
+      {/if}
+      <div class="wb-over tr wb-mass-tools">
+        <div class="wb-seg" role="group" aria-label="View">
+          <button type="button" aria-pressed={!bench.exSolid} onclick={() => (bench.exSolid = false)}>Plan</button>
+          <button type="button" aria-pressed={bench.exSolid} onclick={() => (bench.exSolid = true)}>3D</button>
+        </div>
+        <span class="wb-pill">{bench.exSel ? bench.titleOf(bench.exSolid ? bench.exSel : shown?.name ?? bench.exSel) : "Click a design"}{bench.exSel && !shown ? " · growing" : ""}</span>
+      </div>
     </div>
   </div>
 {/if}

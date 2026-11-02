@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import * as E from "../../app/engine";
 import { evaluate } from "../../app/engine/fitness";
-import { type Mass, usableOpen } from "../../app/engine/plan/blockmass";
+import { type Mass, planGround, usableOpen } from "../../app/engine/plan/blockmass";
 import { lotNature, OPEN_NEED, WETLAND } from "../../app/engine/plan/lotnature";
 import type { Line } from "../../app/engine/plan/geom";
 import { makeRng } from "../../app/engine/rng";
@@ -73,5 +73,18 @@ describe("the site's scores read the lots' nature", () => {
     d.nature = keep;
     expect(a.storage).toBeGreaterThan(b.storage);
     expect(a.heat).toBeLessThan(b.heat);
+  });
+});
+
+describe("a plan's lot ground, for the nature layer and the 3D view", () => {
+  it("lays each lot's ponds and trees off its buildings, near the areas typing gave, once per plan", () => {
+    const G = load("bengaluru-cascade"), d = E.grow(E.randomGenome(makeRng(3), 3.1), G), plan = d.plan!;
+    const g = planGround(plan), A = g.lots[0].cell ** 2;
+    expect(planGround(plan)).toBe(g);
+    const ponds = g.lots.reduce((s, l) => s + l.pond.length * A, 0), want = plan.types!.reduce((s, t) => s + (t.nature?.pond ?? 0), 0);
+    expect(Math.abs(ponds - want) / want).toBeLessThan(0.25);
+    const n = E.natureSummary(plan.types!)!;
+    expect(n.pond).toBeGreaterThan(0);
+    expect(n.programmes.find((p) => p.programme === "homes")!.met).toBeGreaterThan(0.5);
   });
 });

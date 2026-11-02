@@ -14,7 +14,8 @@ import { intersect, type Poly, polysArea, subtract, unite } from "./clipper.js";
 import { build, type Built, type Params, type Roof } from "../typology/grammar.js";
 import { area, centroid, convexHull, inside, obb, type Line, type Pt } from "./geom.js";
 import { built, PRECEDENT } from "./precedents.js";
-import { type OpenNeed, PIECE } from "./lotnature.js";
+import { OPEN_NEED, type OpenNeed, PIECE } from "./lotnature.js";
+import { PROGRAMMES } from "./programme.js";
 
 /** A building of the default massing: a footprint (anticlockwise, world metres) with its courts
  *  and wells as holes (clockwise), its base (m) and its storeys; a whole building (not trimmed
@@ -473,9 +474,9 @@ function openGrid(land: Line[], masses: readonly Mass[], width: number, minArea:
  *  free ground, widest first (farthest from the buildings); trees nearest the buildings on what
  *  is left and, in a garden, in the kept pieces. Cell middles, CELL_M apart. */
 export function lotGround(t: Typed & { nature?: { need: number; pond: number; trees: number } }, land: Line[], masses: readonly Mass[],
-  kind: OpenNeed["kind"]): { pond: Pt[]; trees: Pt[]; cell: number } {
+  kind: OpenNeed["kind"]): { use: Pt[]; pond: Pt[]; trees: Pt[]; cell: number } {
   const N0 = t.nature, piece = PIECE[kind];
-  if (!N0 || !land.length) return { pond: [], trees: [], cell: CELL_M };
+  if (!N0 || !land.length) return { use: [], pond: [], trees: [], cell: CELL_M };
   const g = openGrid(land, masses, Math.max(piece.width, CELL_M), piece.area), { m } = g, N = m.nx * m.ny, A = CELL_M * CELL_M;
   // the programme's pieces, largest first, up to its need
   const kept = new Uint8Array(g.sizes.length);
@@ -499,6 +500,29 @@ export function lotGround(t: Typed & { nature?: { need: number; pond: number; tr
   const nPond = Math.min(spare.length, Math.round(N0.pond / A)), pond = spare.slice(0, nPond);
   const dry = [...spare.slice(nPond), ...(kind === "garden" ? garden : [])].sort((a, b) => d[a] - d[b] || a - b);
   const trees = dry.slice(0, Math.round(N0.trees / A));
-  return { pond: pond.map(at), trees: trees.map(at), cell: CELL_M };
+  return { use: garden.map(at), pond: pond.map(at), trees: trees.map(at), cell: CELL_M };
+}
+
+/** A typed lot as a plan holds it: its plots and programme, and its nature (lotnature.ts). */
+type PlanLot = Typed & { plots?: number[]; programme: number; nature?: { need: number; pond: number; trees: number } };
+export interface LotGround { lot: number; kind: OpenNeed["kind"]; use: Pt[]; pond: Pt[]; trees: Pt[]; cell: number }
+const planGrounds = new WeakMap<object, { masses: Mass[]; lots: LotGround[] }>();
+
+/** Every typed lot of a plan massed as its precedent, with its ground: the programme's open
+ *  ground, ponds and trees as cell centres (lotGround). Once per plan: the plan's nature layer
+ *  and the 3D view draw the same thing. */
+export function planGround(plan: { plots: { ring: Line }[]; types?: readonly PlanLot[] }) {
+  const types = plan.types ?? [], seen = planGrounds.get(types);
+  if (seen) return seen;
+  const landOf = (t: PlanLot) => (t.plots ?? []).map((k) => plan.plots[k].ring);
+  const { masses } = massPlan(types, landOf), lots: LotGround[] = [];
+  types.forEach((t, k) => {
+    if (t.type < 0 || !t.nature) return;
+    const kind = OPEN_NEED[PROGRAMMES[t.programme] ?? "homes"].kind;
+    lots.push({ lot: k, kind, ...lotGround(t, landOf(t), masses.filter((m) => m.block === t.block), kind) });
+  });
+  const out = { masses, lots };
+  planGrounds.set(types, out);
+  return out;
 }
 
