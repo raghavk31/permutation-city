@@ -20,7 +20,9 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { dayOfYear, solarHour, sunAt } from "../../engine/massing";
 import { sectionFor, sides, type Design, type Ground, type SiteExport } from "../../engine";
-import { massPlan, type Mass } from "../../engine/plan/blockmass";
+import { lotGround, massPlan, type Mass } from "../../engine/plan/blockmass";
+import { OPEN_NEED } from "../../engine/plan/lotnature";
+import { PROGRAMMES } from "../../engine/plan/programme";
 import { inset, regions, shapeOf, type StreetLines } from "../draw";
 import { buildingAt, tokens as T } from "../tokens";
 
@@ -399,7 +401,22 @@ export class DesignView {
     if (plan.types?.length) {
       // version 3.1: every typed lot massed as its precedent (plan/blockmass.ts), never plot
       // extrusions; lots no precedent fits keep their plots' extrusions below
-      const { masses } = massPlan(plan.types, (t) => (t.plots ?? []).map((k) => plan.plots[k].ring));
+      const landOf = (t: { plots?: number[] }) => (t.plots ?? []).map((k) => plan.plots[k].ring);
+      const { masses } = massPlan(plan.types, landOf);
+      // each lot's ponds and trees on its open ground (plan/lotnature.ts, blockmass.ts lotGround)
+      const pondCells: THREE.BufferGeometry[] = [], lotTrees: [number, number][] = [];
+      for (const t of plan.types) {
+        if (t.type < 0 || !t.nature) continue;
+        const own = masses.filter((m) => m.block === t.block), at = lotGround(t, landOf(t), own, OPEN_NEED[PROGRAMMES[t.programme] ?? "homes"].kind);
+        for (const [x, y] of at.pond) pondCells.push(new THREE.PlaneGeometry(at.cell, at.cell).translate(x, y, 0.14));
+        // a crown every other cell each way: a 2.6 m crown roughly covers its four cells
+        for (const [x, y] of at.trees) if (Math.round((x - at.cell / 2) / at.cell) % 2 === 0 && Math.round((y - at.cell / 2) / at.cell) % 2 === 0) lotTrees.push([x, y]);
+      }
+      if (pondCells.length) add(merge(pondCells), new THREE.MeshStandardMaterial({ color: T.water.storage, roughness: 0.15, metalness: 0, envMapIntensity: 1.2 }));
+      if (lotTrees.length) {
+        const crown = new THREE.IcosahedronGeometry(2.6, 0);
+        add(merge(lotTrees.map(([x, y]) => crown.clone().translate(x, y, 4.2 * ex))), flat(T.green.existing), true, false);
+      }
       for (const m of masses) {
         const shape = new THREE.Shape(m.ring.map(([x, y]) => new THREE.Vector2(x, y)));
         for (const h of m.holes ?? []) shape.holes.push(new THREE.Path(h.map(([x, y]) => new THREE.Vector2(x, y))));

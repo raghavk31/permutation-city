@@ -14,6 +14,7 @@ import { intersect, type Poly, polysArea, subtract, unite } from "./clipper.js";
 import { build, type Built, type Params, type Roof } from "../typology/grammar.js";
 import { area, centroid, convexHull, inside, obb, type Line, type Pt } from "./geom.js";
 import { built, PRECEDENT } from "./precedents.js";
+import { type OpenNeed, PIECE } from "./lotnature.js";
 
 /** A building of the default massing: a footprint (anticlockwise, world metres) with its courts
  *  and wells as holes (clockwise), its base (m) and its storeys; a whole building (not trimmed
@@ -100,6 +101,18 @@ function prepared(land: Line[]): Prepared {
     PREPARED.set(land, p);
   }
   return p;
+}
+/** The land's grid cells whose middles are on the land (1), worked out once per land. */
+const ON_GROUND = new WeakMap<Prepared, Uint8Array>();
+function onGround(pre: Prepared): Uint8Array {
+  let g = ON_GROUND.get(pre);
+  if (!g) {
+    const m = pre.mask;
+    g = new Uint8Array(m.nx * m.ny);
+    for (let c = 0; c < g.length; c++) g[c] = m.v[c] === 1 || (m.v[c] === 2 && onLandExact(pre, [m.x0 + ((c % m.nx) + 0.5) * CELL_M, m.y0 + (Math.floor(c / m.nx) + 0.5) * CELL_M])) ? 1 : 0;
+    ON_GROUND.set(pre, g);
+  }
+  return g;
 }
 function onLand(pre: Prepared, q: Pt): boolean {
   const m = pre.mask, i = Math.floor((q[0] - m.x0) / CELL_M), j = Math.floor((q[1] - m.y0) / CELL_M);
@@ -365,3 +378,127 @@ export function massPlan<T extends Typed>(types: readonly T[], landOf: (t: T) =>
   });
   return { masses, checks, byType };
 }
+
+/** Open ground a lot's programme can use (m²): its land the buildings leave, in pieces at least
+ *  `width` m across everywhere (an opening of the free ground by a disc of half that width, on
+ *  the land's CELL_M grid) and of at least `minArea` m² each. A court narrower than `width`, a
+ *  setback strip or a lane between rows doesn't count (lotnature.ts OPEN_NEED). */
+export function usableOpen(land: Line[], masses: readonly Mass[], width: number, minArea: number): number {
+  return land.length ? openGrid(land, masses, width, minArea).total : 0;
+}
+
+/** The land's grid with the buildings off: free ground (1), and each cell's usable piece
+ *  (an index into sizes, the pieces' areas in m²; -1 where it isn't in one of at least minArea). */
+function openGrid(land: Line[], masses: readonly Mass[], width: number, minArea: number) {
+  const pre = prepared(land), m = pre.mask, { nx, ny } = m, N = nx * ny, free = Uint8Array.from(onGround(pre));
+  // the buildings' ground floors off, courts and wells left (rows by scanline, even-odd over a
+  // building's outline and holes)
+  for (const b of masses) {
+    if (b.z > 0.01) continue;
+    const rings = [b.ring, ...(b.holes ?? [])], [a, , c] = bb(b.ring), [, lo, , hi] = bb(b.ring);
+    const j0 = Math.max(0, Math.floor((lo - m.y0) / CELL_M)), j1 = Math.min(ny - 1, Math.floor((hi - m.y0) / CELL_M));
+    if (c < m.x0 || a > m.x0 + nx * CELL_M) continue;
+    if (j1 < j0) continue;
+    // each edge once, its crossings of the rows' middles put in their rows
+    const rows: number[][] = Array.from({ length: j1 - j0 + 1 }, () => []);
+    for (const r of rings) for (let k = 0; k < r.length; k++) {
+      const [px, py] = r[k], [qx, qy] = r[(k + 1) % r.length];
+      if (py === qy) continue;
+      const ya = Math.min(py, qy), yb = Math.max(py, qy);
+      for (let j = Math.max(j0, Math.ceil((ya - m.y0) / CELL_M - 0.5)); j <= j1; j++) {
+        const y = m.y0 + (j + 0.5) * CELL_M;
+        if (y >= yb) break;
+        if (y >= ya) rows[j - j0].push(px + ((y - py) / (qy - py)) * (qx - px));
+      }
+    }
+    for (let j = j0; j <= j1; j++) {
+      const xs = rows[j - j0].sort((p, q) => p - q);
+      for (let k = 0; k + 1 < xs.length; k += 2)
+        for (let i = Math.max(0, Math.floor((xs[k] - m.x0) / CELL_M)); i < nx && m.x0 + i * CELL_M < xs[k + 1]; i++) free[j * nx + i] = 0;
+    }
+  }
+  // distances in chamfer steps (3 a side, 4 a diagonal; a cell is 3 steps), two passes
+  const dist = (d: Int32Array) => {
+    for (let j = 0; j < ny; j++) for (let i = 0, c = j * nx; i < nx; i++, c++) {
+      let v = d[c];
+      if (i > 0 && d[c - 1] + 3 < v) v = d[c - 1] + 3;
+      if (j > 0) { const u = c - nx; if (d[u] + 3 < v) v = d[u] + 3; if (i > 0 && d[u - 1] + 4 < v) v = d[u - 1] + 4; if (i < nx - 1 && d[u + 1] + 4 < v) v = d[u + 1] + 4; }
+      d[c] = v;
+    }
+    for (let j = ny - 1; j >= 0; j--) for (let i = nx - 1, c = j * nx + i; i >= 0; i--, c--) {
+      let v = d[c];
+      if (i < nx - 1 && d[c + 1] + 3 < v) v = d[c + 1] + 3;
+      if (j < ny - 1) { const u = c + nx; if (d[u] + 3 < v) v = d[u] + 3; if (i < nx - 1 && d[u + 1] + 4 < v) v = d[u + 1] + 4; if (i > 0 && d[u - 1] + 4 < v) v = d[u - 1] + 4; }
+      d[c] = v;
+    }
+    return d;
+  };
+  const BIG = 1 << 29, step = CELL_M / 3, r = width / 2;
+  // centres of discs of radius r that fit the free ground, and the cells such a disc covers,
+  // both read between cells' middles (right to within a cell: on 2 m cells a 6 m strip passes
+  // for 7.5 m, an 8 m one does too)
+  const toEdge = new Int32Array(N);
+  for (let c = 0; c < N; c++) toEdge[c] = free[c] ? BIG : 0;
+  dist(toEdge);
+  const fromCentre = new Int32Array(N), rIn = r / step - 1e-9;
+  for (let c = 0; c < N; c++) fromCentre[c] = free[c] && toEdge[c] >= rIn ? 0 : BIG;
+  dist(fromCentre);
+  const use = new Uint8Array(N), rOut = r / step + 1e-9;
+  for (let c = 0; c < N; c++) if (free[c] && fromCentre[c] <= rOut) use[c] = 1;
+  // pieces of at least minArea, 4-connected
+  let total = 0;
+  const stack = new Int32Array(N), piece = new Int32Array(N).fill(-1), sizes: number[] = [];
+  for (let c0 = 0; c0 < N; c0++) {
+    if (use[c0] !== 1) continue;
+    let k = 0, top = 0;
+    use[c0] = 2; stack[top++] = c0;
+    const id = sizes.length;
+    while (top) {
+      const c = stack[--top], i = c % nx; k++; piece[c] = id;
+      if (i > 0 && use[c - 1] === 1) { use[c - 1] = 2; stack[top++] = c - 1; }
+      if (i < nx - 1 && use[c + 1] === 1) { use[c + 1] = 2; stack[top++] = c + 1; }
+      if (c >= nx && use[c - nx] === 1) { use[c - nx] = 2; stack[top++] = c - nx; }
+      if (c + nx < N && use[c + nx] === 1) { use[c + nx] = 2; stack[top++] = c + nx; }
+    }
+    const a = k * CELL_M * CELL_M;
+    sizes.push(a);
+    if (a >= minArea) total += a;
+  }
+  for (let c = 0; c < N; c++) if (piece[c] >= 0 && sizes[piece[c]] < minArea) piece[c] = -1;
+  return { m, free, piece, sizes, total };
+}
+
+/** Where a typed lot's nature goes on its ground, for drawing (lotnature.ts gives how much):
+ *  the programme's pieces kept first, largest first, up to its need; ponds on the rest of the
+ *  free ground, widest first (farthest from the buildings); trees nearest the buildings on what
+ *  is left and, in a garden, in the kept pieces. Cell middles, CELL_M apart. */
+export function lotGround(t: Typed & { nature?: { need: number; pond: number; trees: number } }, land: Line[], masses: readonly Mass[],
+  kind: OpenNeed["kind"]): { pond: Pt[]; trees: Pt[]; cell: number } {
+  const N0 = t.nature, piece = PIECE[kind];
+  if (!N0 || !land.length) return { pond: [], trees: [], cell: CELL_M };
+  const g = openGrid(land, masses, Math.max(piece.width, CELL_M), piece.area), { m } = g, N = m.nx * m.ny, A = CELL_M * CELL_M;
+  // the programme's pieces, largest first, up to its need
+  const kept = new Uint8Array(g.sizes.length);
+  let need = N0.need;
+  for (const k of g.sizes.map((_, k) => k).sort((a, b) => g.sizes[b] - g.sizes[a])) {
+    if (need <= 0 || piece.width <= 0 || g.sizes[k] < piece.area) break;
+    kept[k] = 1; need -= g.sizes[k];
+  }
+  const reserved = (c: number) => g.piece[c] >= 0 && kept[g.piece[c]] === 1;
+  // distance (cells) of each free cell from the buildings and the land's edge
+  const d = new Int32Array(N).fill(-1), q: number[] = [];
+  for (let c = 0; c < N; c++) if (!g.free[c]) { d[c] = 0; q.push(c); }
+  for (let h = 0; h < q.length; h++) {
+    const c = q[h], i = c % m.nx;
+    for (const p of [i > 0 ? c - 1 : -1, i < m.nx - 1 ? c + 1 : -1, c - m.nx, c + m.nx]) if (p >= 0 && p < N && d[p] < 0) { d[p] = d[c] + 1; q.push(p); }
+  }
+  const at = (c: number): Pt => [m.x0 + ((c % m.nx) + 0.5) * CELL_M, m.y0 + (Math.floor(c / m.nx) + 0.5) * CELL_M];
+  const spare: number[] = [], garden: number[] = [];
+  for (let c = 0; c < N; c++) if (g.free[c]) (reserved(c) ? garden : spare).push(c);
+  spare.sort((a, b) => d[b] - d[a] || a - b);
+  const nPond = Math.min(spare.length, Math.round(N0.pond / A)), pond = spare.slice(0, nPond);
+  const dry = [...spare.slice(nPond), ...(kind === "garden" ? garden : [])].sort((a, b) => d[a] - d[b] || a - b);
+  const trees = dry.slice(0, Math.round(N0.trees / A));
+  return { pond: pond.map(at), trees: trees.map(at), cell: CELL_M };
+}
+

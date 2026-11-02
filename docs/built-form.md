@@ -469,3 +469,66 @@ house lead again (climate distance 0.65 steps, from 1.15), Bengaluru's courts re
 lots), Guwahati's chang ghar appears; Mumbai's chawl still doesn't (its mechanisms, shared
 ground and cross ventilation, answer less of Mumbai's heat, rain and monsoon than the Chettinad
 house's). Rows are chosen on 63-80% of lots. Typing takes 100-800 ms a plan (70-640 before).
+
+## Nature on every lot (2 November)
+
+`app/engine/plan/lotnature.ts`, `blockmass.ts` (`usableOpen`, `lotGround`), `blocktypes.ts`,
+`grow.ts`, `fitness.ts`. The user (2 November): limit nature by the land and the catchment,
+and score how well a lot's form serves the climate together with its programme; that is what
+makes a type a programme's own.
+
+**The programme's open ground first.** Each programme asks for open ground of a kind
+(`OPEN_NEED`), in pieces big enough to use (`PIECE`):
+
+| Programme | Open ground | Share of the lot | Least piece | Source |
+|---|---|---|---|---|
+| homes, shops (health, culture assumed alike) | garden or playground, trees in it | 15% from 1,001 m², 20% from 2,501 m², 25% above 10,000 m² | 7.5 m across, 125 m² | Mumbai DCPR 2034 Reg. 27(1), read; Guwahati asks 20%, read |
+| schools and colleges | playfield, clear | 50% | 18 x 36 m | URDPFI 2014 Tables 8.48-8.49, read |
+| industry | garden | 15% from 1,000 m² | 7.5 m, 125 m² | DCPR 2034 Reg. 27(2), read |
+| waste yard | working yard, clear | 30% | 12 m, 300 m² | assumed |
+| sewage plant | treatment wetland | (all its open ground) | | design |
+
+What counts is measured on each option's layout (`usableOpen`: the free ground on the land's
+2 m grid opened by a disc of half the least width, pieces under the least area dropped), so a
+court narrower than 7.5 m, a setback strip or a lane between rows doesn't count. The grid reads
+widths to within a cell.
+
+**Then nature, by the climate's challenges, on what is left.** No genes: nothing in the site's
+scores charges for a pond, a tree or a planted roof, so a gene would run to its top.
+
+- *Ponds*: 5-10% (more where rain or monsoon matter) of the ground whose rain reaches the lot
+  first (each cell counts for the first lot down its flow path; rain reaching a park or water
+  first is held there), never on the programme's pieces. A sewage plant's open ground is all
+  wetland.
+- *Trees*: 30-60% (more where heat matters) of the dry open ground, and of a garden; not on a
+  playfield or a yard.
+- *Planted roofs*: up to half the roofs where rain or heat matters.
+
+**Scores.** The site's storage score adds what the lots' ponds (0.6 m), trees and planted roofs
+hold (the plot's run-off coefficients over its 75 mm storm); its heat score reads ponds as
+water, trees and planted roofs as landscape, taking paving first. Lot typing adds, per measured
+option, `OPEN_W` (1) times the share of the programme's open ground missing and `NATURE_W`
+(0.25) times the share of the climate's work its ground and roofs do (rain held and ground
+under trees or water, averaged). Both weights assumed.
+
+**Survey** (`npm run nature-survey -- --n 6`):
+
+| Site | FSI given (before) | Ponds / trees, of typed land | Storage without, with | Heat without, with | Homes get | Schools get |
+|---|---|---|---|---|---|---|
+| Mumbai EWF | 1.51 (1.51) | 14% / 23% | 1.11, 1.22 | 1.44, 0.81 | 96% | 75% |
+| Ahmedabad Wadaj | 1.70 (1.72) | 14% / 25% | 1.47, 1.62 | 1.58, 0.90 | 95% | 70% |
+| Mumbai Docks | 1.42 (1.42) | 14% / 23% | 1.11, 1.23 | 1.38, 0.77 | 96% | 65% |
+| Bengaluru cascade | 1.06 (1.07) | 8% / 25% | 1.49, 1.57 | 1.40, 0.91 | 93% | 61% |
+| Guwahati Bharalu | 1.61 (1.63) | 15% / 19% | 2.01, 2.21 | 1.54, 0.93 | 97% | 75% |
+
+Read plainly: homes find their gardens; schools find only 61-75% of their playfields, since
+an 18 x 36 m clear field rarely survives at these densities (a finding, not a fault of the
+measure); waste yards often find under a quarter. Density barely moves (0-2%). Ponds and trees
+halve the heat score, which leans on the heat model's surface numbers (water -2 °C,
+landscape +0.5 °C), not on a shade model; storage rises 5-14%. Precedents shift a little toward
+layouts that leave whole yards (IIM Ahmedabad, Golconde). Growing a design takes 17-25% longer
+(the open ground measured on three layouts a lot).
+
+Not done: ponds placed by the lot's own low ground (they go where the open ground is widest);
+programme open ground at site scale (a school's field across a street from it); a shade model
+for trees at site scale; usable ground in the readouts and the explore page.

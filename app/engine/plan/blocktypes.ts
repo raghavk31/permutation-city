@@ -23,15 +23,21 @@
 //      small nudge toward precedents from a like climate (precedents.ts LOCAL_W), how
 //      far it drifted from its own height, and a little for a variant (shrunk to fit, deeper
 //      units: ranges.ts) over the precedent as built
+//      and how well its form serves the lot's programme and the climate together: the open
+//      ground the programme needs (a playfield, a garden) and the rain and heat its ground and
+//      roofs take (lotnature.ts; the user, 2 November: this is what makes a programme's type)
 //   5  towers only at major nodes (a square or a centre), where nothing lower reaches the wanted
 //      FSI; at most MAX_TOWERS_SITE on the whole site, the lots furthest short first
 import { coverageFor, type PlotRules, roadStoreys } from "../regs.js";
-import { keepShare, massLot, tiles } from "./blockmass.js";
+import { keepShare, massLot, tiles, usableOpen } from "./blockmass.js";
 import { area, centroid, convexHull, obb, type Line, type Pt } from "./geom.js";
 import { built, builtAs, CANDIDATES, candidatesFor, CHALLENGE_W, LOCAL_W, type Candidate, type Drift, FAMILIES, maxStoreys, PRECEDENT, variant } from "./precedents.js";
 import { rangeOf, USES } from "./ranges.js";
 import type { Params } from "../typology/grammar.js";
 import { PROGRAMMES } from "./programme.js";
+import { lotNature, type LotNature, OPEN_NEED, PIECE } from "./lotnature.js";
+import { needs } from "../typology/challenges.js";
+import { CLIMATE } from "../typology/climate.js";
 
 /** The type genes (config.ts), one per family of arrangement (precedents.ts FAMILIES). */
 export const TYPE_GENES = ["t_courtyard", "t_perimeter", "t_row", "t_towers"] as const;
@@ -45,6 +51,8 @@ export const VARIANT_W = 0.1;           // a precedent with its settings changed
 export const DRIFT_W = 0.15;            // per doubling or halving of the precedent's own height (assumed)
 export const OVER_CAP = 0.1;           // a measured layout over its FAR or coverage cap by more than this is left out
 export const MEASURED = 3;              // options per lot laid out and measured, the best by estimate
+export const OPEN_W = 1;                // per share of the programme's open ground missing: a school with no playfield fails it (assumed)
+export const NATURE_W = 0.25;           // per share of the climate's work its ground and roofs do (lotnature.ts climate; assumed)
 
 /** A lot's type: its block and plots (indices into the plan's plots), programme (PROGRAMMES
  *  index), family (FAMILIES index, -1 where no candidate fits), precedent, the families its
@@ -59,14 +67,18 @@ export interface BlockTyping {
   fit: number;
   /** Its settings changed from the precedent's own (ranges.ts), when they were. */
   variant?: { key: string; params: Params };
+  /** Its open ground: what the programme needs and gets, ponds, trees, planted roofs (lotnature.ts). */
+  nature?: LotNature;
 }
 
 /** A lot as growth hands it over: its block, plots (indices and outlines), programme, building
  *  land (m²), the floor area the genes grew on it (m²), the widest road its plots front (m),
  *  its storey cap and the FSI its plot rules allow (Infinity without rules). */
-export interface LotIn { block: number; plots: number[]; rings: Line[]; programme: number; land: number; floor: number; road: number; cap: number; farCap: number }
+export interface LotIn { block: number; plots: number[]; rings: Line[]; programme: number; land: number; floor: number; road: number; cap: number; farCap: number
+  /** Ground that drains through the lot (m²), its own included; 0 where the site has no flow directions. */
+  catchment?: number }
 
-interface Option { k: number; family: number; precedent: string; own: number; n: number; gsi: number; fsi: number; tiles: number; climate: number; fit: number; drift: Drift[]; score: number; tower: boolean; variant?: { key: string; params: Params } }
+interface Option { k: number; family: number; precedent: string; own: number; n: number; gsi: number; fsi: number; tiles: number; climate: number; fit: number; drift: Drift[]; score: number; tower: boolean; variant?: { key: string; params: Params }; nature?: LotNature }
 
 /** A precedent's variants at urban scale (B7): as built; shrunk to fit (fewest units in a row
  *  and rows, so a lane too long for the lot fits); deeper units (depth at the top of its range,
@@ -102,6 +114,7 @@ function byFamily(cs: Candidate[]): Candidate[] {
 /** Types for every lot with building land (null for the others). prefs: the four type genes
  *  (0..1); nodes: squares and centres; siteId: for the site's climate challenges. */
 export function typeBlocks(lots: LotIn[], prefs: number[], nodes: Pt[], R: PlotRules | null, siteId: string): (BlockTyping | null)[] {
+  const normals = CLIMATE.places[`site:${siteId}`], ns = normals ? needs(normals) : [];
   const all = lots.map((lot) => {
     if (lot.land <= 0 || !lot.rings.length) return null;
     let hull = convexHull(lot.rings.flat());
@@ -137,10 +150,13 @@ export function typeBlocks(lots: LotIn[], prefs: number[], nodes: Pt[], R: PlotR
       }
       if (any) { fitted++; feasible.add(cand.family); }
     }
-    const scoreOf = (o: Option) => (prefs[o.family] ?? 0) + (o.family === 0 && wanted >= PRIOR_FSI ? PRIOR : 0)
+    const natureOf = (gsi: number, usable?: number) => lotNature(prog, lot.land, gsi, lot.catchment ?? 0, ns, usable);
+    const piece = PIECE[OPEN_NEED[prog].kind], needed = OPEN_NEED[prog].share(lot.land) > 0 && piece.width > 0;
+    const scoreOf = (o: Option) => (prefs[o.family] ?? 0)
+      - OPEN_W * (1 - (o.nature?.met ?? 1)) + NATURE_W * (o.nature?.climate ?? 0) + (o.family === 0 && wanted >= PRIOR_FSI ? PRIOR : 0)
       - FIT * Math.abs(o.fsi - wanted) / Math.max(wanted, 0.05) - CHALLENGE_W * (1 - o.fit) - LOCAL_W * o.climate - DRIFT_W * Math.abs(Math.log2(o.n / o.own))
       - (o.variant ? VARIANT_W : 0);
-    for (const o of guesses) o.score = scoreOf(o);
+    for (const o of guesses) { o.nature = natureOf(o.gsi); o.score = scoreOf(o); }
     // The best MEASURED of them (and the best tower) laid out on the plots and measured.
     const ranked = [...guesses].sort((x, y) => y.score - x.score || x.n - y.n);
     const pick = [...ranked.filter((o) => !o.tower).slice(0, MEASURED), ...ranked.filter((o) => o.tower).slice(0, 1)];
@@ -152,6 +168,8 @@ export function typeBlocks(lots: LotIn[], prefs: number[], nodes: Pt[], R: PlotR
       if ((caps[1] > 0 && m.fsi > caps[1] * (1 + OVER_CAP)) || (caps[0] > 0 && caps[0] < 1 && m.gsi > caps[0] * (1 + OVER_CAP))) continue;
       const p = PRECEDENT.get(g.precedent)!;
       const o: Option = { ...g, k: options.length, gsi: m.gsi, fsi: m.fsi, tiles: m.tiles, drift: g.variant ? builtAs(p, g.variant.key, variantsOf(p.seed).find((v) => v.key === g.variant!.key)!.params, g.n).drift : variant(p.seed, g.n).drift };
+      // the open ground measured on the layout, in pieces the programme can use
+      o.nature = natureOf(o.gsi, needed ? usableOpen(lot.rings, m.masses, piece.width, piece.area) : undefined);
       o.score = scoreOf(o);
       options.push(o);
     }
@@ -170,7 +188,7 @@ export function typeBlocks(lots: LotIn[], prefs: number[], nodes: Pt[], R: PlotR
     const base = { block: lot.block, plots: lot.plots, programme: lot.programme, feasible: a.feasible, land: lot.land, wanted: a.wanted, cap: a.caps };
     if (!best) return { ...base, type: -1, precedent: "", gsi: 0, storeys: 0, fsi: 0, climate: 0, fit: 0, drift: [], towers: 0 };
     return { ...base, type: best.family, precedent: best.precedent, gsi: best.gsi, storeys: best.n, fsi: best.fsi, climate: best.climate,
-      fit: best.fit, drift: best.drift, towers: best.tower ? best.tiles : 0, ...(best.variant ? { variant: best.variant } : {}) };
+      fit: best.fit, drift: best.drift, towers: best.tower ? best.tiles : 0, ...(best.variant ? { variant: best.variant } : {}), ...(best.nature ? { nature: best.nature } : {}) };
   };
   // At most MAX_TOWERS_SITE towers on the site: the lots furthest short of their density choose
   // first, while towers are left; then every other lot, with none.
