@@ -248,6 +248,9 @@ export interface Design {
   grossFloorArea?: number;       // m², as if streets took nothing (what streets cost: gross - net)
   street?: Int8Array;            // per side (streets.ts): 0 none, 1 lane, 2 secondary, 3 primary
   streetWidths?: [number, number, number, number];
+  /** Version 3.1: each building cell's share under ponds and under trees, and the planted share
+   *  of its roofs (plan/lotnature.ts). */
+  nature?: { pond: Float64Array; canopy: Float64Array; greenRoof: Float64Array };
   preStreet?: boolean;           // grown from a 47-gene genome, with default street genes
   // Piecemeal growth (piecemeal.ts): cells this increment builds, cells not built yet (open
   // ground for now), and the design's wholeness.

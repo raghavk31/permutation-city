@@ -110,6 +110,7 @@
   <a class="ty-mark" href="./">Permutation City</a>
   <nav aria-label="Pages">
     <a href="./" class="wb-btn is-quiet">Story</a>
+    <a href="build" class="wb-btn is-quiet">Build on a plot</a>
     <a href="workbench" class="wb-btn">Open the workbench</a>
   </nav>
 </header>

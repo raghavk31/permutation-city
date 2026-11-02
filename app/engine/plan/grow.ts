@@ -23,7 +23,7 @@
 // Steps 2-7 are the design's frame. Grown with another design's frame (piecemeal growth: the
 // streets are laid out once, by the first increment), a design only claims its uses, which
 // reclassify the frame's plots, and takes its heights.
-import { BUILDING, DEFAULT_RANGES, type Family, LANDSCAPE, LENGTH_V3_0, PRIMARY_W_M, SECONDARY_W_M, STREET_FRONT_RISE, STREET_SHARE_MAX, type Ranges } from "../config.js";
+import { BUILDING, DEFAULT_RANGES, type Family, LANDSCAPE, WATER, LENGTH_V3_0, PRIMARY_W_M, SECONDARY_W_M, STREET_FRONT_RISE, STREET_SHARE_MAX, type Ranges } from "../config.js";
 import { claimUses, decodeV3 } from "../genome.js";
 import { roundHalfEven } from "../num.js";
 import { coverageFor, farFor, plotRulesOf, roadStoreys } from "../regs.js";
@@ -130,8 +130,9 @@ export function growV3(genome: number[], G: Ground, locked: ArrayLike<number> | 
   t = tick("programme", t);
   // 10. A building type per block (version 3.1): the block's coverage and storeys become its
   // type's, as Spacematrix numbers (blocktypes.ts).
+  const nature = s.t_courtyard === undefined ? null : { pond: new Float64Array(n), canopy: new Float64Array(n), greenRoof: new Float64Array(n) };
   const types = s.t_courtyard === undefined ? null
-    : typeCells(G, use, ps, ras.plotOf, share, coverage, levels, floorArea, s,
+    : typeCells(G, use, ps, ras.plotOf, share, coverage, levels, floorArea, nature!, s,
       [...centres, ...shared.squares.map((q) => q.at)], programme);
   t = tick("types", t);
   const rules = plotRules(G, use, ps, ras.plotOf, share, plotLevels, levels, coverage, floorArea);
@@ -162,7 +163,7 @@ export function growV3(genome: number[], G: Ground, locked: ArrayLike<number> | 
   plan.plots.forEach((p, k) => { p.road = ps[k].road; });
   const widths: [number, number, number, number] = [0, widthOf(1), widthOf(2), widthOf(3)];
   const d: Design = { genome: Array.from(genome), use, levels, coverage, floorArea, attractors, settings: s, scores: null,
-    grossFloorArea: gross, street: ras.sides, streetWidths: widths, plan };
+    grossFloorArea: gross, street: ras.sides, streetWidths: widths, plan, ...(nature ? { nature } : {}) };
   frames.set(d, frame);
   return d;
 }
@@ -223,7 +224,7 @@ function plotRules(G: Ground, use: Int8Array, ps: Plot[], plotOf: Int32Array, sh
  *  that keep its floor area (within the cell's cap). Lots no precedent fits keep what the genes
  *  grew. Returns the plan's typing, one entry per lot. */
 function typeCells(G: Ground, use: Int8Array, ps: Plot[], plotOf: Int32Array, share: Float64Array,
-  coverage: Float64Array, levels: Int32Array, floorArea: Float64Array, s: SettingsV3, nodes: Pt[], programme: ProgrammeResult): NonNullable<VectorPlan["types"]> {
+  coverage: Float64Array, levels: Int32Array, floorArea: Float64Array, nature: NonNullable<Design["nature"]>, s: SettingsV3, nodes: Pt[], programme: ProgrammeResult): NonNullable<VectorPlan["types"]> {
   const R = plotRulesOf(G.meta.id), n = G.n;
   // one lot per block and programme, in plot order
   const lotOf = new Map<string, number>(), lots: LotIn[] = [], cellsOf: number[][] = [], caps: number[][] = [], fa: number[] = [];
@@ -245,6 +246,11 @@ function typeCells(G: Ground, use: Int8Array, ps: Plot[], plotOf: Int32Array, sh
     lot.land += land; lot.floor += floorArea[i]; lot.road = Math.max(lot.road, ps[k].road); caps[l].push(G.cap[i]);
     if (R) fa[l] += farFor(R, ps[k].road) * land;
   }
+  // the ground draining to each lot: every cell counts for the first lot its rain reaches, so
+  // lots along one flow path don't each claim the same ground; rain reaching a park or water
+  // first is held there
+  const first = firstLot(G, cellsOf, use);
+  for (let i = 0; i < n; i++) if (first[i] >= 0) lots[first[i]].catchment = (lots[first[i]].catchment ?? 0) + G.cellArea;
   lots.forEach((lot, l) => {
     if (!caps[l].length) return;
     const c = caps[l].sort((x, y) => x - y);
@@ -261,12 +267,38 @@ function typeCells(G: Ground, use: Int8Array, ps: Plot[], plotOf: Int32Array, sh
     // the lot's floor area kept: storeys from its FSI over its coverage (no more than its
     // precedent's, whose upper floors can overhang the ground: an arcade), coverage to match
     const st = Math.min(t.storeys, Math.max(1, Math.round(t.fsi / t.gsi)));
+    const N = t.nature, land = lots[l].land;
     for (const i of cellsOf[l]) {
       levels[i] = Math.max(1, Math.min(st, G.cap[i]));
       coverage[i] = Math.max(Math.min((t.fsi / levels[i]) * (1 - share[i]), 1 - G.minPerm[i] - share[i]), 0);
       floorArea[i] = G.cellArea * coverage[i] * levels[i];
+      // the lot's ponds and trees spread over its cells by their land, within each cell's open ground
+      if (N && land > 0) {
+        const open = Math.max(0, 1 - coverage[i] - share[i]), k = 1 - share[i];
+        nature.pond[i] = Math.min(open, (N.pond / land) * k);
+        nature.canopy[i] = Math.min(open - nature.pond[i], (N.trees / land) * k);
+        nature.greenRoof[i] = N.green;
+      }
     }
   });
+  return out;
+}
+
+/** The first lot (index into cellsOf) each cell's rain reaches along the landform's flow
+ *  directions, the cell's own lot first; -1 where it leaves the site, or reaches a park or
+ *  water, first. Without flow directions, a lot's own cells only. */
+function firstLot(G: Ground, cellsOf: number[][], use: Int8Array): Int32Array {
+  const n = G.n, down = G.down, out = new Int32Array(n).fill(-2);
+  for (let i = 0; i < n; i++) if (use[i] === LANDSCAPE || use[i] === WATER) out[i] = -1;
+  cellsOf.forEach((cs, l) => { for (const i of cs) out[i] = l; });
+  const path: number[] = [];
+  for (let i = 0; i < n; i++) {
+    let j = i;
+    while (j >= 0 && out[j] === -2) { path.push(j); out[j] = -3; j = down ? down[j] : -1; }
+    const v = j >= 0 && out[j] >= 0 ? out[j] : -1;   // -3: a loop, treated as leaving
+    for (const q of path) out[q] = v;
+    path.length = 0;
+  }
   return out;
 }
 

@@ -1,6 +1,9 @@
 // Climate match (engine/typology/climate.ts): the six numbers, the distance, the plain words,
 // and that every precedent and site has measured normals (pc/typology_climate.py).
-import { describe, expect, test } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, it, test } from "vitest";
+import { climateAt, km } from "../app/engine/typology/climatefetch.js";
 import { CLIMATE, differences, distance, matchLabel, profile, type Normals } from "../app/engine/typology/climate.js";
 import { LIBRARY } from "../app/engine/typology/library.js";
 
@@ -53,5 +56,33 @@ describe("climate match", () => {
       expect(n.tmax.every((v) => v != null && Number.isFinite(v))).toBe(true);
     }
     expect(Object.keys(CLIMATE.places).some((k) => k === "site:bengaluru-cascade")).toBe(true);
+  });
+});
+
+describe("climate for any place (climatefetch.ts)", () => {
+  const answer = JSON.parse(readFileSync(join(__dirname, "fixtures", "nasa-power-bengaluru.json"), "utf8"));
+  const ok = (async () => new Response(JSON.stringify(answer), { status: 200 })) as unknown as typeof fetch;
+  const down = (async () => { throw new TypeError("network"); }) as unknown as typeof fetch;
+
+  it("reads NASA POWER the way the library's climate data was read", async () => {
+    const c = await climateAt(77.67, 12.907, { fetch: ok });
+    expect(c.from).toBe("power");
+    // the Bengaluru site in climate.json came from the same source and point
+    const site = CLIMATE.places["site:bengaluru-cascade"];
+    c.normals.tmax.forEach((v, m) => expect(Math.abs(v - site.tmax[m])).toBeLessThan(0.6));
+    c.normals.rain.forEach((v, m) => expect(Math.abs(v - site.rain[m])).toBeLessThan(Math.max(3, 0.1 * site.rain[m])));
+  });
+
+  it("falls back to the nearest known place, and says how far", async () => {
+    const c = await climateAt(77.6, 12.97, { fetch: down });
+    expect(c.from).toBe("nearest");
+    expect(["site:bengaluru-cascade", "katte"]).toContain(c.near!.id);
+    expect(c.near!.km).toBeLessThan(15);
+    expect(c.note).toMatch(/km away/);
+  });
+
+  it("measures distance on the globe", () => {
+    expect(km([77.59, 12.97], [72.88, 19.08])).toBeGreaterThan(830);
+    expect(km([77.59, 12.97], [72.88, 19.08])).toBeLessThan(850);
   });
 });

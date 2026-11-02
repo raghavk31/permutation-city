@@ -11,3 +11,7 @@ export { TYPES } from "./typology.js";
 export { boxesMesh, skinMesh, massingMesh, contextMesh, existingMesh, boxRing, triangulate, type Mesh } from "./mesh.js";
 export { readouts, READOUTS, DAYLIT_M, type MassReadouts } from "./readouts.js";
 export { prepareBlock, withHeights, type MassSetup, type MassRequest } from "./setup.js";
+export { plotEnvelope, rectPlot, type PlotSpec } from "./plot.js";
+export { precedent, plotCandidates, plotChoices, rasterize, decode, ownGenes, rangeOf, frontOf, SETTINGS, SETTING_WORDS, CANDIDATES as PLOT_CANDIDATES, type PlotBrief, type PlotCandidate, type Source, type Change } from "./precedent.js";
+export { searchPlot, type PlotSearch } from "./plotsearch.js";
+export { PLOT_SCORES, IDEAL, DESIGN_RAIN_MM, placeNature, rainHeld, plotShade, climateFit, plotScores, natureGenes, type PlotNature, type PlotScoreKey } from "./plotnature.js";

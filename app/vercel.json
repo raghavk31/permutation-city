@@ -39,6 +39,10 @@
     {
       "source": "/typologies",
       "destination": "/typologies.html"
+    },
+    {
+      "source": "/build",
+      "destination": "/build.html"
     }
   ]
 }

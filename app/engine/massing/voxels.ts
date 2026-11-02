@@ -9,6 +9,7 @@
 //   thin       a plot over its coverage limit loses its lowest-density columns until it fits
 import { STOREY_M } from "../config.js";
 import type { Envelope } from "./envelope.js";
+import type { Source } from "./precedent.js";
 
 /** A box in plan, rotated: the typology grammar's solids (exact geometry for the viewer). */
 export interface Box {
@@ -23,6 +24,7 @@ export interface Massing {
   field?: Float32Array;       // fields: value per voxel (threshold 0), for the smooth skin
   repairs: Repair[];
   rejected: string | null;    // why it can't stand, or null
+  source?: Source;            // a precedent's: which, at what height, and its drift (precedent.ts)
 }
 
 export interface Repair { kind: "clip" | "ground" | "thin" | "shrink" | "lower"; plot: number; count: number }

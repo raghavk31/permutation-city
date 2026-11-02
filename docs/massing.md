@@ -332,3 +332,94 @@ Vitest rebuilds them from their genomes and expects the same voxels and scores. 
 - **Interior plots** are reached through their neighbours. No lane is cut to them.
 - **Echoes** come from wall directions only, not proportions.
 - **Pattern 107's width (12 m) is assumed** until checked against the book.
+
+## One plot, with no site (31 October)
+
+`plot.ts` (architecture-v3 section 13, step B1). `plotEnvelope` builds the same Envelope from a
+plot's outline: the sides that face a street (with the street's width), the storeys allowed,
+the floor area wanted, setbacks (front from the street sides, rear from the side most opposite
+the main street, side from the rest), and optional neighbours as prisms with a height. It has
+one plot, no design cells and no design context, so every representation, score and readout
+runs on it unchanged. `rectPlot(w, d, turn)` gives the rectangle a form asks for. The street
+band outside the street sides is the public ground the shade and sky scores read; with no
+neighbours, the sun taken from neighbours is 0.
+
+### Precedents on one plot (B2-B3, 31 October)
+
+`precedent.ts`, `plotsearch.ts`. A fourth representation: the building is a library precedent
+for the programme, chosen by the climate challenges it answers (`typology/challenges.ts`),
+its settings varied within ranges, laid over the plot's buildable land with the urban scale's
+layout (`plan/blockmass.ts` `layLot`, given the changed settings and a placement), set on the
+columns, repaired and scored like the rest.
+
+- **Genes (14):** which candidate, storeys, share of floor kept (whole buildings left out,
+  spread evenly), placement along the street and back from it, unit width and depth, units in
+  a row, rows, court, street or lane, gap; and, in a hybrid run, hybrid on and the donor.
+- **Ranges:** a setting moves from 0.6 to 1.6 times its own value, inside the spread of its
+  family in the library but always including its own; units in a row down to one (a lane of
+  pol houses too long for the plot shrinks to fit), rows by one either way, gap 0 (shared
+  walls) to twice its own. Storeys to `maxStoreys` and the plot's cap; raised past its own
+  height, the court or street widens to the height.
+- **Drift:** each setting that moved, from and to, kept with the massing (`Source.drift`).
+- **First generation:** every candidate as it is, against the street.
+- **Hybrids** only when no single precedent comes within the tolerance of the floor wanted:
+  `searchPlot` runs again from the first run's population with a donor's units as the centre
+  of the ranges.
+- **Survivors** skip exact copies of a massing already kept (all representations).
+
+On a 48 x 36 m Bengaluru plot, FSI 1.5 at five storeys: single precedents (pol, tube house,
+merchant house) come within 4-9% without hybrids; before the ranges the best was 25% short.
+FSI 2.6 turns hybrids on. A search of 32 designs over 10 generations takes about 2 s.
+
+### Nature's rules on one plot (B4, 31 October)
+
+`plotnature.ts`. Five of the genes from `typology/nature.ts` act inside one plot, as precedent
+genes 14-18: pond or wetland share of the plot (0-15%), canopy share of the open ground
+(0-60%), planted roofs (0-100%), eave depth (0-2.5 m), façade openness (5-60%). Ponds in
+series, stream bands and the other site genes wait for the site scale (B7).
+
+- **Where:** ponds where the open ground is widest (farthest from the buildings), then
+  farthest from the street; trees on the rest, nearest the buildings (courts and lanes
+  first). On a plot the buildings nearly fill, the widest ground left is the setback strip,
+  so the ponds run along the boundary as a swale.
+- **Scores** (higher is better; stand-ins until checked against models):
+  - *rain held*: share of a 75 mm storm held on the plot; run-off coefficients roof 0.9,
+    planted roof 0.5, open ground 0.4, under trees 0.25 (assumed, rational-method tables);
+    roofs and ground drain to the ponds, which store 0.6 m deep.
+  - *plot shade*: share of the plot's open ground in shade in the hot hours, from buildings
+    and from crowns 8 m high that stop 75% of the sun.
+  - *climate fit*: eave depth and openness against the ideal ranges of the place's challenges
+    (`IDEAL`: deep and open for humid heat, fine and closed for dry heat and cold). A rule,
+    not a thermal model.
+- **Objectives:** the plot search ranks on street shade, sky view, frontal area, rain held,
+  plot shade and climate fit; winter sun only where cold matters (weight over 0.3), sun taken
+  only when there are neighbours. Eight at once leave nearly every design undominated.
+- **Starting designs:** a candidate too big for the plot as it is starts shrunk (fewest units
+  and rows, then smallest units) so the first generation doesn't waste a place.
+
+On the 48 x 36 m Bengaluru plot at FSI 1.0, the front trades rain held (36% for a bare tube
+house terrace, 100% with ponds and planted roofs) against plot shade (19-50%) and climate fit
+(38-90%).
+
+### The /build page (B5, 31 October)
+
+`app/build.html`, `app/ui/build/` (Build.svelte, scene3d.ts, build.css),
+`app/ui/diagrams/plotcard.ts`, `app/engine/massing/plotworker.ts`. A form (place with climate
+data, plot size, street side and width, setbacks, programme, floor over plot area, storeys,
+floods and water shortage) runs `searchPlot` in a worker. The page shows what the climate asks
+(each challenge with its weight and why), the precedents tried (linked to the library), the
+notes (hybrids, raster), the opened design in the massing chapter's 3D viewer (masses with
+their courts, trees, ponds on the ground, a 15 April afternoon sun) with what moved, the nature
+genes and six scores, and every distinct design as a card drawn in the library's isometric
+style. `/build?run` starts a search with the defaults. A quick search (24 x 8) takes about 2 s.
+Places are those with climate data until B6.
+
+### Climate for any place (B6, 31 October)
+
+`app/engine/typology/climatefetch.ts`. On the /build page, "Any point" takes a latitude and
+longitude (`/build?at=13.08,80.27` sets it). Its monthly normals come from NASA POWER's
+climatology API, called from the browser (it allows it), with the same parameters and
+conversion as `pc/typology_climate.py`, so a point and a library place are read alike; the
+answer is remembered in the browser. When NASA POWER doesn't answer within 60 s, the nearest
+place in `climate.json` stands in and the page says which and how far. Tested against a recorded
+answer (`test/fixtures/nasa-power-bengaluru.json`), which matches the Bengaluru site's normals.

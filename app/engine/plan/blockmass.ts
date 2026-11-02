@@ -11,9 +11,10 @@
 // whole tiles left out, spread evenly over the lot by error diffusion, so a pol stays a pol with
 // fewer houses rather than thinner ones.
 import { intersect, type Poly, polysArea, subtract, unite } from "./clipper.js";
-import type { Built, Roof } from "../typology/grammar.js";
+import { build, type Built, type Params, type Roof } from "../typology/grammar.js";
 import { area, centroid, convexHull, inside, obb, type Line, type Pt } from "./geom.js";
 import { built, PRECEDENT } from "./precedents.js";
+import { type OpenNeed, PIECE } from "./lotnature.js";
 
 /** A building of the default massing: a footprint (anticlockwise, world metres) with its courts
  *  and wells as holes (clockwise), its base (m) and its storeys; a whole building (not trimmed
@@ -101,6 +102,18 @@ function prepared(land: Line[]): Prepared {
   }
   return p;
 }
+/** The land's grid cells whose middles are on the land (1), worked out once per land. */
+const ON_GROUND = new WeakMap<Prepared, Uint8Array>();
+function onGround(pre: Prepared): Uint8Array {
+  let g = ON_GROUND.get(pre);
+  if (!g) {
+    const m = pre.mask;
+    g = new Uint8Array(m.nx * m.ny);
+    for (let c = 0; c < g.length; c++) g[c] = m.v[c] === 1 || (m.v[c] === 2 && onLandExact(pre, [m.x0 + ((c % m.nx) + 0.5) * CELL_M, m.y0 + (Math.floor(c / m.nx) + 0.5) * CELL_M])) ? 1 : 0;
+    ON_GROUND.set(pre, g);
+  }
+  return g;
+}
 function onLand(pre: Prepared, q: Pt): boolean {
   const m = pre.mask, i = Math.floor((q[0] - m.x0) / CELL_M), j = Math.floor((q[1] - m.y0) / CELL_M);
   if (i < 0 || j < 0 || i >= m.nx || j >= m.ny) return false;
@@ -159,7 +172,7 @@ function nearRing(r: Line, [x, y]: Pt) {
 /** A lot's typing as massing reads it: its block, precedent, storeys, the coverage and FSI it
  *  gives, and the caps it was thinned to (coverage, FSI; 0 for none; without them, its own
  *  coverage and FSI). */
-export interface Typed { block: number; type: number; precedent: string; storeys: number; gsi: number; fsi: number; land: number; cap?: [number, number] }
+export interface Typed { block: number; type: number; precedent: string; storeys: number; gsi: number; fsi: number; land: number; cap?: [number, number]; variant?: { key: string; params: Params } }
 
 /** A piece of a laid-out precedent: g is its tile, the unit thinning leaves out whole; a
  *  building's outline with its courts and wells as holes; whole where the land left all of it. */
@@ -203,23 +216,30 @@ interface Shape { pieces: (Pick<Piece, "ring" | "holes" | "g" | "a" | "whole" | 
 const LAID = new WeakMap<Line[], Map<string, { pieces: Piece[]; foot: number; floor: number } | null>>();
 const SHAPES = new WeakMap<Line[], Map<string, Shape | null>>();
 
+/** How one plot's search varies a layout (massing/precedent.ts): the precedent's settings
+ *  changed (`params`, named by `key` for the cache), and where the tiles sit in the slack the
+ *  land leaves: `place` 0..1 along and across, with 0 across the side nearest `front` (the
+ *  street). Without it, the precedent at n storeys, centred, as the urban scale lays lots. */
+export interface LayOptions { params: Params; key: string; place?: [number, number]; front?: Pt }
+
 /** A precedent at n storeys laid over a lot, unthinned: its pieces, ground coverage and floor
  *  area (m²); null where not one tile fits. Cached per land. */
-export function layLot(id: string, n: number, land: Line[], exact = true) {
+export function layLot(id: string, n: number, land: Line[], exact = true, opt?: LayOptions) {
   let per = LAID.get(land), shapes = SHAPES.get(land);
   if (!per) LAID.set(land, (per = new Map()));
   if (!shapes) SHAPES.set(land, (shapes = new Map()));
-  const key = `${id}:${n}:${exact}`;
+  const where = opt?.place ? `@${opt.place[0].toFixed(2)},${opt.place[1].toFixed(2)}` : "";
+  const key = opt ? `${opt.key}${where}:${exact}` : `${id}:${n}:${exact}`;
   if (per.has(key)) return per.get(key)!;
   const p = PRECEDENT.get(id);
-  const b = p && land.length ? built(p, n) : null;
+  const b = p && land.length ? (opt ? build(opt.params) : built(p, n)) : null;
   const solids = b ? b.solids.filter((s) => s.use === "built" && (s.storeys ?? 0) > 0 && s.ring.length >= 3) : [];
   // storey counts that change only the floors share one geometry
-  let sig = `${id}|${b?.plot.w}|${b?.plot.d}|${solids.length}|${exact}`;
+  let sig = `${id}|${b?.plot.w}|${b?.plot.d}|${solids.length}|${exact}${where}`;
   for (const s of solids) sig += `|${s.ring[0][0].toFixed(2)},${s.ring[0][1].toFixed(2)},${s.z.toFixed(2)}`;
   const bs = b ? buildingsOf(sig, solids) : [];
   let shape = shapes.get(sig);
-  if (shape === undefined) shapes.set(sig, (shape = b && solids.length ? shapeOf(b.plot.w, b.plot.d, bs, solids, land, exact) : null));
+  if (shape === undefined) shapes.set(sig, (shape = b && solids.length ? shapeOf(b.plot.w, b.plot.d, bs, solids, land, exact, opt) : null));
   if (!shape) { per.set(key, null); return null; }
   const zBase = Math.min(...solids.map((s) => s.z));
   const pieces: Piece[] = [];
@@ -241,12 +261,22 @@ export function layLot(id: string, n: number, land: Line[], exact = true) {
  *  land. At the land's edge a building is trimmed by whole units or wings, never sliced: a
  *  unit stays where KEEP_OF_UNIT of it is on the land (the sliver it overhangs cut off), the
  *  rest are left out; null where not one tile fits. */
-function shapeOf(w: number, d: number, bs: Building[], solids: Built["solids"], land: Line[], exact: boolean): Shape | null {
+function shapeOf(w: number, d: number, bs: Building[], solids: Built["solids"], land: Line[], exact: boolean, opt?: LayOptions): Shape | null {
   const pre = prepared(land), box = pre.box, L = 2 * box.hl, W = 2 * box.hw;
   const fit = tiles(w, d, L, W);
   if (!fit) return null;
   const { nU, nV, turned } = fit, tu = turned ? d : w, tv = turned ? w : d;
-  const u0 = (L - nU * tu) / 2, v0 = (W - nV * tv) / 2, hl = L / 2, hw = W / 2;
+  const hl = L / 2, hw = W / 2;
+  let u0 = (L - nU * tu) / 2, v0 = (W - nV * tv) / 2;
+  if (opt?.place) {
+    // the slack shared out by the genes; across, from the street's side of the box
+    // the street's side of the box: the one its middle lies beyond, relative to the box's size
+    const [a, c] = opt.place, su = L - nU * tu, sv = W - nV * tv;
+    const f = opt.front ?? [box.c[0] + box.uy, box.c[1] - box.ux];
+    const fu = (f[0] - box.c[0]) * box.ux + (f[1] - box.c[1]) * box.uy, fv = (f[0] - box.c[0]) * -box.uy + (f[1] - box.c[1]) * box.ux;
+    if (Math.abs(fu) / Math.max(hl, 1e-6) > Math.abs(fv) / Math.max(hw, 1e-6)) { v0 = a * sv; u0 = fu < 0 ? c * su : su - c * su; }
+    else { u0 = a * su; v0 = fv < 0 ? c * sv : sv - c * sv; }
+  }
   // local (u along the box's length, v across) to world, the box's corner at (0, 0)
   const at = (u: number, v: number): Pt => [box.c[0] + (u - hl) * box.ux - (v - hw) * box.uy, box.c[1] + (u - hl) * box.uy + (v - hw) * box.ux];
   const pieces: Shape["pieces"] = [];
@@ -300,7 +330,7 @@ export const keepShare = (foot: number, floor: number, own: number, gsi: number,
 
 /** One lot's buildings. land: the lot's building plots. */
 export function massLot(t: Typed, land: Line[], exact = true): { masses: Mass[]; gsi: number; fsi: number; tiles: number } {
-  const lay = t.type >= 0 && land.length ? layLot(t.precedent, t.storeys, land, exact) : null;
+  const lay = t.type >= 0 && land.length ? layLot(t.precedent, t.storeys, land, exact, t.variant ? { params: t.variant.params, key: `${t.precedent}:${t.variant.key}:${t.storeys}` } : undefined) : null;
   if (!lay) return { masses: [], gsi: 0, fsi: 0, tiles: 0 };
   const own = prepared(land).own, [cg, cf] = t.cap ?? [t.gsi, t.fsi], f = keepShare(lay.foot, lay.floor, own, cg, cf);
   let keep = (_: number) => true;
@@ -348,3 +378,127 @@ export function massPlan<T extends Typed>(types: readonly T[], landOf: (t: T) =>
   });
   return { masses, checks, byType };
 }
+
+/** Open ground a lot's programme can use (m²): its land the buildings leave, in pieces at least
+ *  `width` m across everywhere (an opening of the free ground by a disc of half that width, on
+ *  the land's CELL_M grid) and of at least `minArea` m² each. A court narrower than `width`, a
+ *  setback strip or a lane between rows doesn't count (lotnature.ts OPEN_NEED). */
+export function usableOpen(land: Line[], masses: readonly Mass[], width: number, minArea: number): number {
+  return land.length ? openGrid(land, masses, width, minArea).total : 0;
+}
+
+/** The land's grid with the buildings off: free ground (1), and each cell's usable piece
+ *  (an index into sizes, the pieces' areas in m²; -1 where it isn't in one of at least minArea). */
+function openGrid(land: Line[], masses: readonly Mass[], width: number, minArea: number) {
+  const pre = prepared(land), m = pre.mask, { nx, ny } = m, N = nx * ny, free = Uint8Array.from(onGround(pre));
+  // the buildings' ground floors off, courts and wells left (rows by scanline, even-odd over a
+  // building's outline and holes)
+  for (const b of masses) {
+    if (b.z > 0.01) continue;
+    const rings = [b.ring, ...(b.holes ?? [])], [a, , c] = bb(b.ring), [, lo, , hi] = bb(b.ring);
+    const j0 = Math.max(0, Math.floor((lo - m.y0) / CELL_M)), j1 = Math.min(ny - 1, Math.floor((hi - m.y0) / CELL_M));
+    if (c < m.x0 || a > m.x0 + nx * CELL_M) continue;
+    if (j1 < j0) continue;
+    // each edge once, its crossings of the rows' middles put in their rows
+    const rows: number[][] = Array.from({ length: j1 - j0 + 1 }, () => []);
+    for (const r of rings) for (let k = 0; k < r.length; k++) {
+      const [px, py] = r[k], [qx, qy] = r[(k + 1) % r.length];
+      if (py === qy) continue;
+      const ya = Math.min(py, qy), yb = Math.max(py, qy);
+      for (let j = Math.max(j0, Math.ceil((ya - m.y0) / CELL_M - 0.5)); j <= j1; j++) {
+        const y = m.y0 + (j + 0.5) * CELL_M;
+        if (y >= yb) break;
+        if (y >= ya) rows[j - j0].push(px + ((y - py) / (qy - py)) * (qx - px));
+      }
+    }
+    for (let j = j0; j <= j1; j++) {
+      const xs = rows[j - j0].sort((p, q) => p - q);
+      for (let k = 0; k + 1 < xs.length; k += 2)
+        for (let i = Math.max(0, Math.floor((xs[k] - m.x0) / CELL_M)); i < nx && m.x0 + i * CELL_M < xs[k + 1]; i++) free[j * nx + i] = 0;
+    }
+  }
+  // distances in chamfer steps (3 a side, 4 a diagonal; a cell is 3 steps), two passes
+  const dist = (d: Int32Array) => {
+    for (let j = 0; j < ny; j++) for (let i = 0, c = j * nx; i < nx; i++, c++) {
+      let v = d[c];
+      if (i > 0 && d[c - 1] + 3 < v) v = d[c - 1] + 3;
+      if (j > 0) { const u = c - nx; if (d[u] + 3 < v) v = d[u] + 3; if (i > 0 && d[u - 1] + 4 < v) v = d[u - 1] + 4; if (i < nx - 1 && d[u + 1] + 4 < v) v = d[u + 1] + 4; }
+      d[c] = v;
+    }
+    for (let j = ny - 1; j >= 0; j--) for (let i = nx - 1, c = j * nx + i; i >= 0; i--, c--) {
+      let v = d[c];
+      if (i < nx - 1 && d[c + 1] + 3 < v) v = d[c + 1] + 3;
+      if (j < ny - 1) { const u = c + nx; if (d[u] + 3 < v) v = d[u] + 3; if (i < nx - 1 && d[u + 1] + 4 < v) v = d[u + 1] + 4; if (i > 0 && d[u - 1] + 4 < v) v = d[u - 1] + 4; }
+      d[c] = v;
+    }
+    return d;
+  };
+  const BIG = 1 << 29, step = CELL_M / 3, r = width / 2;
+  // centres of discs of radius r that fit the free ground, and the cells such a disc covers,
+  // both read between cells' middles (right to within a cell: on 2 m cells a 6 m strip passes
+  // for 7.5 m, an 8 m one does too)
+  const toEdge = new Int32Array(N);
+  for (let c = 0; c < N; c++) toEdge[c] = free[c] ? BIG : 0;
+  dist(toEdge);
+  const fromCentre = new Int32Array(N), rIn = r / step - 1e-9;
+  for (let c = 0; c < N; c++) fromCentre[c] = free[c] && toEdge[c] >= rIn ? 0 : BIG;
+  dist(fromCentre);
+  const use = new Uint8Array(N), rOut = r / step + 1e-9;
+  for (let c = 0; c < N; c++) if (free[c] && fromCentre[c] <= rOut) use[c] = 1;
+  // pieces of at least minArea, 4-connected
+  let total = 0;
+  const stack = new Int32Array(N), piece = new Int32Array(N).fill(-1), sizes: number[] = [];
+  for (let c0 = 0; c0 < N; c0++) {
+    if (use[c0] !== 1) continue;
+    let k = 0, top = 0;
+    use[c0] = 2; stack[top++] = c0;
+    const id = sizes.length;
+    while (top) {
+      const c = stack[--top], i = c % nx; k++; piece[c] = id;
+      if (i > 0 && use[c - 1] === 1) { use[c - 1] = 2; stack[top++] = c - 1; }
+      if (i < nx - 1 && use[c + 1] === 1) { use[c + 1] = 2; stack[top++] = c + 1; }
+      if (c >= nx && use[c - nx] === 1) { use[c - nx] = 2; stack[top++] = c - nx; }
+      if (c + nx < N && use[c + nx] === 1) { use[c + nx] = 2; stack[top++] = c + nx; }
+    }
+    const a = k * CELL_M * CELL_M;
+    sizes.push(a);
+    if (a >= minArea) total += a;
+  }
+  for (let c = 0; c < N; c++) if (piece[c] >= 0 && sizes[piece[c]] < minArea) piece[c] = -1;
+  return { m, free, piece, sizes, total };
+}
+
+/** Where a typed lot's nature goes on its ground, for drawing (lotnature.ts gives how much):
+ *  the programme's pieces kept first, largest first, up to its need; ponds on the rest of the
+ *  free ground, widest first (farthest from the buildings); trees nearest the buildings on what
+ *  is left and, in a garden, in the kept pieces. Cell middles, CELL_M apart. */
+export function lotGround(t: Typed & { nature?: { need: number; pond: number; trees: number } }, land: Line[], masses: readonly Mass[],
+  kind: OpenNeed["kind"]): { pond: Pt[]; trees: Pt[]; cell: number } {
+  const N0 = t.nature, piece = PIECE[kind];
+  if (!N0 || !land.length) return { pond: [], trees: [], cell: CELL_M };
+  const g = openGrid(land, masses, Math.max(piece.width, CELL_M), piece.area), { m } = g, N = m.nx * m.ny, A = CELL_M * CELL_M;
+  // the programme's pieces, largest first, up to its need
+  const kept = new Uint8Array(g.sizes.length);
+  let need = N0.need;
+  for (const k of g.sizes.map((_, k) => k).sort((a, b) => g.sizes[b] - g.sizes[a])) {
+    if (need <= 0 || piece.width <= 0 || g.sizes[k] < piece.area) break;
+    kept[k] = 1; need -= g.sizes[k];
+  }
+  const reserved = (c: number) => g.piece[c] >= 0 && kept[g.piece[c]] === 1;
+  // distance (cells) of each free cell from the buildings and the land's edge
+  const d = new Int32Array(N).fill(-1), q: number[] = [];
+  for (let c = 0; c < N; c++) if (!g.free[c]) { d[c] = 0; q.push(c); }
+  for (let h = 0; h < q.length; h++) {
+    const c = q[h], i = c % m.nx;
+    for (const p of [i > 0 ? c - 1 : -1, i < m.nx - 1 ? c + 1 : -1, c - m.nx, c + m.nx]) if (p >= 0 && p < N && d[p] < 0) { d[p] = d[c] + 1; q.push(p); }
+  }
+  const at = (c: number): Pt => [m.x0 + ((c % m.nx) + 0.5) * CELL_M, m.y0 + (Math.floor(c / m.nx) + 0.5) * CELL_M];
+  const spare: number[] = [], garden: number[] = [];
+  for (let c = 0; c < N; c++) if (g.free[c]) (reserved(c) ? garden : spare).push(c);
+  spare.sort((a, b) => d[b] - d[a] || a - b);
+  const nPond = Math.min(spare.length, Math.round(N0.pond / A)), pond = spare.slice(0, nPond);
+  const dry = [...spare.slice(nPond), ...(kind === "garden" ? garden : [])].sort((a, b) => d[a] - d[b] || a - b);
+  const trees = dry.slice(0, Math.round(N0.trees / A));
+  return { pond: pond.map(at), trees: trees.map(at), cell: CELL_M };
+}
+

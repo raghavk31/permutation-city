@@ -8,6 +8,8 @@ import {
 import { passes } from "./graph.js";
 import { roundTo, smooth } from "./num.js";
 import type { Design, Ground, ScoreKey, Scores } from "./types.js";
+import { POND_M } from "./massing/plotnature.js";
+import { GREEN_HOLD_M, TREE_HOLD_M } from "./plan/lotnature.js";
 
 // name: [label, format, higher is better]
 export const SCORES: Record<ScoreKey, [string, (v: number) => string, boolean]> = {
@@ -49,7 +51,13 @@ function dilateMax(v: Float64Array, nbr: Int32Array, deg: number): Float64Array 
 /** How much rain a cell holds (m of water over the cell): water and landscape by use, a
  *  building plot by its permeable share. */
 export function storageDepth(d: Design, G: Ground, i: number): number {
-  return d.use[i] === WATER ? STORAGE_WATER : d.use[i] === LANDSCAPE ? STORAGE_LANDSCAPE : G.minPerm[i] * PLOT_STORAGE;
+  if (d.use[i] === WATER) return STORAGE_WATER;
+  if (d.use[i] === LANDSCAPE) return STORAGE_LANDSCAPE;
+  const N = d.nature, base = G.minPerm[i] * PLOT_STORAGE;
+  if (!N) return base;
+  // a lot's ponds, trees and planted roofs (plan/lotnature.ts): a pond holds its depth in place
+  // of permeable ground's
+  return base + N.pond[i] * (POND_M - PLOT_STORAGE) + N.canopy[i] * TREE_HOLD_M + d.coverage[i] * N.greenRoof[i] * GREEN_HOLD_M;
 }
 
 /** The heat score's field: each cell's warming (°C) by its surfaces and height, spread over
@@ -58,8 +66,13 @@ export function heatField(d: Design, G: Ground): Float64Array {
   const n = G.n, dt = new Float64Array(n);
   for (let i = 0; i < n; i++) {
     if (d.use[i] === BUILDING) {
-      const sealed = Math.min(Math.max(1 - d.coverage[i] - G.minPerm[i], 0), 1);
-      dt[i] = d.coverage[i] * HEAT.roof + G.minPerm[i] * HEAT.unsealed + sealed * HEAT.sealed
+      const sealed = Math.min(Math.max(1 - d.coverage[i] - G.minPerm[i], 0), 1), N = d.nature;
+      if (N) {
+        // ponds and trees take paving first, then bare ground; planted roofs read as landscape
+        const p = N.pond[i], t = N.canopy[i], s = Math.min(sealed, p + t), u = Math.min(G.minPerm[i], p + t - s), g = N.greenRoof[i];
+        dt[i] = d.coverage[i] * (g * HEAT.landscape + (1 - g) * HEAT.roof) + (G.minPerm[i] - u) * HEAT.unsealed + (sealed - s) * HEAT.sealed
+          + p * HEAT.water + t * HEAT.landscape + HEAT_PER_LEVEL * d.levels[i];
+      } else dt[i] = d.coverage[i] * HEAT.roof + G.minPerm[i] * HEAT.unsealed + sealed * HEAT.sealed
         + HEAT_PER_LEVEL * d.levels[i];
     } else dt[i] = d.use[i] === WATER ? HEAT.water : HEAT.landscape;
   }
