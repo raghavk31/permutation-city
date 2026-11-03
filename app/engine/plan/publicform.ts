@@ -5,13 +5,13 @@
 // within their limits. Deterministic: the space's index seeds it.
 //
 // What a space is asked, by its jobs:
-//   water        hold what it was placed for (need), twice the weight of anything else; then
-//                stay usable when full
+//   water        hold what it was placed for (need), three times the weight of anything else;
+//                staying usable when full counts in proportion to the water it holds
 //   seats        steps and banks low enough to sit on, up to SEAT_FULL m per 100 m²
 //   shade        its share of shaded ground, weighted up where heat matters
 //   enclosure    a doorstep space between ENCLOSE (a pol's chowk to Paley Park), not a shaft
-// A school's field is held to Japan's 30 cm (children's safety); other fields and basins to
-// their family's limits.
+// A school's field is held to Japan's 30 cm (children's safety), a junction square to 3 m deep;
+// other spaces to their family's limits.
 import { needs } from "../typology/challenges.js";
 import { CLIMATE } from "../typology/climate.js";
 import { LIBRARY } from "../typology/library.js";
@@ -24,6 +24,7 @@ export const FORM_STEPS = 40;
 export const SEAT_FULL = 10;                       // m of seat per 100 m² that counts as full (assumed)
 export const ENCLOSE: [number, number] = [0.8, 2]; // a doorstep space's edge height ÷ width, well liked (assumed from the library's spread)
 export const SCHOOL_SUNK_M = 0.3;                  // Sapporo's schoolyards: 30 cm at most
+export const SQUARE_DEEP_M = 3;                    // a junction square sinks no deeper (Benthemplein's deep basin 1.6 m; assumed)
 
 let starts: Map<ShapedFamily, { id: string; s: Shape }[]> | null = null;
 function startsOf(f: ShapedFamily) {
@@ -43,7 +44,9 @@ function startsOf(f: ShapedFamily) {
 /** How well a shape does a space's jobs (higher is better). */
 export function formScore(f: ShapedFamily, m: OpenMeasures, need: number, hot: number): number {
   let v = 0.5 * Math.min(1, m.seats / SEAT_FULL) + (0.5 + hot) * m.shade;
-  if (need > 0) v += 2 * Math.min(1, m.storage / need) + m.wetUse;
+  // a space placed for water holds what it can before anything else; staying usable counts in
+  // proportion to the water it holds (a dry square is usable, and holds nothing)
+  if (need > 0) { const f = Math.min(1, m.storage / need); v += 3 * f + f * m.wetUse; }
   if (f === "doorstep") {
     const e = m.enclosure, [lo, hi] = ENCLOSE;
     v += e < lo ? e / lo : e > hi ? Math.max(0, 1 - (e - hi) / hi) : 1;
@@ -67,6 +70,7 @@ export function formOf(space: PublicSpace, hot: number, seed: number): { shape: 
     if (f === "field" && space.rule === "field") c.sunk = Math.min(c.sunk, SCHOOL_SUNK_M);
     if (f === "field" && space.rule !== "field" && need <= 0) c.sunk = 0;   // a dry park field isn't lowered
     if (f === "basin" && need <= 0) c.water = genes.find((g) => g.key === "water")!.lo;
+    if (f === "stepped" && space.rule === "square") c.depth = Math.min(c.depth, SQUARE_DEEP_M / Math.sqrt(area / c.aspect));
     return c;
   };
   const score = (s: Shape) => formScore(f, measureShape(f, s, area, need), need, hot);

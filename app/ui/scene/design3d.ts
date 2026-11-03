@@ -19,7 +19,7 @@ import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { dayOfYear, solarHour, sunAt } from "../../engine/massing";
-import { sectionFor, sides, type Design, type Ground, type SiteExport } from "../../engine";
+import { deepest, sectionFor, sides, type Design, type Ground, type SiteExport, type StormState } from "../../engine";
 import { planGround, type Mass } from "../../engine/plan/blockmass";
 import { inset, regions, shapeOf, type StreetLines } from "../draw";
 import { buildingAt, tokens as T } from "../tokens";
@@ -31,6 +31,8 @@ export interface DesignScene {
   site: SiteExport; G: Ground; d: Design; roads: StreetLines | null;
   /** Vertical exaggeration (1: true heights). */
   exaggerate?: number;
+  /** A day's rain on the public ground (plan/storm.ts): water in the public spaces. */
+  storm?: StormState | null;
 }
 export interface SunSetting { month: number; day: number; clock: number }
 
@@ -95,10 +97,10 @@ const TREE_EVERY_M = 15;   // trees along a planted strip at least 1.5 m wide (S
 
 /** A street as its cross-section (engine/config.ts sectionFor): footpaths, planted strips,
  *  carriageway or shared lane as bands, and trees along the planted strips. */
-function streetBands(points: [number, number][], w: number) {
+function streetBands(points: [number, number][], w: number, section?: { kind: string; w: number }[]) {
   const out: { kind: string; g: THREE.BufferGeometry | null }[] = [], trees: [number, number][] = [];
   let at = w / 2;
-  for (const part of sectionFor(w).parts) {
+  for (const part of section ?? sectionFor(w).parts) {
     const a = at, b = at - part.w;
     out.push({ kind: part.kind, g: band(points, a, b, part.kind === "footpath" ? 0.35 : 0.2) });
     if (part.kind === "planted" && part.w >= 1.5) {
@@ -216,6 +218,10 @@ export class DesignView {
   private sun = new THREE.DirectionalLight(0xffffff, 3.4);
   private sky = new THREE.HemisphereLight(0xf4f6f8, 0xd9d4c8, 0.45);
   private content = new THREE.Group();
+  /** The public spaces' storm water, rebuilt alone when the rain changes (setStorm). */
+  private water = new THREE.Group();
+  private spaceRings: { rings: [number, number][][]; deepest: number }[] = [];
+  private ex = 1.5;
   private centre = new THREE.Vector3();
   private span = 500;
   private high = true;
@@ -240,7 +246,7 @@ export class DesignView {
     this.sun.shadow.normalBias = 0.4;
     this.sun.shadow.radius = 4;
     this.sky.position.set(0, 0, 1);
-    this.scene.add(this.sun, this.sun.target, this.sky, this.content);
+    this.scene.add(this.sun, this.sun.target, this.sky, this.content, this.water);
     this.controls = new OrbitControls(this.camera, canvas);
     this.controls.enableDamping = true;
     this.controls.maxPolarAngle = Math.PI * 0.47;
@@ -310,6 +316,8 @@ export class DesignView {
 
   show(o: DesignScene) {
     const { site, G, d, roads } = o, ex = o.exaggerate ?? 1.5;
+    this.ex = ex; this.spaceRings = [];
+    for (const ch of [...this.water.children]) { this.water.remove(ch); (ch as THREE.Mesh).geometry?.dispose(); }
     for (const ch of [...this.content.children]) {
       this.content.remove(ch);
       (ch as THREE.Mesh).geometry?.dispose();
@@ -382,10 +390,29 @@ export class DesignView {
     const byUse = (u: number) => plan.plots.filter((p) => p.use === u).map((p) => (area2(p.ring) < 0 ? [...p.ring].reverse() : p.ring));
     add(sheet(byUse(3), 0.12), new THREE.MeshStandardMaterial({ color: T.water.storage, roughness: 0.15, metalness: 0, envMapIntensity: 1.2 }));
     add(sheet(byUse(2), 0.1), new THREE.MeshStandardMaterial({ color: T.green.proposed, roughness: 1, map: grainTexture() }));
-    // streets as their cross-sections (IRC:SP:118 templates), trees in the planted strips
+    // the public spaces (plan/shared.ts), tinted by family; trees where their shape is shaded
+    const spaces = plan.shared?.spaces ?? [], spaceTrees: [number, number][] = [];
+    const byFam = new Map<string, [number, number][][]>();
+    for (const sp of spaces) {
+      const rings = sp.plots.map((k) => plan.plots[k]?.ring).filter((r): r is [number, number][] => !!r).map((r) => (area2(r) < 0 ? [...r].reverse() : r));
+      const l = byFam.get(sp.family) ?? [];
+      l.push(...rings);
+      byFam.set(sp.family, l);
+      this.spaceRings.push({ rings, deepest: deepest(sp) });
+      // a crown per 80 m² of shade (a crown about 10 m across), on a grid inside the space's plots
+      const want = Math.round(((sp.measures?.shade ?? 0) * sp.area) / 80);
+      for (const r of rings) {
+        if (spaceTrees.length > 4000 || want <= 0) break;
+        const xs = r.map((q) => q[0]), ys = r.map((q) => q[1]), step = Math.max(6, Math.sqrt(sp.area / want));
+        for (let x = Math.min(...xs) + step / 2; x < Math.max(...xs); x += step) for (let y = Math.min(...ys) + step / 2; y < Math.max(...ys); y += step) if (inRing(r, x, y)) spaceTrees.push([x, y]);
+      }
+    }
+    for (const [f, rings] of byFam) add(sheet(rings, 0.11), flat((T.publicFamily as Record<string, string>)[f] ?? T.green.proposed));
+    if (spaceTrees.length) add(merge(spaceTrees.map(([x, y]) => new THREE.IcosahedronGeometry(2.6, 0).translate(x, y, 4.2 * ex))), flat(T.green.existing), true, false);
+    // streets as their cross-sections (their roles', plan/streetroles.ts), trees in the planted strips
     const parts = new Map<string, THREE.BufferGeometry[]>(), trees: [number, number][] = [];
     for (const st of plan.streets) {
-      const { bands, trees: t } = streetBands(st.pts, st.w);
+      const { bands, trees: t } = streetBands(st.pts, st.w, st.section);
       for (const b of bands) if (b.g) { const l = parts.get(b.kind); if (l) l.push(b.g); else parts.set(b.kind, [b.g]); }
       trees.push(...t);
     }
@@ -437,6 +464,22 @@ export class DesignView {
     for (const [lv, gs] of groups) add(merge(gs), new THREE.MeshStandardMaterial({ color: buildingAt(lv), roughness: 0.85, metalness: 0 }), true, true);
   }
 
+  /** The storm's water in the public spaces: each a translucent slab as deep as its water
+   *  (exaggerated with the heights), the deeper, the darker. */
+  setStorm(storm: StormState | null) {
+    for (const ch of [...this.water.children]) { this.water.remove(ch); (ch as THREE.Mesh).geometry?.dispose(); }
+    if (storm) storm.spaces.forEach((w, j) => {
+      const sp = this.spaceRings[j];
+      if (!sp || w.depth <= 0.01) return;
+      for (const r of sp.rings) {
+        const g = new THREE.ExtrudeGeometry(new THREE.Shape(r.map(([x, y]) => new THREE.Vector2(x, y))), { depth: Math.max(0.15, w.depth * this.ex * 2), bevelEnabled: false });
+        g.translate(0, 0, 0.12);
+        this.water.add(new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: T.water.deep, roughness: 0.1, metalness: 0, transparent: true, opacity: 0.45 + 0.4 * w.fill })));
+      }
+    });
+    this.render();
+  }
+
   private finish(site: SiteExport, ex: number, add: (g: THREE.BufferGeometry | null, m: THREE.Material, cast?: boolean, receive?: boolean) => void,
     flat: (c: string, r?: number) => THREE.Material) {
     // The existing city round the design ground, light grey, at its own heights.
@@ -464,4 +507,13 @@ export class DesignView {
     this.composer.dispose();
     this.renderer.dispose();
   }
+}
+
+function inRing(r: [number, number][], x: number, y: number): boolean {
+  let c = false;
+  for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+    const [xi, yi] = r[i], [xj, yj] = r[j];
+    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) c = !c;
+  }
+  return c;
 }

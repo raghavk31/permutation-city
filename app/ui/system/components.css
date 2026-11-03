@@ -309,3 +309,7 @@
   .wb-btn[aria-busy="true"]::before, .wb-progress.is-indeterminate .wb-track b, .wb-skeleton i { animation: none; }
   .wb-switch, .wb-switch::after, .wb-progress .wb-track b, .wb-group > summary::before, .wb-thumb { transition: none; }
 }
+
+/* the storm slider over a plan or the 3D view (Explore, public ground) */
+.wb-storm { display: grid; gap: 4px; margin-top: var(--wb-s2); max-width: 420px; padding: var(--wb-s2) var(--wb-s3); background: var(--pc-surface); border: 1px solid var(--pc-border); border-radius: var(--pc-radius); }
+.wb-storm input[type="range"] { width: 100%; accent-color: #3d74b0; }

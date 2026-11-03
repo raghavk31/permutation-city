@@ -21,7 +21,7 @@
 // pace (GSDG: 10-15 km/h where people walk in the motorists' space), planted at its edges.
 import { BUILDING, LANDSCAPE, STOREY_M, type SectionPart } from "../config.js";
 import { hotSuns } from "../massing/scores.js";
-import { whereOf } from "../massing/setup.js";
+import { whereOf } from "../massing/sun.js";
 import { needs } from "../typology/challenges.js";
 import { CLIMATE } from "../typology/climate.js";
 import type { Ground } from "../types.js";

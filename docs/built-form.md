@@ -677,3 +677,27 @@ Weak spots: canopy cover is low (13-15% against 3-30-300's 30%): the lots' trees
 spaces' and the street trees together; safe to walk is 100% by construction (sections are laid
 out to the clear paths), so it only catches streets too narrow for them; doors on public spaces
 reads building plots near a space's edge, not doors.
+
+## Public ground in the workbench (4 November)
+
+Part C, step P6. Explore has a **Public ground** layer: every space the rules placed, coloured by
+its family (water spaces in blues, green ground in greens, shade and doorsteps warm), the streets
+that carry the big storm, and the seven public ground scores in its legend. A **storm slider**
+(a day's rain, 0 to 1.25 times the site's design storm) runs the storm chain
+(`app/engine/plan/storm.ts`): the lots' ponds fill to 75 mm; past it the lots overflow, the
+overflow streets turn to water and the public water spaces fill in proportion to what they were
+placed to hold, full at the site's design storm; a space that holds less than its share spills
+on. The slider works on the plan and in 3D, where the public spaces are tinted by family, shaded
+ones carry trees, streets show their roles' sections, and the storm's water stands in the spaces
+as translucent slabs as deep as their water (heights exaggerated), without rebuilding the scene.
+
+Two fixes found on the way: a space placed for water now holds what it can before anything else
+(a square that couldn't hold its share had traded its water away to stay usable), and a junction
+square sinks no deeper than 3 m (one had become a 13 m stepwell on a 262 m² corner).
+
+A bug found by the browser check: step 5's street shade imported the massing setup for the
+site's sun, which closed an import cycle (the plan -> massing setup -> genome -> evolution ->
+fitness -> the plan). Node resolved it; the browser's grower worker did not, and failed to load,
+so runs stalled at generation 0 while every Node test passed. `whereOf` now lives in
+`massing/sun.ts`, which imports nothing, and `test/imports.test.ts` fails on any new import cycle
+in the engine (three old ones, known to load, are listed).

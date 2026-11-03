@@ -18,6 +18,15 @@ export interface Sun {
 
 const RAD = Math.PI / 180;
 
+/** Where a site is, for the sun: latitude and longitude (degrees), UTC offset (hours). Exports
+ *  before the UTC offset was written get India's (the same rule as pc/site.py `utc_offset_of`),
+ *  else the nearest hour of longitude. */
+export function whereOf(meta: { origin: [number, number]; utc_offset_h?: number }): { lat: number; lon: number; utc: number } {
+  const [lon, lat] = meta.origin;
+  const utc = meta.utc_offset_h ?? (lon >= 68 && lon <= 97.5 && lat >= 6 && lat <= 37.5 ? 5.5 : Math.round(lon / 15));
+  return { lat, lon, utc };
+}
+
 /** Day of the year (1 to 365) of a month (1 to 12) and day, in a year that isn't a leap year. */
 export function dayOfYear(month: number, day: number): number {
   const starts = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];

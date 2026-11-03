@@ -71,7 +71,7 @@ export const BASIN_GATHER_M2 = 150000;
  *  (site.yaml: a heavy monsoon day; the storage score's storm), else 1.6 times the lots' (assumed:
  *  Gumbel ratios of Indian daily rain's 100-year to 10-year are about 1.4-1.7). */
 export const STORM_MM = { lots: DESIGN_RAIN_MM, big: Math.round(DESIGN_RAIN_MM * 1.6) };
-const bigStorm = (G: Ground) => Math.max(G.meta.design_storm_mm || STORM_MM.big, STORM_MM.lots);
+export const bigStorm = (G: Pick<Ground, "meta">) => Math.max(G.meta.design_storm_mm || STORM_MM.big, STORM_MM.lots);
 /** Share of the gathered rain that runs off built ground (assumed: between roofs 0.9 and open ground 0.4). */
 export const GATHER_RUNOFF = 0.7;
 /** Water depth each holds when full (m): a basin's (assumed, inside openshape.ts's 0.3-3 m), a

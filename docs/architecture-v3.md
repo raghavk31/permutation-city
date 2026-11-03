@@ -1223,6 +1223,14 @@ buildings fit round it.
   scores mapped to Gehl and NACTO, in the measures list), a hot-afternoon street shade model
   (`streetShade`), the doorstep greedy on a heap. Survey in docs/built-form.md "Public spaces
   shaped, and public ground scored". Floor area 5-13% below before part C.
+- **P6 done (4 November).** Explore "Public ground" layer (families, storm streets, scores),
+  storm slider on the plan and in 3D (`plan/storm.ts` stormOn: lots to 75 mm, then the water
+  spaces to the site's design storm, spill past a space's storage), 3D public spaces by family
+  with trees and role sections for streets, water slabs updated alone (`DesignView.setStorm`).
+  Form search: water dominates (3 times, usability in proportion); squares at most 3 m deep.
+  Fixed an import cycle from P5 that stopped the browser's grower worker loading (whereOf
+  moved to massing/sun.ts; test/imports.test.ts guards against new cycles).
+  Still to decide: one public space as its own page.
 
 ---
 

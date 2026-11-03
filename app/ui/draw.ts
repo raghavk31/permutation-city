@@ -5,7 +5,7 @@
 // No cell outlines: cells of one colour are dissolved into regions whose outlines are smoothed
 // (`regions`), so a design reads as shapes, not a board of tiles. The grid stays for analysis;
 // the hover readouts still find the cell under the pointer.
-import { circumradius, corners, gridOf, type Design, type SiteExport } from "../engine";
+import { circumradius, corners, gridOf, type Design, type SiteExport, type StormState } from "../engine";
 import { planGround } from "../engine/plan/blockmass";
 import { buildingAt, neutrals, tokens as T } from "./tokens";
 
@@ -580,12 +580,12 @@ export function attractors(ctx: Ctx, v: View, d: Design) {
  *  buildings faded); each street's frontage type; each block's building type; what each
  *  building plot is for, facilities outlined and bus stops marked; or each lot's buildings
  *  and open ground, the ground its programme needs, its ponds and its trees. */
-export type PlanLayer = "plan" | "shared" | "streets" | "frontage" | "types" | "programme" | "nature";
+export type PlanLayer = "plan" | "shared" | "public" | "streets" | "frontage" | "types" | "programme" | "nature";
 const PROGRAMME_ORDER = ["homes", "shops", "education", "health", "culture", "industry", "water", "waste"] as const;
 const TYPE_ORDER = ["court", "yard", "row", "tall"] as const;
 const FRONTAGE_ORDER = ["active", "residential", "green", "lake"] as const;
 
-export function vectorPlan(ctx: Ctx, v: View, d: Design, layer: PlanLayer = "plan") {
+export function vectorPlan(ctx: Ctx, v: View, d: Design, layer: PlanLayer = "plan", storm: StormState | null = null) {
   const plan = d.plan!;
   ctx.save();
   ctx.lineJoin = "round";
@@ -626,6 +626,20 @@ export function vectorPlan(ctx: Ctx, v: View, d: Design, layer: PlanLayer = "pla
     for (const m of masses) if (m.z <= 0.01) for (const r of [m.ring, ...(m.holes ?? [])]) r.forEach(([x, y], k) => (k ? ctx.lineTo(v.px(x), v.py(y)) : ctx.moveTo(v.px(x), v.py(y))));
     ctx.fillStyle = T.existingRamp[3]; ctx.fill("evenodd");
   }
+  if (layer === "public" && plan.shared?.spaces) {
+    // each public space by its family, its water at the storm's level over it (deeper, darker)
+    plan.shared.spaces.forEach((s, j) => {
+      const c = T.publicFamily[s.family] ?? T.green.proposed;
+      for (const k of s.plots) {
+        const pl = plan.plots[k];
+        if (!pl) continue;
+        ring(pl.ring); ctx.fillStyle = c; ctx.fill();
+        const w = storm?.spaces[j];
+        if (w && w.fill > 0) { ctx.globalAlpha = 0.35 + 0.55 * w.fill; ctx.fillStyle = T.water.deep; ctx.fill(); ctx.globalAlpha = 1; }
+        ctx.strokeStyle = T.paper; ctx.lineWidth = 0.6; ctx.stroke();
+      }
+    });
+  }
   if (layer === "shared" && plan.shared) {
     // the parks the design reserved (whole blocks) and its squares (corner plots), outlined
     ctx.strokeStyle = T.green.existing; ctx.lineWidth = 2;
@@ -641,12 +655,18 @@ export function vectorPlan(ctx: Ctx, v: View, d: Design, layer: PlanLayer = "pla
   }
   ctx.lineCap = "round";
   for (const pass of [0, 1]) for (const st of [...plan.streets].sort((a, b) => a.cls - b.cls)) {
-    if (pass === 1 && st.cls < 3 && layer !== "frontage" && layer !== "streets") continue;
+    if (pass === 1 && st.cls < 3 && layer !== "frontage" && layer !== "streets" && !(layer === "public" && st.overflow)) continue;
     ctx.beginPath();
     st.pts.forEach(([x, y], k) => (k ? ctx.lineTo(v.px(x), v.py(y)) : ctx.moveTo(v.px(x), v.py(y))));
     if (layer === "frontage" && pass === 1) {
       ctx.strokeStyle = T.frontage[FRONTAGE_ORDER[st.frontage ?? 1] ?? "residential"];
       ctx.lineWidth = Math.max(st.w * v.s * 0.55, 1.6);
+    } else if (layer === "public" && pass === 1) {
+      // an overflow street: dashed, solid water once the lots overflow
+      ctx.strokeStyle = T.water.storage; ctx.lineWidth = Math.max(st.w * v.s * 0.5, 1.6);
+      if (!storm?.running) ctx.setLineDash([4, 3]);
+      ctx.stroke(); ctx.setLineDash([]);
+      continue;
     } else if (layer === "streets" && pass === 1) {
       // by role; an overflow street dashed in water blue over it
       ctx.strokeStyle = T.streetRole[(st.role ?? "residential") as keyof typeof T.streetRole] ?? T.street.primary;
