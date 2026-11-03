@@ -16,5 +16,8 @@ import { AFRICA } from "./library/africa.js";
 import { EUROPE } from "./library/europe.js";
 import { AMERICAS } from "./library/americas.js";
 import { OCEANIA } from "./library/oceania.js";
+import { OPEN } from "./library/open.js";
 
-export const LIBRARY: Precedent[] = [...SOUTH_ASIA, ...EAST_ASIA, ...SOUTHEAST_ASIA, ...WEST_ASIA_NORTH_AFRICA, ...AFRICA, ...EUROPE, ...AMERICAS, ...OCEANIA];
+// Public spaces carry their dry day and wet day (library/open.ts, architecture-v3 section 14).
+export const LIBRARY: Precedent[] = [...SOUTH_ASIA, ...EAST_ASIA, ...SOUTHEAST_ASIA, ...WEST_ASIA_NORTH_AFRICA, ...AFRICA, ...EUROPE, ...AMERICAS, ...OCEANIA]
+  .map((p) => (OPEN[p.id] ? { ...p, open: OPEN[p.id] } : p));

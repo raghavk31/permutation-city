@@ -474,7 +474,7 @@ export const AMERICAS: Precedent[] = [
       { what: "Runoff kept from the sewer in flow tests", value: "72-77% (NACTO); 50-74% (ASCE, design storm)", conf: "medium", src: 0 },
       { what: "Peak flows cut by green streets", value: "70-90%", conf: "medium", src: 1 },
     ],
-    seed: { arrangement: "ponds", width: 2.4, depth: 12, storeys: 0, count: 4, rows: 1, street: 1.2, water: 0.15, trees: 4 },
+    seed: { arrangement: "ponds", width: 2.4, depth: 12, storeys: 0, count: 4, rows: 1, street: 1.2, surface: "green", trees: 4 },
     seedNote: "Four planters; sizes assumed to match the street area.",
     gaps: "Long-term performance; planter dimensions.",
     sources: [
@@ -502,6 +502,29 @@ export const AMERICAS: Precedent[] = [
     sources: [
       src("Paley Park. Wikipedia", "https://en.wikipedia.org/wiki/Paley_Park"),
       src("Paley Park case study. Terrapin Bright Green", "https://www.terrapinbrightgreen.com/wp-content/uploads/2015/11/Paley-Park_Case-Study-Fall-15.pdf"),
+    ],
+  },
+  {
+    id: "medellin-corridors", name: "Green corridors", local: "Corredores Verdes", place: "Medellín, Colombia", region: "Americas", at: [-75.57, 6.25],
+    era: "2016 onwards", climate: "tropical-wet", programmes: ["public", "mobility"], modern: true,
+    mechanisms: ["shade", "evaporative", "habitat"],
+    materials: ["native planting", "trees"],
+    summary: "Thirty corridors of layered native planting along the city's roads and streams, joining its parks to the hills round it, planted and kept by people from poor neighbourhoods.",
+    how: "Trees, shrubs and ground cover along the busiest roads shade the walks and cool the air, and give birds and insects a way across the city. The city reports the corridors more than 2 °C cooler than before.",
+    lesson: "Plant the streets as continuous corridors, not as single trees, and they cool the city and join its green places.",
+    figures: [
+      { what: "Scope", value: "18 roads and 12 waterways (2019)", conf: "medium", src: 0 },
+      { what: "Cooler", value: "more than 2 °C (city's claim, not an independent study)", conf: "low", src: 1 },
+      { what: "Recognition", value: "Ashden Award for Cooling by Nature, 2019", conf: "medium", src: 0 },
+      { what: "Plants", value: "over 72 native species", conf: "low", src: 2 },
+    ],
+    seed: { arrangement: "terraces", width: 200, depth: 30, storeys: 0, steps: 1, sunken: 0.2, trees: 50 },
+    seedNote: "A stretch of corridor; sizes assumed.",
+    gaps: "Measured cooling and the corridors' sections.",
+    sources: [
+      src("Medellín Green Corridors, NetworkNature", "https://networknature.eu/node/21677"),
+      src("Medellín shows how nature-based solutions can keep people and planet cool, UNEP (via Africa Sustainability Matters)", "https://africasustainabilitymatters.com/medellin-shows-how-nature-based-solutions-can-keep-people-and-planet-cool/"),
+      src("Corredores Verdes of Medellín, Urbanitarian", "https://urbanitarian.com/masterplans_post?id=628"),
     ],
   },
 ];

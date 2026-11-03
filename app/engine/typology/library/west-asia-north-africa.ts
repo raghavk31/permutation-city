@@ -585,4 +585,25 @@ export const WEST_ASIA_NORTH_AFRICA: Precedent[] = [
       src("Cairo's famous sabils. Cairo Governorate", "https://cairo.gov.eg/en/culture/cairo-history/ancient-landmarks/cairos-famous-sabils/"),
     ],
   },
+  {
+    id: "fez-derb", name: "Deep lane of the medina", local: "derb", place: "Fès el Bali, Morocco", region: "West Asia and North Africa", at: [-4.98, 34.06],
+    era: "9th century onwards", climate: "mediterranean", programmes: ["housing", "commercial", "public"],
+    mechanisms: ["mutual-shade", "thermal-mass", "compact"],
+    materials: ["brick", "lime plaster", "timber"],
+    summary: "A lane of the old city so narrow between its tall walls that the summer sun barely reaches the ground.",
+    how: "Measured against a wide modern street in Fez, the deep lane was on average 6 K cooler at the hottest time of a summer day, and up to 10 K on the hottest days; in winter the shallow street was the more comfortable, since sun reached it.",
+    lesson: "In a hot dry climate, streets far deeper than they are wide keep people cool by their shape alone.",
+    figures: [
+      { what: "Hottest hour, summer", value: "deep lane 6 K cooler than the shallow street on average, up to 10 K", conf: "high", src: 0 },
+      { what: "Comfort", value: "deep lane fairly comfortable in summer, shallow street extremely uncomfortable; the reverse in winter", conf: "high", src: 0 },
+      { what: "Shallow street measured", value: "height to width about 0.6", conf: "medium", src: 1 },
+    ],
+    seed: { arrangement: "row", width: 6, depth: 10, storeys: 5, floorH: 3.6, count: 10, rows: 2, street: 2, roof: "flat", porosity: 0.08 },
+    seedNote: "Lane width and wall height assumed, so the lane is about nine times as deep as it is wide.",
+    gaps: "The deep lane's measured height to width.",
+    sources: [
+      src("Johansson, Influence of urban geometry on outdoor thermal comfort in a hot dry climate: a study in Fez, Building and Environment 41 (2006)", "https://www.lunduniversity.lu.se/lup/publication/7128109b-c13e-445a-a959-e1e770ad1b95"),
+      src("Street canyon microclimate in traditional and modern neighbourhoods in a hot dry climate: Fez, Lund University", "https://www.lunduniversity.lu.se/lup/publication/9bd4854d-ffb0-47ba-b208-626e3554d1c0"),
+    ],
+  },
 ];

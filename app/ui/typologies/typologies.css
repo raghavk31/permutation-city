@@ -94,3 +94,9 @@ a { color: inherit; }
 .ty-range { font-size: var(--pc-size-small); color: var(--pc-ink-2); }
 .ty-range .wb-label { margin-right: 4px; }
 @media (max-width: 720px) { .ty-row.is-genes { grid-template-columns: 1fr; } }
+
+/* a public space's dry day and wet day (architecture-v3 section 14) */
+.ty-days { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--wb-s3); margin-bottom: var(--wb-s3); }
+.ty-days figure { margin: 0; display: grid; gap: var(--wb-s2); align-content: start; }
+.ty-days svg { width: 100%; height: auto; max-height: 300px; background: var(--pc-surface-2); border-radius: var(--pc-radius); padding: var(--wb-s2); box-sizing: border-box; }
+.ty-days figcaption { font-size: var(--pc-size-small); color: var(--pc-ink-2); }

@@ -100,6 +100,9 @@ export interface Params {
   wall?: number;
   /** Water held: ponds, a pit or a tank (m deep). */
   water?: number;
+  /** Water standing this deep in a storm or the wet season (m): above a pit's floor, over a
+   *  terrace's steps, or over flat ground. The wet day of a public space (library/open.ts). */
+  fill?: number;
   /** Trees on the open ground: a homegarden, a planted court, willows on a chinampa. */
   trees?: number;
   /** A round bowl's seating or terracing covers this arc (degrees, 360 a full ring); the rest
@@ -107,7 +110,8 @@ export interface Params {
   sweep?: number;
   /** What the ground under the plot is: land, or water the houses stand or float in. */
   ground?: "land" | "water";
-  /** What terraces are made of: planted fields, or stone steps (ghats, amphitheatres). */
+  /** What terraces are made of: planted fields, or stone steps (ghats, amphitheatres); for
+   *  ponds, `green` makes them planted rain beds that hold water only on a wet day. */
   surface?: "green" | "ground";
   features?: Feature[];
 }
@@ -289,6 +293,11 @@ export function build(p: Params): Built {
       const lv = (k: number) => along ? rect(k * sx, k ? sy : 0, L - k * sx, B - (k ? 2 * sy : 0)) : rect(k * step, k * step, L - 2 * k * step, B - 2 * k * step);
       for (let k = 0; k < n; k++) S.push({ ring: lv(k), z: -(k + 1) * (dz / n), h: dz / n * 0.2, use: "ground" });
       if (p.water) S.push({ ring: lv(n), z: -dz, h: Math.min(p.water, dz) * 0.4, use: "water" });
+      if (p.fill) {
+        // the surface spans the level whose floor is just below it
+        const zt = -dz + Math.min(p.fill, dz), k = Math.max(0, Math.min(n, Math.ceil((-zt * n) / dz) - 1));
+        S.push({ ring: lv(k), z: -dz, h: zt + dz, use: "water" });
+      }
       if (p.storeys > 0 && (p.count ?? 0) > 0) {
         // a colonnade or ring of rooms at street level
         const d = 3;
@@ -304,19 +313,26 @@ export function build(p: Params): Built {
         S.push({ ring: rect(0, k * p.depth, L, p.depth), z: (n - k - 1) * rise, h: p.surface === "ground" ? rise : 0.4, use: p.surface ?? "green" });
         // flooded paddies read green with their water at the foot of each riser
         if (p.water) S.push({ ring: rect(0.6, k * p.depth + 0.3, L - 1.2, Math.max(0.4, p.depth * 0.18)), z: (n - k - 1) * rise + 0.4, h: 0.05, use: "water" });
+        // a flood over the lower steps
+        const top = (n - k - 1) * rise + (p.surface === "ground" ? rise : 0.4);
+        if (p.fill && p.fill > top) S.push({ ring: rect(0, k * p.depth, L, p.depth), z: top, h: p.fill - top, use: "water" });
       }
       W = L; D = n * p.depth;
       break;
     }
     case "ponds": {
       // A grid of ponds or beds between bunds or canals (chinampas, bheris).
-      const nx = p.count ?? 4, ny = p.rows ?? 3, g = p.street ?? 4;
+      // rain beds (surface green): planted, water standing in them only on a wet day
+      const nx = p.count ?? 4, ny = p.rows ?? 3, g = p.street ?? 4, beds = p.surface === "green";
       for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) {
         const x = i * (p.width + g), y = j * (p.depth + g);
-        if (p.water) S.push({ ring: rect(x, y, p.width, p.depth), z: -0.3, h: 0.3, use: "water" });
+        if (beds) {
+          S.push({ ring: rect(x, y, p.width, p.depth), z: 0, h: 0.2, use: "green" });
+          if (p.fill) S.push({ ring: rect(x + 0.2, y + 0.2, p.width - 0.4, p.depth - 0.4), z: 0.2, h: p.fill, use: "water" });
+        } else if (p.water) S.push({ ring: rect(x, y, p.width, p.depth), z: -0.3, h: 0.3, use: "water" });
         else { S.push({ ring: rect(x, y, p.width, p.depth), z: 0, h: 0.5, use: "green" }); }
       }
-      if (!p.water) for (let i = 0; i <= nx; i++) S.push({ ring: rect(i * (p.width + g) - g, -g, g * 0.8, ny * (p.depth + g) + g), z: -0.4, h: 0.4, use: "water" });
+      if (!p.water && !beds) for (let i = 0; i <= nx; i++) S.push({ ring: rect(i * (p.width + g) - g, -g, g * 0.8, ny * (p.depth + g) + g), z: -0.4, h: 0.4, use: "water" });
       W = nx * (p.width + g); D = ny * (p.depth + g);
       break;
     }
@@ -347,6 +363,9 @@ export function build(p: Params): Built {
   }
 
   features(p, S, fh, z0, W, D);
+
+  // flat ground under water (a square, a field, a street in a storm); pits and terraces fill above
+  if (p.fill && p.arrangement !== "sunken" && p.arrangement !== "terraces" && !(p.arrangement === "ponds" && p.surface === "green")) S.push({ ring: rect(0, 0, W, D), z: 0, h: p.fill, use: "water" });
 
   // Under a raised floor: an earth mound under the whole group, or a post at each corner.
   const mound = (p.features ?? []).some((f) => f.kind === "mound");

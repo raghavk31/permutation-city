@@ -3,6 +3,7 @@
 import { describe, expect, test } from "vitest";
 import { build } from "../app/engine/typology/grammar.js";
 import { LIBRARY } from "../app/engine/typology/library.js";
+import { OPEN, daySeeds } from "../app/engine/typology/library/open.js";
 
 describe("typology library", () => {
   test("ids are unique", () => {
@@ -23,5 +24,24 @@ describe("typology library", () => {
     const p = LIBRARY.find((x) => x.id === "tulou")!;
     const outer = build(p.seed).solids.filter((s) => s.storeys === p.seed.storeys);
     expect(outer.length).toBe(72);
+  });
+
+  test("every public space has a dry day and a wet day, and every record a precedent", () => {
+    const ids = new Set(LIBRARY.map((p) => p.id));
+    for (const id of Object.keys(OPEN)) expect(ids.has(id), id).toBe(true);
+    for (const p of LIBRARY.filter((x) => x.programmes.includes("public"))) {
+      expect(p.open, p.id).toBeDefined();
+      const o = p.open!;
+      expect(o.wetUse).toBeGreaterThanOrEqual(0); expect(o.wetUse).toBeLessThanOrEqual(1);
+      if (o.holds === "never") expect(o.wet, p.id).toBeUndefined();
+      if (o.holds === "storm" || o.holds === "season") expect(o.wet, p.id).toBeTruthy();
+      if (o.fillsAt != null) expect(o.fillsAt).toBeGreaterThan(0);
+    }
+  });
+
+  test.each(LIBRARY.filter((p) => p.open?.fill).map((p) => [p.id, p] as const))("%s draws more water on its wet day", (_, p) => {
+    const { dry, wet } = daySeeds(p);
+    const vol = (s: typeof dry) => build(s).solids.filter((x) => x.use === "water").reduce((a, x) => a + x.h, 0);
+    expect(vol(wet!)).toBeGreaterThan(vol(dry));
   });
 });

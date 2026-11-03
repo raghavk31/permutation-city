@@ -1030,7 +1030,7 @@ check from this machine timed out); (b) a small server function that fetches and
 
 ---
 
-## 14. Public ground: the open half of the city (draft, 3 November; awaiting approval)
+## 14. Public ground: the open half of the city (approved 3 November)
 
 ### 14.1 The idea
 
@@ -1181,6 +1181,22 @@ Then decide on one public space as its own page.
   only allow it across a laneway?
 - **Q3.** Should the search still be free to trade open ground for floor area (today's
   `SHARED_MAX` 25%), or is the rule-placed public ground fixed and the buildings fit round it?
+
+Approved 3 November ("go ahead") with the proposals standing for Q1-Q3 until the user says
+otherwise: fill thresholds kept and labelled assumed; a school field may cross a local street,
+which becomes a shared street at school hours; rule-placed public ground is fixed and the
+buildings fit round it.
+
+### 14.10 Log
+
+- **P1 done (3 November).** `OpenRecord` (types.ts: family, jobs, holds, fillsAt, wetUse,
+  conf, dry, wet, fill) for all 62 public entries in `library/open.ts`; 20 new entries (212 ->
+  232 precedents), streets and Indian public ground first; grammar `fill`
+  (water in a pit up to its level, over terraces, in rain beds, over flat ground) and
+  `surface: "green"` ponds as rain beds; the page filters public space by family and draws the
+  wet day beside the dry; climate normals fetched for the new places. Photo check: 18 of 20
+  against Commons photos, three drawings corrected. Sourced wet-day figures are few (Sapporo
+  schoolyards, Yanweizhou, Copenhagen, green street); the rest are assumed and say so.
 
 ---
 

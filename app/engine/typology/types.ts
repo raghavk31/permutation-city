@@ -68,6 +68,56 @@ export interface Figure { what: string; value: string; conf: Confidence; src?: n
 
 export interface Source { title: string; url: string }
 
+/** Public ground (architecture-v3 section 14): the families an open space belongs to, by the
+ *  shape that does its climate job. */
+export const OPEN_FAMILIES = {
+  stepped: "Sunk or stepped",
+  basin: "Basin or wetland",
+  linear: "Along a flow line",
+  canopy: "Shade over open ground",
+  field: "Open field",
+  doorstep: "At the door",
+  street: "Street",
+} as const;
+export type OpenFamily = keyof typeof OPEN_FAMILIES;
+
+/** What people do there: the public job, beside the climate job its mechanisms name. */
+export const PUBLIC_JOBS = {
+  gather: "Gather a crowd",
+  linger: "Sit and stay",
+  play: "Play",
+  trade: "Buy and sell",
+  pass: "Walk through",
+  ritual: "Rites and festivals",
+  work: "Work in the open",
+  water: "Fetch or use water",
+  nature: "Be among plants and animals",
+} as const;
+export type PublicJob = keyof typeof PUBLIC_JOBS;
+
+/** When it holds water: never; in a storm, draining within hours or days; through the wet
+ *  season, falling through the dry; or all year. */
+export type Holds = "never" | "storm" | "season" | "always";
+
+/** A public space's dry day and wet day. `fillsAt` is the storm (return period in years) at
+ *  which it starts to take water, for one that holds water in a storm; `wetUse` is the share
+ *  of its area people can still use when it is full. Both come with their confidence. */
+export interface OpenRecord {
+  family: OpenFamily;
+  jobs: PublicJob[];
+  holds: Holds;
+  fillsAt?: number;
+  wetUse: number;
+  /** How sure `fillsAt` and `wetUse` are. */
+  conf: Confidence;
+  /** One plain sentence each: what it is on a dry day, and in rain or the wet season. */
+  dry: string;
+  wet?: string;
+  /** For the wet drawing: water standing this deep above the lowest floor (m), in a sunk
+   *  space; or over the whole ground, for one that floods flat. */
+  fill?: number;
+}
+
 export interface Precedent {
   id: string;
   name: string;
@@ -98,4 +148,6 @@ export interface Precedent {
   /** What we couldn't find. */
   gaps?: string;
   sources: Source[];
+  /** Public space only (library/open.ts): its family, public jobs, dry day and wet day. */
+  open?: OpenRecord;
 }
