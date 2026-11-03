@@ -1030,6 +1030,160 @@ check from this machine timed out); (b) a small server function that fetches and
 
 ---
 
+## 14. Public ground: the open half of the city (draft, 3 November; awaiting approval)
+
+### 14.1 The idea
+
+The user, 3 November: read the neighbourhood as **built** (buildings and infrastructure) and
+**open** (where public life takes place, the space for the city). Today the open half is
+what is left after streets and plots, chosen by size and walk only (`plan/shared.ts`: a square
+on a corner plot at busy junctions, parks by the URDPFI hierarchy, a frontage label per
+street) and streets are five SP:118 sections picked by width (`config.ts` `CROSS_SECTIONS`).
+No open space knows its job. The library's public space round (42 entries tagged `public`) is
+not wired to the engine.
+
+Part C gives the open half its own types, placement and form. Every open space does **two
+jobs**, one for the climate (hold, store, clean or move water; shade; cool; carry wind; grow
+food) and one for the public (gather, linger, play, trade, pass, ritual, work in the open),
+and has a **dry day and a wet day**: a plaza that floods to a dry line, a stepwell that stores
+water and seats a crowd.
+
+Decisions (user, 3 November):
+
+1. **Placement by rule, form evolved.** Where an open space goes follows from the job its land
+   and network can do (14.4); its shape evolves within its family's ranges (14.6). No new
+   site genes at first.
+2. **Street role and network are connected** (my call, asked to decide): a street's role is
+   read from the network and from what fronts it, not a gene; its section evolves within the
+   ranges of its role (14.5).
+3. **One public space as a product:** undecided. The engine is built so one space can be
+   searched on its own (outline + catchment + brief), as `plotsearch.ts` is for one plot;
+   whether it gets a page is decided after P5.
+4. **References for public life:** Gehl and NACTO. The scores (14.7) are stand-ins mapped to
+   Gehl's twelve quality criteria and NACTO's street guidance, said so; Gehl's own method is
+   counting people, which a design tool cannot do.
+
+### 14.2 Sources to read first
+
+| Source | For | Access |
+|---|---|---|
+| NACTO Global Street Design Guide (2016) | street types, section dimensions, intersections | GDCI site, partly free online; to check |
+| NACTO Urban Street Stormwater Guide (2017) | bioswales, planters, flow-through streets: the street as drainage | to check |
+| Gehl, *Cities for People* (2010); Gehl Institute Public Life Tools | the twelve quality criteria; the public space public life survey | book not free; the tools are free |
+| Jones, Boujenko and Marshall, *Link and Place* (2007) | street role as movement against place | to check |
+| IRC SP:118 (2018), already read | Indian sections, kept as the floor | `corpus/_sources/irc-sp-118-2018.pdf` |
+| Rotterdam water squares, Copenhagen Cloudburst plan, sponge city guidance | fill thresholds by return period | public reports |
+
+Figures from these go into entries with their source and confidence, as the library does.
+
+### 14.3 An open space record
+
+Public entries gain an `open` record beside their building seed:
+
+| Field | Meaning |
+|---|---|
+| family | sunken/stepped, basin/wetland, linear, canopy, field, doorstep, street (below) |
+| climate jobs | from the mechanisms (storage, flood-room, filter, recharge, shade, evaporative, wind) |
+| public jobs | gather, linger, play, trade, pass, ritual, work (new list) |
+| fills at | the storm it starts to take water at, as a return period in years (dry line) |
+| use when wet | share of its area still usable when full (stepwell near all, flooded field none) |
+| genes | ratios only: depth to width, step rise to tread, wet share by depth, canopy share, height to span, enclosure (edge height to width), share of edge with doors, seat edge per area, swale share of a section |
+
+Families and their first members:
+
+| Family | Members in the library | To add |
+|---|---|---|
+| Sunken or stepped | stepwell, kalyani, kund, hyderabad-baoli, ghats, water-square, epidaurus | Chand Baori, kulam (temple tank), Yanweizhou terraces |
+| Basin or wetland | kere, johad, houtan, benjakitti, chula-park, bishan-park, nijmegen-river, qunli | ahar-pyne (Rajgir), East Kolkata (exists, not tagged) |
+| Linear | cheonggyecheon, green-street | cloudburst boulevard (Copenhagen), Tåsinge Plads, nala corridor |
+| Canopy | katte, medina-umbrellas, metropol-parasol, portico, havana-portales, toguna | haat under trees, stoa |
+| Field | enghaveparken (its sunken pitches) | maidan, school field that holds storm water |
+| Doorstep | chabutro, van-eyck-playgrounds, paley-park, venice-wells, sabil | chowk, otla, pocket park |
+| Street | superblock, bazaar-isfahan | pol street, galli, bazaar with colonnade, woonerf, hutong, souk, superilla interior, NACTO types |
+
+### 14.4 Placement by rule
+
+Run where `shared.ts` runs now (after plots, before buildings), in this order, each rule
+taking ground only where the earlier ones left it:
+
+1. **Water first.** Each catchment's low ground and flow lines (the catchment split in
+   `grow.ts`) take a water family sized by the rain that reaches it (design storm × run-off
+   × catchment area over the family's depth range).
+2. **A cascade by storm.** Along each flow path: doorstep rain gardens fill every year, street
+   swales every 2, a square that floods every 10, a park basin every 100, then the lake. Small
+   storms stay near the door; big ones move down. The square and the park are placed where
+   the path meets the network (so they are reachable) and the land is low.
+3. **Network places.** The most integrated junctions (from `metrics/syntax.ts`) and bus stops
+   take squares of the canopy or stepped family; spacing as now (300 m).
+4. **Programme pairs.** A school's field (may sit across a local street, closed to traffic
+   at school hours), the market beside transit, a tank beside a temple or cultural plot, a
+   wetland beside the sewage or waste yard (DEWATS).
+5. **Every door.** A doorstep space within 100 m of each home, from the doorstep family,
+   where courts do not already give one.
+6. **Parks to the rules' share** (RMP 15% in Bengaluru), as now, but each park takes the
+   family its land suits (low: basin; flat and dry: field; mixed: both).
+
+### 14.5 Streets as a system
+
+- **Link** (movement) from the network: its class (primary, secondary, local) and its
+  through-movement (`syntax.ts` choice).
+- **Place** from what fronts it: the open spaces on it (14.4), active frontage, the
+  programmes on it (school, market, transit stop) and the floor area within a walk.
+- **Role** = the cell of the link and place grid, mapped to a NACTO street type (boulevard,
+  main street, commercial street, residential street, shared street, laneway, pedestrian
+  street). The network shapes the role; the open spaces placed by rule raise a street's place.
+- **Section genes within the role's ranges:** shares of footpath, planting and swale,
+  carriageway, a central gutter or not, permeable paving, a colonnade, tree spacing. SP:118
+  stays the floor for widths.
+- **Climate genes:** street height to width, angle to the hot sun and the prevailing wind,
+  continuous shade along the walk.
+- **Overflow streets:** a few streets per catchment are chosen to carry the 100-year storm
+  to the basin (the cloudburst road), and the others drain toward them.
+
+### 14.6 Form evolved
+
+Each placed space gets a small search over its family's genes (as one plot's search),
+measure-only at site scale (defaults, then the best of a few), exact when the design is
+opened. Hybrids (a stepped field with a canopy edge) only when no single family does both
+jobs within ranges, as for buildings.
+
+### 14.7 Scores (stand-ins, mapped to Gehl and NACTO)
+
+| Score | Gehl criterion | How |
+|---|---|---|
+| Water held in public ground, and the share of it usable on a dry day | protection against unpleasant experience | volume below each space's dry line; area × use when wet |
+| Shade hours on walking routes | good climate | site-scale shade model (buildings and trees) on the hot season's afternoons; the open item from 2 November |
+| Doors and windows on the edge | possibilities for standing and staying | share of each space's edge fronted by active ground floors |
+| Places to sit | possibilities for sitting | seat edge per area (steps, plinths, katte) |
+| Human scale | dimensioned at human scale | edge height to width of each space and street |
+| Safe to walk | protection against traffic | footpath width against NACTO by role; crossings at junctions |
+| 3-30-300 | (green access) | trees seen from each home, canopy share, a park within 300 m |
+| Floor lost to the 100-year storm | (claim H3) | drops as open ground holds water; read later by the baseline work |
+
+### 14.8 Steps, in order of value
+
+| Step | What | Checkpoint |
+|---|---|---|
+| P1 | Library round: the `open` record on the 42 public entries, about 25 new (streets included), a drawing of each in both states, photo check | /typologies shows public space by family, dry and wet |
+| P2 | Grammar for open ground: families and genes, drawn from genes, tested | each family drawn at its range ends |
+| P3 | Placement by rule (14.4), replacing the choice in `shared.ts`; school field across a street | on each site, water spaces sit on low ground; every home has a doorstep space |
+| P4 | Streets: role from network and place, section genes, overflow streets | street map by role; sections drawn per street |
+| P5 | Form evolved per space and the scores (14.7), including the site-scale shade model | scores move the right way when a space is removed |
+| P6 | Workbench "Public ground" layer and 3D, with a storm slider filling the cascade | usable by someone new |
+
+Then decide on one public space as its own page.
+
+### 14.9 Questions
+
+- **Q1.** Fill thresholds (1, 2, 10, 100 years) are assumed from Rotterdam and Copenhagen;
+  keep until an Indian source is found?
+- **Q2.** School field across a street: close the street at school hours (a shared street), or
+  only allow it across a laneway?
+- **Q3.** Should the search still be free to trade open ground for floor area (today's
+  `SHARED_MAX` 25%), or is the rule-placed public ground fixed and the buildings fit round it?
+
+---
+
 ## A1 log (2026-10-21): quick visual fixes
 
 On branch `v3-a1`, off `main` after PRs #10, #13 and #14 were merged (each tested; the live
