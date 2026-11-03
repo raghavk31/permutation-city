@@ -93,7 +93,9 @@ describe.each(["bengaluru-cascade", "mumbai-docks"])("version 3.1 on %s", (id) =
       expect(d.plan!.types!.length).toBeGreaterThan(0);
       expect(d.plan!.plots.length).toBe(d0.plan!.plots.length);
       expect(d.plan!.plots.every((p, k) => p.ring === d0.plan!.plots[k].ring || JSON.stringify(p.ring) === JSON.stringify(d0.plan!.plots[k].ring))).toBe(true);
-      expect(JSON.stringify(d.plan!.streets)).toBe(JSON.stringify(d0.plan!.streets));
+      // the same streets (their shade reads building heights, which typing changes)
+      const geom = (p: E.Design) => JSON.stringify(p.plan!.streets.map((st) => [st.pts, st.cls, st.w]));
+      expect(geom(d)).toBe(geom(d0));
     }
   });
   it("gives every building plot to one lot of its block and programme, and holds it to the lot's storeys", () => {

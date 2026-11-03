@@ -5,15 +5,20 @@
   // so a link opens it.
   import { onMount } from "svelte";
   import { LIBRARY } from "../../engine/typology/library";
-  import { CLIMATES, MECHANISMS, PROGRAMMES, REGIONS, type Climate, type Mechanism, type Precedent, type Programme, type Region } from "../../engine/typology/types";
+  import { CLIMATES, MECHANISMS, OPEN_FAMILIES, PROGRAMMES, PUBLIC_JOBS, REGIONS, type Climate, type Mechanism, type OpenFamily, type Precedent, type Programme, type Region } from "../../engine/typology/types";
+  import { daySeeds } from "../../engine/typology/library/open";
   import type { Feature } from "../../engine/typology/grammar";
   import { drawTypology, fmt } from "../diagrams/typology";
   import { CLIMATE, climateSites, differences, distance, matchLabel, profile } from "../../engine/typology/climate";
   import ClimateChart from "./ClimateChart.svelte";
   import NatureGenes from "./NatureGenes.svelte";
+  import OpenShapes from "./OpenShapes.svelte";
+  import { OPEN_GENES } from "../../engine/typology/openshape";
   import { GENES } from "../../engine/typology/nature";
 
-  const drawings = new Map(LIBRARY.map((p) => [p.id, drawTypology(p.seed, p.name)]));
+  // A public space is drawn on its dry day; one that holds water is drawn on its wet day too.
+  const drawings = new Map(LIBRARY.map((p) => [p.id, drawTypology(daySeeds(p).dry, p.name)]));
+  const wetDrawings = new Map(LIBRARY.flatMap((p) => { const w = daySeeds(p).wet; return w ? [[p.id, drawTypology(w, `${p.name} wet`)] as const] : []; }));
 
   let q = $state("");
   let programme = $state<Programme | "">("");
@@ -21,6 +26,8 @@
   let mechanism = $state<Mechanism | "">("");
   let kind = $state<"all" | "vernacular" | "modern">("all");
   let region = $state<Region | "">("");
+  // public space only: the family its shape belongs to (architecture-v3 section 14)
+  let family = $state<OpenFamily | "">("");
   // Climate match: the precedents ordered by how close their measured climate is to a site's
   // (engine/typology/climate.ts). Bengaluru by default; "" turns it off.
   const SITES = climateSites();
@@ -43,7 +50,7 @@
   });
   // Two views: the precedents, and nature's rules (genes; NatureGenes.svelte). A #gene- link
   // opens the second.
-  let view = $state<"precedents" | "nature">(typeof location !== "undefined" && location.hash.startsWith("#gene-") ? "nature" : "precedents");
+  let view = $state<"precedents" | "nature" | "open">(typeof location === "undefined" ? "precedents" : location.hash.startsWith("#gene-") ? "nature" : location.hash.startsWith("#open") ? "open" : "precedents");
   let open = $state<Precedent | null>(null);
   let dialog: HTMLDialogElement;
 
@@ -53,6 +60,7 @@
     && (!mechanism || p.mechanisms.includes(mechanism))
     && (kind === "all" || (kind === "modern") === !!p.modern)
     && (!region || p.region === region)
+    && (!family || p.open?.family === family)
     && (!q || `${p.name} ${p.local ?? ""} ${p.place} ${p.summary} ${p.materials.join(" ")}`.toLowerCase().includes(q.toLowerCase()));
   const shown = $derived.by(() => {
     const list = LIBRARY.filter(matches);
@@ -66,6 +74,8 @@
   const figures = LIBRARY.reduce((a, p) => a + p.figures.length, 0);
   const sourced = LIBRARY.reduce((a, p) => a + p.figures.filter((x) => x.conf === "high" || x.conf === "medium").length, 0);
 
+  const HOLDS = { never: "Never holds water", storm: "Holds water in a storm, then drains", season: "Fills in the wet season, falls in the dry", always: "Holds water all year" } as const;
+  const years = (n: number) => (n === 1 ? "most years" : `the ${n}-year storm`);
   const CONF = { high: "Primary source", medium: "Reliable source", low: "One source, or sources disagree", assumed: "No source yet" } as const;
 
   function show(p: Precedent | null) {
@@ -77,6 +87,7 @@
   onMount(() => {
     const fromHash = () => {
       if (location.hash.startsWith("#gene-")) { view = "nature"; return; }
+      if (location.hash.startsWith("#open")) { view = "open"; return; }
       const p = LIBRARY.find((x) => x.id === location.hash.slice(1)); if (p) { view = "precedents"; show(p); }
     };
     fromHash();
@@ -89,12 +100,13 @@
     .map(([k, v]) => [SEED_WORDS[k] ?? k, Array.isArray(v) ? v.map(featureWords).join("; ") : typeof v === "object" ? `${v.width} × ${v.depth} m, ${v.storeys} storeys` : String(v)]);
   const featureWords = (f: Feature) =>
     f.kind === "windcatcher" ? `windcatcher ${f.height} m` : f.kind === "stack" ? `stacks ${f.height} m` : f.kind === "dome" ? "dome"
-    : f.kind === "vault" ? "vault over the street" : f.kind === "arcade" ? `arcade ${f.depth} m deep` : `roof rising ${f.rise} m`;
+    : f.kind === "vault" ? "vault over the street" : f.kind === "arcade" ? `arcade ${f.depth} m deep` : f.kind === "slope" ? `roof rising ${f.rise} m`
+    : f.kind === "pool" ? "pool in the court" : f.kind === "mound" ? "earth mound" : f.kind === "cutouts" ? `corner terraces ${f.size} m` : `roof floating ${f.height} m above`;
   const SEED_WORDS: Record<string, string> = {
     footprint: "Unit shape", width: "Unit width (m)", depth: "Unit depth (m)", storeys: "Storeys", floorH: "Floor to floor (m)",
     count: "Units or rooms", rows: "Rows, rings or sides", court: "Court (m)", diameter: "Diameter (m)", street: "Street or lane (m)",
     gap: "Gap between units (m)", well: "Chowk or air well (share of plan)", raised: "Floor raised (m)", sunken: "Sunk below ground (m)",
-    steps: "Steps or terraces", tower: "Tower", trees: "Trees", features: "Features", eave: "Eave or gallery (m)", roof: "Roof", porosity: "Façade open (share)", wall: "Wall thickness (m)", water: "Water held (m deep)",
+    steps: "Steps or terraces", fill: "Water on its wet day (m)", tower: "Tower", trees: "Trees", features: "Features", eave: "Eave or gallery (m)", roof: "Roof", porosity: "Façade open (share)", wall: "Wall thickness (m)", water: "Water held (m deep)",
   };
   const ARR_A: Record<string, string> = {
     row: "a row", ring: "a ring", court: "wings round a court", cluster: "a cluster round a yard", slab: "a slab", tower: "a podium and tower",
@@ -121,9 +133,17 @@
     <div class="wb-seg ty-views" role="group" aria-label="Library view">
       <button aria-pressed={view === "precedents"} onclick={() => (view = "precedents")}>What people built <span class="wb-mono">{LIBRARY.length}</span></button>
       <button aria-pressed={view === "nature"} onclick={() => (view = "nature")}>Nature's rules <span class="wb-mono">{GENES.length}</span></button>
+      <button aria-pressed={view === "open"} onclick={() => (view = "open")}>Shaping open ground <span class="wb-mono">{Object.keys(OPEN_GENES).length}</span></button>
     </div>
     <!-- COPY: titles and leads are drafts for the user to rewrite. -->
-    {#if view === "nature"}
+    {#if view === "open"}
+    <h1>How a public space's shape can change</h1>
+    <p class="ty-lead">
+      Each kind of public space is a few settings, kept as ratios where they can be: how deep for its width, how much of it
+      holds water, how much of it is shaded. The design search will place a space by the job its land can do, then shape it
+      within these settings. Each setting shows what the shape allows, what the library's examples take, and the shape at both ends.
+    </p>
+    {:else if view === "nature"}
     <h1>What nature does that a building can borrow</h1>
     <p class="ty-lead">
       Rivers, forests, leaves and animals solve the problems a city has: shedding heat, holding rain, moving air, carrying load,
@@ -144,7 +164,9 @@
     {/if}
   </section>
 
-  {#if view === "nature"}
+  {#if view === "open"}
+    <OpenShapes />
+  {:else if view === "nature"}
     <NatureGenes />
   {:else}
 
@@ -156,6 +178,14 @@
         {#if n}<button class="wb-chip" aria-pressed={programme === k} onclick={() => (programme = programme === k ? "" : (k as Programme))}>{label} <span class="wb-mono">{n}</span></button>{/if}
       {/each}
     </div>
+    {#if programme === "public"}
+      <div class="wb-chips" role="group" aria-label="Kind of public space">
+        <button class="wb-chip" aria-pressed={family === ""} onclick={() => (family = "")}>Every kind</button>
+        {#each Object.entries(OPEN_FAMILIES) as [k, label] (k)}
+          <button class="wb-chip" aria-pressed={family === k} onclick={() => (family = family === k ? "" : (k as OpenFamily))}>{label} <span class="wb-mono">{LIBRARY.filter((p) => p.open?.family === k).length}</span></button>
+        {/each}
+      </div>
+    {/if}
     <div class="ty-row">
       <label class="ty-field"><span class="wb-label">Search</span><input class="wb-input" type="search" placeholder="Name, place or material" bind:value={q}></label>
       <label class="ty-field"><span class="wb-label">Climate</span>
@@ -213,6 +243,7 @@
               {#each p.programmes as k (k)}<span class="wb-tag">{PROGRAMMES[k]}</span>{/each}
             </span>
             <span class="ty-mech">{p.mechanisms.slice(0, 3).map((m) => MECHANISMS[m]).join(" · ")}</span>
+            {#if p.open && programme === "public"}<span class="ty-mech">{OPEN_FAMILIES[p.open.family]} · {p.open.jobs.slice(0, 3).map((j) => PUBLIC_JOBS[j]).join(", ")}</span>{/if}
             {#if match.get(p.id)}
               {@const mt = match.get(p.id)!}
               <span class="ty-match" data-d={mt.d < 0.5 ? "a" : mt.d < 1 ? "b" : mt.d < 1.8 ? "c" : "d"}>
@@ -224,7 +255,7 @@
       {/each}
     </ul>
   {:else}
-    <p class="ty-empty">Nothing matches. <button class="wb-btn is-quiet" onclick={() => { q = ""; programme = ""; climate = ""; mechanism = ""; kind = "all"; region = ""; }}>Clear the filters</button></p>
+    <p class="ty-empty">Nothing matches. <button class="wb-btn is-quiet" onclick={() => { q = ""; programme = ""; climate = ""; mechanism = ""; kind = "all"; region = ""; family = ""; }}>Clear the filters</button></p>
   {/if}
   {/if}
 </main>
@@ -259,6 +290,28 @@
             <div><dt class="wb-label">How it works</dt><dd>{p.mechanisms.map((m) => MECHANISMS[m]).join(" · ")}</dd></div>
           </dl>
         </div>
+
+        {#if p.open}
+          {@const o = p.open}
+          {@const w = wetDrawings.get(p.id)}
+          <section class="ty-sec">
+            <h3 class="wb-label">As public space: its dry day and its wet day</h3>
+            <div class="ty-days">
+              <figure><figcaption><strong>Dry day</strong> (the drawing above). {o.dry}</figcaption></figure>
+              {#if w}
+                <figure>{@html w.svg}<figcaption><strong>Wet day.</strong> {o.wet}</figcaption></figure>
+              {:else if o.wet}
+                <figure><figcaption><strong>Wet day.</strong> {o.wet}</figcaption></figure>
+              {/if}
+            </div>
+            <dl class="ty-facts">
+              <div><dt class="wb-label">Kind</dt><dd>{OPEN_FAMILIES[o.family]}</dd></div>
+              <div><dt class="wb-label">What people do there</dt><dd>{o.jobs.map((j) => PUBLIC_JOBS[j]).join(" · ")}</dd></div>
+              <div><dt class="wb-label">Water</dt><dd>{HOLDS[o.holds]}{#if o.fillsAt}; takes water from {years(o.fillsAt)}{/if}</dd></div>
+              <div><dt class="wb-label">Usable when full</dt><dd>{Math.round(o.wetUse * 100)}% of it <span class="wb-tag" class:is-low={o.conf === "low"} class:is-assumed={o.conf === "assumed"} title={CONF[o.conf]}>{o.conf}</span></dd></div>
+            </dl>
+          </section>
+        {/if}
 
         {#if siteNormals && CLIMATE.places[p.id]}
           {@const mt = match.get(p.id)}

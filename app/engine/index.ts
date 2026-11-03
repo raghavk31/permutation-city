@@ -38,3 +38,7 @@ export * from "./moves.js";
 export { natureSummary, typeSummary, type BlockTyping } from "./plan/blocktypes.js";
 export { FAMILIES, PRECEDENT } from "./plan/precedents.js";
 export { FACILITIES, PROGRAMMES as PLOT_PROGRAMMES, PROGRAMME_LABELS, type ProgrammeKey, type ProgrammeResult } from "./plan/programme.js";
+export { ROLES, ROLE_KEYS as STREET_ROLES, sectionOf, type RoleKey } from "./plan/streetroles.js";
+export { stormOn, deepest, type StormState } from "./plan/storm.js";
+export { OPEN_FAMILIES, PUBLIC_JOBS, type OpenFamily } from "./typology/types.js";
+export { STORM_MM, bigStorm } from "./plan/shared.js";

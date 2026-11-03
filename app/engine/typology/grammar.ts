@@ -100,14 +100,27 @@ export interface Params {
   wall?: number;
   /** Water held: ponds, a pit or a tank (m deep). */
   water?: number;
+  /** Water standing this deep in a storm or the wet season (m): above a pit's floor, over a
+   *  terrace's steps, or over flat ground. The wet day of a public space (library/open.ts). */
+  fill?: number;
   /** Trees on the open ground: a homegarden, a planted court, willows on a chinampa. */
   trees?: number;
+  /** A tree's crown radius (m); by default trees come in mixed sizes. Drawn trees are three
+   *  crown radii tall. */
+  crown?: number;
+  /** Where the trees stand: scattered (the default), in a row round the plot's edge, or on a
+   *  grid in a court. */
+  treesAt?: "edge" | "court";
+  /** A pit's tread: how far each level steps in (m); by default the pit's narrower side is
+   *  shared out evenly, leaving a floor as wide as one tread. */
+  tread?: number;
   /** A round bowl's seating or terracing covers this arc (degrees, 360 a full ring); the rest
    *  is flat floor (a theatre's orchestra and stage). */
   sweep?: number;
   /** What the ground under the plot is: land, or water the houses stand or float in. */
   ground?: "land" | "water";
-  /** What terraces are made of: planted fields, or stone steps (ghats, amphitheatres). */
+  /** What terraces are made of: planted fields, or stone steps (ghats, amphitheatres); for
+   *  ponds, `green` makes them planted rain beds that hold water only on a wet day. */
   surface?: "green" | "ground";
   features?: Feature[];
 }
@@ -275,7 +288,7 @@ export function build(p: Params): Built {
     case "sunken": {
       // A pit stepping down to water: terraces narrowing as they go down; rooms round the top
       // when `count` is set (Matmata, a dikengyuan).
-      const L = p.width, B = p.depth, dz = p.sunken ?? 8, n = p.steps ?? 4, step = Math.min(L, B) / (2 * n + 2);
+      const L = p.width, B = p.depth, dz = p.sunken ?? 8, n = p.steps ?? 4, step = p.tread ?? Math.min(L, B) / (2 * n + 2);
       if (p.footprint === "round") {
         // a round bowl (Moray, a theatre): rings narrowing as they go down, over `sweep` degrees
         const R = L / 2, dr = R / (n + 1);
@@ -289,6 +302,11 @@ export function build(p: Params): Built {
       const lv = (k: number) => along ? rect(k * sx, k ? sy : 0, L - k * sx, B - (k ? 2 * sy : 0)) : rect(k * step, k * step, L - 2 * k * step, B - 2 * k * step);
       for (let k = 0; k < n; k++) S.push({ ring: lv(k), z: -(k + 1) * (dz / n), h: dz / n * 0.2, use: "ground" });
       if (p.water) S.push({ ring: lv(n), z: -dz, h: Math.min(p.water, dz) * 0.4, use: "water" });
+      if (p.fill) {
+        // the surface spans the level whose floor is just below it
+        const zt = -dz + Math.min(p.fill, dz), k = Math.max(0, Math.min(n, Math.ceil((-zt * n) / dz) - 1));
+        S.push({ ring: lv(k), z: -dz, h: zt + dz, use: "water" });
+      }
       if (p.storeys > 0 && (p.count ?? 0) > 0) {
         // a colonnade or ring of rooms at street level
         const d = 3;
@@ -304,19 +322,26 @@ export function build(p: Params): Built {
         S.push({ ring: rect(0, k * p.depth, L, p.depth), z: (n - k - 1) * rise, h: p.surface === "ground" ? rise : 0.4, use: p.surface ?? "green" });
         // flooded paddies read green with their water at the foot of each riser
         if (p.water) S.push({ ring: rect(0.6, k * p.depth + 0.3, L - 1.2, Math.max(0.4, p.depth * 0.18)), z: (n - k - 1) * rise + 0.4, h: 0.05, use: "water" });
+        // a flood over the lower steps
+        const top = (n - k - 1) * rise + (p.surface === "ground" ? rise : 0.4);
+        if (p.fill && p.fill > top) S.push({ ring: rect(0, k * p.depth, L, p.depth), z: top, h: p.fill - top, use: "water" });
       }
       W = L; D = n * p.depth;
       break;
     }
     case "ponds": {
       // A grid of ponds or beds between bunds or canals (chinampas, bheris).
-      const nx = p.count ?? 4, ny = p.rows ?? 3, g = p.street ?? 4;
+      // rain beds (surface green): planted, water standing in them only on a wet day
+      const nx = p.count ?? 4, ny = p.rows ?? 3, g = p.street ?? 4, beds = p.surface === "green";
       for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) {
         const x = i * (p.width + g), y = j * (p.depth + g);
-        if (p.water) S.push({ ring: rect(x, y, p.width, p.depth), z: -0.3, h: 0.3, use: "water" });
+        if (beds) {
+          S.push({ ring: rect(x, y, p.width, p.depth), z: 0, h: 0.2, use: "green" });
+          if (p.fill) S.push({ ring: rect(x + 0.2, y + 0.2, p.width - 0.4, p.depth - 0.4), z: 0.2, h: p.fill, use: "water" });
+        } else if (p.water) S.push({ ring: rect(x, y, p.width, p.depth), z: -0.3, h: 0.3, use: "water" });
         else { S.push({ ring: rect(x, y, p.width, p.depth), z: 0, h: 0.5, use: "green" }); }
       }
-      if (!p.water) for (let i = 0; i <= nx; i++) S.push({ ring: rect(i * (p.width + g) - g, -g, g * 0.8, ny * (p.depth + g) + g), z: -0.4, h: 0.4, use: "water" });
+      if (!p.water && !beds) for (let i = 0; i <= nx; i++) S.push({ ring: rect(i * (p.width + g) - g, -g, g * 0.8, ny * (p.depth + g) + g), z: -0.4, h: 0.4, use: "water" });
       W = nx * (p.width + g); D = ny * (p.depth + g);
       break;
     }
@@ -329,24 +354,27 @@ export function build(p: Params): Built {
     }
     case "canopy": {
       // A roof on posts over open ground (a bazaar shade, solar canopy, a station).
-      const n = p.count ?? 1;
+      const n = p.count ?? 1, m = p.rows ?? 1;
       const top = p.floorH ?? 4, span = Math.max(p.width, p.depth);
       // posts or stems under it: one stem under an umbrella, a grid of posts under a long roof
       const pitch = span > 60 ? 35 : span > 20 ? 30 : 3.5, a = span > 20 ? Math.max(1, span / 40) : 0.3;
-      for (let i = 0; i < n; i++) {
-        const x0 = i * (p.width + (p.gap ?? 0)), nx = Math.max(1, Math.round(p.width / pitch)), ny = Math.max(1, Math.round(p.depth / pitch));
+      for (let i = 0; i < n; i++) for (let j = 0; j < m; j++) {
+        const x0 = i * (p.width + (p.gap ?? 0)), y0 = j * (p.depth + (p.gap ?? 0)), nx = Math.max(1, Math.round(p.width / pitch)), ny = Math.max(1, Math.round(p.depth / pitch));
         for (let u = 0; u < nx; u++) for (let v = 0; v < ny; v++) {
-          const px = x0 + ((u + 0.5) * p.width) / nx, py = ((v + 0.5) * p.depth) / ny;
+          const px = x0 + ((u + 0.5) * p.width) / nx, py = y0 + ((v + 0.5) * p.depth) / ny;
           S.push({ ring: rect(px - a / 2, py - a / 2, a, a), z: 0, h: top - 0.4, use: "built", roof: "flat", storeys: 0 });
         }
-        S.push({ ring: rect(x0, 0, p.width, p.depth), z: top - 0.4, h: 0.4, use: "canopy", roof: "flat" });
+        S.push({ ring: rect(x0, y0, p.width, p.depth), z: top - 0.4, h: 0.4, use: "canopy", roof: "flat" });
       }
-      W = n * p.width + (n - 1) * (p.gap ?? 0); D = p.depth + (p.street ?? 4);
+      W = n * p.width + (n - 1) * (p.gap ?? 0); D = m * p.depth + (m - 1) * (p.gap ?? 0) + (p.street ?? 4);
       break;
     }
   }
 
   features(p, S, fh, z0, W, D);
+
+  // flat ground under water (a square, a field, a street in a storm); pits and terraces fill above
+  if (p.fill && p.arrangement !== "sunken" && p.arrangement !== "terraces" && !(p.arrangement === "ponds" && p.surface === "green")) S.push({ ring: rect(0, 0, W, D), z: 0, h: p.fill, use: "water" });
 
   // Under a raised floor: an earth mound under the whole group, or a post at each corner.
   const mound = (p.features ?? []).some((f) => f.kind === "mound");
@@ -364,11 +392,28 @@ export function build(p: Params): Built {
       const xs = s.ring.map((q) => q[0]), ys = s.ring.map((q) => q[1]);
       return [Math.min(...xs) - 2, Math.min(...ys) - 2, Math.max(...xs) + 2, Math.max(...ys) + 2];
     });
-    for (let k = 0, tries = 0; k < p.trees && tries < p.trees * 40; tries++) {
+    // in a row along the plot's edge (a maidan's ring of trees, a field's shade), or scattered
+    if (p.treesAt === "edge") {
+      const per = 2 * (W + D);
+      for (let k = 0; k < p.trees; k++) {
+        let t = ((k + 0.5) / p.trees) * per;
+        const [x, y] = t < W ? [t, 2] : (t -= W) < D ? [W - 2, t] : (t -= D) < W ? [W - t, D - 2] : [2, D - (t - W)];
+        S.push({ ring: [[x, y]], z: 0, h: p.crown ? 3 * p.crown : 6 + rnd() * 4, use: "tree" });
+      }
+    }
+    // in the open court, on a grid (a doorstep space's trees)
+    if (p.treesAt === "court" && p.arrangement === "court") {
+      const c = p.court ?? 8, n = Math.ceil(Math.sqrt(p.trees));
+      for (let k = 0; k < p.trees; k++) {
+        const x = p.depth + ((k % n) + 0.5) * (c / n), y = p.depth + (Math.floor(k / n) + 0.5) * (c / n);
+        S.push({ ring: [[x, y]], z: 0, h: p.crown ? 3 * p.crown : 6 + rnd() * 4, use: "tree" });
+      }
+    }
+    for (let k = 0, tries = 0; !p.treesAt && k < p.trees && tries < p.trees * 40; tries++) {
       // a single tree stands in the middle (the tree of a tree platform); more are scattered
       const x = p.trees === 1 ? W / 2 : rnd() * W, y = p.trees === 1 ? D / 2 : rnd() * D;
       if (boxes.some(([a, b, c, d]) => x > a && x < c && y > b && y < d)) continue;
-      S.push({ ring: [[x, y]], z: 0, h: 4 + rnd() * 6, use: "tree" });
+      S.push({ ring: [[x, y]], z: 0, h: p.crown ? 3 * p.crown : 4 + rnd() * 6, use: "tree" });
       k++;
     }
   }

@@ -211,7 +211,11 @@ function pit(d: Drawing, levels: Solid[], water: Solid[], plot: { w: number; d: 
       for (const [u0, v0, u1, v1] of [[x0, y0, x1, b0], [x0, b0, a0, b1], [a1, b0, x1, b1], [x0, b1, x1, y1]])
         if (u1 - u0 > 0.01 && v1 - v0 > 0.01) d.poly([[u0, v0, z], [u1, v0, z], [u1, v1, z], [u0, v1, z]], GROUND);
     }
-    if (k === 0) for (const w of water) d.poly(w.ring.map(([x, y]): P3 => [x, y, w.z + w.h]), "var(--pc-water)");
+    // water on the level its surface stands in, so the steps above it stay in view
+    for (const w of water) {
+      const wt = w.z + w.h;
+      if ((k === 0 || wt >= z) && (k + 1 >= sorted.length || sorted[k + 1].z + sorted[k + 1].h > wt)) d.poly(w.ring.map(([x, y]): P3 => [x, y, wt]), "var(--pc-water)");
+    }
     // the far walls, from this level up to the next
     d.poly([[x0, y0, z], [x1, y0, z], [x1, y0, zTop], [x0, y0, zTop]], CUT);
     d.poly([[x0, y0, z], [x0, y1, z], [x0, y1, zTop], [x0, y0, zTop]], "color-mix(in srgb, var(--pc-ink) 10%, var(--pc-surface-2))");

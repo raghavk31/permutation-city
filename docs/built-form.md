@@ -532,3 +532,172 @@ layouts that leave whole yards (IIM Ahmedabad, Golconde). Growing a design takes
 Not done: ponds placed by the lot's own low ground (they go where the open ground is widest);
 programme open ground at site scale (a school's field across a street from it); a shade model
 for trees at site scale; usable ground in the readouts and the explore page.
+
+## Public ground by rule (3 November)
+
+Part C, step P3 (architecture-v3 section 14.4). Shared ground used to be chosen by size and walk
+only. Each open space is now placed for a job, recorded with its rule and its family
+(`plan.shared.spaces`), and the water it holds is counted (`plan.shared.water`).
+
+1. **Water first.** Rain is followed down the landform's flow directions until it meets open
+   ground or water (`gathered`). Where the rain of 3 ha or more runs through building land, the
+   plots of that block nearest the point become a water space: a basin (0.9 m deep) where
+   15 ha or more gathers, else a lowered field (30 cm, Japan's schoolyard limit). The storms
+   come in a chain: each lot's ponds hold the 10-year storm (lotnature.ts), so a water space
+   holds what the 100-year storm brings beyond it (120 mm against 75 mm, the 100-year assumed at
+   1.6 times the 10-year), and fills only when the lots overflow.
+2. **Squares** at the busiest junctions as before; a water square (the library's Benthemplein
+   shape) where 1 ha or more gathers at it, else a shade square.
+3. **Parks** by the URDPFI hierarchy as before; each a basin where rain gathers in it, else a field.
+4. **Every door.** A small open space (125-1,500 m², one plot) within 100 m of every building
+   plot, the plot that brings the most plots within the walk first. Measured between plots'
+   centres, since such a space is smaller than a grid cell (the old doorstep measure counted
+   only cells, so it read 56-80% where the rule now gives 100%).
+5. **Schools' fields across the street** (after programme): a school given less land than
+   URDPFI asks takes the playfield its own land can't hold on the home plots across a local
+   street, and its lot no longer counts that field as its own need.
+
+Survey (4 random version 3.1 designs a site, the same seeds before and after):
+
+| Site | Floor area | Water spaces (ha) | Holds (m³) of its need | Doorstep spaces | Fields across a street (ha) | Rain still leaving over building land (ha) |
+|---|---|---|---|---|---|---|
+| Mumbai EWF | 72.4 -> 66.2 ha (-9%) | 5.7 | 16,800 of 18,100 | 28 | 0.6 | 15 |
+| Ahmedabad Wadaj | 182.7 -> 170.3 (-7%) | 5.0 | 13,800 of 14,500 | 68 | 1.9 | 44 |
+| Mumbai Docks | 23.8 -> 21.9 (-8%) | 1.6 | 5,300 of 6,800 | 13 | 0.4 | 7 |
+| Bengaluru | 64.0 -> 61.1 (-4.5%) | 2.1 | 5,100 of 5,300 | 42 | 0.8 | 33 |
+| Guwahati | 144.8 -> 131.3 (-9%) | 6.0 | 16,900 of 17,900 | 54 | 2.2 | 12 |
+
+Water spaces sit low: the median one at the 6th (Bengaluru) to 42nd (Guwahati) percentile of the
+site's ground height. Growing a design takes the same time.
+
+**The cost is 4.5-9% of the floor area**, from the water spaces, the parks' families and the
+school fields; the doorstep spaces cost little, since most are smaller than a cell. Under the
+default for Q3 (rule-placed public ground is fixed, buildings fit round it) nothing moves the
+lost floor elsewhere. Still open: rain from catchments under 3 ha that leaves the site over
+building land (its 10-year share held on the lots, its excess not); doorstep spaces smaller than
+a cell take no floor area off the cells they sit in, so their cost is undercounted; a school's
+field on its own lot and across the street don't add up exactly to URDPFI's half.
+
+## Streets as a system (3 November)
+
+Part C, step P4 (architecture-v3 section 14.5; `app/engine/plan/streetroles.ts`). Streets used
+to take one of five IRC:SP:118 sections by width. Each street now has a role, read from two
+things, and a section laid out for that role and the site's climate within its width.
+
+- **Link** (how much it carries): its class. The router lays secondary streets on the routes
+  between destinations and primaries on the skeleton, so class stands for through-movement; a
+  dead end carries nothing through. (The plan named space syntax's choice; it is measured only
+  when a design is scored, after the plan is grown, so class stands in.)
+- **Place** (how much it is a place): a point each for an active frontage, a public space on
+  it, shops or services on a third of its plots, a school or a bus stop.
+- **Role**, after the Global Street Design Guide's types (GDCI and NACTO 2016, chapter 10):
+
+| Role | GSDG type | When | Speed |
+|---|---|---|---|
+| Laneway | Laneways and alleys | a dead end that is a place | 10 km/h |
+| Shared home street | Residential shared street | a local street with two place points, no shops; a dead end that isn't a place | 15 |
+| Shared shopping street | Commercial shared street | a local street with two place points and shops | 15 |
+| Home street | Residential street | a local street | 20 |
+| Park and water edge | Waterfront and parkside street | a local or secondary street on a green or lake edge | 30 |
+| Main street | Neighbourhood main street | a secondary street with a place point | 30 |
+| Avenue | Central two-way street | a secondary street with none, or a primary with one at most | 40 |
+| Boulevard | Large street with transit | a primary street with two place points | 40 |
+
+Speeds from GSDG's design controls (urban streets 40 km/h at most; 10-15 km/h where people walk
+in the motorists' space; 20 km/h where people cross anywhere); the speeds per role are our
+reading of them. A street between a school and its playfield across the street reads as a
+shared home street (school and public space), as Q2's default asked.
+
+**The section.** Lanes first (3.0 m each, GSDG), the most that leave the role's least footpaths
+(GSDG's clear path: 1.8 m on home streets, 2.4 m on commercial ones) and its tree strips (both
+sides of main streets, avenues and boulevards, one side of home streets and park edges; a
+strip of 1.5 m holds trees), then planting, more where the climate is wet or hot, then wider
+footpaths. In a wet climate planting is a swale or a rain-garden planter (Portland's planters
+0.9 m and swales 2.4 m at least). Shared streets are one surface with no kerb, planted at the
+edges. On Bengaluru an 18 m avenue is 3.8 m footpath, 2.2 m trees, two lanes, 2.2 m trees,
+3.8 m footpath: two lanes, not four, so the trees fit.
+
+**Overflow streets.** A street whose samples mostly drain to one another along the landform,
+carrying the rain of 8 ha or more, carries the big storm: its carriageway falls to the swale and
+it gets a metre more planting. 1-3% of street length on the sites.
+
+On the five sites (3 designs each), by length: park and water edges 21-27%, home streets
+16-25%, shared home streets 13-21%, laneways 7-13%, main streets 8-13%, avenues 4-10%,
+boulevards 4-9%, shared shopping streets 2-5%. Explore has a Streets layer; the inspector draws
+a section per role and width.
+
+Not done: the sections are set by rule, not yet evolved within each role's ranges (P5); a
+street's height to width and its angle to sun and wind are not read; 12 m main streets and
+avenues have no room for tree strips beside two lanes (trees would go in footpath pits, not
+drawn); GSDG's own section dimensions were not readable online, so the role ranges are ours.
+
+## Public spaces shaped, and public ground scored (3 November)
+
+Part C, step P5 (architecture-v3 sections 14.6-14.7).
+
+**Each space's form** (`app/engine/plan/publicform.ts`). Placement stays by rule; the shape is
+searched within its family's genes (typology/openshape.ts): it starts from every library
+precedent of the family read into the genes, keeps the best, then mutates one or two genes at a
+time (40 steps, seeded by the space). A space is asked to hold what it was placed for (twice
+the weight of anything else), to stay usable when full, to give steps low enough to sit on, to
+be shaded where heat matters, and, at the door, to be enclosed between 0.8 and 2 times its width.
+A school's field stays within Japan's 30 cm. A field's water now rises only as high as it must,
+so a deeper field keeps its banks dry: the share of water spaces usable in a storm went from
+0-3% to 12-21%. Each space records its shape, the precedent it grew from and its measures.
+
+**The storm is the site's own.** Water spaces now hold the site's design storm (site.yaml: a
+heavy monsoon day, the storage score's storm: Mumbai 200 mm, Bengaluru and Ahmedabad 150,
+Guwahati 110) past the lots' 75 mm, not an assumed 120 mm, so the public ground and the storage
+score agree. On the same seeds, floor area against before part C: Mumbai EWF -13%, Docks -11%,
+Wadaj -8%, Guwahati -8.5%, Bengaluru -5%. Mumbai's rose with its 200 mm storm.
+
+**Scores** (`app/engine/metrics/publicground.ts`, in the measures list), stand-ins for Gehl's
+criteria and NACTO's guidance, said so on each:
+
+| Score | Gehl / NACTO | Five sites (3 designs each) |
+|---|---|---|
+| storm held in public ground | protection | 91-100% |
+| public ground usable in a storm | protection | 12-21% |
+| places to sit (m of step per ha of public space) | sitting | 360-690 |
+| shade on streets, hot afternoons | good climate | 44-58% |
+| doors on public spaces | standing and staying | 24-57% |
+| tree canopy (3-30-300's thirty) | | 13-15% |
+| safe to walk (GSDG clear path or a shared street) | protection from traffic | 100% |
+
+Street shade is a site-scale model: for each street, the hot-season suns (March to May, 14:00
+to 17:00, the massing scores' HOT), the buildings on the sun's side throw shadow across it by
+their plots' storeys, and street trees shade their strip and 2.5 m each side at 80%. Removing a
+water space lowers the storm held; removing street trees lowers the canopy; taller buildings on
+the sun's side and street trees each add shade (tests).
+
+Growing a design takes no longer than before part C (Mumbai EWF 515 against 536 ms a design,
+stage by stage): the doorstep rule's greedy now runs on a heap.
+
+Weak spots: canopy cover is low (13-15% against 3-30-300's 30%): the lots' trees, the public
+spaces' and the street trees together; safe to walk is 100% by construction (sections are laid
+out to the clear paths), so it only catches streets too narrow for them; doors on public spaces
+reads building plots near a space's edge, not doors.
+
+## Public ground in the workbench (4 November)
+
+Part C, step P6. Explore has a **Public ground** layer: every space the rules placed, coloured by
+its family (water spaces in blues, green ground in greens, shade and doorsteps warm), the streets
+that carry the big storm, and the seven public ground scores in its legend. A **storm slider**
+(a day's rain, 0 to 1.25 times the site's design storm) runs the storm chain
+(`app/engine/plan/storm.ts`): the lots' ponds fill to 75 mm; past it the lots overflow, the
+overflow streets turn to water and the public water spaces fill in proportion to what they were
+placed to hold, full at the site's design storm; a space that holds less than its share spills
+on. The slider works on the plan and in 3D, where the public spaces are tinted by family, shaded
+ones carry trees, streets show their roles' sections, and the storm's water stands in the spaces
+as translucent slabs as deep as their water (heights exaggerated), without rebuilding the scene.
+
+Two fixes found on the way: a space placed for water now holds what it can before anything else
+(a square that couldn't hold its share had traded its water away to stay usable), and a junction
+square sinks no deeper than 3 m (one had become a 13 m stepwell on a 262 m² corner).
+
+A bug found by the browser check: step 5's street shade imported the massing setup for the
+site's sun, which closed an import cycle (the plan -> massing setup -> genome -> evolution ->
+fitness -> the plan). Node resolved it; the browser's grower worker did not, and failed to load,
+so runs stalled at generation 0 while every Node test passed. `whereOf` now lives in
+`massing/sun.ts`, which imports nothing, and `test/imports.test.ts` fails on any new import cycle
+in the engine (three old ones, known to load, are listed).

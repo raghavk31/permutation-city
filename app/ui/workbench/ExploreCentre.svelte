@@ -92,7 +92,23 @@
   const hovered = $derived(bench.exHover ? bench.grown.get(bench.exHover) ?? null : null);
   const selected = $derived(bench.designOf(bench.exSel));
   const shown = $derived(hovered ? { name: bench.exHover!, d: hovered } : selected ? { name: bench.exSel!, d: selected } : null);
-  const paintOf = (d: E.Design | null, layer: Draw.PlanLayer = "plan") => (ctx: CanvasRenderingContext2D, v: Draw.View) => { if (d) Paint.design(ctx, v, site, d, P, layer); };
+  // a day's rain on the public ground's storm chain (plan/storm.ts), from dry to past the site's design storm
+  const bigMm = $derived(E.bigStorm(site));
+  const storm = $derived(shown?.d.plan && bench.exStorm > 0 ? E.stormOn(shown.d.plan, bench.exStorm, bigMm) : null);
+  const paintOf = (d: E.Design | null, layer: Draw.PlanLayer = "plan") => (ctx: CanvasRenderingContext2D, v: Draw.View) => { if (d) Paint.design(ctx, v, site, d, P, layer, layer === "public" ? storm : null); };
+  // the public ground's scores (metrics/publicground.ts) for the design shown
+  const PUBLIC_KEYS = ["storm_held", "storm_usable", "places_to_sit", "street_shade", "doors_on_spaces", "canopy_cover", "safe_to_walk"] as const;
+  const pubScores = $derived.by(() => {
+    const G = bench.runGround(), d = shown?.d;
+    if (bench.exLayer !== "public" || !G || !d?.plan?.shared?.spaces) return null;
+    const net = E.network(d, G);
+    return PUBLIC_KEYS.map((k) => { const m = E.METRICS[k] as E.Metric; return { k, label: m.label, note: m.note, v: m.fmt(m.value(net)) }; });
+  });
+  const famArea = $derived.by(() => {
+    const out = new Map<string, { n: number; a: number }>();
+    for (const s of sh?.spaces ?? []) { const o = out.get(s.family) ?? { n: 0, a: 0 }; o.n++; o.a += s.area; out.set(s.family, o); }
+    return out;
+  });
   const sh = $derived(shown?.d.plan?.shared ?? null);
   const ty = $derived(shown?.d.plan?.types ? E.typeSummary(shown.d.plan.types) : null);
   const pg = $derived(shown?.d.plan?.programme ?? null);
@@ -113,6 +129,12 @@
       view.setSun({ month: 3, day: 15, clock: 16 }, site);
       view.frameSite();
     })();
+  });
+  // the storm's water in 3D, without rebuilding the scene
+  $effect(() => {
+    const st = selected?.plan && bench.exStorm > 0 ? E.stormOn(selected.plan, bench.exStorm, bigMm) : null;
+    if (!bench.exSolid) return;
+    void (async () => { for (let k = 0; k < 40 && (!view || viewOf !== selected); k++) await new Promise((r) => setTimeout(r, 100)); view?.setStorm(st); })();
   });
   onDestroy(() => { view?.dispose(); view = null; });
   /** Facilities by programme: how many the homes' people need, and how many the plan placed. */
@@ -250,16 +272,16 @@
       {#if bench.exSolid}
         <div class="wb-mass-3d"><canvas bind:this={solid} aria-label="The selected design in 3D: drag to turn, scroll to zoom"></canvas></div>
       {:else if shown}
-        <MapCanvas {site} paint={paintOf(shown.d, bench.exLayer)} version={`${shown.name}|${bench.exLayer}`} label="Plan of {bench.titleOf(shown.name)}" />
+        <MapCanvas {site} paint={paintOf(shown.d, bench.exLayer)} version={`${shown.name}|${bench.exLayer}|${bench.exLayer === "public" ? bench.exStorm : 0}`} label="Plan of {bench.titleOf(shown.name)}" />
       {/if}
       {#if bench.exSolid}
         <!-- COPY: what the 3D view shows -->
-        <div class="wb-over bl"><p class="wb-legend wb-hint" style="margin: 0; max-width: 420px">{selected?.plan?.types ? "Every lot built as its precedent, with its ponds and trees. Drag to turn, scroll to zoom; heights ×1.5. Sun: 15 March, 16:00." : selected ? "This design was bred before building types (genome version 3): its plots are drawn as boxes." : ""}</p></div>
+        <div class="wb-over bl"><p class="wb-legend wb-hint" style="margin: 0; max-width: 420px">{selected?.plan?.types ? "Every lot built as its precedent, with its ponds and trees, and the public spaces in their shapes. Drag to turn, scroll to zoom; heights ×1.5. Sun: 15 March, 16:00." : selected ? "This design was bred before building types (genome version 3): its plots are drawn as boxes." : ""}</p>{#if selected?.plan?.shared?.spaces}{@render stormCtl()}{/if}</div>
       {:else}
       <!-- COPY: what the plan shows -->
       <div class="wb-over bl wb-ex-layer">
         <div class="wb-seg" role="group" aria-label="The plan shows">
-          {#each [["plan", "Plan"], ["shared", "Shared ground"], ["frontage", "Frontage"], ["types", "Building types"], ["programme", "Programme"], ["nature", "Nature"]] as [k, label]}
+          {#each [["plan", "Plan"], ["shared", "Shared ground"], ["public", "Public ground"], ["streets", "Streets"], ["frontage", "Frontage"], ["types", "Building types"], ["programme", "Programme"], ["nature", "Nature"]] as [k, label]}
             <button type="button" aria-pressed={bench.exLayer === k} onclick={() => (bench.exLayer = k as typeof bench.exLayer)}>{label}</button>
           {/each}
         </div>
@@ -269,6 +291,29 @@
             <div><i style="--c: transparent; box-shadow: inset 0 0 0 2px {P.t.green.existing}"></i><span>{sh.parks.length} parks reserved</span></div>
             <div><i style="--c: transparent; border: 1px dashed {P.t.green.existing}"></i><span>{sh.squares.length} squares at junctions</span></div>
             <span class="wb-quiet" title="Share of the design's floor area within a walk of each size of open space (sizes from URDPFI 2015 as NIUA gives them; walks assumed)">within a walk: doorstep green {Math.round(sh.access.doorstep * 100)}%, park {Math.round(sh.access.housing * 100)}%, neighbourhood park {Math.round(sh.access.neighbourhood * 100)}%</span>
+          </div>
+        {:else if bench.exLayer === "public" && sh?.spaces}
+          <!-- COPY: public ground legend -->
+          <div class="wb-legend">
+            {#each Object.entries(E.OPEN_FAMILIES) as [f, label]}
+              {@const fa = famArea.get(f)}
+              {#if fa}<div><i style="--c: {P.t.publicFamily[f as keyof typeof P.t.publicFamily]}"></i><span>{label}: {fa.n}, {(fa.a / 1e4).toFixed(1)} ha</span></div>{/if}
+            {/each}
+            <div><i class="is-line" style="--c: {P.t.water.storage}; border-top-style: dashed"></i><span>streets that carry the big storm</span></div>
+            {#if pubScores}<span class="wb-quiet">{#each pubScores as sc, i}{#if i} · {/if}<span title={sc.note}>{sc.label} {sc.v}</span>{/each}</span>{/if}
+          </div>
+          {@render stormCtl()}
+        {:else if bench.exLayer === "streets" && selected?.plan?.streets?.[0]?.role}
+          {@const st = selected.plan.streets}
+          {@const len = (l: [number, number][]) => l.slice(1).reduce((a, q, i) => a + Math.hypot(q[0] - l[i][0], q[1] - l[i][1]), 0)}
+          {@const total = st.reduce((a, s) => a + len(s.pts), 0)}
+          <div class="wb-legend">
+            {#each E.STREET_ROLES as r}
+              {@const L = st.filter((s) => s.role === r).reduce((a, s) => a + len(s.pts), 0)}
+              {#if L > 0}<div><i class="is-line" style="--c: {P.t.streetRole[r]}"></i><span title={E.ROLES[r].gsdg}>{E.ROLES[r].label}: {Math.round((L / total) * 100)}%, {E.ROLES[r].speed} km/h</span></div>{/if}
+            {/each}
+            <div><i class="is-line" style="--c: {P.t.water.storage}; border-top-style: dashed"></i><span>carries the big storm: {st.filter((s) => s.overflow).length} streets</span></div>
+            <span class="wb-quiet" title="Street types and speeds after the Global Street Design Guide (GDCI and NACTO, 2016); a street's role from its class and how much of a place it is">A street's role: how much it carries and how much of a place it is</span>
           </div>
         {:else if bench.exLayer === "frontage"}
           <div class="wb-legend">
@@ -335,3 +380,15 @@
     </div>
   </div>
 {/if}
+
+{#snippet stormCtl()}
+  <!-- COPY: the storm slider -->
+  <label class="wb-storm">
+    <span class="wb-label">A day's rain: <b class="wb-num">{bench.exStorm} mm</b></span>
+    <input type="range" min="0" max={Math.round((bigMm * 1.25) / 5) * 5} step="5" bind:value={bench.exStorm} aria-label="A day's rain, in millimetres" />
+    <span class="wb-hint">{bench.exStorm === 0 ? "A dry day: every public space is in use."
+      : bench.exStorm <= E.STORM_MM.lots ? `The lots' ponds are filling (${Math.round((bench.exStorm / E.STORM_MM.lots) * 100)}%); the public ground is dry.`
+      : bench.exStorm <= bigMm ? `The lots are full at ${E.STORM_MM.lots} mm; streets carry the rest to the water spaces, which fill toward the site's design storm of ${bigMm} mm.`
+      : `Past the design storm of ${bigMm} mm: what the public ground can't hold runs on unheld.`}{storm?.spill && bench.exStorm <= bigMm ? " Some spaces are already full and spill on." : ""}</span>
+  </label>
+{/snippet}

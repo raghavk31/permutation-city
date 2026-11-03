@@ -321,19 +321,80 @@ and soil cleaning water, and carrying sound to a crowd.
 | Job | In the library | Still to add |
 |---|---|---|
 | Harvest rain from roofs and ground | Nalanda University campus (roofs drain through the pillars to the ponds), kund, Thammasat rooftop farm, Barefoot College, tanka | Fatehpur Sikri's mosque court and tanks; Ryōgoku Kokugikan's roof tank (sizes not found) |
-| Store water in public | stepwell, kalyani, kere, Hyderabad baoli, sabil-kuttab, ab anbar, Venice wells, johad | temple tank (kulam), Chand Baori |
-| Hold a flood, then dry out | water square, Enghave climate park, Chulalongkorn Centenary Park, Bishan-Ang Mo Kio Park, Room for the Waal, Qunli, Cheonggyecheon | Yanweizhou Park, Tåsinge Plads |
+| Store water in public | stepwell, kalyani, kere, Hyderabad baoli, sabil-kuttab, ab anbar, Venice wells, johad | (added 3 Nov: Teppakulam, Chand Baori) |
+| Hold a flood, then dry out | water square, Enghave climate park, Chulalongkorn Centenary Park, Bishan-Ang Mo Kio Park, Room for the Waal, Qunli, Cheonggyecheon | (added 3 Nov: Yanweizhou, Tåsinge Plads, cloudburst street, schoolyard storage) |
 | Clean water with plants | East Kolkata Wetlands, Houtan Park, Benjakitti Forest Park, green street, DEWATS | Sponge-city bioswales |
-| Shade open ground | tree platform (katte), Medina umbrellas, Metropol Parasol, portico, Havana portales, toguna | haat under trees, stoa |
-| Cool with water and planting | charbagh garden, Lalbagh and Cubbon Park, Paley Park, Cheonggyecheon | Shalimar Bagh |
+| Shade open ground | tree platform (katte), Medina umbrellas, Metropol Parasol, portico, Havana portales, toguna | (added 3 Nov: haat, stoa, chaupal) |
+| Cool with water and planting | charbagh garden, Lalbagh and Cubbon Park, Paley Park, Cheonggyecheon | (added 3 Nov: Shalimar Bagh) |
 | Gather a crowd | Theatre of Epidaurus, ghats, Nalanda's amphitheatre (in the campus entry) | Greek and Roman theatres in other climates |
-| Work in the open | Dhobi Ghat, Fès tannery, Kumbharwada | weekly haat, mandi |
+| Work in the open | Dhobi Ghat, Fès tannery, Kumbharwada | mandi (haat added 3 Nov) |
 | Keep nature in common | sacred grove (devarakadu), chabutro | urban sacred groves of Bengaluru |
-| Many small pieces near every door | Van Eyck playgrounds, superblock, chabutro | chowk, pocket parks |
+| Many small pieces near every door | Van Eyck playgrounds, superblock, chabutro | pocket parks (pol street with chowk and otla added 3 Nov) |
 
 For the search, these are the open ground the city's programme sits round: a block's public
 space should be chosen by the job its land can do (low ground and flow lines hold and clean
 water; junctions get shade and seats; every few hundred metres, a small doorstep space).
+
+### Dry day and wet day (3 November)
+
+Second round, for part C (architecture-v3 section 14, step P1): every public space now says
+what it is on a dry day and on a wet day, which family its shape belongs to and which public
+jobs it does beside its climate job. Data in `app/engine/typology/library/open.ts`, joined to
+the entries by id; the page draws a second drawing, the wet day, for every space that holds
+water (grammar `fill`: water standing in a pit, over terraces, in rain beds or over flat
+ground).
+
+| Field | Meaning |
+|---|---|
+| family | sunk or stepped, basin or wetland, along a flow line, shade over open ground, open field, at the door, street |
+| jobs | gather, sit and stay, play, buy and sell, walk through, rites, work in the open, fetch water, be among plants and animals |
+| holds | never; in a storm, then drains; through the wet season; all year |
+| fills at | the storm (return period, years) at which it starts to take water |
+| usable when full | share of its area still usable when it is full |
+
+Most fill thresholds and wet-day shares are **assumed**: few projects publish them. Sourced
+ones: Sapporo's schoolyards (30 cm at most, drained within 2 hours of a 10-year storm),
+Yanweizhou (terraces under the 20-year flood, bridge above the 200-year), Copenhagen's
+cloudburst streets and parks (the 100-year storm), the green street (15 cm in its beds).
+
+Twenty new entries, mostly streets and Indian public ground: Chand Baori, Madurai's
+Teppakulam (a festival tank most of the year a cricket ground), the maidan, a bazaar with an
+arcade (Johari Bazaar), Pondy Bazaar's pedestrian plaza, a Tender SURE street, the pol
+street (otla and chowk), the galli, the weekly haat, Shalimar Bagh, the chaupal,
+Yanweizhou Park, schoolyard rain storage, the hutong, Tåsinge Plads, a cloudburst street
+(Skt. Kjelds), the woonerf, the stoa, Medellín's green corridors and the deep lane of the
+Fès medina (6 K cooler than a wide street at the hottest hour, Johansson 2006). All checked
+against photographs from Wikimedia Commons except the schoolyard and Medellín (none found);
+three drawings were corrected (the maidan's trees, Shalimar's channels, rain beds that are
+planted on a dry day). Street sections themselves (footpath, swale, carriageway) wait for P4.
+
+### Shaping open ground (3 November)
+
+Step P2 of part C: each family of public space (streets aside, they are P4) as a few genes,
+in `app/engine/typology/openshape.ts`, shown on /typologies under "Shaping open ground" with a
+drawing of each gene at both ends. A shape and the land it is given make grammar parameters,
+so the drawing and the measures need nothing new.
+
+| Family | Genes |
+|---|---|
+| Sunk or stepped | long ÷ wide; deep ÷ narrow side; levels; steps all round or down the length; water on the wet day ÷ depth; storeys of gallery at the rim |
+| Basin or wetland | long ÷ wide; water ÷ land when full; ponds in the chain; depth (m); crown cover on the dry land |
+| Along a flow line | long ÷ wide; channel ÷ width; levels of bank; depth below the street (m); flood ÷ depth; crown cover on the banks |
+| Shade over open ground | roof or crown ÷ area; height ÷ span; roofs or trees in number; trees or roofs |
+| Open field | long ÷ wide; lowered (m); seating banks; share of the edge planted |
+| At the door | edge height ÷ width; sides with doors; crown cover |
+
+Sizes appear only where a size is the rule: a pond's or a stream's depth (safety and soil), a
+field lowered no more than Japan's 30 cm for a school. Each gene has its limits and the spread
+the library's members take, read from their seeds (`shapeOf`); the search starts inside the
+spread and may drift to the limits. The measures (`measureShape`) are the stand-ins P5 will
+score: water held between the dry and the wet day, share usable when full, steps low enough to
+sit on (0.6 m or less) per 100 m², shade as a plan share, enclosure. Checks: Enghave Park reads
+as 19,800 m³ against its published 22,600; a 30 cm schoolyard of 4,800 m² holds 1,440 m³.
+
+Weak spots: the stream family has three members, so its spread is narrow (the channel share is
+read from the default tread, 0.33 for all three); a tree's height for its span is fixed by the
+drawing; a doorstep's raised platform (otla, katte) is not drawn.
 
 ## Nature's rules
 

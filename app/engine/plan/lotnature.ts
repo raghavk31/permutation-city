@@ -70,12 +70,14 @@ export function climateWeights(ns: readonly Need[]) {
   return { wet: w("rain", "monsoon"), hot: w("heat", "humid-heat", "dry-heat") };
 }
 
-/** The nature a lot of `land` m² takes at coverage `gsi`, with `catchment` m² draining to it.
+/** The nature a lot of `land` m² takes at coverage `gsi`, with `catchment` m² draining to it
+ *  and `away` m² of its programme's open ground held off the lot.
  *  usable: its open ground in pieces the programme can use (blockmass.ts usableOpen), where its
  *  layout has been measured; else all its open ground. */
-export function lotNature(prog: ProgrammeKey, land: number, gsi: number, catchment: number, ns: readonly Need[], usable?: number): LotNature {
+export function lotNature(prog: ProgrammeKey, land: number, gsi: number, catchment: number, ns: readonly Need[], usable?: number, away = 0): LotNature {
   const N = OPEN_NEED[prog] ?? OPEN_NEED.homes, { wet, hot } = climateWeights(ns);
-  const open = Math.max(0, land * (1 - gsi)), need = N.share(land) * land, got = Math.min(open, usable ?? open, need), spare = open - got;
+  // `away`: what of its need the lot has elsewhere (a school's playfield across the street; shared.ts pairFields)
+  const open = Math.max(0, land * (1 - gsi)), need = Math.max(0, N.share(land) * land - away), got = Math.min(open, usable ?? open, need), spare = open - got;
   const pond = N.kind === "wetland" ? spare : Math.min(spare, (WETLAND[0] + (WETLAND[1] - WETLAND[0]) * wet) * Math.max(catchment, land));
   const canopy = CANOPY_MAX * (0.5 + 0.5 * hot);
   // trees on the dry spare ground, and in a garden (not on a playfield or a yard)
