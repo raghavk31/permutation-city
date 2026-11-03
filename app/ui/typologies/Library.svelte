@@ -12,6 +12,8 @@
   import { CLIMATE, climateSites, differences, distance, matchLabel, profile } from "../../engine/typology/climate";
   import ClimateChart from "./ClimateChart.svelte";
   import NatureGenes from "./NatureGenes.svelte";
+  import OpenShapes from "./OpenShapes.svelte";
+  import { OPEN_GENES } from "../../engine/typology/openshape";
   import { GENES } from "../../engine/typology/nature";
 
   // A public space is drawn on its dry day; one that holds water is drawn on its wet day too.
@@ -48,7 +50,7 @@
   });
   // Two views: the precedents, and nature's rules (genes; NatureGenes.svelte). A #gene- link
   // opens the second.
-  let view = $state<"precedents" | "nature">(typeof location !== "undefined" && location.hash.startsWith("#gene-") ? "nature" : "precedents");
+  let view = $state<"precedents" | "nature" | "open">(typeof location === "undefined" ? "precedents" : location.hash.startsWith("#gene-") ? "nature" : location.hash.startsWith("#open") ? "open" : "precedents");
   let open = $state<Precedent | null>(null);
   let dialog: HTMLDialogElement;
 
@@ -85,6 +87,7 @@
   onMount(() => {
     const fromHash = () => {
       if (location.hash.startsWith("#gene-")) { view = "nature"; return; }
+      if (location.hash.startsWith("#open")) { view = "open"; return; }
       const p = LIBRARY.find((x) => x.id === location.hash.slice(1)); if (p) { view = "precedents"; show(p); }
     };
     fromHash();
@@ -130,9 +133,17 @@
     <div class="wb-seg ty-views" role="group" aria-label="Library view">
       <button aria-pressed={view === "precedents"} onclick={() => (view = "precedents")}>What people built <span class="wb-mono">{LIBRARY.length}</span></button>
       <button aria-pressed={view === "nature"} onclick={() => (view = "nature")}>Nature's rules <span class="wb-mono">{GENES.length}</span></button>
+      <button aria-pressed={view === "open"} onclick={() => (view = "open")}>Shaping open ground <span class="wb-mono">{Object.keys(OPEN_GENES).length}</span></button>
     </div>
     <!-- COPY: titles and leads are drafts for the user to rewrite. -->
-    {#if view === "nature"}
+    {#if view === "open"}
+    <h1>How a public space's shape can change</h1>
+    <p class="ty-lead">
+      Each kind of public space is a few settings, kept as ratios where they can be: how deep for its width, how much of it
+      holds water, how much of it is shaded. The design search will place a space by the job its land can do, then shape it
+      within these settings. Each setting shows what the shape allows, what the library's examples take, and the shape at both ends.
+    </p>
+    {:else if view === "nature"}
     <h1>What nature does that a building can borrow</h1>
     <p class="ty-lead">
       Rivers, forests, leaves and animals solve the problems a city has: shedding heat, holding rain, moving air, carrying load,
@@ -153,7 +164,9 @@
     {/if}
   </section>
 
-  {#if view === "nature"}
+  {#if view === "open"}
+    <OpenShapes />
+  {:else if view === "nature"}
     <NatureGenes />
   {:else}
 

@@ -1197,6 +1197,13 @@ buildings fit round it.
   wet day beside the dry; climate normals fetched for the new places. Photo check: 18 of 20
   against Commons photos, three drawings corrected. Sourced wet-day figures are few (Sapporo
   schoolyards, Yanweizhou, Copenhagen, green street); the rest are assumed and say so.
+- **P2 done (3 November).** `engine/typology/openshape.ts`: genes per family (6 families,
+  28 genes) with limits, the library's spread (`familySpread`, from `shapeOf` on each member's
+  seed), `shapeParams` (shape + land -> grammar, dry or wet) and `measureShape` (storage,
+  usable when full, seats, shade, enclosure). Grammar gained a pit's `tread`, canopies in
+  `rows`, trees `treesAt` the edge or in the court, and a `crown` size. Page view "Shaping open
+  ground" (#open-<family>) draws each gene at both limits. Tests: every family builds at every
+  limit, wet and dry; each gene moves its measure the right way.
 
 ---
 

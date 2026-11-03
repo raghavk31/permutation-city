@@ -368,6 +368,34 @@ against photographs from Wikimedia Commons except the schoolyard and Medellín (
 three drawings were corrected (the maidan's trees, Shalimar's channels, rain beds that are
 planted on a dry day). Street sections themselves (footpath, swale, carriageway) wait for P4.
 
+### Shaping open ground (3 November)
+
+Step P2 of part C: each family of public space (streets aside, they are P4) as a few genes,
+in `app/engine/typology/openshape.ts`, shown on /typologies under "Shaping open ground" with a
+drawing of each gene at both ends. A shape and the land it is given make grammar parameters,
+so the drawing and the measures need nothing new.
+
+| Family | Genes |
+|---|---|
+| Sunk or stepped | long ÷ wide; deep ÷ narrow side; levels; steps all round or down the length; water on the wet day ÷ depth; storeys of gallery at the rim |
+| Basin or wetland | long ÷ wide; water ÷ land when full; ponds in the chain; depth (m); crown cover on the dry land |
+| Along a flow line | long ÷ wide; channel ÷ width; levels of bank; depth below the street (m); flood ÷ depth; crown cover on the banks |
+| Shade over open ground | roof or crown ÷ area; height ÷ span; roofs or trees in number; trees or roofs |
+| Open field | long ÷ wide; lowered (m); seating banks; share of the edge planted |
+| At the door | edge height ÷ width; sides with doors; crown cover |
+
+Sizes appear only where a size is the rule: a pond's or a stream's depth (safety and soil), a
+field lowered no more than Japan's 30 cm for a school. Each gene has its limits and the spread
+the library's members take, read from their seeds (`shapeOf`); the search starts inside the
+spread and may drift to the limits. The measures (`measureShape`) are the stand-ins P5 will
+score: water held between the dry and the wet day, share usable when full, steps low enough to
+sit on (0.6 m or less) per 100 m², shade as a plan share, enclosure. Checks: Enghave Park reads
+as 19,800 m³ against its published 22,600; a 30 cm schoolyard of 4,800 m² holds 1,440 m³.
+
+Weak spots: the stream family has three members, so its spread is narrow (the channel share is
+read from the default tread, 0.33 for all three); a tree's height for its span is fixed by the
+drawing; a doorstep's raised platform (otla, katte) is not drawn.
+
 ## Nature's rules
 
 Added 31 October 2026. Data in `app/engine/typology/nature.ts` (the source of truth),

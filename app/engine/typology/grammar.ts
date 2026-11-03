@@ -105,6 +105,15 @@ export interface Params {
   fill?: number;
   /** Trees on the open ground: a homegarden, a planted court, willows on a chinampa. */
   trees?: number;
+  /** A tree's crown radius (m); by default trees come in mixed sizes. Drawn trees are three
+   *  crown radii tall. */
+  crown?: number;
+  /** Where the trees stand: scattered (the default), in a row round the plot's edge, or on a
+   *  grid in a court. */
+  treesAt?: "edge" | "court";
+  /** A pit's tread: how far each level steps in (m); by default the pit's narrower side is
+   *  shared out evenly, leaving a floor as wide as one tread. */
+  tread?: number;
   /** A round bowl's seating or terracing covers this arc (degrees, 360 a full ring); the rest
    *  is flat floor (a theatre's orchestra and stage). */
   sweep?: number;
@@ -279,7 +288,7 @@ export function build(p: Params): Built {
     case "sunken": {
       // A pit stepping down to water: terraces narrowing as they go down; rooms round the top
       // when `count` is set (Matmata, a dikengyuan).
-      const L = p.width, B = p.depth, dz = p.sunken ?? 8, n = p.steps ?? 4, step = Math.min(L, B) / (2 * n + 2);
+      const L = p.width, B = p.depth, dz = p.sunken ?? 8, n = p.steps ?? 4, step = p.tread ?? Math.min(L, B) / (2 * n + 2);
       if (p.footprint === "round") {
         // a round bowl (Moray, a theatre): rings narrowing as they go down, over `sweep` degrees
         const R = L / 2, dr = R / (n + 1);
@@ -345,19 +354,19 @@ export function build(p: Params): Built {
     }
     case "canopy": {
       // A roof on posts over open ground (a bazaar shade, solar canopy, a station).
-      const n = p.count ?? 1;
+      const n = p.count ?? 1, m = p.rows ?? 1;
       const top = p.floorH ?? 4, span = Math.max(p.width, p.depth);
       // posts or stems under it: one stem under an umbrella, a grid of posts under a long roof
       const pitch = span > 60 ? 35 : span > 20 ? 30 : 3.5, a = span > 20 ? Math.max(1, span / 40) : 0.3;
-      for (let i = 0; i < n; i++) {
-        const x0 = i * (p.width + (p.gap ?? 0)), nx = Math.max(1, Math.round(p.width / pitch)), ny = Math.max(1, Math.round(p.depth / pitch));
+      for (let i = 0; i < n; i++) for (let j = 0; j < m; j++) {
+        const x0 = i * (p.width + (p.gap ?? 0)), y0 = j * (p.depth + (p.gap ?? 0)), nx = Math.max(1, Math.round(p.width / pitch)), ny = Math.max(1, Math.round(p.depth / pitch));
         for (let u = 0; u < nx; u++) for (let v = 0; v < ny; v++) {
-          const px = x0 + ((u + 0.5) * p.width) / nx, py = ((v + 0.5) * p.depth) / ny;
+          const px = x0 + ((u + 0.5) * p.width) / nx, py = y0 + ((v + 0.5) * p.depth) / ny;
           S.push({ ring: rect(px - a / 2, py - a / 2, a, a), z: 0, h: top - 0.4, use: "built", roof: "flat", storeys: 0 });
         }
-        S.push({ ring: rect(x0, 0, p.width, p.depth), z: top - 0.4, h: 0.4, use: "canopy", roof: "flat" });
+        S.push({ ring: rect(x0, y0, p.width, p.depth), z: top - 0.4, h: 0.4, use: "canopy", roof: "flat" });
       }
-      W = n * p.width + (n - 1) * (p.gap ?? 0); D = p.depth + (p.street ?? 4);
+      W = n * p.width + (n - 1) * (p.gap ?? 0); D = m * p.depth + (m - 1) * (p.gap ?? 0) + (p.street ?? 4);
       break;
     }
   }
@@ -383,11 +392,28 @@ export function build(p: Params): Built {
       const xs = s.ring.map((q) => q[0]), ys = s.ring.map((q) => q[1]);
       return [Math.min(...xs) - 2, Math.min(...ys) - 2, Math.max(...xs) + 2, Math.max(...ys) + 2];
     });
-    for (let k = 0, tries = 0; k < p.trees && tries < p.trees * 40; tries++) {
+    // in a row along the plot's edge (a maidan's ring of trees, a field's shade), or scattered
+    if (p.treesAt === "edge") {
+      const per = 2 * (W + D);
+      for (let k = 0; k < p.trees; k++) {
+        let t = ((k + 0.5) / p.trees) * per;
+        const [x, y] = t < W ? [t, 2] : (t -= W) < D ? [W - 2, t] : (t -= D) < W ? [W - t, D - 2] : [2, D - (t - W)];
+        S.push({ ring: [[x, y]], z: 0, h: p.crown ? 3 * p.crown : 6 + rnd() * 4, use: "tree" });
+      }
+    }
+    // in the open court, on a grid (a doorstep space's trees)
+    if (p.treesAt === "court" && p.arrangement === "court") {
+      const c = p.court ?? 8, n = Math.ceil(Math.sqrt(p.trees));
+      for (let k = 0; k < p.trees; k++) {
+        const x = p.depth + ((k % n) + 0.5) * (c / n), y = p.depth + (Math.floor(k / n) + 0.5) * (c / n);
+        S.push({ ring: [[x, y]], z: 0, h: p.crown ? 3 * p.crown : 6 + rnd() * 4, use: "tree" });
+      }
+    }
+    for (let k = 0, tries = 0; !p.treesAt && k < p.trees && tries < p.trees * 40; tries++) {
       // a single tree stands in the middle (the tree of a tree platform); more are scattered
       const x = p.trees === 1 ? W / 2 : rnd() * W, y = p.trees === 1 ? D / 2 : rnd() * D;
       if (boxes.some(([a, b, c, d]) => x > a && x < c && y > b && y < d)) continue;
-      S.push({ ring: [[x, y]], z: 0, h: 4 + rnd() * 6, use: "tree" });
+      S.push({ ring: [[x, y]], z: 0, h: p.crown ? 3 * p.crown : 4 + rnd() * 6, use: "tree" });
       k++;
     }
   }

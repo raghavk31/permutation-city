@@ -1513,8 +1513,8 @@ export const SOUTH_ASIA: Precedent[] = [
       { what: "Use", value: "cricket and football; rallies and religious functions banned", conf: "medium", src: 0 },
       { what: "Azad Maidan nearby", value: "25 acres; 22 cricket pitches", conf: "medium", src: 1 },
     ],
-    seed: { arrangement: "terraces", width: 360, depth: 250, storeys: 0, steps: 1, sunken: 0.3 },
-    seedNote: "Area from the figures, drawn as a rectangle (the ground is an oval); the trees on its edge not drawn.",
+    seed: { arrangement: "terraces", width: 360, depth: 250, storeys: 0, steps: 1, sunken: 0.3, trees: 70, treesAt: "edge" },
+    seedNote: "Area from the figures, drawn as a rectangle (the ground is an oval); a ring of trees on its edge, spacing assumed.",
     sources: [
       src("Oval Maidan, Wikipedia", "https://en.wikipedia.org/wiki/Oval_Maidan"),
       src("Azad Maidan, Wikipedia", "https://en.wikipedia.org/wiki/Azad_Maidan"),
