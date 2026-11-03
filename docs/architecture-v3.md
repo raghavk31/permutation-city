@@ -1217,6 +1217,12 @@ buildings fit round it.
   (lanes, then least footpaths and tree strips, then climate planting, swales when wet);
   overflow streets on flow lines carrying 8 ha or more. Explore "Streets" layer, inspector
   sections per role. Survey in docs/built-form.md "Streets as a system".
+- **P5 done (3 November).** `plan/publicform.ts` (each space's shape searched within its
+  family from its library precedents; school fields at most 30 cm; a field's water line follows
+  its need), the site's design storm for the big storm, `metrics/publicground.ts` (seven
+  scores mapped to Gehl and NACTO, in the measures list), a hot-afternoon street shade model
+  (`streetShade`), the doorstep greedy on a heap. Survey in docs/built-form.md "Public spaces
+  shaped, and public ground scored". Floor area 5-13% below before part C.
 
 ---
 

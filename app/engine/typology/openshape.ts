@@ -173,7 +173,9 @@ function pitMeasures(L: number, B: number, dz: number, n: number, around: boolea
   return { storage, wetUse: dry / (L * B), seats: (seats / (L * B)) * 100 };
 }
 
-export function measureShape(f: ShapedFamily, s0: Shape, area: number): OpenMeasures {
+/** `need` (m³), for a field: its water rises only as high as it must to hold that, so a deeper
+ *  field keeps its banks dry; without it the field is full to its edge. */
+export function measureShape(f: ShapedFamily, s0: Shape, area: number, need = 0): OpenMeasures {
   const s = clampShape(f, s0);
   switch (f) {
     case "stepped": {
@@ -192,8 +194,12 @@ export function measureShape(f: ShapedFamily, s0: Shape, area: number): OpenMeas
       const [L, B] = sides(area, s.aspect), trees = Math.round((s.edge * 2 * (L + B)) / TREE_EVERY_M);
       const shade = Math.min(1, (trees * CROWN_M2 * 0.5) / area); // half of each edge tree's crown falls on the field
       if (s.sunk < 0.05) return { storage: 0, wetUse: 1, seats: 0, shade, enclosure: 0 };
-      const m = pitMeasures(L, B, s.sunk, s.banks, true, 1, Math.min(3, B / (2 * s.banks + 2)));
-      return { ...m, shade, enclosure: 0 };
+      const tread = Math.min(3, B / (2 * s.banks + 2)), full = pitMeasures(L, B, s.sunk, s.banks, true, 1, tread);
+      if (need <= 0 || full.storage <= need) return { ...full, shade, enclosure: 0 };
+      // the lowest water line that holds the need
+      let lo = 0, hi = 1;
+      for (let k = 0; k < 30; k++) { const mid = (lo + hi) / 2; if (pitMeasures(L, B, s.sunk, s.banks, true, mid, tread).storage >= need) hi = mid; else lo = mid; }
+      return { ...pitMeasures(L, B, s.sunk, s.banks, true, hi, tread), shade, enclosure: 0 };
     }
     case "doorstep":
       return { storage: 0, wetUse: 1, seats: 0, shade: s.trees, enclosure: s.enclosure };

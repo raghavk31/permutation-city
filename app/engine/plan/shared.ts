@@ -11,7 +11,7 @@
 //      the plots nearest that point become a water space. The storms come in a chain: each lot's
 //      ponds hold the 10-year storm (lotnature.ts: 5-10% of what drains to it, 0.6 m deep), so
 //      the public space holds what the 100-year storm brings beyond it, filling when the lots
-//      overflow: a basin where much ground gathers, else a lowered field
+//      overflow, up to the site's design storm: a basin where much ground gathers, else a lowered field
 //   3  a square at each important junction: where two or more secondary or primary streets
 //      meet, the busiest first, SQUARE_SPACING_M apart; the plot on the corner becomes it, a
 //      water square where rain gathers there, else a square under shade
@@ -66,9 +66,12 @@ export const LAKE_EDGE_M = 40;           // a street this close to water or the 
 export const GATHER_MIN_M2 = 30000;
 /** From this much ground a basin (deeper); below it a lowered field. */
 export const BASIN_GATHER_M2 = 150000;
-/** Storm depth by return period (mm): the 10-year near the design storm (plotnature.ts); the
- *  100-year 1.6 times it (assumed: Gumbel ratios for Indian daily rain are about 1.4-1.7). */
-export const STORM_MM: Record<10 | 100, number> = { 10: DESIGN_RAIN_MM, 100: Math.round(DESIGN_RAIN_MM * 1.6) };
+/** Storm depth (mm): what each lot's ponds hold (plotnature.ts's design storm, near Bengaluru's
+ *  10-year), and the big storm the public ground holds the rest of: the site's own design storm
+ *  (site.yaml: a heavy monsoon day; the storage score's storm), else 1.6 times the lots' (assumed:
+ *  Gumbel ratios of Indian daily rain's 100-year to 10-year are about 1.4-1.7). */
+export const STORM_MM = { lots: DESIGN_RAIN_MM, big: Math.round(DESIGN_RAIN_MM * 1.6) };
+const bigStorm = (G: Ground) => Math.max(G.meta.design_storm_mm || STORM_MM.big, STORM_MM.lots);
 /** Share of the gathered rain that runs off built ground (assumed: between roofs 0.9 and open ground 0.4). */
 export const GATHER_RUNOFF = 0.7;
 /** Water depth each holds when full (m): a basin's (assumed, inside openshape.ts's 0.3-3 m), a
@@ -96,6 +99,13 @@ export interface PublicSpace {
   gather?: number;
   /** A playfield across the street: the school plot it serves. */
   of?: number;
+  /** Water it was placed to hold (m³). */
+  need?: number;
+  /** Its shape in its family's genes (plan/publicform.ts), the library precedent it is nearest,
+   *  and what the shape gives (typology/openshape.ts measureShape). */
+  shape?: Record<string, number>;
+  like?: string;
+  measures?: { storage: number; wetUse: number; seats: number; shade: number; enclosure: number };
 }
 
 export type Frontage = "active" | "residential" | "green" | "lake";
@@ -259,7 +269,7 @@ export function reserveShared(G: Ground, use: Int8Array, vx: number[], vy: numbe
     if (best < 0) break;
     passed.add(best);
     const family = acc[best] >= BASIN_GATHER_M2 ? "basin" : "field";
-    const V = ((STORM_MM[100] - STORM_MM[10]) / 1000) * GATHER_RUNOFF * acc[best], want = V / HOLD_M[family];
+    const V = ((bigStorm(G) - STORM_MM.lots) / 1000) * GATHER_RUNOFF * acc[best], want = V / HOLD_M[family];
     const at: Pt = [G.x[best], G.y[best]], k0 = plotOf[best], b0 = ps[k0].block;
     const rest = b0 >= 0 && b0 < fs.length ? blockPlots[b0] : [];
     const order = [k0, ...rest.filter((k) => k !== k0 && ps[k].use === BUILDING && !plotFixed(k)).sort((a, b) => dist(plotC[a], at) - dist(plotC[b], at))];
@@ -272,7 +282,7 @@ export function reserveShared(G: Ground, use: Int8Array, vx: number[], vy: numbe
     if (!taken.length) continue;
     const held = Math.min(V, got * HOLD_M[family]);
     water.need += V; water.held += held;
-    spaces.push({ rule: "water", family, plots: taken, block: b0, at, area: Math.round(got), fillsAt: 10, storage: Math.round(held), gather: Math.round(acc[best]) });
+    spaces.push({ rule: "water", family, plots: taken, block: b0, at, area: Math.round(got), fillsAt: 10, storage: Math.round(held), gather: Math.round(acc[best]), need: Math.round(V) });
   }
   const wet = gathered(G, use);
 
@@ -300,8 +310,9 @@ export function reserveShared(G: Ground, use: Int8Array, vx: number[], vy: numbe
     toGreen(best);
     squares.push({ at: nd.at, plot: best });
     const c = cellOf(plotC[best]), gather = c >= 0 ? wet[c] : 0, wetOne = gather >= SQUARE_WET_M2;
+    const V = wetOne ? ((bigStorm(G) - STORM_MM.lots) / 1000) * GATHER_RUNOFF * gather : 0;
     spaces.push({ rule: "square", family: wetOne ? "stepped" : "canopy", plots: [best], at: nd.at, area: Math.round(plotA[best]),
-      ...(wetOne ? { fillsAt: 10, gather: Math.round(gather) } : {}), storage: wetOne ? Math.round(plotA[best] * wetSquare()) : 0 });
+      ...(wetOne ? { fillsAt: 10, gather: Math.round(gather), need: Math.round(V) } : {}), storage: wetOne ? Math.round(Math.min(V, plotA[best] * wetSquare())) : 0 });
   }
 
   // 4. The hierarchy: blocks become parks where plots lack one within their walk.
@@ -329,9 +340,9 @@ export function reserveShared(G: Ground, use: Int8Array, vx: number[], vy: numbe
     let gather = 0;
     for (const i of mine) gather = Math.max(gather, wet[i]);
     if (gather >= GATHER_MIN_M2) {
-      const V = ((STORM_MM[100] - STORM_MM[10]) / 1000) * GATHER_RUNOFF * gather, held = Math.min(V, 0.5 * fs[b].area * HOLD_M.basin);
+      const V = ((bigStorm(G) - STORM_MM.lots) / 1000) * GATHER_RUNOFF * gather, held = Math.min(V, 0.5 * fs[b].area * HOLD_M.basin);
       water.need += V; water.held += held;
-      spaces.push({ rule: "park", family: "basin", plots: blockPlots[b], block: b, at: blockC[b], area: Math.round(fs[b].area), fillsAt: 10, storage: Math.round(held), gather: Math.round(gather) });
+      spaces.push({ rule: "park", family: "basin", plots: blockPlots[b], block: b, at: blockC[b], area: Math.round(fs[b].area), fillsAt: 10, storage: Math.round(held), gather: Math.round(gather), need: Math.round(V) });
     } else spaces.push({ rule: "park", family: "field", plots: blockPlots[b], block: b, at: blockC[b], area: Math.round(fs[b].area), storage: 0 });
     return true;
   };
@@ -400,20 +411,19 @@ export function reserveShared(G: Ground, use: Int8Array, vx: number[], vy: numbe
     for (const j of nearPlot(plotC[k])) if (j !== k && lacking[j] && within(plotC[j], plotC[k])) sum += plotA[j];
     return sum / plotA[k];
   };
-  const doors = ps.map((p, k) => k).filter((k) => ps[k].use === BUILDING && plotA[k] >= DOOR_PLOT_M2[0] && plotA[k] <= DOOR_PLOT_M2[1] && !plotFixed(k))
-    .map((k) => ({ k, s: gain(k) })).filter((x) => x.s > 0).sort((a, b) => b.s - a.s || a.k - b.k);
-  while (doors.length) {
-    // lazy greedy, as for parks: refresh the top until it stays on top
-    let top = doors.shift()!;
-    for (;;) {
-      top.s = ps[top.k].use === BUILDING ? gain(top.k) : 0;
-      if (!doors.length || top.s >= doors[0].s) break;
-      let at = doors.findIndex((x) => x.s < top.s);
-      if (at < 0) at = doors.length;
-      doors.splice(at, 0, top);
-      top = doors.shift()!;
-    }
-    if (top.s <= 0) break;
+  // lazy greedy on a max-heap: a gain only falls as plots are served, so a popped plot whose
+  // refreshed gain still beats the next one's stale gain is the best
+  const heap = new MaxHeap();
+  for (let k = 0; k < ps.length; k++) {
+    if (ps[k].use !== BUILDING || plotA[k] < DOOR_PLOT_M2[0] || plotA[k] > DOOR_PLOT_M2[1] || plotFixed(k)) continue;
+    const g = gain(k);
+    if (g > 0) heap.push(k, g);
+  }
+  while (heap.size) {
+    const top = { k: heap.pop()!, s: 0 };
+    top.s = ps[top.k].use === BUILDING ? gain(top.k) : 0;
+    if (top.s <= 0) continue;
+    if (heap.size && top.s < heap.peekValue()) { heap.push(top.k, top.s); continue; }
     if (claimed + plotA[top.k] > budget) continue;
     toGreen(top.k);
     lacking[top.k] = false;
@@ -572,4 +582,33 @@ export function pairFields(G: Ground, use: Int8Array, ps: Plot[], plotOf: Int32A
     spaces.push({ rule: "field", family: "field", plots: mine, at: c, area: Math.round(got), storage: 0, of: sc.plots[0] });
   }
   return { spaces, away, plots: taken };
+}
+
+/** A max-heap of indices by value (ties: the lower index first). */
+class MaxHeap {
+  private k: number[] = []; private v: number[] = [];
+  get size() { return this.k.length; }
+  peekValue() { return this.v[0]; }
+  private above(i: number, j: number) { return this.v[i] > this.v[j] || (this.v[i] === this.v[j] && this.k[i] < this.k[j]); }
+  private swap(i: number, j: number) { [this.k[i], this.k[j]] = [this.k[j], this.k[i]]; [this.v[i], this.v[j]] = [this.v[j], this.v[i]]; }
+  push(key: number, value: number) {
+    this.k.push(key); this.v.push(value);
+    for (let i = this.k.length - 1; i > 0;) { const p = (i - 1) >> 1; if (!this.above(i, p)) break; this.swap(i, p); i = p; }
+  }
+  pop(): number | undefined {
+    if (!this.k.length) return undefined;
+    const top = this.k[0], lk = this.k.pop()!, lv = this.v.pop()!;
+    if (this.k.length) {
+      this.k[0] = lk; this.v[0] = lv;
+      for (let i = 0; ;) {
+        const l = 2 * i + 1, r = l + 1;
+        let m = i;
+        if (l < this.k.length && this.above(l, m)) m = l;
+        if (r < this.k.length && this.above(r, m)) m = r;
+        if (m === i) break;
+        this.swap(i, m); i = m;
+      }
+    }
+    return top;
+  }
 }

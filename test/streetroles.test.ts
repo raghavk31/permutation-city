@@ -5,7 +5,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import * as E from "../app/engine/index.js";
-import { ROLES, ROLE_KEYS, sectionOf } from "../app/engine/plan/streetroles.js";
+import { ROLES, ROLE_KEYS, sectionOf, streetShade } from "../app/engine/plan/streetroles.js";
+import { hotSuns } from "../app/engine/massing/scores.js";
 import { makeRng } from "../app/engine/rng.js";
 
 const site = (id: string) => E.prepare(JSON.parse(readFileSync(join(__dirname, "..", "app", "public", "sites", `${id}.json`), "utf8")));
@@ -65,5 +66,20 @@ describe("street roles on a site", () => {
     const n = all.filter((s) => s.overflow).length;
     expect(n).toBeGreaterThan(0);
     expect(n / all.length).toBeLessThan(0.2);
+  });
+});
+
+describe("shade on a street, hot afternoons", () => {
+  // a north-south street 12 m wide at Bengaluru's latitude: afternoon sun from the west
+  const suns = hotSuns({ lat: 12.9, lon: 77.67, utc: 5.5 }), st = { pts: [[0, 0], [0, 100]] as [number, number][], w: 12 };
+  const plotC: [number, number][] = [[-20, 50], [20, 50]];   // left (west) and right (east)
+  const bare = sectionOf("avenue", 12, 0, 0), treed = sectionOf("avenue", 18, 0, 0);
+  test("taller buildings on the sun's side shade more", () => {
+    const low = streetShade(st, bare, [0, 1], plotC, () => 2, suns), tall = streetShade(st, bare, [0, 1], plotC, () => 8, suns);
+    expect(tall).toBeGreaterThan(low);
+  });
+  test("street trees add shade", () => {
+    const s18 = { ...st, w: 18 };
+    expect(streetShade(s18, treed, [], plotC, () => 0, suns)).toBeGreaterThan(streetShade(s18, bare.map((p) => ({ ...p, w: (p.w * 18) / 12 })), [], plotC, () => 0, suns));
   });
 });

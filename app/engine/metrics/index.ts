@@ -16,6 +16,7 @@ import {
 import { deadEnds, heatFit, junctionDensity, lowStreets, meshedness, ridgeStreets, runoffPath, valleyFree } from "./land.js";
 import { activeFrontage, blockSize, connections, dhEnclosure, lowFrontage } from "./scale.js";
 import { intelligibility, legibility, nachMean, nainMean } from "./syntax.js";
+import { canopyCover, doorsOnSpaces, placesToSit, safeToWalk, stormHeld, stormUsable, streetShade } from "./publicground.js";
 
 /** label, the property it reads (the brief's vocabulary), higher is better (null: neither,
  *  shown but never optimised), format, what it measures. */
@@ -69,6 +70,21 @@ export const METRICS = {
   heat_fit: { label: "cooling where it's hot", property: "connection_to_nature", up: true,
     fmt: (v) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}°C`, value: heatFit,
     note: "hot-season surface temperature of the open cells, against the site's mean (Landsat)", range: [-2, 2] },
+  // Public ground (part C; publicground.ts): stand-ins for Gehl's criteria and NACTO's guidance
+  storm_held: { label: "storm held in public ground", property: "connection_to_nature", up: true, fmt: pct, value: stormHeld,
+    note: "of the water the public spaces were placed to hold (the site's design storm past the lots' ponds), the share their shapes hold" },
+  storm_usable: { label: "public ground usable in a storm", property: "connection_to_nature", up: true, fmt: pct, value: stormUsable,
+    note: "of the public ground that holds water, the share still usable when it is full (Gehl: protection)" },
+  places_to_sit: { label: "places to sit", property: "human_scale", up: true, fmt: (v) => `${Math.round(v)} m/ha`, value: placesToSit,
+    note: "steps and banks low enough to sit on, metres per hectare of public space (Gehl: sitting)", range: [0, 600] },
+  street_shade: { label: "shade on streets", property: "human_scale", up: true, fmt: pct, value: streetShade,
+    note: "share of street width in shade on hot-season afternoons: buildings on the sun's side and street trees (Gehl: good climate)" },
+  doors_on_spaces: { label: "doors on public spaces", property: "permeability", up: true, fmt: pct, value: doorsOnSpaces,
+    note: "share of the public spaces' edges with buildings on them (Gehl: places to stand and stay)" },
+  canopy_cover: { label: "tree canopy", property: "connection_to_nature", up: true, fmt: pct, value: canopyCover,
+    note: "tree crowns over the design ground: lots, public spaces and streets (3-30-300's thirty)" },
+  safe_to_walk: { label: "safe to walk", property: "human_scale", up: true, fmt: pct, value: safeToWalk,
+    note: "street length with every footpath at its role's clear path (GSDG 1.8 or 2.4 m), or shared at walking pace" },
   // Harmony and variety
   height_mix: { label: "mix of heights", property: "harmony_variety", up: null, fmt: pct, value: heightEntropy,
     note: "entropy of storeys (0 all alike, 1 evenly spread)" },

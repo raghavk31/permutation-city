@@ -19,7 +19,9 @@
 // holds trees; in a wet climate it is a swale (GSDG: streets combine stormwater features; Portland's
 // planters 0.9 m and swales 2.4 m at least). Shared streets have no kerb: one surface at walking
 // pace (GSDG: 10-15 km/h where people walk in the motorists' space), planted at its edges.
-import { BUILDING, LANDSCAPE, type SectionPart } from "../config.js";
+import { BUILDING, LANDSCAPE, STOREY_M, type SectionPart } from "../config.js";
+import { hotSuns } from "../massing/scores.js";
+import { whereOf } from "../massing/setup.js";
 import { needs } from "../typology/challenges.js";
 import { CLIMATE } from "../typology/climate.js";
 import type { Ground } from "../types.js";
@@ -65,6 +67,10 @@ const PLANT_SHARE: Record<RoleKey, number> = {
   laneway: 0.15, "shared-home": 0.3, "shared-shops": 0.2, residential: 0.4, parkside: 0.5, "main-street": 0.35, avenue: 0.45, boulevard: 0.5,
 };
 
+/** How far a street tree's crown reaches past its strip, each side (m; a crown about 6 m
+ *  across over a 1.5-2 m strip, assumed), and the share of the crown's ground it shades. */
+export const CROWN_REACH_M = 2.5, CROWN_SHADE = 0.8;
+
 export interface StreetRole {
   role: RoleKey;
   link: number;
@@ -74,6 +80,9 @@ export interface StreetRole {
   overflow: boolean;
   speed: number;
   section: SectionPart[];
+  /** Share of the street's width in shade on hot-season afternoons (the massing scores' HOT
+   *  suns): buildings on the sun's side by their plots' storeys, and the street trees' crowns. */
+  shade: number;
 }
 
 /** The ground (m²) whose rain reaches each cell along the flow directions, open ground or not. */
@@ -138,7 +147,8 @@ export interface StreetIn { pts: Line; cls: number; w: number; u: number; v: num
 /** Every street's role, overflow and section. `programmeOf(k)`: the plot's programme key; `stops`:
  *  bus stops; `spaces`: the public spaces the rules placed. */
 export function streetRoles(G: Ground, streets: StreetIn[], frontage: Frontage[], ps: Plot[], plotC: Pt[], programmeOf: (k: number) => string,
-  stops: Pt[], spaces: PublicSpace[], cellOf: (p: Pt) => number): StreetRole[] {
+  stops: Pt[], spaces: PublicSpace[], cellOf: (p: Pt) => number, levelsOf: (k: number) => number = () => 0): StreetRole[] {
+  const suns = hotSuns(whereOf(G.meta)).filter((u) => u.altitude > 0.05);
   const n0 = CLIMATE.places[`site:${G.meta.id}`], { wet, hot } = climateWeights(n0 ? needs(n0) : []);
   const deg = new Map<number, number>();
   for (const s of streets) for (const v of [s.u, s.v]) deg.set(v, (deg.get(v) ?? 0) + 1);
@@ -182,6 +192,39 @@ export function streetRoles(G: Ground, streets: StreetIn[], frontage: Frontage[]
       : link === 1 ? (place >= 2 ? (shops ? "shared-shops" : "shared-home") : parkside ? "parkside" : "residential")
       : link === 2 ? (place >= 1 ? "main-street" : parkside ? "parkside" : "avenue")
       : place >= 2 ? "boulevard" : "avenue";
-    return { role, link, place, why, overflow, speed: ROLES[role].speed, section: sectionOf(role, s.w, wet, hot, overflow) };
+    const section = sectionOf(role, s.w, wet, hot, overflow);
+    return { role, link, place, why, overflow, speed: ROLES[role].speed, section, shade: streetShade(s, section, built, plotC, levelsOf, suns) };
   });
+}
+
+/** Share of a street's width in shade, averaged over the suns: each side's buildings (the mean
+ *  height of its fronting building plots) throw shadow across it when the sun is behind them,
+ *  reaching height / tan(altitude) times how squarely the sun faces the street; the trees on its
+ *  planted strips of TREE_STRIP_M or more shade their strip and CROWN_REACH_M each side. */
+export function streetShade(s: { pts: Line; w: number }, section: SectionPart[], built: number[], plotC: Pt[],
+  levelsOf: (k: number) => number, suns: { altitude: number; dir: [number, number, number] }[]): number {
+  const a = s.pts[0], b = s.pts[s.pts.length - 1], L = dist(a, b) || 1;
+  const tx = (b[0] - a[0]) / L, ty = (b[1] - a[1]) / L, nx = -ty, ny = tx;   // left normal
+  const mid: Pt = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  const side = { left: [] as number[], right: [] as number[] };
+  for (const k of built) {
+    const h = levelsOf(k) * STOREY_M;
+    if (h <= 0) continue;
+    ((plotC[k][0] - mid[0]) * nx + (plotC[k][1] - mid[1]) * ny > 0 ? side.left : side.right).push(h);
+  }
+  const mean = (v: number[]) => (v.length ? v.reduce((x, y) => x + y, 0) / v.length : 0);
+  const H = { left: mean(side.left), right: mean(side.right) };
+  let crowns = 0;
+  for (const p of section) if (p.kind === "planted" && p.w >= TREE_STRIP_M) crowns += p.w + 2 * CROWN_REACH_M;
+  const trees = Math.min(1, (crowns * CROWN_SHADE) / s.w);
+  if (!suns.length) return trees;
+  let sum = 0;
+  for (const u of suns) {
+    // the sun's direction across the street: + from the left side, - from the right
+    const hx = u.dir[0], hy = u.dir[1], hl = Math.hypot(hx, hy) || 1, across = (hx * nx + hy * ny) / hl;
+    const Hs = across > 0 ? H.left : H.right, reach = (Hs / Math.tan(u.altitude)) * Math.abs(across);
+    const walls = Math.min(1, reach / s.w);
+    sum += 1 - (1 - walls) * (1 - trees);
+  }
+  return sum / suns.length;
 }

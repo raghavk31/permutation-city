@@ -630,3 +630,50 @@ Not done: the sections are set by rule, not yet evolved within each role's range
 street's height to width and its angle to sun and wind are not read; 12 m main streets and
 avenues have no room for tree strips beside two lanes (trees would go in footpath pits, not
 drawn); GSDG's own section dimensions were not readable online, so the role ranges are ours.
+
+## Public spaces shaped, and public ground scored (3 November)
+
+Part C, step P5 (architecture-v3 sections 14.6-14.7).
+
+**Each space's form** (`app/engine/plan/publicform.ts`). Placement stays by rule; the shape is
+searched within its family's genes (typology/openshape.ts): it starts from every library
+precedent of the family read into the genes, keeps the best, then mutates one or two genes at a
+time (40 steps, seeded by the space). A space is asked to hold what it was placed for (twice
+the weight of anything else), to stay usable when full, to give steps low enough to sit on, to
+be shaded where heat matters, and, at the door, to be enclosed between 0.8 and 2 times its width.
+A school's field stays within Japan's 30 cm. A field's water now rises only as high as it must,
+so a deeper field keeps its banks dry: the share of water spaces usable in a storm went from
+0-3% to 12-21%. Each space records its shape, the precedent it grew from and its measures.
+
+**The storm is the site's own.** Water spaces now hold the site's design storm (site.yaml: a
+heavy monsoon day, the storage score's storm: Mumbai 200 mm, Bengaluru and Ahmedabad 150,
+Guwahati 110) past the lots' 75 mm, not an assumed 120 mm, so the public ground and the storage
+score agree. On the same seeds, floor area against before part C: Mumbai EWF -13%, Docks -11%,
+Wadaj -8%, Guwahati -8.5%, Bengaluru -5%. Mumbai's rose with its 200 mm storm.
+
+**Scores** (`app/engine/metrics/publicground.ts`, in the measures list), stand-ins for Gehl's
+criteria and NACTO's guidance, said so on each:
+
+| Score | Gehl / NACTO | Five sites (3 designs each) |
+|---|---|---|
+| storm held in public ground | protection | 91-100% |
+| public ground usable in a storm | protection | 12-21% |
+| places to sit (m of step per ha of public space) | sitting | 360-690 |
+| shade on streets, hot afternoons | good climate | 44-58% |
+| doors on public spaces | standing and staying | 24-57% |
+| tree canopy (3-30-300's thirty) | | 13-15% |
+| safe to walk (GSDG clear path or a shared street) | protection from traffic | 100% |
+
+Street shade is a site-scale model: for each street, the hot-season suns (March to May, 14:00
+to 17:00, the massing scores' HOT), the buildings on the sun's side throw shadow across it by
+their plots' storeys, and street trees shade their strip and 2.5 m each side at 80%. Removing a
+water space lowers the storm held; removing street trees lowers the canopy; taller buildings on
+the sun's side and street trees each add shade (tests).
+
+Growing a design takes no longer than before part C (Mumbai EWF 515 against 536 ms a design,
+stage by stage): the doorstep rule's greedy now runs on a heap.
+
+Weak spots: canopy cover is low (13-15% against 3-30-300's 30%): the lots' trees, the public
+spaces' and the street trees together; safe to walk is 100% by construction (sections are laid
+out to the clear paths), so it only catches streets too narrow for them; doors on public spaces
+reads building plots near a space's edge, not doors.

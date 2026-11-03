@@ -212,7 +212,7 @@ export interface VectorPlan {
   streets: { pts: [number, number][]; cls: number; w: number; frontage?: number;
     /** Part C (plan/streetroles.ts): its role, link and place, why, whether it carries the big
      *  storm, its target speed (km/h) and its cross-section. */
-    role?: string; link?: number; place?: number; why?: string[]; overflow?: boolean; speed?: number;
+    role?: string; link?: number; place?: number; why?: string[]; overflow?: boolean; speed?: number; shade?: number;
     section?: { kind: "footpath" | "planted" | "carriageway" | "shared"; w: number; label: string }[] }[];
   vx: number[]; vy: number[]; edges: { u: number; v: number; cls: number }[];
   blocks: [number, number][][];
@@ -231,7 +231,8 @@ export interface VectorPlan {
     access: Record<"doorstep" | "housing" | "neighbourhood", number>; share: number;
     /** Part C: every public space the rules placed, its family, storm and water (plan/shared.ts PublicSpace). */
     spaces: { rule: "water" | "square" | "park" | "doorstep" | "field"; family: "stepped" | "basin" | "linear" | "canopy" | "field" | "doorstep" | "street";
-      plots: number[]; block?: number; at: [number, number]; area: number; fillsAt?: number; storage: number; gather?: number; of?: number }[];
+      plots: number[]; block?: number; at: [number, number]; area: number; fillsAt?: number; storage: number; gather?: number; of?: number;
+      need?: number; shape?: Record<string, number>; like?: string; measures?: { storage: number; wetUse: number; seats: number; shade: number; enclosure: number } }[];
     water: { need: number; held: number; unheld: number } };
   /** Version 3.1: each lot's building type (plan/blocktypes.ts): a library precedent for its
    *  programme, the density it gives and how far it drifted from the precedent. */

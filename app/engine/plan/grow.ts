@@ -42,6 +42,7 @@ import { route } from "./route.js";
 import { FACILITIES, placeProgramme, PROGRAMMES, type ProgrammeResult } from "./programme.js";
 import { accessOf, doorAccess, FRONTAGES, frontages, pairFields, reserveShared } from "./shared.js";
 import { streetRoles } from "./streetroles.js";
+import { formSpaces } from "./publicform.js";
 
 /** Milliseconds per stage, summed over designs, when profiling (scripts/plan-profile.ts). */
 export const planTimes: { on: boolean; t: Record<string, number> } = { on: false, t: {} };
@@ -138,6 +139,8 @@ export function growV3(genome: number[], G: Ground, locked: ArrayLike<number> | 
   for (const k of fields.plots) programme.plot[k] = -1;
   for (let i = 0; i < n; i++) if (use[i] !== BUILDING && floorArea[i] > 0) { floorArea[i] = 0; coverage[i] = 0; levels[i] = 0; }
   shared.spaces.push(...fields.spaces);
+  // Each space's form, searched within its family's genes for its jobs (publicform.ts).
+  formSpaces(G, shared.spaces, shared.water);
   t = tick("programme", t);
   // 10. A building type per block (version 3.1): the block's coverage and storeys become its
   // type's, as Spacematrix numbers (blocktypes.ts).
@@ -159,7 +162,7 @@ export function growV3(genome: number[], G: Ground, locked: ArrayLike<number> | 
   const front = frontages(G, use, streets, centres, shared.squares.map((q) => q.at), cellOf);
   // Streets as a system (part C): a role from link and place, overflow streets, a section each.
   const roles = streetRoles(G, streetEdges.map((e, k) => ({ ...streets[k], u: e.u, v: e.v })), front, ps, ps.map((p) => centroid(p.ring)),
-    (k) => PROGRAMMES[programme.plot[k]] ?? "", programme.stops, shared.spaces, cellOf);
+    (k) => PROGRAMMES[programme.plot[k]] ?? "", programme.stops, shared.spaces, cellOf, (k) => plotLevels[k]);
   shared.access = accessOf(G, { use, floorArea });
   shared.access.doorstep = doorAccess(G, use, ps, ras.plotOf, floorArea);
   t = tick("frontage and access", t);
