@@ -32,7 +32,7 @@ import { makeRng } from "../rng.js";
 import { sides } from "../streets.js";
 import type { Design, Ground, SettingsV3, VectorPlan } from "../types.js";
 import { familyOf, infill } from "./field.js";
-import { area, simplify, type Line, type Pt } from "./geom.js";
+import { area, centroid, simplify, type Line, type Pt } from "./geom.js";
 import { locator, skeletonLines } from "./ground.js";
 import { applyBlockRepairs, blockRepairs, type Edge, type Face, faces, type Flag, foldOntoSkeleton, node, outlineLines, repair,
   type Repair } from "./network.js";
@@ -41,6 +41,7 @@ import { type Raster, rasterise } from "./raster.js";
 import { route } from "./route.js";
 import { FACILITIES, placeProgramme, PROGRAMMES, type ProgrammeResult } from "./programme.js";
 import { accessOf, doorAccess, FRONTAGES, frontages, pairFields, reserveShared } from "./shared.js";
+import { streetRoles } from "./streetroles.js";
 
 /** Milliseconds per stage, summed over designs, when profiling (scripts/plan-profile.ts). */
 export const planTimes: { on: boolean; t: Record<string, number> } = { on: false, t: {} };
@@ -153,14 +154,18 @@ export function growV3(genome: number[], G: Ground, locked: ArrayLike<number> | 
   }
   t = tick("heights", t);
 
-  const streets = edges.filter((e) => e.cls > 0).map((e) => ({ pts: e.pts, cls: e.cls, w: widthOf(e.cls) }));
+  const streetEdges = edges.filter((e) => e.cls > 0);
+  const streets = streetEdges.map((e) => ({ pts: e.pts, cls: e.cls, w: widthOf(e.cls) }));
   const front = frontages(G, use, streets, centres, shared.squares.map((q) => q.at), cellOf);
+  // Streets as a system (part C): a role from link and place, overflow streets, a section each.
+  const roles = streetRoles(G, streetEdges.map((e, k) => ({ ...streets[k], u: e.u, v: e.v })), front, ps, ps.map((p) => centroid(p.ring)),
+    (k) => PROGRAMMES[programme.plot[k]] ?? "", programme.stops, shared.spaces, cellOf);
   shared.access = accessOf(G, { use, floorArea });
   shared.access.doorstep = doorAccess(G, use, ps, ras.plotOf, floorArea);
   t = tick("frontage and access", t);
   const plan: VectorPlan = {
     family: fam.name,
-    streets: streets.map((st, k) => ({ ...st, frontage: FRONTAGES.indexOf(front[k]) })),
+    streets: streets.map((st, k) => ({ ...st, frontage: FRONTAGES.indexOf(front[k]), ...roles[k] })),
     vx: frame.vx, vy: frame.vy, edges: edges.map((e) => ({ u: e.u, v: e.v, cls: e.cls })),
     blocks: fs.map((f) => f.ring),
     plots: ps.map((p, k) => ({ ring: p.ring, block: p.block, use: p.use, levels: plotLevels[k], frontage: p.frontage })),

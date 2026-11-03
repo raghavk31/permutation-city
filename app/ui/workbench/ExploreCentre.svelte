@@ -259,7 +259,7 @@
       <!-- COPY: what the plan shows -->
       <div class="wb-over bl wb-ex-layer">
         <div class="wb-seg" role="group" aria-label="The plan shows">
-          {#each [["plan", "Plan"], ["shared", "Shared ground"], ["frontage", "Frontage"], ["types", "Building types"], ["programme", "Programme"], ["nature", "Nature"]] as [k, label]}
+          {#each [["plan", "Plan"], ["shared", "Shared ground"], ["streets", "Streets"], ["frontage", "Frontage"], ["types", "Building types"], ["programme", "Programme"], ["nature", "Nature"]] as [k, label]}
             <button type="button" aria-pressed={bench.exLayer === k} onclick={() => (bench.exLayer = k as typeof bench.exLayer)}>{label}</button>
           {/each}
         </div>
@@ -269,6 +269,18 @@
             <div><i style="--c: transparent; box-shadow: inset 0 0 0 2px {P.t.green.existing}"></i><span>{sh.parks.length} parks reserved</span></div>
             <div><i style="--c: transparent; border: 1px dashed {P.t.green.existing}"></i><span>{sh.squares.length} squares at junctions</span></div>
             <span class="wb-quiet" title="Share of the design's floor area within a walk of each size of open space (sizes from URDPFI 2015 as NIUA gives them; walks assumed)">within a walk: doorstep green {Math.round(sh.access.doorstep * 100)}%, park {Math.round(sh.access.housing * 100)}%, neighbourhood park {Math.round(sh.access.neighbourhood * 100)}%</span>
+          </div>
+        {:else if bench.exLayer === "streets" && selected?.plan?.streets?.[0]?.role}
+          {@const st = selected.plan.streets}
+          {@const len = (l: [number, number][]) => l.slice(1).reduce((a, q, i) => a + Math.hypot(q[0] - l[i][0], q[1] - l[i][1]), 0)}
+          {@const total = st.reduce((a, s) => a + len(s.pts), 0)}
+          <div class="wb-legend">
+            {#each E.STREET_ROLES as r}
+              {@const L = st.filter((s) => s.role === r).reduce((a, s) => a + len(s.pts), 0)}
+              {#if L > 0}<div><i class="is-line" style="--c: {P.t.streetRole[r]}"></i><span title={E.ROLES[r].gsdg}>{E.ROLES[r].label}: {Math.round((L / total) * 100)}%, {E.ROLES[r].speed} km/h</span></div>{/if}
+            {/each}
+            <div><i class="is-line" style="--c: {P.t.water.storage}; border-top-style: dashed"></i><span>carries the big storm: {st.filter((s) => s.overflow).length} streets</span></div>
+            <span class="wb-quiet" title="Street types and speeds after the Global Street Design Guide (GDCI and NACTO, 2016); a street's role from its class and how much of a place it is">A street's role: how much it carries and how much of a place it is</span>
           </div>
         {:else if bench.exLayer === "frontage"}
           <div class="wb-legend">

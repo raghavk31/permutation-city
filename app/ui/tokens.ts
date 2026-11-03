@@ -36,6 +36,10 @@ export const tokens = {
   /** Street frontage types (plan/shared.ts FRONTAGES order): shops at ground, homes, beside
    *  shared ground, along the water. */
   frontage: { active: "#c98a2b", residential: "#a39f96", green: "#2f8a85", lake: "#3d74b0" },
+  /** Street roles (plan/streetroles.ts ROLES order): walking-pace streets warm, neighbourhood
+   *  streets neutral and green, through streets violet; overflow streets dashed in water blue. */
+  streetRole: { laneway: "#e9b07a", "shared-home": "#d98340", "shared-shops": "#b5562b", residential: "#a39f96", parkside: "#2f8a85",
+    "main-street": "#9a7cc0", avenue: "#6a5590", boulevard: "#3b2a66" },
   /** Building type per lot, by family of arrangement (plan/precedents.ts FAMILIES order), and
    *  lots no precedent fits. */
   blockType: { court: "#b0603f", yard: "#d9a441", row: "#8aa36b", tall: "#5b4a7a", none: "#c5c9cc" },

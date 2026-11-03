@@ -128,7 +128,7 @@ class Bench {
   exPlot = $state<"matrix" | "parallel">("matrix");
   /** What the Explore plan shows: the plan, its shared ground, its street frontage, its
    *  building types, its programme, or its lots' nature. */
-  exLayer = $state<"plan" | "shared" | "frontage" | "types" | "programme" | "nature">("plan");
+  exLayer = $state<"plan" | "shared" | "streets" | "frontage" | "types" | "programme" | "nature">("plan");
   /** Explore's design: as a plan, or in 3D (every typed lot as its precedent). */
   exSolid = $state(false);
   exColour = $state("front");

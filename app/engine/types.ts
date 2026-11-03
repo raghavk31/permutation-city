@@ -209,7 +209,11 @@ export interface SettingsV3 {
 export interface VectorPlan {
   family: string;
   /** frontage: index into plan/shared.ts FRONTAGES (active, residential, green, lake). */
-  streets: { pts: [number, number][]; cls: number; w: number; frontage?: number }[];
+  streets: { pts: [number, number][]; cls: number; w: number; frontage?: number;
+    /** Part C (plan/streetroles.ts): its role, link and place, why, whether it carries the big
+     *  storm, its target speed (km/h) and its cross-section. */
+    role?: string; link?: number; place?: number; why?: string[]; overflow?: boolean; speed?: number;
+    section?: { kind: "footpath" | "planted" | "carriageway" | "shared"; w: number; label: string }[] }[];
   vx: number[]; vy: number[]; edges: { u: number; v: number; cls: number }[];
   blocks: [number, number][][];
   plots: { ring: [number, number][]; block: number; use: number; levels: number; frontage: number; road?: number }[];

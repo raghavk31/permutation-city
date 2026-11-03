@@ -580,7 +580,7 @@ export function attractors(ctx: Ctx, v: View, d: Design) {
  *  buildings faded); each street's frontage type; each block's building type; what each
  *  building plot is for, facilities outlined and bus stops marked; or each lot's buildings
  *  and open ground, the ground its programme needs, its ponds and its trees. */
-export type PlanLayer = "plan" | "shared" | "frontage" | "types" | "programme" | "nature";
+export type PlanLayer = "plan" | "shared" | "streets" | "frontage" | "types" | "programme" | "nature";
 const PROGRAMME_ORDER = ["homes", "shops", "education", "health", "culture", "industry", "water", "waste"] as const;
 const TYPE_ORDER = ["court", "yard", "row", "tall"] as const;
 const FRONTAGE_ORDER = ["active", "residential", "green", "lake"] as const;
@@ -641,12 +641,21 @@ export function vectorPlan(ctx: Ctx, v: View, d: Design, layer: PlanLayer = "pla
   }
   ctx.lineCap = "round";
   for (const pass of [0, 1]) for (const st of [...plan.streets].sort((a, b) => a.cls - b.cls)) {
-    if (pass === 1 && st.cls < 3 && layer !== "frontage") continue;
+    if (pass === 1 && st.cls < 3 && layer !== "frontage" && layer !== "streets") continue;
     ctx.beginPath();
     st.pts.forEach(([x, y], k) => (k ? ctx.lineTo(v.px(x), v.py(y)) : ctx.moveTo(v.px(x), v.py(y))));
     if (layer === "frontage" && pass === 1) {
       ctx.strokeStyle = T.frontage[FRONTAGE_ORDER[st.frontage ?? 1] ?? "residential"];
       ctx.lineWidth = Math.max(st.w * v.s * 0.55, 1.6);
+    } else if (layer === "streets" && pass === 1) {
+      // by role; an overflow street dashed in water blue over it
+      ctx.strokeStyle = T.streetRole[(st.role ?? "residential") as keyof typeof T.streetRole] ?? T.street.primary;
+      ctx.lineWidth = Math.max(st.w * v.s * 0.7, 1.8);
+      ctx.stroke();
+      if (!st.overflow) continue;
+      ctx.setLineDash([4, 3]); ctx.strokeStyle = T.water.storage; ctx.lineWidth = Math.max(st.w * v.s * 0.3, 1.2);
+      ctx.stroke(); ctx.setLineDash([]);
+      continue;
     } else {
       ctx.strokeStyle = pass ? T.street.primary : T.street.onDesign;
       ctx.lineWidth = pass ? 0.5 : Math.max(st.w * v.s, 0.8);

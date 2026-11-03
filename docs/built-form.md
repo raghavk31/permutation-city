@@ -577,3 +577,56 @@ lost floor elsewhere. Still open: rain from catchments under 3 ha that leaves th
 building land (its 10-year share held on the lots, its excess not); doorstep spaces smaller than
 a cell take no floor area off the cells they sit in, so their cost is undercounted; a school's
 field on its own lot and across the street don't add up exactly to URDPFI's half.
+
+## Streets as a system (3 November)
+
+Part C, step P4 (architecture-v3 section 14.5; `app/engine/plan/streetroles.ts`). Streets used
+to take one of five IRC:SP:118 sections by width. Each street now has a role, read from two
+things, and a section laid out for that role and the site's climate within its width.
+
+- **Link** (how much it carries): its class. The router lays secondary streets on the routes
+  between destinations and primaries on the skeleton, so class stands for through-movement; a
+  dead end carries nothing through. (The plan named space syntax's choice; it is measured only
+  when a design is scored, after the plan is grown, so class stands in.)
+- **Place** (how much it is a place): a point each for an active frontage, a public space on
+  it, shops or services on a third of its plots, a school or a bus stop.
+- **Role**, after the Global Street Design Guide's types (GDCI and NACTO 2016, chapter 10):
+
+| Role | GSDG type | When | Speed |
+|---|---|---|---|
+| Laneway | Laneways and alleys | a dead end that is a place | 10 km/h |
+| Shared home street | Residential shared street | a local street with two place points, no shops; a dead end that isn't a place | 15 |
+| Shared shopping street | Commercial shared street | a local street with two place points and shops | 15 |
+| Home street | Residential street | a local street | 20 |
+| Park and water edge | Waterfront and parkside street | a local or secondary street on a green or lake edge | 30 |
+| Main street | Neighbourhood main street | a secondary street with a place point | 30 |
+| Avenue | Central two-way street | a secondary street with none, or a primary with one at most | 40 |
+| Boulevard | Large street with transit | a primary street with two place points | 40 |
+
+Speeds from GSDG's design controls (urban streets 40 km/h at most; 10-15 km/h where people walk
+in the motorists' space; 20 km/h where people cross anywhere); the speeds per role are our
+reading of them. A street between a school and its playfield across the street reads as a
+shared home street (school and public space), as Q2's default asked.
+
+**The section.** Lanes first (3.0 m each, GSDG), the most that leave the role's least footpaths
+(GSDG's clear path: 1.8 m on home streets, 2.4 m on commercial ones) and its tree strips (both
+sides of main streets, avenues and boulevards, one side of home streets and park edges; a
+strip of 1.5 m holds trees), then planting, more where the climate is wet or hot, then wider
+footpaths. In a wet climate planting is a swale or a rain-garden planter (Portland's planters
+0.9 m and swales 2.4 m at least). Shared streets are one surface with no kerb, planted at the
+edges. On Bengaluru an 18 m avenue is 3.8 m footpath, 2.2 m trees, two lanes, 2.2 m trees,
+3.8 m footpath: two lanes, not four, so the trees fit.
+
+**Overflow streets.** A street whose samples mostly drain to one another along the landform,
+carrying the rain of 8 ha or more, carries the big storm: its carriageway falls to the swale and
+it gets a metre more planting. 1-3% of street length on the sites.
+
+On the five sites (3 designs each), by length: park and water edges 21-27%, home streets
+16-25%, shared home streets 13-21%, laneways 7-13%, main streets 8-13%, avenues 4-10%,
+boulevards 4-9%, shared shopping streets 2-5%. Explore has a Streets layer; the inspector draws
+a section per role and width.
+
+Not done: the sections are set by rule, not yet evolved within each role's ranges (P5); a
+street's height to width and its angle to sun and wind are not read; 12 m main streets and
+avenues have no room for tree strips beside two lanes (trees would go in footpath pits, not
+drawn); GSDG's own section dimensions were not readable online, so the role ranges are ours.

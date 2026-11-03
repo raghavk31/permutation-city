@@ -1211,6 +1211,12 @@ buildings fit round it.
   lacks across a local street; `LotIn.away`). `plan.shared.spaces` and `.water`. Survey in
   docs/built-form.md "Public ground by rule": doorstep 100% on every site, water held 79-97% of
   its need, water spaces low; floor area 4.5-9% lower. Inspector lists the new spaces.
+- **P4 done (3 November).** `plan/streetroles.ts`: link from class (syntax choice is
+  evaluation-time, so class stands in; noted), place from frontage, public spaces, shops,
+  schools and stops; eight roles after GSDG (laneway to boulevard) with speeds; `sectionOf`
+  (lanes, then least footpaths and tree strips, then climate planting, swales when wet);
+  overflow streets on flow lines carrying 8 ha or more. Explore "Streets" layer, inspector
+  sections per role. Survey in docs/built-form.md "Streets as a system".
 
 ---
 
