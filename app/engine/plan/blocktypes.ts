@@ -76,7 +76,9 @@ export interface BlockTyping {
  *  its storey cap and the FSI its plot rules allow (Infinity without rules). */
 export interface LotIn { block: number; plots: number[]; rings: Line[]; programme: number; land: number; floor: number; road: number; cap: number; farCap: number
   /** Ground that drains through the lot (m²), its own included; 0 where the site has no flow directions. */
-  catchment?: number }
+  catchment?: number
+  /** Its programme's open ground held off the lot (m²): a school's playfield across the street. */
+  away?: number }
 
 interface Option { k: number; family: number; precedent: string; own: number; n: number; gsi: number; fsi: number; tiles: number; climate: number; fit: number; drift: Drift[]; score: number; tower: boolean; variant?: { key: string; params: Params }; nature?: LotNature }
 
@@ -150,8 +152,8 @@ export function typeBlocks(lots: LotIn[], prefs: number[], nodes: Pt[], R: PlotR
       }
       if (any) { fitted++; feasible.add(cand.family); }
     }
-    const natureOf = (gsi: number, usable?: number) => lotNature(prog, lot.land, gsi, lot.catchment ?? 0, ns, usable);
-    const piece = PIECE[OPEN_NEED[prog].kind], needed = OPEN_NEED[prog].share(lot.land) > 0 && piece.width > 0;
+    const natureOf = (gsi: number, usable?: number) => lotNature(prog, lot.land, gsi, lot.catchment ?? 0, ns, usable, lot.away ?? 0);
+    const piece = PIECE[OPEN_NEED[prog].kind], needed = OPEN_NEED[prog].share(lot.land) * lot.land > (lot.away ?? 0) && piece.width > 0;
     const scoreOf = (o: Option) => (prefs[o.family] ?? 0)
       - OPEN_W * (1 - (o.nature?.met ?? 1)) + NATURE_W * (o.nature?.climate ?? 0) + (o.family === 0 && wanted >= PRIOR_FSI ? PRIOR : 0)
       - FIT * Math.abs(o.fsi - wanted) / Math.max(wanted, 0.05) - CHALLENGE_W * (1 - o.fit) - LOCAL_W * o.climate - DRIFT_W * Math.abs(Math.log2(o.n / o.own))

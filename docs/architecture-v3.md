@@ -1204,6 +1204,13 @@ buildings fit round it.
   `rows`, trees `treesAt` the edge or in the court, and a `crown` size. Page view "Shaping open
   ground" (#open-<family>) draws each gene at both limits. Tests: every family builds at every
   limit, wet and dry; each gene moves its measure the right way.
+- **P3 done (3 November).** `plan/shared.ts`: water first (`gathered`, basins and lowered
+  fields sized for the 100-year storm's excess over the lots' 10-year), water squares where rain
+  gathers, parks by family, a doorstep space within 100 m of every building plot (plots, with
+  `doorAccess`), and `pairFields` after programme (a school short of land takes the playfield it
+  lacks across a local street; `LotIn.away`). `plan.shared.spaces` and `.water`. Survey in
+  docs/built-form.md "Public ground by rule": doorstep 100% on every site, water held 79-97% of
+  its need, water spaces low; floor area 4.5-9% lower. Inspector lists the new spaces.
 
 ---
 

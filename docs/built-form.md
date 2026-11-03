@@ -532,3 +532,48 @@ layouts that leave whole yards (IIM Ahmedabad, Golconde). Growing a design takes
 Not done: ponds placed by the lot's own low ground (they go where the open ground is widest);
 programme open ground at site scale (a school's field across a street from it); a shade model
 for trees at site scale; usable ground in the readouts and the explore page.
+
+## Public ground by rule (3 November)
+
+Part C, step P3 (architecture-v3 section 14.4). Shared ground used to be chosen by size and walk
+only. Each open space is now placed for a job, recorded with its rule and its family
+(`plan.shared.spaces`), and the water it holds is counted (`plan.shared.water`).
+
+1. **Water first.** Rain is followed down the landform's flow directions until it meets open
+   ground or water (`gathered`). Where the rain of 3 ha or more runs through building land, the
+   plots of that block nearest the point become a water space: a basin (0.9 m deep) where
+   15 ha or more gathers, else a lowered field (30 cm, Japan's schoolyard limit). The storms
+   come in a chain: each lot's ponds hold the 10-year storm (lotnature.ts), so a water space
+   holds what the 100-year storm brings beyond it (120 mm against 75 mm, the 100-year assumed at
+   1.6 times the 10-year), and fills only when the lots overflow.
+2. **Squares** at the busiest junctions as before; a water square (the library's Benthemplein
+   shape) where 1 ha or more gathers at it, else a shade square.
+3. **Parks** by the URDPFI hierarchy as before; each a basin where rain gathers in it, else a field.
+4. **Every door.** A small open space (125-1,500 m², one plot) within 100 m of every building
+   plot, the plot that brings the most plots within the walk first. Measured between plots'
+   centres, since such a space is smaller than a grid cell (the old doorstep measure counted
+   only cells, so it read 56-80% where the rule now gives 100%).
+5. **Schools' fields across the street** (after programme): a school given less land than
+   URDPFI asks takes the playfield its own land can't hold on the home plots across a local
+   street, and its lot no longer counts that field as its own need.
+
+Survey (4 random version 3.1 designs a site, the same seeds before and after):
+
+| Site | Floor area | Water spaces (ha) | Holds (m³) of its need | Doorstep spaces | Fields across a street (ha) | Rain still leaving over building land (ha) |
+|---|---|---|---|---|---|---|
+| Mumbai EWF | 72.4 -> 66.2 ha (-9%) | 5.7 | 16,800 of 18,100 | 28 | 0.6 | 15 |
+| Ahmedabad Wadaj | 182.7 -> 170.3 (-7%) | 5.0 | 13,800 of 14,500 | 68 | 1.9 | 44 |
+| Mumbai Docks | 23.8 -> 21.9 (-8%) | 1.6 | 5,300 of 6,800 | 13 | 0.4 | 7 |
+| Bengaluru | 64.0 -> 61.1 (-4.5%) | 2.1 | 5,100 of 5,300 | 42 | 0.8 | 33 |
+| Guwahati | 144.8 -> 131.3 (-9%) | 6.0 | 16,900 of 17,900 | 54 | 2.2 | 12 |
+
+Water spaces sit low: the median one at the 6th (Bengaluru) to 42nd (Guwahati) percentile of the
+site's ground height. Growing a design takes the same time.
+
+**The cost is 4.5-9% of the floor area**, from the water spaces, the parks' families and the
+school fields; the doorstep spaces cost little, since most are smaller than a cell. Under the
+default for Q3 (rule-placed public ground is fixed, buildings fit round it) nothing moves the
+lost floor elsewhere. Still open: rain from catchments under 3 ha that leaves the site over
+building land (its 10-year share held on the lots, its excess not); doorstep spaces smaller than
+a cell take no floor area off the cells they sit in, so their cost is undercounted; a school's
+field on its own lot and across the street don't add up exactly to URDPFI's half.

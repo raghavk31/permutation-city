@@ -189,7 +189,13 @@
           <dl class="wb-facts">
             <dt>Squares</dt><dd>{sh.squares.length}, at the busiest junctions</dd>
             <dt>Parks reserved</dt><dd>{sh.parks.length ? `${sh.parks.length}, ${(sh.parks.reduce((a, p) => a + p.area, 0) / 1e4).toFixed(1)} ha` : "none needed: the green the genes chose is within a walk"}</dd>
-            <dt title="Share of the floor area within 100 m of a green of 125 m² or more">Doorstep green</dt><dd class="wb-num">{Math.round(sh.access.doorstep * 100)}% within 100 m</dd>
+            {#if sh.spaces}
+              {@const n = (r: string) => sh.spaces.filter((x) => x.rule === r).length}
+              <dt title="Where the rain of 3 ha or more gathers on building land: lowered fields and basins that fill when the lots' ponds overflow">Water spaces</dt><dd>{n("water")}{#if sh.water.need}, holding {Math.round(sh.water.held).toLocaleString()} of {Math.round(sh.water.need).toLocaleString()} m³ a 100-year storm brings past the lots' ponds{/if}</dd>
+              <dt>Doorstep spaces</dt><dd>{n("doorstep")}</dd>
+              <dt title="Schools short of land take the playfield they lack across a local street">School fields across a street</dt><dd>{n("field")}</dd>
+            {/if}
+            <dt title="Share of the floor area within 100 m of an open space of 125 m² or more">Doorstep green</dt><dd class="wb-num">{Math.round(sh.access.doorstep * 100)}% within 100 m</dd>
             <dt title="Share of the floor area within 400 m of a park of 0.5 ha or more">Park</dt><dd class="wb-num">{Math.round(sh.access.housing * 100)}% within 400 m</dd>
             <dt title="Share of the floor area within 1 km of a park of 1 ha or more">Neighbourhood park</dt><dd class="wb-num">{Math.round(sh.access.neighbourhood * 100)}% within 1 km</dd>
           </dl>

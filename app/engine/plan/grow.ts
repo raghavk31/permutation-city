@@ -39,8 +39,8 @@ import { applyBlockRepairs, blockRepairs, type Edge, type Face, faces, type Flag
 import { type Plot, plotUse, plots as splitPlots } from "./plots.js";
 import { type Raster, rasterise } from "./raster.js";
 import { route } from "./route.js";
-import { placeProgramme, type ProgrammeResult } from "./programme.js";
-import { accessOf, FRONTAGES, frontages, reserveShared } from "./shared.js";
+import { FACILITIES, placeProgramme, PROGRAMMES, type ProgrammeResult } from "./programme.js";
+import { accessOf, doorAccess, FRONTAGES, frontages, pairFields, reserveShared } from "./shared.js";
 
 /** Milliseconds per stage, summed over designs, when profiling (scripts/plan-profile.ts). */
 export const planTimes: { on: boolean; t: Record<string, number> } = { on: false, t: {} };
@@ -127,13 +127,23 @@ export function growV3(genome: number[], G: Ground, locked: ArrayLike<number> | 
   for (let i = 0; i < n; i++) if (use[i] === BUILDING && ras.plotOf[i] >= 0) plotFloor[ras.plotOf[i]] += floorArea[i];
   const programme = placeProgramme(G, ps, plotFloor, [...centres, ...shared.squares.map((q) => q.at)], use,
     edges.filter((e) => e.cls > 0));
+  // Schools short of land take the playfield they lack across a local street (shared.ts
+  // pairFields): those home plots become shared ground, and the school's own lot needn't hold it.
+  const schools = programme.placed.filter((f) => f.kind >= 0 && FACILITIES[f.kind].programme === "education" && FACILITIES[f.kind].land >= 4000)
+    // the field its own land can't hold: half its need is field, and its land past the other half holds part of it
+    .map((f) => ({ plots: f.plots, field: Math.max(0, 0.5 * f.need - Math.max(0, f.land - 0.5 * f.need)) }));
+  const HOMES = PROGRAMMES.indexOf("homes");
+  const fields = pairFields(G, use, ps, ras.plotOf, schools, (k) => programme.plot[k] === HOMES, locked);
+  for (const k of fields.plots) programme.plot[k] = -1;
+  for (let i = 0; i < n; i++) if (use[i] !== BUILDING && floorArea[i] > 0) { floorArea[i] = 0; coverage[i] = 0; levels[i] = 0; }
+  shared.spaces.push(...fields.spaces);
   t = tick("programme", t);
   // 10. A building type per block (version 3.1): the block's coverage and storeys become its
   // type's, as Spacematrix numbers (blocktypes.ts).
   const nature = s.t_courtyard === undefined ? null : { pond: new Float64Array(n), canopy: new Float64Array(n), greenRoof: new Float64Array(n) };
   const types = s.t_courtyard === undefined ? null
     : typeCells(G, use, ps, ras.plotOf, share, coverage, levels, floorArea, nature!, s,
-      [...centres, ...shared.squares.map((q) => q.at)], programme);
+      [...centres, ...shared.squares.map((q) => q.at)], programme, fields.away);
   t = tick("types", t);
   const rules = plotRules(G, use, ps, ras.plotOf, share, plotLevels, levels, coverage, floorArea);
   if (types) {
@@ -146,6 +156,7 @@ export function growV3(genome: number[], G: Ground, locked: ArrayLike<number> | 
   const streets = edges.filter((e) => e.cls > 0).map((e) => ({ pts: e.pts, cls: e.cls, w: widthOf(e.cls) }));
   const front = frontages(G, use, streets, centres, shared.squares.map((q) => q.at), cellOf);
   shared.access = accessOf(G, { use, floorArea });
+  shared.access.doorstep = doorAccess(G, use, ps, ras.plotOf, floorArea);
   t = tick("frontage and access", t);
   const plan: VectorPlan = {
     family: fam.name,
@@ -224,7 +235,8 @@ function plotRules(G: Ground, use: Int8Array, ps: Plot[], plotOf: Int32Array, sh
  *  that keep its floor area (within the cell's cap). Lots no precedent fits keep what the genes
  *  grew. Returns the plan's typing, one entry per lot. */
 function typeCells(G: Ground, use: Int8Array, ps: Plot[], plotOf: Int32Array, share: Float64Array,
-  coverage: Float64Array, levels: Int32Array, floorArea: Float64Array, nature: NonNullable<Design["nature"]>, s: SettingsV3, nodes: Pt[], programme: ProgrammeResult): NonNullable<VectorPlan["types"]> {
+  coverage: Float64Array, levels: Int32Array, floorArea: Float64Array, nature: NonNullable<Design["nature"]>, s: SettingsV3, nodes: Pt[], programme: ProgrammeResult,
+  away: Map<number, number> = new Map()): NonNullable<VectorPlan["types"]> {
   const R = plotRulesOf(G.meta.id), n = G.n;
   // one lot per block and programme, in plot order
   const lotOf = new Map<string, number>(), lots: LotIn[] = [], cellsOf: number[][] = [], caps: number[][] = [], fa: number[] = [];
@@ -238,7 +250,12 @@ function typeCells(G: Ground, use: Int8Array, ps: Plot[], plotOf: Int32Array, sh
     }
     return l;
   };
-  ps.forEach((p, k) => { if (p.use === BUILDING) { const l = lots[lotFor(k)]; l.plots.push(k); l.rings.push(p.ring); } });
+  ps.forEach((p, k) => {
+    if (p.use !== BUILDING) return;
+    const l = lots[lotFor(k)];
+    l.plots.push(k); l.rings.push(p.ring);
+    if (away.has(k)) l.away = (l.away ?? 0) + away.get(k)!;
+  });
   for (let i = 0; i < n; i++) {
     if (use[i] !== BUILDING || plotOf[i] < 0) continue;
     const k = plotOf[i], l = lotFor(k), lot = lots[l], land = G.cellArea * (1 - share[i]);
