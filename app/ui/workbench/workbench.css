@@ -48,6 +48,63 @@ a { color: inherit; }
 .wb-size { margin: 0; font-size: var(--pc-size-small); color: var(--pc-ink); }
 .wb-panel .wb-btn.is-primary { justify-self: start; }
 
+/* the first step: what kind of design exercise */
+.wb-exercises { position: absolute; inset: 0; overflow: auto; padding: 28px; display: grid; gap: 20px; align-content: start; justify-items: center; }
+.wb-exercises h1 { margin: 0; font-size: 26px; font-weight: 500; letter-spacing: -.01em; }
+.wb-exercise-grid { width: 100%; max-width: 900px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.wb-exercise { display: grid; gap: 4px; justify-items: start; align-content: start; text-align: left; padding: 12px 14px; border: var(--wb-hair); border-radius: var(--pc-radius); background: var(--pc-surface); cursor: pointer; transition: border-color var(--wb-fast); }
+.wb-exercise:hover:not(:disabled) { border-color: var(--wb-fill-2); }
+.wb-exercise[aria-pressed="true"] { border-color: var(--pc-accent); box-shadow: 0 0 0 1px var(--pc-accent); }
+.wb-exercise:focus-visible { outline: 2px solid var(--pc-ink); outline-offset: 2px; }
+.wb-exercise:disabled { cursor: not-allowed; }
+.wb-exercise:disabled figure { opacity: .6; }
+.wb-exercise figure { margin: 0 0 4px; justify-self: center; height: 150px; display: grid; place-items: center; }
+.wb-exercise figure svg { max-width: 100%; max-height: 150px; }
+.wb-exercise b { font-weight: 500; font-size: 15px; }
+.wb-exercise > span { font-size: var(--pc-size-small); color: var(--pc-ink-2); }
+.wb-exercise .wb-quiet-line { color: var(--pc-muted); margin-bottom: 4px; }
+
+/* what stays */
+.wb-stays { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--wb-s2); }
+.wb-stays li { display: grid; gap: 4px; justify-items: start; padding: var(--wb-s2); border: var(--wb-hair); border-radius: var(--pc-radius); background: var(--pc-surface); }
+.wb-stays b { font-weight: 500; }
+.wb-stays p { margin: 0; font-size: var(--pc-size-small); }
+
+.wb-agent { display: grid; gap: var(--wb-s1); justify-items: start; }
+.wb-agent > p { margin: 0; font-size: var(--pc-size-small); }
+.wb-agent .wb-btn { height: auto; min-height: 32px; white-space: normal; text-align: left; }
+.wb-stays { grid-template-columns: minmax(0, 1fr); }
+.wb-stays li { grid-template-columns: minmax(0, 1fr); }
+.wb-stays .wb-tag { white-space: normal; height: auto; padding: 2px 6px; line-height: 1.4; }
+.wb-stays textarea { width: 100%; box-sizing: border-box; }
+
+/* the river's year: twelve months as bars you can pick */
+.wb-months { display: grid; grid-template-columns: repeat(12, 1fr); gap: 2px; align-items: end; height: 76px; }
+.wb-months button { display: grid; justify-items: center; align-content: end; gap: 3px; height: 100%; padding: 0; border: 0; background: none; cursor: pointer; color: var(--pc-ink-2); font-size: 11px; }
+.wb-months i { display: block; width: 100%; max-width: 16px; border-radius: 4px 4px 0 0; background: var(--pc-water); }
+.wb-months button.thin i { opacity: .45; }
+.wb-months button[aria-pressed="true"] { color: var(--pc-ink); font-weight: 600; }
+.wb-months button[aria-pressed="true"] i { box-shadow: 0 0 0 2px var(--pc-accent); }
+
+/* today's numbers */
+.wb-today { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--wb-s3); }
+.wb-today li { display: grid; grid-template-columns: auto 1fr; gap: 2px var(--wb-s2); align-items: baseline; }
+.wb-today li > span:first-child { grid-column: 1 / -1; font-size: var(--pc-size-small); color: var(--pc-ink-2); }
+.wb-today b { font-size: 18px; font-weight: 500; }
+.wb-today .wb-tag { justify-self: start; }
+.wb-today .wb-hint { grid-column: 1 / -1; }
+.wb-plain { margin: var(--wb-s1) 0 0; padding-left: 16px; display: grid; gap: 3px; font-size: var(--pc-size-small); color: var(--pc-ink-2); }
+
+/* a real section */
+.wb-section-view { position: absolute; inset: 0; overflow: auto; padding: 28px; display: grid; gap: var(--wb-s2); align-content: center; }
+.wb-section-view b { font-weight: 500; }
+.wb-section-view svg { width: 100%; height: auto; }
+.s-ground { fill: none; stroke: var(--pc-ink); stroke-width: 1.5; }
+.s-river { fill: var(--pc-water); }
+.s-mark { stroke: var(--pc-muted); stroke-width: .75; stroke-dasharray: 3 3; }
+.s-mark.on { stroke: var(--pc-accent); stroke-width: 1.5; stroke-dasharray: none; }
+.s-text { font: 11px var(--pc-mono); fill: var(--pc-ink-2); }
+
 /* search */
 .wb-search { position: relative; }
 .wb-search-box { position: relative; }

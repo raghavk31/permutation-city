@@ -41,7 +41,7 @@ class Refused extends Error {
 
 const recent = new Map<string, number[]>(); // client → request times (per instance only)
 
-function allowedOrigin(origin: string | null, env: Env): boolean {
+export function allowedOrigin(origin: string | null, env: Env): boolean {
   if (!origin) return false;
   const extra = (env.ALLOWED_ORIGINS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
   return ORIGIN_RE.test(origin) || LOCAL_RE.test(origin) || extra.includes(origin);

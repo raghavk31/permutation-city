@@ -25,11 +25,22 @@
     draw: { title: "Draw: your moves", text: "Draw what you are sure of: a main street, a green spine, a square, ground to leave unbuilt, a building to keep. Every design keeps them; evolution explores the rest.", svg: () => Iso.moves().svg },
     landform: { title: "Landform: valleys and ridges", text: "Water gathers in the valleys, so they stay open; the ridges between them are where the main streets go.", svg: () => Iso.landform().svg },
   };
-  const intro = $derived(INTRO[bench.step]);
+  // COPY: intros of the exercise and a focused brief's steps
+  const FOCUS_INTRO: Record<string, { title: string; text: string; svg: () => string }> = {
+    exercise: { title: "Exercise: what you're designing", text: "A whole neighbourhood, or one part of a real place with the rest kept. Your choice sets the steps that follow.", svg: () => Iso.exerciseRiver().svg },
+    site: { title: "Place: where this happens", text: "Pick a real place. Its buildings, streets, water and ground come from open data, and stay as they are until someone decides otherwise.", svg: () => Iso.exerciseRiver().svg },
+    read: { title: "Read the place: what's there today", text: "What could change depends on how high the river rises. Everything is measured as it stands today, so a design can be held against it.", svg: () => Iso.riverLevels().svg },
+    stays: { title: "What stays", text: "Monuments, homes and the law's limits. The tool proposes what stays and says why; stakeholders decide.", svg: () => Iso.exerciseRiver().svg },
+  };
+  const intro = $derived((bench.focused || bench.step === "exercise" ? FOCUS_INTRO[bench.step] : null) ?? INTRO[bench.step]);
   const svg = $derived(intro ? intro.svg() : "");
   const folded = $derived(!!bench.introSeen[bench.step]);
 
-  const card = $derived(bench.picked ? bench.index[bench.picked] : null);
+  const card = $derived(bench.picked ? bench.cards[bench.picked] : null);
+  const focus = bench.focus;
+  const EVIDENCE: Record<string, string> = { data: "measured", map: "from the map", estimate: "estimated" };
+  const km = (m: number) => (m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`);
+  const unitOf = (u: string) => (u === "%" || u === "°C" || !u ? u : ` ${u}`);
 
   // the design shown large on the Evolve step, and where each score sits in the run
   const chosen = $derived.by(() => {
@@ -106,6 +117,42 @@
     {:else}
       <button class="wb-intro-line" type="button" onclick={() => bench.seen(bench.step, false)}>{intro.title}</button>
     {/if}
+  {/if}
+
+  {#if bench.focused && (bench.step === "read" || bench.step === "stays") && focus.today && focus.place}
+    <div class="wb-sub">
+      <span class="wb-label">Today, at the {focus.place.brief.marks[focus.mark].words} line</span>
+      <ul class="wb-today">
+        {#each focus.today.measures as m (m.key)}
+          <li>
+            <span>{m.words}</span>
+            <b class="wb-num">{(m.value ?? 0).toLocaleString("en-IN")}{unitOf(m.unit)}</b>
+            <span class="wb-tag">{EVIDENCE[m.evidence]}</span>
+            <p class="wb-hint">{m.note}{m.sides ? ` Taj bank ${m.sides.taj}%, Mehtab Bagh bank ${m.sides.mehtab}%.` : ""}</p>
+          </li>
+        {/each}
+      </ul>
+    </div>
+    <div class="wb-sub">
+      <span class="wb-label">Walking between them</span>
+      <ul class="wb-today">
+        {#each focus.today.walks as w}
+          <li>
+            <span>{w.words}</span>
+            <b class="wb-num">{w.walk === null ? "No route found" : km(w.walk)}</b>
+            <span class="wb-tag">from the map</span>
+            <p class="wb-hint">{km(w.straight)} in a straight line. {w.note ?? "Gates and tickets aren't on the map."}</p>
+          </li>
+        {/each}
+      </ul>
+    </div>
+    <details class="wb-group"><summary>Not measured yet<span class="wb-meta">{focus.today.notYet.length}</span></summary>
+      <ul class="wb-plain">{#each focus.today.notYet as t}<li>{t}</li>{/each}</ul>
+    </details>
+    <details class="wb-group"><summary>Still to check<span class="wb-meta">{focus.place.brief.open_checks.length}</span></summary>
+      <p class="wb-hint">This is a study, not a permission to build.</p>
+      <ul class="wb-plain">{#each focus.place.brief.open_checks as t}<li>{t}</li>{/each}</ul>
+    </details>
   {/if}
 
   {#if bench.step === "massing" && mEnv}
@@ -323,24 +370,24 @@
   {:else if bench.step === "site"}
     {#if card && bench.picked}
       <div class="wb-sub">
-        <span class="wb-label">Ready-made site</span>
+        <span class="wb-label">{bench.focused ? "Prepared place" : "Ready-made site"}</span>
         <b class="wb-insp-title">{card.name}</b>
         {#if card.thumb}<div class="wb-insp-thumb"><Thumb rows={card.thumb} /></div>{/if}
         <dl class="wb-facts">
-          <dt>Design ground</dt><dd class="wb-num">{fmtHa(card.design_ha)}{card.cells ? ` · ${card.cells.toLocaleString("en-IN")} cells` : ""}</dd>
-          <dt>Floor area the brief asks</dt><dd class="wb-num">{fmtHa(card.target_ha)}</dd>
+          <dt>{bench.focused ? "Land that could change" : "Design ground"}</dt><dd class="wb-num">{fmtHa(card.design_ha)}{card.cells ? ` · ${card.cells.toLocaleString("en-IN")} cells` : ""}</dd>
+          {#if !bench.focused}<dt>Floor area the brief asks</dt><dd class="wb-num">{fmtHa(card.target_ha)}</dd>{/if}
           <dt>How hilly</dt><dd>{card.relief ? HILLY[card.relief] : "unknown"}{card.relief_m != null ? `, ${Math.round(card.relief_m)} m of relief` : ""}
             {#if card.confidence === "low"}<span class="wb-tag is-low">low confidence</span>{/if}</dd>
           <dt>Ground from</dt><dd>{card.terrain ? TERRAIN[card.terrain] ?? card.terrain : "unknown"}</dd>
         </dl>
-        <button class="wb-btn is-primary" type="button" aria-busy={bench.loading} onclick={() => bench.open(bench.picked!)}>Open this site</button>
+        <button class="wb-btn is-primary" type="button" aria-busy={bench.loading} onclick={() => bench.open(bench.picked!)}>{bench.focused ? "Read this place" : "Open this site"}</button>
         {#if bench.error}<p class="wb-error" role="alert">{bench.error}</p>{/if}
       </div>
     {:else}
       <div class="wb-state">
-        <b>No site picked</b>
+        <b>{bench.focused ? "No place picked" : "No site picked"}</b>
         <!-- COPY: inspector empty, site step -->
-        <span>Pick a ready-made site on the left or on the map, or draw your own. Its size, how hilly it is and where its data comes from appear here.</span>
+        <span>{bench.focused ? "Pick a prepared place on the left or on the map." : "Pick a ready-made site on the left or on the map, or draw your own."} Its size, how hilly it is and where its data comes from appear here.</span>
       </div>
     {/if}
   {:else if bench.step === "layers" && meta}

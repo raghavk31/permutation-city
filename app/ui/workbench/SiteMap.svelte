@@ -4,7 +4,7 @@
   import { Map as MapLibre, NavigationControl, setWorkerUrl, type GeoJSONSource } from "maplibre-gl";
   // MapLibre looks for its worker next to its own module, which a bundle doesn't have.
   import mapWorker from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
-  import { onDestroy, onMount } from "svelte";
+  import { onDestroy, onMount, untrack } from "svelte";
   import { TerraDraw, TerraDrawPolygonMode, TerraDrawSelectMode } from "terra-draw";
   import { TerraDrawMapLibreGLAdapter } from "terra-draw-maplibre-gl-adapter";
   import { Satellite, Scan } from "lucide";
@@ -26,7 +26,7 @@
 
   const outlines = $derived({
     type: "FeatureCollection" as const,
-    features: Object.entries(bench.index).filter(([id, c]) => !id.endsWith("-quad") && c.outline?.length).map(([id, c]) => ({
+    features: Object.entries(bench.cards).filter(([id, c]) => !id.endsWith("-quad") && c.outline?.length).map(([id, c]) => ({
       type: "Feature" as const, id: undefined,
       properties: { id, name: c.name.replace(/ \(.*\)$/, ""), picked: id === bench.picked ? 1 : 0 },
       geometry: { type: "Polygon" as const, coordinates: [c.outline!] },
@@ -41,8 +41,8 @@
   }
 
   function fit() {
-    const b = bench.picked && bench.index[bench.picked]?.outline ? (() => {
-      const o = bench.index[bench.picked!].outline!, xs = o.map((p) => p[0]), ys = o.map((p) => p[1]);
+    const b = bench.picked && bench.cards[bench.picked]?.outline ? (() => {
+      const o = bench.cards[bench.picked!].outline!, xs = o.map((p) => p[0]), ys = o.map((p) => p[1]);
       return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)] as [number, number, number, number];
     })() : allBounds();
     if (b) map?.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: 60, maxZoom: 15, duration: 600 });
@@ -105,6 +105,12 @@
   $effect(() => {
     const data = outlines;
     if (ready) (map?.getSource("sites") as GeoJSONSource | undefined)?.setData(data);
+  });
+
+  // a different exercise lists different places: frame them
+  $effect(() => {
+    void bench.exercise; void Object.keys(bench.cards).length;
+    if (ready) untrack(fit);
   });
 
   // shown again: the container was hidden, so MapLibre measures it afresh; hidden: stop drawing

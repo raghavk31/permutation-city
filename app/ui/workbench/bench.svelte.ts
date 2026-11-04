@@ -5,16 +5,32 @@ import * as Comlink from "comlink";
 import type { Snippet } from "../../brief/chunk";
 import * as E from "../../engine";
 import type { EngineWorker, EvolveResult, FamilyLead } from "../../engine/worker";
+import { type ExerciseId, exerciseOf } from "../../engine/focus/exercise";
 import * as Fam from "../families";
 import * as Sites from "../sites";
+import { FocusStep } from "./focus.svelte";
 import { MassStep } from "./mass.svelte";
 import * as Saved from "./saved";
 
 
-export type StepId = "site" | "layers" | "rules" | "landform" | "draw" | "brief" | "evolve" | "explore" | "massing";
+export type StepId = "exercise" | "site" | "layers" | "rules" | "landform" | "draw" | "brief" | "evolve" | "explore" | "massing"
+  | "read" | "stays" | "design" | "drawings";
+
+export interface StepDef { id: StepId; name: string; built: boolean; why?: string }
 
 // COPY: step names
-export const STEPS: { id: StepId; name: string; built: boolean }[] = [
+/** A focused brief's steps. What isn't built yet shows, so the road ahead is plain. */
+export const FOCUS_STEPS: StepDef[] = [
+  { id: "exercise", name: "Exercise", built: true },
+  { id: "site", name: "Place", built: true },
+  { id: "read", name: "Read the place", built: true },
+  { id: "stays", name: "What stays", built: true },
+  { id: "design", name: "Design", built: false, why: "Not built yet: first the river-edge precedents, then the search" },
+  { id: "drawings", name: "Drawings", built: false, why: "Not built yet: plans, sections, levels and schedules follow the design" },
+];
+
+export const STEPS: StepDef[] = [
+  { id: "exercise", name: "Exercise", built: true },
   { id: "site", name: "Site", built: true },
   { id: "layers", name: "Layers", built: true },
   { id: "rules", name: "Rules", built: true },
@@ -31,6 +47,8 @@ export interface SiteCard {
   name: string; design_ha: number; target_ha: number; origin?: [number, number]; cells?: number;
   relief?: "flat" | "gentle" | "pronounced" | null; relief_m?: number | null; confidence?: "high" | "low" | null;
   terrain?: string | null; outline?: [number, number][]; thumb?: string[];
+  /** A prepared place: the kind of exercise its brief is for (pc/place.py `index_entry`). */
+  kind?: string;
 }
 
 /** How hilly, in plain words (design system, "Plain words"). */
@@ -54,7 +72,28 @@ const store = {
 };
 
 class Bench {
-  step = $state<StepId>("site");
+  step = $state<StepId>("exercise");
+  /** The kind of design exercise: the first choice, which decides the steps that follow. */
+  exercise = $state<ExerciseId | null>(null);
+  /** A focused brief: a real place open, with its analysis. */
+  focus = new FocusStep();
+  get focused() { return !!this.exercise && this.exercise !== "city"; }
+  get steps(): StepDef[] { return this.focused ? FOCUS_STEPS : STEPS; }
+  /** Prepared places (places.json), each with the kind of exercise its brief is for. */
+  places = $state.raw<Record<string, SiteCard>>({});
+  /** What the Site step can pick for this exercise. */
+  get cards(): Record<string, SiteCard> {
+    if (!this.focused) return this.index;
+    return Object.fromEntries(Object.entries(this.places).filter(([, c]) => c.kind === this.exercise));
+  }
+  /** Choose the exercise, and go on to pick where. */
+  chooseExercise(id: ExerciseId) {
+    if (!exerciseOf(id)?.built) return;
+    if (id !== this.exercise) { this.picked = null; this.error = ""; }
+    this.exercise = id;
+    this.step = "site";
+    this.sync();
+  }
   index = $state.raw<Record<string, SiteCard>>({});
   /** A ready-made site selected on the Site step (not opened yet). */
   picked = $state<string | null>(null);
@@ -308,14 +347,41 @@ class Bench {
   constructor() {
     if (typeof window === "undefined") return;
     fetch(`${Sites.DATA}sites.json`).then((r) => r.json()).then((s) => (this.index = s)).catch(() => {});
-    const q = new URLSearchParams(location.search), id = q.get("site");
-    if (id) this.openLink(id, q);
+    fetch(`${Sites.DATA}places.json`).then((r) => r.json()).then((s) => (this.places = s)).catch(() => {});
+    const q = new URLSearchParams(location.search), id = q.get("site"), ex = exerciseOf(q.get("exercise"));
+    if (id) this.openLink(id, q);   // a link to a site is a whole-neighbourhood exercise, as links always were
+    else if (ex?.built) {
+      this.exercise = ex.id;
+      this.step = "site";
+      const place = q.get("place");
+      if (place) { const m = q.get("mark"); void this.openPlace(place, (q.get("step") as StepId | null) ?? "read", m === null ? undefined : +m); }
+    }
+  }
+
+  /** Open a real place for a focused brief. */
+  async openPlace(id: string, step: StepId = "read", mark?: number) {
+    this.error = "";
+    this.loading = true;
+    try {
+      await this.focus.open(id, mark);
+      this.picked = id;
+      this.step = this.steps.some((s) => s.id === step && s.built) ? step : "read";
+      this.sync();
+    } catch (e) {
+      this.error = (e as Error).message;
+      this.step = "site";
+    } finally {
+      this.loading = false;
+    }
   }
 
   stateOf(id: StepId): "done" | "now" | "todo" | "blocked" {
     if (id === this.step) return "now";
-    const s = STEPS.find((x) => x.id === id)!;
+    const s = this.steps.find((x) => x.id === id)!;
     if (!s.built) return "blocked";
+    if (id === "exercise") return this.exercise ? "done" : "todo";
+    if (!this.exercise) return "blocked";
+    if (this.focused) return id === "site" ? (this.focus.place ? "done" : "todo") : this.focus.place ? "todo" : "blocked";
     if (id === "site") return this.site ? "done" : "todo";
     if (!this.site) return "blocked";
     if (id === "brief" && this.briefLocked) return "done";
@@ -333,6 +399,8 @@ class Bench {
   }
 
   async open(id: string, step: StepId = "layers") {
+    if (this.focused) return this.openPlace(id);
+    this.exercise = "city";
     this.error = "";
     this.loading = true;
     try {
@@ -652,7 +720,11 @@ class Bench {
 
   /** The address of the workbench as it stands (saved.ts): open it and the same view returns. */
   link(): string {
-    if (!this.siteId) return location.pathname;
+    if (this.focused) {
+      const at = this.focus.id ? `&place=${this.focus.id}&step=${this.step}&mark=${this.focus.mark}` : "";
+      return `${location.pathname}?exercise=${this.exercise}${at}`;
+    }
+    if (!this.siteId) return this.exercise ? `${location.pathname}?exercise=${this.exercise}` : location.pathname;
     const run = this.result ? this.runInputs : null;
     return `${location.pathname}${Saved.writeLink({
       site: this.siteId, base: this.site?.rules, step: this.step, rules: this.edited ? this.rules : null, moves: this.moves,

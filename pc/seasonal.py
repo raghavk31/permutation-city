@@ -54,6 +54,29 @@ def scenes(site: Site) -> list[dict]:
     return sorted(out, key=lambda f: f["properties"]["datetime"])
 
 
+def scene_water(f, crs, transform, width, height, log=print):
+    """One scene on a frame: the cloud mask first (20 m, small), the two bands only if enough is
+    clear. (scene, clear share, clear pixels, wet pixels), or None when it's skipped."""
+    def read(href, rs):
+        with rasterio.open(_signed(href)) as src, WarpedVRT(
+                src, crs=crs, transform=transform, width=width, height=height, resampling=rs) as vrt:
+            return vrt.read(1).astype(np.float64)
+
+    a = f["assets"]
+    try:
+        scl = read(a["SCL"]["href"], Resampling.nearest).astype(np.int64)
+        clear = ~np.isin(scl, list(CLOUDY_SCL))
+        share = float(clear.mean())
+        if share < MIN_CLEAR_SHARE:
+            return None
+        g, nir = read(a["B03"]["href"], Resampling.average), read(a["B08"]["href"], Resampling.average)
+    except Exception as err:  # a scene that won't read is skipped, not fatal
+        log(f"  seasonal water: skipped {f['id']} ({type(err).__name__})")
+        return None
+    ndwi = (g - nir) / np.maximum(g + nir, 1.0)
+    return f, share, clear, clear & ((ndwi > WET_NDWI) | (scl == WATER_SCL))
+
+
 def fetch_seasonal(site: Site, log=print) -> dict:
     """Water frequency at the end of the monsoon → raw/seasonal-water.tif (0-1, NaN where never
     seen clear often enough), and the scenes used → raw/seasonal-water.json."""
@@ -67,26 +90,8 @@ def fetch_seasonal(site: Site, log=print) -> dict:
     transform = from_origin(x0, y1, PIXEL_M, PIXEL_M)
     looks = np.zeros((height, width), dtype=np.int32)
     wet = np.zeros((height, width), dtype=np.int32)
-    def read(href, rs):
-        with rasterio.open(_signed(href)) as src, WarpedVRT(
-                src, crs=site.crs, transform=transform, width=width, height=height, resampling=rs) as vrt:
-            return vrt.read(1).astype(np.float64)
-
     def look(f):
-        """One scene: the cloud mask first (20 m, small), the two bands only if enough is clear."""
-        a = f["assets"]
-        try:
-            scl = read(a["SCL"]["href"], Resampling.nearest).astype(np.int64)
-            clear = ~np.isin(scl, list(CLOUDY_SCL))
-            share = float(clear.mean())
-            if share < MIN_CLEAR_SHARE:
-                return None
-            g, nir = read(a["B03"]["href"], Resampling.average), read(a["B08"]["href"], Resampling.average)
-        except Exception as err:  # a scene that won't read is skipped, not fatal
-            log(f"  seasonal water: skipped {f['id']} ({type(err).__name__})")
-            return None
-        ndwi = (g - nir) / np.maximum(g + nir, 1.0)
-        return f, share, clear, clear & ((ndwi > WET_NDWI) | (scl == WATER_SCL))
+        return scene_water(f, site.crs, transform, width, height, log)
 
     from concurrent.futures import ThreadPoolExecutor
     used = []
