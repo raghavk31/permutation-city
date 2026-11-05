@@ -1,13 +1,19 @@
 // What an agent can call on a place (docs/architecture-v3.md section 15.2). Every number an agent may
 // use comes through here, or from a link the brief holds. All of these read; none of them decides.
 import { type Decision, releasedCells, standing, roleWords } from "./decisions.js";
+import { readEdge } from "./edge.js";
+import type { EdgeOption } from "./edgesearch.js";
 import { lineIndex, type Place, zoneOf } from "./place.js";
 import { checkRecords, reachAt, riverYear } from "./river.js";
 import { todayOf } from "./today.js";
 import { viewsOf } from "./views.js";
 import type { Walk } from "./walk.js";
 
-export interface ToolContext { place: Place; walk: Walk; decisions: Decision[] }
+export interface ToolContext {
+  place: Place; walk: Walk; decisions: Decision[];
+  /** What the search has found, and which option is on show. Read here; nothing here can change it. */
+  design?: { options: EdgeOption[]; on: string | null } | null;
+}
 
 const MARK = { type: "integer", description: "Which river level: an index into read_brief's marks. Leave out for the brief's line." };
 const none = { type: "object", properties: {}, additionalProperties: false };
@@ -22,9 +28,15 @@ export const TOOL_SPECS = [
   { name: "river_year", description: "Hectares seen wet each month from the satellite, with clear looks per month.", parameters: none },
   { name: "rules_in_zone", description: "Hectares of the zone inside each rule at a river level, with each rule's effect, source and status.", parameters: { type: "object", properties: { mark: MARK }, additionalProperties: false } },
   { name: "view_limits", description: "Each view: how much of it is clear today, what crosses it, and the height limits it sets on the zone, in metres above ground.", parameters: { type: "object", properties: { mark: MARK }, additionalProperties: false } },
+  { name: "edge_stretches", description: "Each stretch of both banks: its length, how much ground it has, what ends that ground, what the law does there and whether a view holds trees down.", parameters: none },
+  { name: "design_options", description: "The design options the search found, lawful and what-if, each measured against today with its evidence. Says so if no search has run.", parameters: none },
+  { name: "design_stretch", description: "One stretch in one option: whether its ground is kept or reshaped, its levels and earth, the limits checked on it and what it rests on.", parameters: { type: "object", properties: { stretch: { type: "string", description: "A stretch's id, from edge_stretches." }, option: { type: "string", description: "An option's id, from design_options. Leave out for the one on show." } }, required: ["stretch"], additionalProperties: false } },
 ] as const;
 
 export type ToolName = (typeof TOOL_SPECS)[number]["name"];
+
+const NO_SEARCH = { available: false, note: "Nobody has run the search on this place yet, so there are no design options to read." };
+const DESIGN_NOTE = "Options from a search whose weights are assumed. Levels are relative: the terrain is satellite, so a survey comes first. No hydraulic model is behind any of it, so nothing here says what a design does to flood heights. Being down at the water and how a place feels aren't scored.";
 
 function markOf(place: Place, input: Record<string, unknown>): number {
   const m = input.mark;
@@ -84,6 +96,25 @@ export function runTool(name: string, input: Record<string, unknown>, ctx: ToolC
           crossing_today: r.blockers.slice(0, 5).map((b) => ({ name: b.name ?? "unnamed", over_m: b.over })),
           zone_limited_ha: round1(inZone.length * ha), lowest_limit_m: inZone.length ? round1(inZone[0]) : null, middle_limit_m: inZone.length ? round1(inZone[inZone.length >> 1]) : null };
       }), note: "Rough: satellite terrain, an assumed eye, trees left out, and some building heights are guesses." };
+    }
+    case "edge_stretches":
+      return readEdge(place, releasedCells(place, ctx.decisions)).banks.flatMap((b) => b.stretches.map((s) => ({
+        id: s.id, bank: b.words, length_m: Math.round(s.length), room: s.room, ground_m_middle: s.reach.mid, law: s.law, view_holds_trees_down: s.viewLow })));
+    case "design_options": {
+      if (!ctx.design?.options.length) return NO_SEARCH;
+      return { on_show: ctx.design.on, note: DESIGN_NOTE, options: ctx.design.options.map((o) => ({
+        id: o.id, words: o.words, why: o.why, class: o.works === "soft" ? "lawful, resting on an assumption" : "a what-if",
+        scores: o.scores.map((s) => ({ words: s.words, unit: s.unit, evidence: s.evidence, today: s.today, design: s.design, today_band: s.todayBand ?? null, design_band: s.designBand ?? null, note: s.note })) })) };
+    }
+    case "design_stretch": {
+      if (!ctx.design?.options.length) return NO_SEARCH;
+      const id = input.option ?? ctx.design.on, o = ctx.design.options.find((x) => x.id === id);
+      if (!o) throw new Error(`option must be one of ${ctx.design.options.map((x) => x.id).join(", ")}`);
+      const f = o.fits.find((x) => x.stretch.id === input.stretch), s = o.stretches.find((x) => x.id === input.stretch);
+      if (!f || !s) throw new Error(`no stretch called ${String(input.stretch)}`);
+      return { option: o.id, stretch: f.stretch.id, law: f.stretch.law, ground: f.mode === "reshape" ? "reshaped" : f.mode === "plant" ? "kept" : "no room, left as it is",
+        closest_precedent: s.like, levels_m: f.levels.map(round1), earth_dug_m3: Math.round(f.cut), earth_placed_m3: Math.round(f.fill), has_path: f.sections.some((x) => x.path),
+        limits: f.checks.map((c) => ({ words: c.words, holds: c.holds, found: c.found })), rests_on: f.notes };
     }
     default:
       throw new Error(`no tool called ${name}`);

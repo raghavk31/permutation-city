@@ -5,6 +5,7 @@
   import * as Draw from "../draw";
   import { bench } from "./bench.svelte";
   import { existingAt, surfaceAt } from "../../engine/focus/edgeform";
+  import { daysAbove, pathUnderAt, waterReach } from "../../engine/focus/edgescore";
   import { STOP_WORDS } from "./edgewords";
   import { paintPlace, placeFrame } from "./focuspaint";
   import MapCanvas from "./MapCanvas.svelte";
@@ -67,10 +68,17 @@
     return on ? f.edge?.banks.find((b) => b.id === on.bank)?.stations[on.k] ?? null : null;
   });
   const bank = $derived(f.edge?.banks.find((b) => b.id === f.stationOn?.bank) ?? null);
-  const version = $derived(`${f.stretchOn}|${f.stationOn?.bank}|${f.stationOn?.k}|${!!f.edge}|${f.decisions.length}|${JSON.stringify(f.choices)}|${f.works}`);
-  const plantings = $derived([...new Set((fitHere?.elements ?? []).map((e) => e.planting).filter(Boolean))]);
+  const version = $derived(`${f.stretchOn}|${f.stationOn?.bank}|${f.stationOn?.k}|${!!f.edge}|${f.decisions.length}|${JSON.stringify(f.choices)}|${f.works}|${f.optionOn}`);
   /** The tried design at this station. */
   const fitHere = $derived(f.fit && f.stationOn ? f.fit.sections.find((s) => s.k === f.stationOn!.k) ?? null : null);
+  const plantings = $derived([...new Set((fitHere?.elements ?? []).map((e) => e.planting).filter(Boolean))]);
+
+  // The slider's range and its landmarks.
+  const riverLo = $derived(Math.floor(f.edge?.datum.ordinary?.[0] ?? place.brief.marks[0].m - 5));
+  const riverHi = $derived(Math.ceil(Math.max(...place.brief.marks.map((m) => m.m)) + 1));
+  const under = $derived(pathUnderAt(f.fits, f.river));
+  const markHere = $derived(place.brief.marks.find((m) => Math.abs(m.m - f.river) < 0.05) ?? null);
+  const daysHere = $derived(daysAbove(place, f.river));
 
   /** A section as drawn: out to the water on the left, inland on the right. */
   const section = $derived.by(() => {
@@ -95,7 +103,14 @@
       earth.push({ x: X(d), y: Y(Math.max(z, e)), h: Math.abs(Y(z) - Y(e)), cut: z < e });
     }
     const w2 = Math.max(1, X(2) - X(0));
-    return { W, H, pad, X, Y, x0, x1, lo, hi, ground: path(land), bed: path([...out].sort((a, b) => a.d - b.d)), marks, ordinary,
+    // The river at the chosen height: over the bed, and inland to the first ground above it.
+    const surface = fitHere?.vertices.length ? fitHere.vertices : land.filter((g) => g.d <= t.reach);
+    const reached = waterReach(surface, f.river), bedSorted = [...out].sort((a, b) => a.d - b.d);
+    const zAt = (d: number) => (d < 0 && bedSorted.length ? surfaceAt(bedSorted, d) : surface.length ? surfaceAt(surface, d) : f.river);
+    const from = bedSorted.length ? x0 : 0, top = Y(f.river), low: string[] = [];
+    for (let i = 0; i <= 200; i++) { const d = from + ((reached - from) * i) / 200; low.push(`L${X(d).toFixed(1)} ${Math.max(top, Y(Math.min(zAt(d), f.river))).toFixed(1)}`); }
+    const water = reached > from ? `M${X(from).toFixed(1)} ${top.toFixed(1)}${low.join("")}L${X(reached).toFixed(1)} ${top.toFixed(1)}Z` : "";
+    return { water, reached, W, H, pad, X, Y, x0, x1, lo, hi, ground: path(land), bed: path([...out].sort((a, b) => a.d - b.d)), marks, ordinary,
       design: fit ? path(fit.vertices) : "", earth, w2 };
   });
 </script>
@@ -120,6 +135,7 @@
           <line x1={section.pad} x2={section.W - section.pad} y1={section.Y(m.m)} y2={section.Y(m.m)} class="s-mark" />
           <text x={section.W - section.pad} y={section.Y(m.m) - 3} text-anchor="end" class="s-text">{m.words}</text>
         {/each}
+        {#if section.water}<path d={section.water} class="s-river" />{/if}
         {#if section.bed}<path d={section.bed} class="s-bed" />{/if}
         {#each section.earth as e}<rect x={e.x} y={e.y} width={section.w2} height={e.h} class={e.cut ? "s-cut" : "s-fill"} />{/each}
         <path d={section.ground} class={section.design ? "s-ground was" : "s-ground"} />
@@ -131,6 +147,17 @@
         {#if f.edge?.months && station.toWaterLow !== null}<line x1={section.X(-station.toWaterLow)} x2={section.X(-station.toWaterLow)} y1={section.H - section.pad - 14} y2={section.H - section.pad} class="s-water" /><text x={section.X(-station.toWaterLow)} y={section.H - 8} text-anchor={section.X(-station.toWaterLow) < 90 ? "start" : "middle"} class="s-text">{MONTHS[f.edge.months.low]} water</text>{/if}
         {#if f.edge?.months && station.toWaterHigh !== null && station.toWaterHigh !== station.toWaterLow}<line x1={section.X(-station.toWaterHigh)} x2={section.X(-station.toWaterHigh)} y1={section.H - section.pad - 14} y2={section.H - section.pad} class="s-water" /><text x={section.X(-station.toWaterHigh)} y={section.H - 20} text-anchor={section.X(-station.toWaterHigh) < 90 ? "start" : "middle"} class="s-text">{MONTHS[f.edge.months.high]} water</text>{/if}
       </svg>
+      <!-- COPY: the river's level on a section -->
+      <div class="wb-river">
+        <label for="wb-river-at">River at {f.river.toFixed(1)} m</label>
+        <input id="wb-river-at" type="range" min={riverLo} max={riverHi} step="0.1" value={f.river} oninput={(e) => (f.riverAt = +e.currentTarget.value)} />
+        <div class="wb-row-btns">
+          {#if f.edge?.datum.ordinary}<button class="wb-chip" type="button" onclick={() => (f.riverAt = null)}>An ordinary day</button>{/if}
+          {#each place.brief.marks as m (m.m)}<button class="wb-chip" type="button" title={m.note} onclick={() => (f.riverAt = m.m)}>{m.words}</button>{/each}
+        </div>
+        {#if markHere?.note}<p class="wb-hint">{markHere.note}.</p>{/if}
+        <p class="wb-hint">{section.reached > 0 ? `Here the water comes ${Math.round(section.reached)} m in from the bank.` : "Here the water stays below the bank."}{fitHere?.path ? ` The path is ${fitHere.path.z < f.river ? `${(f.river - fitHere.path.z).toFixed(1)} m under water` : `${(fitHere.path.z - f.river).toFixed(1)} m clear of the water`}.` : ""}{under.all > 0 ? ` Along this design, ${under.under.toFixed(1)} of ${under.all.toFixed(1)} km of path is under.` : ""} {daysHere < 1 ? "The river stands this high or higher on less than one day a year on average" : `The river stands this high or higher on about ${Math.round(daysHere)} days a year`}, from modelled flow, so roughly. A level, not a flood model: water is drawn flat across the section, and only as far as the first higher ground.</p>
+      </div>
       <!-- COPY: what a section rests on -->
       {#if fitHere}
         <!-- COPY: the tried section's pieces -->

@@ -118,6 +118,24 @@ function networkWith(place: Place, stations: At[], base: Walk): { net: Walk; way
 
 const flat = (l: Line) => l.flatMap((p) => [p[0], p[1]]);
 
+/** How far inland the river reaches at a level, metres from the bank: up to the first ground above it.
+ *  A hollow behind higher ground stays dry here, though seepage or a drain could fill it. */
+export function waterReach(surface: { d: number; z: number }[], level: number): number {
+  if (!surface.length || surface[0].z > level) return 0;
+  for (let i = 1; i < surface.length; i++) {
+    const a = surface[i - 1], b = surface[i];
+    if (b.z > level) return b.d > a.d ? a.d + ((level - a.z) / (b.z - a.z)) * (b.d - a.d) : a.d;
+  }
+  return surface[surface.length - 1].d;
+}
+
+/** How much of a design's path stands under a river level, and how much path there is, km. */
+export function pathUnderAt(fits: StretchFit[], level: number): { under: number; all: number } {
+  let under = 0, all = 0;
+  for (const f of fits) for (const s of f.sections) if (s.path) { all += 0.05; if (s.path.z < level) under += 0.05; }
+  return { under, all };
+}
+
 /** Each pair of neighbouring stations on one bank where both have a path, with the slope between them. */
 export function pathJoins(read: EdgeRead, fits: StretchFit[]): { stretches: [string, string]; rise: number; run: number; slope: number }[] {
   const out: { stretches: [string, string]; rise: number; run: number; slope: number }[] = [];

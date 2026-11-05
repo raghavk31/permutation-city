@@ -30,7 +30,7 @@ const WEIGHTS: Record<Direction, { days: number; close: number; water: number; r
 // COPY: what each direction is after
 export const DIRECTIONS: { id: Direction; words: string; why: string }[] = [
   { id: "path", words: "A path, and little else", why: "A way along that stays dry as much of the year as it can, moving no earth and planting little." },
-  { id: "river", words: "Close to the river", why: "A path beside the bank, wetter for it. It adds little bank that reaches the water, because the trees there stay." },
+  { id: "river", words: "Close to the river", why: "A path beside the bank, so it floods more often. It adds little bank that reaches the water, because the trees there stay." },
   { id: "room", words: "Most room for the river", why: "As much ground as can be lowered for flood water, with the earth taken away. This is a volume: nothing here shows it lowers a flood." },
   { id: "green", words: "Most planted", why: "As much new cover as the ground and the views allow, much of it on ground that's farmed or used today." },
 ];

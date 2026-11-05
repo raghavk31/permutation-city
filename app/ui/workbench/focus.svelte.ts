@@ -1,12 +1,15 @@
 // The workbench's focused brief: the real place open, the river level the line is drawn at, the
 // layer on show, today's numbers measured for that line (engine/focus), stakeholders' decisions and
 // what the agents reported.
+import * as Comlink from "comlink";
 import { type AgentRun, postTurn, runAgent } from "../../agents/run";
 import type { AgentId } from "../../agents/roles";
 import { type Choice, type Decision, record, releasedCells, type RoleId, withDecisions } from "../../engine/focus/decisions";
 import { type EdgeRead, readEdge } from "../../engine/focus/edge";
 import { fitStretch, type StretchFit, type Works } from "../../engine/focus/edgeform";
 import { type Score, scoreEdge } from "../../engine/focus/edgescore";
+import type { EdgeOption } from "../../engine/focus/edgesearch";
+import type { EdgeWorker } from "../../engine/focus/edgeworker";
 import { edgeShapeOf } from "../../engine/typology/openshape";
 import { checkBrief, lineIndex, type Place, type Stay } from "../../engine/focus/place";
 import { checkRecords, type RecordCheck, riverYear, type RiverYear } from "../../engine/focus/river";
@@ -42,15 +45,48 @@ export class FocusStep {
   choices = $state.raw<Record<string, string>>({});
   works = $state<Works>("soft");
 
+  /** What the search found, and the option on show. */
+  options = $state.raw<EdgeOption[] | null>(null);
+  optionOn = $state<string | null>(null);
+  searching = $state(false);
+  searchError = $state("");
+  /** The river's height drawn on the section, or null for an ordinary day's. */
+  riverAt = $state<number | null>(null);
+
+  option = $derived.by((): EdgeOption | null => this.options?.find((o) => o.id === this.optionOn) ?? null);
+  river = $derived.by((): number => this.riverAt ?? this.edge?.datum.ordinary?.[1] ?? this.place?.brief.marks[0].m ?? 0);
+
+  /** Run the search off the main thread. The result stands until a decision changes the ground. */
+  async search() {
+    if (!this.place || this.searching) return;
+    const id = this.id;
+    this.searching = true;
+    this.searchError = "";
+    const raw = new Worker(new URL("../../engine/focus/edgeworker.ts", import.meta.url), { type: "module" });
+    try {
+      const out = await Comlink.wrap<EdgeWorker>(raw).search(this.place, this.released);
+      if (id === this.id) this.options = out;
+    } catch (e) {
+      this.searchError = e instanceof Error ? e.message : "The search couldn't finish.";
+    } finally {
+      raw.terminate();
+      this.searching = false;
+    }
+  }
+  /** Show one of the options, or null for what's been tried by hand. */
+  showOption(id: string | null) { this.optionOn = id; }
+
   get tryFrom(): string | null { return this.stretchOn ? this.choices[this.stretchOn] ?? null : null; }
   /** Try a precedent's section on the chosen stretch, or null for today's ground. */
   choose(id: string | null) {
     if (!this.stretchOn) return;
+    this.optionOn = null;
     const { [this.stretchOn]: _, ...rest } = this.choices;
     this.choices = id ? { ...rest, [this.stretchOn]: id } : rest;
   }
   /** The same on every stretch, or clear them all. */
   chooseAll(id: string | null) {
+    this.optionOn = null;
     const out: Record<string, string> = {};
     if (id) for (const b of this.edge?.banks ?? []) for (const s of b.stretches) out[s.id] = id;
     this.choices = out;
@@ -63,6 +99,8 @@ export class FocusStep {
 
   /** What each agent last reported, whether it's running, and what went wrong. */
   runs = $state.raw<Partial<Record<AgentId, AgentRun>>>({});
+  /** Which option was on show when each agent ran. */
+  runRead = $state.raw<Partial<Record<AgentId, string | null>>>({});
   running = $state<AgentId | null>(null);
   progress = $state("");
   agentError = $state("");
@@ -76,6 +114,7 @@ export class FocusStep {
   edge = $derived.by((): EdgeRead | null => (this.place ? readEdge(this.place, this.decisions.length ? this.released : null) : null));
   /** Every stretch with a chosen section, fitted. */
   fits = $derived.by((): StretchFit[] => {
+    if (this.option) return this.option.fits;
     const out: StretchFit[] = [];
     if (!this.place || !this.edge) return out;
     for (const b of this.edge.banks) for (const s of b.stretches) {
@@ -87,7 +126,7 @@ export class FocusStep {
   /** The chosen stretch's fit. */
   fit = $derived.by((): StretchFit | null => this.fits.find((x) => x.stretch.id === this.stretchOn) ?? null);
   /** The design so far against today. */
-  scores = $derived.by((): Score[] => (this.place && this.edge && this.walk && this.fits.length ? scoreEdge(this.place, this.edge, this.fits, this.walk) : []));
+  scores = $derived.by((): Score[] => this.option ? this.option.scores : (this.place && this.edge && this.walk && this.fits.length ? scoreEdge(this.place, this.edge, this.fits, this.walk) : []));
   records = $derived.by((): RecordCheck[] => (this.place ? checkRecords(this.place) : []));
 
   async open(id: string, mark?: number) {
@@ -108,8 +147,13 @@ export class FocusStep {
     this.stationOn = null;
     this.choices = {};
     this.works = "soft";
+    this.options = null;
+    this.optionOn = null;
+    this.searchError = "";
+    this.riverAt = null;
     this.decisions = this.load(id);
     this.runs = {};
+    this.runRead = {};
     this.agentError = "";
     this.id = id;
     this.place = p;
@@ -146,6 +190,9 @@ export class FocusStep {
   decide(stay: string, choice: Choice, because: string) {
     if (!this.place || !this.id) return;
     this.decisions = [...this.decisions, record(this.place, { stay, choice, by: this.asRole, because }, new Date().toISOString())];
+    // A decision can change the ground a design may use, so what was found no longer stands.
+    this.options = null;
+    this.optionOn = null;
     try { localStorage.setItem(storeKey(this.id), JSON.stringify(this.decisions)); } catch { /* still held for this session */ }
   }
 
@@ -165,8 +212,10 @@ export class FocusStep {
     this.progress = "";
     this.agentError = "";
     try {
-      const run = await runAgent(agent, { place: this.place, walk: this.walk, decisions: this.decisions }, postTurn, (w) => (this.progress = w));
+      const on = this.option?.words ?? null;
+      const run = await runAgent(agent, { place: this.place, walk: this.walk, decisions: this.decisions, design: this.options ? { options: this.options, on: this.optionOn } : null }, postTurn, (w) => (this.progress = w));
       this.runs = { ...this.runs, [agent]: run };
+      this.runRead = { ...this.runRead, [agent]: on };
     } catch (e) {
       this.agentError = e instanceof Error ? e.message : "The agent couldn't finish.";
     } finally {

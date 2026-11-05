@@ -1659,6 +1659,23 @@ The what-ifs: 310 days with a 5.9 km path, or 219,268 m³ of room for 231,436 m�
   that move little earth give the same days and path every time, and differ by a little over 100 m³ of earth at most. "Most room" is
   less settled: the lawful one lands at 123,000 to 126,000 m³ of room, moving 130,000 to 142,000 m³, with 249 to 261 days.
 
+**E5 built (5 November; waiting for the user's check).** The Design step finds the options off the main thread
+(`engine/focus/edgeworker.ts`) and lists them, lawful and what-if, each with its numbers. Choosing one draws it on the map and section
+and shows it against today in the inspector. Choosing a stretch shows what the option does there and the limits checked on it. Trying a
+precedent by hand is still there, folded, and stops showing the option.
+
+- **The river on the section.** A slider from below an ordinary day to a metre above the record, with buttons for an ordinary day and each
+  mark. It says how far the water comes in, how far the path stands from it, how much of the design's path is under and how many days a year the
+  river stands that high. It's a level, not a flood model: water is flat across the section and stops at the first higher ground, so a
+  hollow behind a rise reads dry.
+- **What agents can read.** `edge_stretches`, `design_options` and `design_stretch`, read-only, with the same check on numbers and with
+  no tool to change a design. The rules checker and critic are asked to read the options, and the Design step offers both. A report says which
+  option was on show. **These have only run on a stand-in model**, as with F3, because there's no OpenRouter key here.
+- **Choices made while building, to review.** The search runs when asked, since it takes about 15 s in the browser. A stakeholder's decision clears
+  the options, since it can change the ground, and they have to be found again. Options aren't saved across a reload.
+- **F5 is done, apart from the user's check.** Still open: the gauge's record, a survey, whether a path or planting counts as construction, whether
+  a path may pass the monuments, and who farms or uses the ground planting would take. Nothing here is hydraulically modelled.
+
 ---
 
 ## A1 log (2026-10-21): quick visual fixes

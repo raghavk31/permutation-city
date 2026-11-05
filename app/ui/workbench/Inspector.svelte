@@ -123,7 +123,7 @@
   {#if bench.focused && bench.step === "design" && focus.scores.length}
     <div class="wb-sub">
       <!-- COPY: the design against today -->
-      <span class="wb-label">This design against today</span>
+      <span class="wb-label">{focus.option ? `${focus.option.words}${focus.option.works === "hard" ? ", a what-if" : ""}, against today` : "This design against today"}</span>
       <ul class="wb-today">
         {#each focus.scores as s (s.key)}
           <li>

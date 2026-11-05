@@ -4,11 +4,11 @@
   // (docs/architecture-v3.md section 15, F3).
   import { AGENTS, type AgentId } from "../../agents/roles";
   import { effectOf, roleWords, ROLES, standing } from "../../engine/focus/decisions";
+  import AgentPanel from "./AgentPanel.svelte";
   import { bench } from "./bench.svelte";
 
   const f = bench.focus;
   const AGENT_IDS = Object.keys(AGENTS) as AgentId[];
-  const KIND = { measured: "measured", sourced: "from a source", assumed: "assumed", question: "for a person to answer" } as const;
 
   // The form open on one stay at a time.
   let open = $state<string | null>(null);
@@ -91,36 +91,6 @@
       {/if}
     </div>
 
-    <div class="wb-sub">
-      <span class="wb-label">Ask the agents</span>
-      <p class="wb-hint">Each reads the place through the engine's measures. A finding with a number no measure returned, or a source not on record, is taken out and shown to you. Each run costs money on the model account.</p>
-      {#each AGENT_IDS as a (a)}
-        {@const run = f.runs[a]}
-        <div class="wb-agent">
-          <button class="wb-btn is-quiet" type="button" disabled={!!f.running} onclick={() => f.ask(a)}>
-            {f.running === a ? `${AGENTS[a].words}: reading${f.progress ? ` (${f.progress})` : ""}` : run ? `Ask the ${AGENTS[a].words.toLowerCase()} again` : `Ask the ${AGENTS[a].words.toLowerCase()}`}
-          </button>
-          {#if !run}<p class="wb-hint">{AGENTS[a].does}</p>{/if}
-          {#if run}
-            <p>{run.summary}</p>
-            <ul class="wb-stays">
-              {#each run.findings as x}
-                <li>
-                  <p>{x.claim}</p>
-                  <span class="wb-tag">{KIND[x.kind]}</span>
-                  {#if x.source}<a class="wb-hint" href={x.source} target="_blank" rel="noreferrer">Source</a>{/if}
-                </li>
-              {/each}
-            </ul>
-            {#if run.removed.length}
-              <details class="wb-group"><summary>Taken out by the check<span class="wb-meta">{run.removed.length}</span></summary>
-                <ul class="wb-plain">{#each run.removed as r}<li>{r.claim} <b>{r.why}</b></li>{/each}</ul>
-              </details>
-            {/if}
-          {/if}
-        </div>
-      {/each}
-      {#if f.agentError}<p class="wb-hint" role="alert">{f.agentError}</p>{/if}
-    </div>
+    <AgentPanel agents={AGENT_IDS} intro="Each reads the place through the engine's measures." />
   </div>
 {/if}
