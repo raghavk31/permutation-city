@@ -1,17 +1,46 @@
 <script lang="ts">
   // The design step, so far: each bank's stretches to choose from, and how far the heights hold.
   import { MONTHS } from "../../engine/focus/river";
+  import { LIBRARY } from "../../engine/typology/library";
+  import { EDGE_SECTIONS } from "../../engine/typology/library/edgesections";
   import { bench } from "./bench.svelte";
   import { LAW_WORDS, mainStop, ROOM_WORDS, STOP_WORDS } from "./edgewords";
 
   const f = bench.focus;
   const km = (m: number) => (m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`);
   const signed = (v: number) => `${v > 0 ? "+" : ""}${v}`;
+  const members = Object.keys(EDGE_SECTIONS).map((id) => ({ id, name: LIBRARY.find((p) => p.id === id)?.name ?? id }));
 </script>
 
 {#if f.edge}
   <div class="wb-panel">
-    <p class="wb-hint">Nothing is designed yet. Pick a stretch, or click the bank on the map, to see its real section.</p>
+    <p class="wb-hint">Nothing is designed yet. Pick a stretch, or click the bank on the map, to see its real section, then try a precedent's section on it.</p>
+
+    {#if f.stretchOn}
+      <div class="wb-sub">
+        <!-- COPY: trying a section -->
+        <span class="wb-label">Try a section on {f.stretchOn}</span>
+        <div class="wb-seg">
+          <button type="button" aria-pressed={f.works === "soft"} onclick={() => (f.works = "soft")}>Lawful</button>
+          <button type="button" aria-pressed={f.works === "hard"} onclick={() => (f.works = "hard")}>What-if</button>
+        </div>
+        <div class="wb-chips">
+          <button class="wb-chip" type="button" aria-pressed={f.tryFrom === null} onclick={() => (f.tryFrom = null)}>Today</button>
+          {#each members as m (m.id)}
+            <button class="wb-chip" type="button" aria-pressed={f.tryFrom === m.id} onclick={() => (f.tryFrom = m.id)}>{m.name}</button>
+          {/each}
+        </div>
+        <p class="wb-hint">These are starting points, not designs: the search comes later. Most of their section numbers are assumed.</p>
+        {#if f.fit}
+          <ul class="wb-checks">
+            {#each f.fit.checks as c (c.id)}
+              <li class:broken={!c.holds}><b>{c.holds ? "Holds" : "Breaks"}: {c.words}</b><span>{c.found}</span></li>
+            {/each}
+          </ul>
+          {#each f.fit.notes as n}<p class="wb-hint">{n}</p>{/each}
+        {/if}
+      </div>
+    {/if}
     {#each f.edge.banks as b (b.id)}
       <div class="wb-sub">
         <span class="wb-label">{b.words}, {km(b.length)}</span>

@@ -5,6 +5,8 @@ import { type AgentRun, postTurn, runAgent } from "../../agents/run";
 import type { AgentId } from "../../agents/roles";
 import { type Choice, type Decision, record, releasedCells, type RoleId, withDecisions } from "../../engine/focus/decisions";
 import { type EdgeRead, readEdge } from "../../engine/focus/edge";
+import { fitStretch, type StretchFit, type Works } from "../../engine/focus/edgeform";
+import { edgeShapeOf } from "../../engine/typology/openshape";
 import { checkBrief, lineIndex, type Place, type Stay } from "../../engine/focus/place";
 import { checkRecords, type RecordCheck, riverYear, type RiverYear } from "../../engine/focus/river";
 import { type Today, todayOf } from "../../engine/focus/today";
@@ -35,6 +37,10 @@ export class FocusStep {
   stretchOn = $state<string | null>(null);
   stationOn = $state<{ bank: number; k: number } | null>(null);
 
+  /** A precedent's section to try on the chosen stretch, and which class of work. */
+  tryFrom = $state<string | null>(null);
+  works = $state<Works>("soft");
+
   /** Stakeholders' decisions, oldest first. Only ever added to. */
   decisions = $state.raw<Decision[]>([]);
   /** The role the person is deciding as. */
@@ -53,6 +59,12 @@ export class FocusStep {
   year = $derived.by((): RiverYear | null => (this.place ? riverYear(this.place) : null));
   /** The banks, read. Only made when the design step asks. */
   edge = $derived.by((): EdgeRead | null => (this.place ? readEdge(this.place, this.decisions.length ? this.released : null) : null));
+  /** The chosen precedent's section, fitted to the chosen stretch. */
+  fit = $derived.by((): StretchFit | null => {
+    const shape = this.tryFrom ? edgeShapeOf(this.tryFrom) : null;
+    if (!this.place || !this.edge || !shape || !this.stretchOn || !this.stationOn) return null;
+    return fitStretch(this.place, this.edge, this.stationOn.bank, this.stretchOn, shape, this.works);
+  });
   records = $derived.by((): RecordCheck[] => (this.place ? checkRecords(this.place) : []));
 
   async open(id: string, mark?: number) {
@@ -71,6 +83,8 @@ export class FocusStep {
     this.ruleOn = null;
     this.stretchOn = null;
     this.stationOn = null;
+    this.tryFrom = null;
+    this.works = "soft";
     this.decisions = this.load(id);
     this.runs = {};
     this.agentError = "";

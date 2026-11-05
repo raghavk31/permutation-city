@@ -37,7 +37,7 @@ export interface Station {
   /** A unit vector pointing inland. */
   nx: number; ny: number;
   /** The ground inland of the bank, to a little past where it rises above the line. Null: no reading. */
-  ground: { d: number; z: number | null }[];
+  ground: { d: number; z: number | null; trees?: number }[];
   /** The surface out from the bank toward the water: flattened water or a bar, not a measured bed. */
   out: { d: number; z: number | null }[];
   /** Metres of ground a design could use here, and what ends it. */
@@ -213,8 +213,8 @@ function readStation(ctx: Shared, bank: 1 | 2, s: number, x: number, y: number, 
   for (let d = 0; d <= MAX_REACH_M; d += STEP_M) {
     const px = x + nx * d, py = y + ny * d, [bx0, by0, bx1, by1] = place.meta.box;
     if (px < bx0 || px > bx1 || py < by0 || py > by1) { if (reach < 0) { reach = d; stop = "box"; } break; }
-    ground.push({ d, z: cells.ground(px, py) });
     const i = cells.nearest(px, py);
+    ground.push({ d, z: cells.ground(px, py), trees: i >= 0 ? c.trees[i] : 0 });
     const wet = d >= CLEAR_OF_RIVER_M && (inRings(river.rings, px, py) || (i >= 0 && !!c.tank[i]));
     if (wet) { if (reach < 0) { reach = d; stop = "water"; } break; }
     const isAbove = i >= 0 && c.band[i] > line + 1;

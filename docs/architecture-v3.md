@@ -1574,6 +1574,28 @@ stretches, a real section at any station, and how far the heights hold (`engine/
   stretch's hectares are approximate. "A view holds trees down" assumes a 10 m tree, for E2 to replace
   with a planting's real height.
 
+**E2 built (5 November; waiting for the user's check).** On a chosen stretch, any of the ten precedents can
+be tried, lawful or what-if, and drawn over today's ground with the earth it moves, its path and what it
+plants, with each limit checked on the result (`engine/focus/edgeform.ts`).
+
+- **How a shape fits.** How far and how far down come from the place; the rest are genes. Levels hold along
+  the stretch, as a terrace does, and meet today's ground at both ends of what's reshaped. The output is
+  vector: pieces with levels and works class per section, and lines along the bank for each level and the path.
+- **Choices made while building, all assumptions to review.** Cell tree cover of 5% or more keeps its ground,
+  because only cover is known, so a section reshapes its longest tree-free run. A stretch reshapes only if half
+  of it can take the levels: one free section is a hole, not a terrace. Levels sink together until no earth is
+  added below the record flood. Ground falling away from the river is left alone. Beside a monument, nothing is
+  hard even as a what-if, which goes further than the plan said. A bank steeper than 1 in 3 counts as hard, since
+  it needs a facing. Planting is by kind and assumed height, with species left to F6.
+- **Checks.** All ten precedents on all 25 stretches both ways (500 fits): river, buildings and streets, earth,
+  views, trees, banks and law all hold. They caught real errors while building, including stale levels making
+  banks too steep.
+- **What it shows, for E3 and E4.** Precedents copied blindly move a lot of earth: Adyar on B4 digs about 15,600 m³
+  and places 13,600 m³ on nearly flat ground. Nothing scores that yet, so earthworks need a cost.
+- **Open: the bank's face.** A design stops at the mapped bank because the river's course and bed stay. Terrain is
+  coarse enough that the fall from there to the water doesn't show: on B4 the design's lowest level is about 150 m
+  and an ordinary river about 146.5 m. So as it stands, no lawful section brings anyone down to the water.
+
 ---
 
 ## A1 log (2026-10-21): quick visual fixes
