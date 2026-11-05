@@ -15,6 +15,8 @@ const TREE_MIN_M = 5;                  // planting this tall gives shade
 const SAMPLE_M = 5;
 const WATER_NEAR_M = 50;               // the water is this close to the bank in its wettest clear month
 const REACH_ABOVE_M = 1;               // ground this far above an ordinary day's river still reaches it, near enough
+export const CLOSE_M = 30;              // a path this near the bank is beside the river, near enough (assumed)
+export const WHEELCHAIR_SLOPE = 1 / 20;   // a path steeper than this counts as a ramp, needing landings and rails (assumed: the usual limit, not yet read for India)
 
 export interface Score {
   key: string; words: string; unit: string; evidence: Evidence;
@@ -116,6 +118,61 @@ function networkWith(place: Place, stations: At[], base: Walk): { net: Walk; way
 
 const flat = (l: Line) => l.flatMap((p) => [p[0], p[1]]);
 
+/** Each pair of neighbouring stations on one bank where both have a path, with the slope between them. */
+export function pathJoins(read: EdgeRead, fits: StretchFit[]): { stretches: [string, string]; rise: number; run: number; slope: number }[] {
+  const out: { stretches: [string, string]; rise: number; run: number; slope: number }[] = [];
+  const byStretch = new Map(fits.map((f) => [f.stretch.id, f]));
+  for (const b of read.banks) {
+    let last: { id: string; x: number; y: number; z: number; k: number } | null = null;
+    for (const s of b.stretches) {
+      const f = byStretch.get(s.id);
+      for (let k = s.stations[0]; k <= s.stations[1]; k++) {
+        const t = b.stations[k], p = f?.sections.find((x) => x.k === k)?.path;
+        if (!p) { last = null; continue; }
+        const here = { id: s.id, x: t.x + t.nx * p.d, y: t.y + t.ny * p.d, z: p.z, k };
+        if (last && last.k === k - 1) {
+          const run = Math.hypot(here.x - last.x, here.y - last.y), rise = Math.abs(here.z - last.z);
+          out.push({ stretches: [last.id, s.id], rise, run, slope: run > 0 ? rise / run : 0 });
+        }
+        last = here;
+      }
+    }
+  }
+  return out;
+}
+
+/** One stretch's share of the measures, at the worst of the river's three levels. The search reads
+ *  this, so it can't want something the score panel doesn't count. */
+export interface StretchSums { days: number; close: number; water: number; room: number; planted: number; paved: number; seats: number; shade: number; earth: number }
+
+export function stretchSums(place: Place, read: EdgeRead, fit: StretchFit, base: Walk): StretchSums {
+  const b = read.banks.find((x) => x.stretches.some((s) => s.id === fit.stretch.id))!;
+  const stepKm = 50 / 1000, ordinary = read.datum.ordinary?.[1] ?? -Infinity;
+  const marks = place.brief.marks, record = marks[marks.length - 1].m;
+  const here: At[] = fit.sections.map((s) => ({ t: b.stations[s.k], fit, k: s.k, surface: s.vertices }));
+  const today: At[] = here.map((a) => ({ t: a.t, fit: null, k: a.k, surface: a.t.ground.filter((g) => g.d <= a.t.reach && g.z !== null).map((g) => ({ d: g.d, z: g.z! })) }));
+  const points = here.map((a) => walkPoint(a, base));
+  const worst = (f: (rise: number) => number) => Math.min(...RISES.map(f));
+  const days = worst((rise) => points.reduce((sum, w) => sum + (w ? (365 - daysAbove(place, w.z, rise)) / 365 : 0), 0) * stepKm);
+  const water = worst((rise) => here.filter((a, i) => {
+    const foot = a.surface[0]?.z;
+    return points[i] && a.t.toWaterHigh !== null && a.t.toWaterHigh <= WATER_NEAR_M && foot !== undefined && foot <= ordinary + REACH_ABOVE_M + rise;
+  }).length * stepKm);
+  const room = worst((rise) => here.reduce((sum, a, i) => sum + (roomBelow(a, record + rise) - roomBelow(today[i], record + rise)) * 50, 0));
+  let planted = 0, paved = 0, seats = 0, shade = 0;
+  const close = fit.sections.filter((s) => s.path && s.path.d <= CLOSE_M).length * stepKm;
+  const len = fit.stretch.length / Math.max(1, fit.sections.length);
+  for (const s of fit.sections) for (const e of s.elements) {
+    const w = e.d1 - e.d0;
+    if (e.planting) planted += (w * len * fit.shape.trees) / 1e4;
+    if (e.works === "hard") paved += (w * len) / 1e4;
+    const rise = e.z1 - e.z0;
+    if ((e.kind === "wall" || e.kind === "bank") && rise >= SEAT_LO_M && rise <= SEAT_HI_M) seats += len;
+  }
+  here.forEach((a, i) => { const w = points[i]; if (w) shade += coverAt(a, w.d) * stepKm; });
+  return { days, close, water, room, planted, paved, seats, shade, earth: fit.cut + fit.fill };
+}
+
 /** Every measure, for today and for a design made of these fitted stretches. */
 export function scoreEdge(place: Place, read: EdgeRead, fits: StretchFit[], base: Walk): Score[] {
   const none = eachStation(read, []), withD = eachStation(read, fits);
@@ -209,6 +266,9 @@ export function scoreEdge(place: Place, read: EdgeRead, fits: StretchFit[], base
     }
   }
   for (const a of withD) if (section(a)?.path && a.t.view !== null) margin = Math.min(margin, a.t.view);
+  const joins = pathJoins(read, fits), steepJoins = joins.filter((j) => j.slope > WHEELCHAIR_SLOPE);
+  const steepest = joins.reduce((m, j) => Math.max(m, j.slope), 0);
+  const closeKm = pathStations.filter((a) => section(a)!.path!.d <= CLOSE_M).length * stepKm;
 
   // COPY: the measures a design is held to
   return [
@@ -221,6 +281,11 @@ export function scoreEdge(place: Place, read: EdgeRead, fits: StretchFit[], base
     { key: "path_km", words: "Path along the river", unit: "km", evidence: "map", better: "up",
       today: null, design: r1(pathStations.length * stepKm),
       note: `Longest unbroken run ${r1(longest * stepKm)} km. Today's isn't counted: the map can't say which lines along the bank you may walk. Nothing passes the Taj's own stretch without a decision there.` },
+    { key: "path_close", words: "Path beside the river", unit: "km", evidence: "map", better: "up",
+      today: null, design: r1(closeKm), note: `Within ${CLOSE_M} m of the mapped bank. In the dry months the water itself can be far beyond that, across sand. Today's isn't counted: the map can't say which lines you may walk.` },
+    { key: "path_steep", words: "Lengths of path too steep for a wheelchair", unit: "", evidence: "estimate", better: "down",
+      today: null, design: steepJoins.length,
+      note: `Of ${joins.length} lengths of about 50 m along the path, steeper than 1 in ${Math.round(1 / WHEELCHAIR_SLOPE)}${steepest > 0 ? `; the steepest is 1 in ${Math.max(1, Math.round(1 / steepest))}` : ""}. Satellite terrain makes this rough. The ways in from the streets aren't checked, because the map has no street heights.` },
     { key: "ways_in", words: "Ways in from a street", unit: "", evidence: "map", better: "up",
       today: null, design: ways, note: `At most one per ${LINK_EVERY_M} m, from the nearest mapped street. Gates and fences aren't on the map.` },
     { key: "buildings_10", words: "Buildings within a 10-minute walk of the edge", unit: "%", evidence: "map", better: "up",

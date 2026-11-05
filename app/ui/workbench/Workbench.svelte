@@ -95,7 +95,8 @@
   };
   const crumb = $derived(bench.focused ? bench.focus.place?.meta.name ?? exerciseOf(bench.exercise)!.name : bench.site ? bench.site.meta.name : bench.exercise ? "No site yet" : "Choose an exercise");
   // COPY: run status
-  const pill = $derived(bench.focused ? "Nothing designed yet" : bench.running ? `Running: generation ${bench.runGen} of ${bench.settings.generations}` : bench.result ? `Run done: ${bench.result.frontSize} on the front` : "No run yet");
+  const sectioned = $derived(Object.keys(bench.focus.choices).length);
+  const pill = $derived(bench.focused ? (sectioned ? `Sections tried on ${sectioned} ${sectioned === 1 ? "stretch" : "stretches"}` : "Nothing designed yet") : bench.running ? `Running: generation ${bench.runGen} of ${bench.settings.generations}` : bench.result ? `Run done: ${bench.result.frontSize} on the front` : "No run yet");
 </script>
 
 <div class="wb-narrow">

@@ -220,9 +220,14 @@ function earth(t: Station, v: { d: number; z: number }[], a: number, b: number, 
 
 const mid = (v: number[]) => { const s = [...v].sort((p, q) => p - q); return s[Math.floor((s.length - 1) / 2)]; };
 
+/** Choices that come from the place rather than the precedent. keepGround: only a path and planting, even
+ *  where the levels would fit. pathD: where a path at grade runs, metres from the bank; the middle if unset. */
+export interface FitOptions { keepGround?: boolean; pathD?: number }
+
 /** Fit a shape to a stretch. The levels hold along the stretch, as a terrace does, and sink together
  *  until no earth is added below the line. What can't take them keeps its ground. */
-export function fitStretch(place: Place, read: EdgeRead, bankId: number, stretchId: string, shape0: Shape, works: Works): StretchFit {
+export function fitStretch(place: Place, read: EdgeRead, bankId: number, stretchId: string, shape0: Shape, works: Works, options: FitOptions = {}): StretchFit {
+  const { keepGround = false, pathD } = options;
   const bank = read.banks.find((b) => b.id === bankId);
   const stretch = bank?.stretches.find((s) => s.id === stretchId);
   if (!bank || !stretch) throw new Error(`no stretch ${stretchId} on bank ${bankId}`);
@@ -237,7 +242,7 @@ export function fitStretch(place: Place, read: EdgeRead, bankId: number, stretch
   const worksHere: Works = hardHere ? "hard" : "soft";
 
   const plans: Plan[] = [];
-  if (stretch.room !== "none" && !lawOnlyPlants) for (const { t, k } of span) {
+  if (stretch.room !== "none" && !lawOnlyPlants && !keepGround) for (const { t, k } of span) {
     const w = freeWindow(t);
     if (!w) continue;
     const toe = existingAt(t, w[0]), top = existingAt(t, w[1]);
@@ -290,7 +295,7 @@ export function fitStretch(place: Place, read: EdgeRead, bankId: number, stretch
     const onLevel = s.mode === "reshape" && pathLevel !== null
       ? s.elements.find((e) => e.kind === "tread" && Math.abs(e.z0 - pathLevel) < 0.5 && e.d1 - e.d0 >= PATH_M) ?? s.elements.filter((e) => e.kind === "tread" && e.d1 - e.d0 >= PATH_M).sort((p, q) => Math.abs(p.z0 - pathLevel) - Math.abs(q.z0 - pathLevel))[0] : undefined;
     if (onLevel) s.path = { d: (onLevel.d0 + onLevel.d1) / 2, z: onLevel.z0 };
-    else if (t.reach >= PATH_M) { const d = t.reach / 2, z = existingAt(t, d); if (z !== null) s.path = { d, z }; }
+    else if (t.reach >= PATH_M) { const d = Math.min(pathD ?? t.reach / 2, t.reach), z = existingAt(t, d); if (z !== null) s.path = { d, z }; }
   }
 
   const len = stretch.length / Math.max(1, span.length);
@@ -319,7 +324,8 @@ export function fitStretch(place: Place, read: EdgeRead, bankId: number, stretch
   if (worksHere === "soft" && mode !== "none") fit.notes.push("Assumes planting, earth paths and reshaping with no earth added aren't construction. Nobody has read that in the rules yet.");
   if (worksHere === "hard") fit.notes.push("A what-if: stone and walls aren't allowed by the rules as reported.");
   if (stretch.law === "regulated" && mode !== "none") fit.notes.push("Near a monument: this would need permission.");
-  if (mode === "plant" && !lawOnlyPlants && stretch.room !== "none") fit.notes.push("The ground here can't take these levels (trees, or too steep or flat for them), so it stays as it is.");
+  if (keepGround && mode === "plant" && !lawOnlyPlants) fit.notes.push("The ground stays as it is, and only a path and planting are added.");
+  else if (mode === "plant" && !lawOnlyPlants && stretch.room !== "none") fit.notes.push("The ground here can't take these levels (trees, or too steep or flat for them), so it stays as it is.");
   return fit;
 }
 

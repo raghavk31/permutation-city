@@ -14,7 +14,7 @@
 
 {#if f.edge}
   <div class="wb-panel">
-    <p class="wb-hint">Nothing is designed yet. Pick a stretch, or click the bank on the map, to see its real section, then try a precedent's section on it.</p>
+    <p class="wb-hint">Pick a stretch, or click the bank on the map, to see its real section, then try a precedent's section on it.</p>
 
     {#if f.stretchOn}
       <div class="wb-sub">

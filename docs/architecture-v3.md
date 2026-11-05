@@ -1621,6 +1621,44 @@ inspector shows the design against today, with each measure's evidence and the r
 - **Departures from the plan.** Shade is cover overhead, not the hot-afternoon model, which reads streets and buildings.
   A path at grade over kept ground is assumed to lose no trees, since only cover is known.
 
+**E4 built (5 November; waiting for the user's check).** Each stretch starts from the ten members and the ground left alone,
+and searches its genes; a pass along each bank then chooses a chain that joins well, with a cost for changing level and for
+slopes a wheelchair can't use (`engine/focus/edgesearch.ts`). It reads each stretch's share of the same measures the score panel
+shows, at the river's worst of three levels, and a test holds the two together. Eight options, about 12 s, not yet on screen (E5).
+
+| Lawful | Days walkable (at a metre either way) | Path beside the river, of 4.8 km | Room for flood water | Earth moved | New planting |
+|---|---|---|---|---|---|
+| Today | 132 (129 to 134) | not counted | | | |
+| A path, and little else | 276 (267 to 282) | 0.6 km | 0 | 0 | 0 |
+| Close to the river | 246 (227 to 263) | 4.8 km | 53 m³ | 625 m³ | 0.2 ha |
+| Most planted | 249 (233 to 265) | 3.6 km | 0 | 0 | 60.5 ha |
+| Most room for the river | 261 (243 to 270) | 2.5 km | 123,096 m³ | 142,014 m³ | 3.1 ha |
+
+The what-ifs: 310 days with a 5.9 km path, or 219,268 m³ of room for 231,436 m³ of earth and 15.7 ha of stone.
+
+- **Finding 1: nothing measured here pays for moving earth, except room for flood water.** Most stretches are left at today's
+  ground with only a path. This doesn't come from the earth cost: with earth free, walkable days stay at 276 and bank reaching the
+  water stays at 0.8 km. Free earth buys only flood room and places to sit. A higher path is dry more days, and digging lowers it.
+- **Finding 2: the trade is where the path runs.** High and inland, 276 days and 0.6 km beside the river. Beside the bank, 246 days
+  and 4.8 km. That's a decision for people, so both are options.
+- **Finding 3: "most room" isn't a flood remedy.** 123,000 m³ is about 17 s of the record flood's flow, at the roughly 7,300 m³/s our
+  own rough fit gives for 154.76 m, and it has to be carried off the floodplain, about 12,000 loads at 10 m³. If lowering ground
+  helps a flood, it's by giving it a wider way through, which only a hydraulic model can show, and that's outside F5.
+- **Finding 4: the what-ifs' biggest gain isn't stone.** Their path runs on past the monuments, 1.1 km more, which is what lifts days
+  from 276 to 310, and that one has no hard works at all. The question for stakeholders is whether a path may pass the monuments.
+- **What the search doesn't see.** Measures favour what can be counted: being down at the water's level, and how a place feels, aren't
+  scored, so this doesn't show terraces are worthless. The terrain is satellite, a cell with 5% tree cover keeps its ground (which rules
+  out most reshaping near the water), and the weights are assumed, named in the code. Bank reaching the water reads 0.8 km in every
+  option, so the "close to the river" option gets its path beside the bank and no more of the water.
+- **Choices made while building, to review.** The score now counts a path within 30 m of the bank, since a path 150 m inland read the
+  same as a riverside one. The search can place a path at grade, where it was fixed at the middle of the ground. Planting is a small
+  cost outside "most planted", since it takes ground that's often farmed or used. Lawful reshaped earth is planted at 10% or more, since
+  bare earth won't hold. 1 in 20 is taken as a wheelchair's limit, assumed and not read for India. Ways in from streets aren't checked,
+  because the map has no street heights.
+- **Checks.** No limit breaks on any option. Every option beats today at all three river levels. Five seeds agree: the three directions
+  that move little earth give the same days and path every time, and differ by a little over 100 m³ of earth at most. "Most room" is
+  less settled: the lawful one lands at 123,000 to 126,000 m³ of room, moving 130,000 to 142,000 m³, with 249 to 261 days.
+
 ---
 
 ## A1 log (2026-10-21): quick visual fixes

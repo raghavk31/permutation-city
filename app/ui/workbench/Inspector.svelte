@@ -31,7 +31,7 @@
     site: { title: "Place: where this happens", text: "Pick a real place. Its buildings, streets, water and ground come from open data, and stay as they are until someone decides otherwise.", svg: () => Iso.exerciseRiver().svg },
     read: { title: "Read the place: what's there today", text: "What could change depends on how high the river rises. Everything is measured as it stands today, so a design can be held against it.", svg: () => Iso.riverLevels().svg },
     stays: { title: "What stays", text: "Monuments, homes and the law's limits. The tool proposes what stays and says why; stakeholders decide.", svg: () => Iso.exerciseRiver().svg },
-    design: { title: "Design: the river's edge", text: "Each bank is read every 50 m and cut into stretches that need different designs. Nothing is designed yet: this is the ground a design has to fit.", svg: () => Iso.riverLevels().svg },
+    design: { title: "Design: the river's edge", text: "Each bank is read every 50 m and cut into stretches that need different designs. This is the ground a design has to fit.", svg: () => Iso.riverLevels().svg },
   };
   const intro = $derived((bench.focused || bench.step === "exercise" ? FOCUS_INTRO[bench.step] : null) ?? INTRO[bench.step]);
   const svg = $derived(intro ? intro.svg() : "");
