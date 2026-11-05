@@ -28,6 +28,7 @@ export function deepest(s: NonNullable<VectorPlan["shared"]>["spaces"][number]):
     case "field": return g.sunk ?? 0;
     case "basin": case "linear": return g.depth ?? 0;
     case "stepped": return (g.depth ?? 0) * Math.sqrt(s.area / (g.aspect ?? 1)) * (g.wet ?? 1);
+    case "edge": return (g.drop ?? 0) * (g.wet ?? 1);
     default: return 0;
   }
 }

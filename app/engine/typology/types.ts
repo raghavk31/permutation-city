@@ -74,6 +74,7 @@ export const OPEN_FAMILIES = {
   stepped: "Sunk or stepped",
   basin: "Basin or wetland",
   linear: "Along a flow line",
+  edge: "At the river's edge",
   canopy: "Shade over open ground",
   field: "Open field",
   doorstep: "At the door",

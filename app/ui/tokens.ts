@@ -38,7 +38,7 @@ export const tokens = {
   frontage: { active: "#c98a2b", residential: "#a39f96", green: "#2f8a85", lake: "#3d74b0" },
   /** Public spaces by family (typology/types.ts OPEN_FAMILIES): water spaces in blues, green
    *  ground in greens, shade and doorsteps warm. */
-  publicFamily: { stepped: "#5b8fc9", basin: "#2f5f9e", linear: "#2f8a85", canopy: "#6f8f3e", field: "#a3c27a", doorstep: "#d98340", street: "#a39f96" },
+  publicFamily: { stepped: "#5b8fc9", basin: "#2f5f9e", linear: "#2f8a85", edge: "#3f7f9e", canopy: "#6f8f3e", field: "#a3c27a", doorstep: "#d98340", street: "#a39f96" },
   /** Street roles (plan/streetroles.ts ROLES order): walking-pace streets warm, neighbourhood
    *  streets neutral and green, through streets violet; overflow streets dashed in water blue. */
   streetRole: { laneway: "#e9b07a", "shared-home": "#d98340", "shared-shops": "#b5562b", residential: "#a39f96", parkside: "#2f8a85",

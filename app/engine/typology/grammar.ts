@@ -16,7 +16,7 @@
 
 export type Arrangement =
   | "row" | "ring" | "court" | "cluster" | "slab" | "tower"
-  | "sunken" | "terraces" | "ponds" | "shed" | "canopy";
+  | "sunken" | "terraces" | "ponds" | "shed" | "canopy" | "edge";
 
 export type Roof = "flat" | "gable" | "cone" | "dome" | "vault" | "mono" | "saddle";
 
@@ -103,6 +103,11 @@ export interface Params {
   /** Water standing this deep in a storm or the wet season (m): above a pit's floor, over a
    *  terrace's steps, or over flat ground. The wet day of a public space (library/open.ts). */
   fill?: number;
+  /** A river's edge in section, street first (arrangement "edge"; openshape.ts edgeSection): each
+   *  level's height, tread, bank run, and the height its bank is drawn at. */
+  tiers?: { z: number; tread: number; bank: number; below: number }[];
+  /** How much of the river to draw in front of an edge (m). */
+  river?: number;
   /** Trees on the open ground: a homegarden, a planted court, willows on a chinampa. */
   trees?: number;
   /** A tree's crown radius (m); by default trees come in mixed sizes. Drawn trees are three
@@ -329,6 +334,23 @@ export function build(p: Params): Built {
       W = L; D = n * p.depth;
       break;
     }
+    case "edge": {
+      // A river's edge in section, from the street down to the water: each tier a flat tread at its
+      // level and a planted bank below it (none where it's a wall). The river lies in front.
+      const L = p.width, tiers = p.tiers ?? [], river = p.river ?? 12, face = p.surface === "green" ? "green" : "ground";
+      let y = 0;
+      for (const t of tiers) {
+        S.push({ ring: rect(0, y, L, t.tread), z: 0, h: t.z, use: face });
+        if (t.bank > 0) S.push({ ring: rect(0, y + t.tread, L, t.bank), z: 0, h: t.below, use: face });
+        // the flood stands over whatever's lower than it, the tread and its bank apart
+        if (p.fill && p.fill > t.z) S.push({ ring: rect(0, y, L, t.tread), z: t.z, h: p.fill - t.z, use: "water" });
+        if (p.fill && t.bank > 0 && p.fill > t.below) S.push({ ring: rect(0, y + t.tread, L, t.bank), z: t.below, h: p.fill - t.below, use: "water" });
+        y += t.tread + t.bank;
+      }
+      S.push({ ring: rect(0, y, L, river), z: -0.3, h: 0.3 + (p.fill ?? 0), use: "water" });
+      W = L; D = y + river;
+      break;
+    }
     case "ponds": {
       // A grid of ponds or beds between bunds or canals (chinampas, bheris).
       // rain beds (surface green): planted, water standing in them only on a wet day
@@ -374,7 +396,7 @@ export function build(p: Params): Built {
   features(p, S, fh, z0, W, D);
 
   // flat ground under water (a square, a field, a street in a storm); pits and terraces fill above
-  if (p.fill && p.arrangement !== "sunken" && p.arrangement !== "terraces" && !(p.arrangement === "ponds" && p.surface === "green")) S.push({ ring: rect(0, 0, W, D), z: 0, h: p.fill, use: "water" });
+  if (p.fill && p.arrangement !== "sunken" && p.arrangement !== "terraces" && p.arrangement !== "edge" && !(p.arrangement === "ponds" && p.surface === "green")) S.push({ ring: rect(0, 0, W, D), z: 0, h: p.fill, use: "water" });
 
   // Under a raised floor: an earth mound under the whole group, or a post at each corner.
   const mound = (p.features ?? []).some((f) => f.kind === "mound");

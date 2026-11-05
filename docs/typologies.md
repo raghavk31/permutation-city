@@ -368,6 +368,40 @@ against photographs from Wikimedia Commons except the schoolyard and Medellín (
 three drawings were corrected (the maidan's trees, Shalimar's channels, rain beds that are
 planted on a dry day). Street sections themselves (footpath, swale, carriageway) wait for P4.
 
+### River edges (5 November)
+
+For the Taj riverfront (architecture-v3 section 15, step F4): a seventh family of public space,
+"At the river's edge", with seven new entries in `app/engine/typology/library/edge.ts`: Mehtab
+Bagh and the Mughal riverfront garden (this place's own precedent), Maheshwar's ghats, Asita East
+(the same river, in Delhi), Adyar Eco Park, the Berges du Rhône and Buffalo Bayou Park. Varanasi's ghats, Yanweizhou and Room for
+the Waal also count as members while staying in their own families, so whole-city runs don't
+change.
+
+Its genes describe a section from the street to the water: reach, drop, levels, height and width
+of the lowest level, wall or bank, how steep a bank, flood height, trees (`openshape.ts`,
+`edgeSection`). That's the shape step F5 will hold against the river's real levels.
+
+**Case studies have to be sound (the user, 5 November).** A member seeds the design search, so it
+has to be worth starting from, not just well known. The Sabarmati Riverfront was first included as
+a warning and then taken out: it's a bund, concrete walls that narrow the river, and it doesn't
+take the river's nature into account. A test keeps it out (`REJECTED_EDGES`). The test for a river
+edge: it leaves the river its room, works with the flood, and doesn't push out the people there.
+
+**Hardly anyone publishes a riverfront's section.** Heights and tier widths were searched for
+and mostly not found, so `library/edgesections.ts` says for each member which numbers come from
+a figure, and the rest are starting points for a search, not measurements. The firmest rule found
+is Buffalo Bayou's bank slope (LAF case study): 3:1 or 4:1 preferred, planted 2:1 slopes failed
+in places in Harvey, coir-reinforced ones didn't.
+
+Sources disagree on: gardens in Mughal Agra (44 or 11) and Asita East's trees. Koch's book, which would have the
+terraces' dimensions, hasn't been read.
+
+Checked against Wikimedia Commons photographs: Maheshwar, Buffalo Bayou, and a Mughal river wall
+seen from Mehtab Bagh. That corrected three things: stone drawn as planted banks at Maheshwar,
+Buffalo Bayou's levels reading as paving, and Mehtab Bagh drawn as a strip. The photos found for Adyar and Lyon show
+little of the section, and none was found for Asita East or Itimad-ud-Daulah's terrace. Still not
+drawn: the Mughal wall's towers and pavilions, and Maheshwar's shrines and fort.
+
 ### Shaping open ground (3 November)
 
 Step P2 of part C: each family of public space (streets aside, they are P4) as a few genes,

@@ -1444,6 +1444,11 @@ Approved 4 November with all four proposals as they stand.
     number in it, so the prompts ask for those as questions; a live run has to test that.
   - Tested with a stand-in model only: there's no key on the development laptop. Prompt quality, cost
     per run and whether agents keep to their roles are all unknown until a real run.
+- **F4 built (5 November).** "At the river's edge", a seventh family of public space, with seven new
+  precedents and genes for a section from the street to the water (`typology/library/edge.ts`,
+  `edgesections.ts`, `openshape.ts` `edgeSection`). Details and what's unsure in `docs/typologies.md`
+  under "River edges". Nothing places this family yet, so whole-city runs are unchanged; F5 does. Most
+  section numbers are assumed, because projects rarely publish them.
 
 ---
 
