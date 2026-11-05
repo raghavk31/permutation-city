@@ -1,6 +1,6 @@
 <script lang="ts">
   // The design step, so far: each bank's stretches to choose from, and how far the heights hold.
-  import type { EdgeOption } from "../../engine/focus/edgesearch";
+  import { closestMember, type EdgeOption } from "../../engine/focus/edgesearch";
   import { MONTHS } from "../../engine/focus/river";
   import { LIBRARY } from "../../engine/typology/library";
   import { EDGE_SECTIONS } from "../../engine/typology/library/edgesections";
@@ -26,11 +26,71 @@
     at(o, "planted") >= 1 ? `${at(o, "planted")} ha planted` : "",
     at(o, "paved") ? `${at(o, "paved")} ha of stone` : "",
   ].filter(Boolean).join(", ");
-  const here = $derived(f.option?.stretches.find((s) => s.id === f.stretchOn) ?? null);
 </script>
 
 {#if f.edge}
   <div class="wb-panel">
+    {#if f.design}
+      <div class="wb-sub">
+        <!-- COPY: the design held -->
+        <span class="wb-label">Your design</span>
+        <p class="wb-hint">{f.option ? `Started from "${f.option.words}".` : "Tried by hand."} {f.whatIf.length ? `A what-if, because of ${f.whatIf.length > 6 ? `${f.whatIf.length} stretches` : f.whatIf.join(", ")}: one such stretch makes the whole design one.` : "Lawful, on the assumption that planting, earth paths and reshaping with no earth added aren't construction."} Ctrl Z undoes a change.</p>
+        {#if f.changes}
+          {#if f.changes.stretches.length}
+            <p class="wb-hint">Changed from the option: {f.changes.stretches.join(", ")}.</p>
+            <ul class="wb-checks">
+              {#each f.changes.measures as m (m.key)}
+                <li class:broken={m.better === false}><b>{m.words}</b><span>{m.from === null ? "none" : n(m.from)} to {m.to === null ? "none" : n(m.to)}{m.unit ? ` ${m.unit}` : ""}{m.better === null ? "" : m.better ? ", better" : ", worse"}</span></li>
+              {/each}
+            </ul>
+            {#if f.changes.steeper.length}<p class="wb-hint" role="status">Newly too steep for a wheelchair: {f.changes.steeper.join("; ")}.</p>{/if}
+            <button class="wb-btn is-quiet" type="button" onclick={() => f.restoreOption()}>Back to the option</button>
+          {:else}
+            <p class="wb-hint">Nothing changed yet. Pick a stretch below or on the map, and change it without touching the rest.</p>
+          {/if}
+        {/if}
+      </div>
+    {/if}
+
+    {#if !f.stretchOn}<p class="wb-hint">Pick a stretch, or click the bank on the map, to see its real section.</p>{/if}
+
+    {#if f.stretchOn}
+      <div class="wb-sub">
+        <!-- COPY: changing a stretch -->
+        <span class="wb-label">{f.stretchOn}{f.design ? " in your design" : ""}</span>
+        {#if f.fit}
+          <p class="wb-hint">{f.fit.mode === "none" ? "No room here, so it's left as it is." : f.fit.mode === "reshape" ? `Ground reshaped into ${f.fit.levels.length} ${f.fit.levels.length === 1 ? "level" : "levels"}, its section closest to ${nameOf(closestMember(f.fit.shape))}.` : "The ground stays as it is."}</p>
+        {:else if f.design}
+          <p class="wb-hint">Left as it is today, with no path.</p>
+        {/if}
+        <span class="wb-label">Change this stretch</span>
+        <div class="wb-seg">
+          <button type="button" aria-pressed={f.works === "soft"} onclick={() => f.setWorks("soft")}>Lawful</button>
+          <button type="button" aria-pressed={f.works === "hard"} onclick={() => f.setWorks("hard")}>What-if</button>
+        </div>
+        <div class="wb-chips">
+          <button class="wb-chip" type="button" aria-pressed={f.design !== null && !f.choiceHere} onclick={() => f.choose(null)}>Today</button>
+          <button class="wb-chip" type="button" aria-pressed={f.tryFrom === "kept"} onclick={() => f.keepGround()}>Keep the ground, add a path</button>
+          {#each members as m (m.id)}
+            <button class="wb-chip" type="button" aria-pressed={f.tryFrom === m.id} onclick={() => f.choose(m.id)}>{m.name}</button>
+          {/each}
+        </div>
+        <div class="wb-row-btns">
+          {#if f.option && f.changes?.stretches.includes(f.stretchOn)}<button class="wb-btn is-quiet" type="button" onclick={() => f.restoreStretch()}>Back to the option here</button>{/if}
+          <button class="wb-btn is-quiet" type="button" disabled={!members.some((m) => m.id === f.tryFrom)} onclick={() => f.chooseAll(f.tryFrom)}>Use on every stretch</button>
+          <button class="wb-btn is-quiet" type="button" disabled={!f.design} onclick={() => f.chooseAll(null)}>Clear the design</button>
+        </div>
+        <p class="wb-hint">Precedents are starting points, and most of their section numbers are assumed. Limits are checked on whatever you choose.</p>
+        {#if f.fit}
+          <ul class="wb-checks">
+            {#each f.fit.checks as c (c.id)}
+              <li class:broken={!c.holds}><b>{c.holds ? "Holds" : "Breaks"}: {c.words}</b><span>{c.found}</span></li>
+            {/each}
+          </ul>
+          {#each f.fit.notes as t}<p class="wb-hint">{t}</p>{/each}
+        {/if}
+      </div>
+    {/if}
     <div class="wb-sub">
       <!-- COPY: the search's options -->
       <span class="wb-label">Options for the whole edge</span>
@@ -39,13 +99,15 @@
         <button class="wb-btn is-primary" type="button" aria-busy={f.searching} disabled={f.searching} onclick={() => f.search()}>{f.searching ? "Searching, about 15 seconds" : "Find options"}</button>
         {#if f.searchError}<p class="wb-hint" role="alert">{f.searchError}</p>{/if}
       {:else}
+        <details class="wb-group" open={!f.design}>
+        <summary>All {f.options.length} options<span class="wb-meta">{f.design ? "choosing one replaces your design; undo brings it back" : ""}</span></summary>
         {#each [{ words: "Lawful", hint: "Planting, earth paths and reshaping with no earth added. This assumes those aren't construction, which nobody has read in the rules yet.", list: lawful }, { words: "What-if", hint: "Go beyond the rules as reported, so each needs a decision someone else would have to make.", list: whatIf }] as g (g.words)}
           <span class="wb-label">{g.words}</span>
           <p class="wb-hint">{g.hint}</p>
           <ul class="wb-stretches">
             {#each g.list as o (o.id)}
               <li>
-                <button type="button" aria-pressed={f.optionOn === o.id} onclick={() => f.showOption(f.optionOn === o.id ? null : o.id)}>
+                <button type="button" aria-pressed={f.design?.basedOn === o.id} onclick={() => f.showOption(f.design?.basedOn === o.id && !f.changes?.stretches.length ? null : o.id)}>
                   <b>{o.words}</b>
                   <span>{o.why}</span>
                   <span>{line(o)}.</span>
@@ -55,55 +117,10 @@
           </ul>
         {/each}
         <p class="wb-hint">What a direction values is assumed, and being down at the water or how a place feels isn't scored, so choose with that in mind. The measures on the right compare options; none is a survey or a flood model.</p>
+        </details>
       {/if}
     </div>
 
-    {#if f.stretchOn && f.option && f.fit}
-      <div class="wb-sub">
-        <!-- COPY: a stretch in an option -->
-        <span class="wb-label">{f.stretchOn} in this option</span>
-        <p class="wb-hint">{f.fit.mode === "none" ? "No room here, so it's left as it is." : f.fit.mode === "reshape" ? `Ground reshaped into ${f.fit.levels.length} ${f.fit.levels.length === 1 ? "level" : "levels"}${here?.like ? `, its section closest to ${nameOf(here.like)}` : ""}.` : "The ground stays as it is."}</p>
-        <ul class="wb-checks">
-          {#each f.fit.checks as c (c.id)}
-            <li class:broken={!c.holds}><b>{c.holds ? "Holds" : "Breaks"}: {c.words}</b><span>{c.found}</span></li>
-          {/each}
-        </ul>
-        {#each f.fit.notes as t}<p class="wb-hint">{t}</p>{/each}
-      </div>
-    {/if}
-
-    {#if !f.stretchOn}<p class="wb-hint">Pick a stretch, or click the bank on the map, to see its real section.</p>{/if}
-
-    {#if f.stretchOn}
-      <details class="wb-group" open={!f.options}>
-        <!-- COPY: trying a section -->
-        <summary>Try a precedent on {f.stretchOn} by hand</summary>
-        {#if f.option}<p class="wb-hint">Trying one stops showing the option above.</p>{/if}
-        <div class="wb-seg">
-          <button type="button" aria-pressed={f.works === "soft"} onclick={() => (f.works = "soft")}>Lawful</button>
-          <button type="button" aria-pressed={f.works === "hard"} onclick={() => (f.works = "hard")}>What-if</button>
-        </div>
-        <div class="wb-chips">
-          <button class="wb-chip" type="button" aria-pressed={f.tryFrom === null} onclick={() => f.choose(null)}>Today</button>
-          {#each members as m (m.id)}
-            <button class="wb-chip" type="button" aria-pressed={f.tryFrom === m.id} onclick={() => f.choose(m.id)}>{m.name}</button>
-          {/each}
-        </div>
-        <div class="wb-row-btns">
-          <button class="wb-btn" type="button" disabled={!f.tryFrom} onclick={() => f.chooseAll(f.tryFrom)}>Use on every stretch</button>
-          <button class="wb-btn" type="button" disabled={!Object.keys(f.choices).length} onclick={() => f.chooseAll(null)}>Clear all</button>
-        </div>
-        <p class="wb-hint">These are starting points, not designs. Most of their section numbers are assumed. The scores are on the right.</p>
-        {#if f.fit && !f.option}
-          <ul class="wb-checks">
-            {#each f.fit.checks as c (c.id)}
-              <li class:broken={!c.holds}><b>{c.holds ? "Holds" : "Breaks"}: {c.words}</b><span>{c.found}</span></li>
-            {/each}
-          </ul>
-          {#each f.fit.notes as t}<p class="wb-hint">{t}</p>{/each}
-        {/if}
-      </details>
-    {/if}
     {#each f.edge.banks as b (b.id)}
       <div class="wb-sub">
         <span class="wb-label">{b.words}, {km(b.length)}</span>

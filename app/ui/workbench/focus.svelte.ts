@@ -6,7 +6,8 @@ import { type AgentRun, postTurn, runAgent } from "../../agents/run";
 import type { AgentId } from "../../agents/roles";
 import { type Choice, type Decision, record, releasedCells, type RoleId, withDecisions } from "../../engine/focus/decisions";
 import { type EdgeRead, readEdge } from "../../engine/focus/edge";
-import { fitStretch, type StretchFit, type Works } from "../../engine/focus/edgeform";
+import { changesFrom, type DesignChange, designOf, type EdgeDesign, fitDesign, type StretchChoice, whatIfStretches, withStretch } from "../../engine/focus/edgedesign";
+import type { StretchFit, Works } from "../../engine/focus/edgeform";
 import { type Score, scoreEdge } from "../../engine/focus/edgescore";
 import type { EdgeOption } from "../../engine/focus/edgesearch";
 import type { EdgeWorker } from "../../engine/focus/edgeworker";
@@ -41,19 +42,21 @@ export class FocusStep {
   stretchOn = $state<string | null>(null);
   stationOn = $state<{ bank: number; k: number } | null>(null);
 
-  /** Which precedent's section each stretch tries, by stretch, and which class of work. */
-  choices = $state.raw<Record<string, string>>({});
+  /** The design a person holds, with its undo history, and the class of work a change by hand uses. */
+  design = $state.raw<EdgeDesign | null>(null);
+  past = $state.raw<(EdgeDesign | null)[]>([]);
+  future = $state.raw<(EdgeDesign | null)[]>([]);
   works = $state<Works>("soft");
 
   /** What the search found, and the option on show. */
   options = $state.raw<EdgeOption[] | null>(null);
-  optionOn = $state<string | null>(null);
   searching = $state(false);
   searchError = $state("");
   /** The river's height drawn on the section, or null for an ordinary day's. */
   riverAt = $state<number | null>(null);
 
-  option = $derived.by((): EdgeOption | null => this.options?.find((o) => o.id === this.optionOn) ?? null);
+  /** The option the design started from. */
+  option = $derived.by((): EdgeOption | null => this.options?.find((o) => o.id === this.design?.basedOn) ?? null);
   river = $derived.by((): number => this.riverAt ?? this.edge?.datum.ordinary?.[1] ?? this.place?.brief.marks[0].m ?? 0);
 
   /** Run the search off the main thread. The result stands until a decision changes the ground. */
@@ -73,23 +76,73 @@ export class FocusStep {
       this.searching = false;
     }
   }
-  /** Show one of the options, or null for what's been tried by hand. */
-  showOption(id: string | null) { this.optionOn = id; }
-
-  get tryFrom(): string | null { return this.stretchOn ? this.choices[this.stretchOn] ?? null : null; }
-  /** Try a precedent's section on the chosen stretch, or null for today's ground. */
-  choose(id: string | null) {
-    if (!this.stretchOn) return;
-    this.optionOn = null;
-    const { [this.stretchOn]: _, ...rest } = this.choices;
-    this.choices = id ? { ...rest, [this.stretchOn]: id } : rest;
+  /** Change the design, keeping what it was for undo. */
+  private hold(d: EdgeDesign | null) {
+    this.past = [...this.past, this.design];
+    this.future = [];
+    this.design = d;
   }
-  /** The same on every stretch, or clear them all. */
+  get canUndo() { return this.past.length > 0; }
+  get canRedo() { return this.future.length > 0; }
+  undo() {
+    if (!this.past.length) return;
+    this.future = [this.design, ...this.future];
+    this.design = this.past[this.past.length - 1];
+    this.past = this.past.slice(0, -1);
+  }
+  redo() {
+    if (!this.future.length) return;
+    this.past = [...this.past, this.design];
+    this.design = this.future[0];
+    this.future = this.future.slice(1);
+  }
+
+  /** Start from one of the options, or null for today. Undo brings back what was there. */
+  showOption(id: string | null) {
+    const o = this.options?.find((x) => x.id === id);
+    this.hold(o ? designOf(o) : null);
+  }
+  private change(id: string, c: StretchChoice | null) {
+    const d = withStretch(this.design ?? { basedOn: null, stretches: {} }, id, c);
+    this.hold(d.basedOn === null && !Object.keys(d.stretches).length ? null : d);
+  }
+  private fromPrecedent(id: string): StretchChoice | null {
+    const shape = edgeShapeOf(id);
+    return shape ? { shape, works: this.works, keepGround: false, pathD: undefined, from: id } : null;
+  }
+
+  get choiceHere(): StretchChoice | null { return this.stretchOn ? this.design?.stretches[this.stretchOn] ?? null : null; }
+  /** What the chosen stretch came from: a precedent's id, "kept", or an option's id. */
+  get tryFrom(): string | null { return this.choiceHere?.from ?? null; }
+  /** Change only the chosen stretch: a precedent's section, or null for today's ground. */
+  choose(id: string | null) {
+    if (this.stretchOn) this.change(this.stretchOn, id ? this.fromPrecedent(id) : null);
+  }
+  /** Change only the chosen stretch to its ground left as it is, with a path. */
+  keepGround() {
+    if (!this.stretchOn) return;
+    const shape = this.choiceHere?.shape ?? edgeShapeOf("yanweizhou");
+    if (shape) this.change(this.stretchOn, { shape, works: this.works, keepGround: true, pathD: this.choiceHere?.pathD, from: "kept" });
+  }
+  /** Put the chosen stretch back as the option had it. */
+  restoreStretch() {
+    const o = this.option, id = this.stretchOn;
+    if (o && id) this.change(id, designOf(o).stretches[id] ?? null);
+  }
+  /** Back to the option as the search found it. */
+  restoreOption() { if (this.option) this.showOption(this.option.id); }
+  /** The class of work for changes by hand; the chosen stretch takes it at once if it's been changed by hand. */
+  setWorks(w: Works) {
+    this.works = w;
+    const c = this.choiceHere;
+    if (c && this.stretchOn && !this.option?.stretches.some((s) => s.id === this.stretchOn && c.from === this.option?.id) && c.works !== w) this.change(this.stretchOn, { ...c, works: w });
+  }
+  /** One precedent on every stretch, as a design of its own, or clear the design. */
   chooseAll(id: string | null) {
-    this.optionOn = null;
-    const out: Record<string, string> = {};
-    if (id) for (const b of this.edge?.banks ?? []) for (const s of b.stretches) out[s.id] = id;
-    this.choices = out;
+    if (!id) { this.hold(null); return; }
+    const stretches: Record<string, StretchChoice> = {};
+    for (const b of this.edge?.banks ?? []) for (const s of b.stretches) { const c = this.fromPrecedent(id); if (c) stretches[s.id] = c; }
+    this.hold({ basedOn: null, stretches });
   }
 
   /** Stakeholders' decisions, oldest first. Only ever added to. */
@@ -112,21 +165,16 @@ export class FocusStep {
   year = $derived.by((): RiverYear | null => (this.place ? riverYear(this.place) : null));
   /** The banks, read. Only made when the design step asks. */
   edge = $derived.by((): EdgeRead | null => (this.place ? readEdge(this.place, this.decisions.length ? this.released : null) : null));
-  /** Every stretch with a chosen section, fitted. */
-  fits = $derived.by((): StretchFit[] => {
-    if (this.option) return this.option.fits;
-    const out: StretchFit[] = [];
-    if (!this.place || !this.edge) return out;
-    for (const b of this.edge.banks) for (const s of b.stretches) {
-      const shape = this.choices[s.id] ? edgeShapeOf(this.choices[s.id]) : null;
-      if (shape) out.push(fitStretch(this.place, this.edge, b.id, s.id, shape, this.works));
-    }
-    return out;
-  });
+  /** Every stretch in the design, fitted. */
+  fits = $derived.by((): StretchFit[] => (this.place && this.edge && this.design ? fitDesign(this.place, this.edge, this.design) : []));
   /** The chosen stretch's fit. */
   fit = $derived.by((): StretchFit | null => this.fits.find((x) => x.stretch.id === this.stretchOn) ?? null);
   /** The design so far against today. */
-  scores = $derived.by((): Score[] => this.option ? this.option.scores : (this.place && this.edge && this.walk && this.fits.length ? scoreEdge(this.place, this.edge, this.fits, this.walk) : []));
+  scores = $derived.by((): Score[] => (this.place && this.edge && this.walk && this.fits.length ? scoreEdge(this.place, this.edge, this.fits, this.walk) : []));
+  /** What makes the design a what-if: any one of these does. */
+  whatIf = $derived.by((): string[] => whatIfStretches(this.fits));
+  /** What the design has changed against its option. */
+  changes = $derived.by((): DesignChange | null => (this.option && this.design && this.edge ? changesFrom(this.edge, this.option, this.design, this.scores, this.fits) : null));
   records = $derived.by((): RecordCheck[] => (this.place ? checkRecords(this.place) : []));
 
   async open(id: string, mark?: number) {
@@ -145,10 +193,11 @@ export class FocusStep {
     this.ruleOn = null;
     this.stretchOn = null;
     this.stationOn = null;
-    this.choices = {};
+    this.design = null;
+    this.past = [];
+    this.future = [];
     this.works = "soft";
     this.options = null;
-    this.optionOn = null;
     this.searchError = "";
     this.riverAt = null;
     this.decisions = this.load(id);
@@ -192,7 +241,9 @@ export class FocusStep {
     this.decisions = [...this.decisions, record(this.place, { stay, choice, by: this.asRole, because }, new Date().toISOString())];
     // A decision can change the ground a design may use, so what was found no longer stands.
     this.options = null;
-    this.optionOn = null;
+    this.design = null;
+    this.past = [];
+    this.future = [];
     try { localStorage.setItem(storeKey(this.id), JSON.stringify(this.decisions)); } catch { /* still held for this session */ }
   }
 
@@ -212,8 +263,8 @@ export class FocusStep {
     this.progress = "";
     this.agentError = "";
     try {
-      const on = this.option?.words ?? null;
-      const run = await runAgent(agent, { place: this.place, walk: this.walk, decisions: this.decisions, design: this.options ? { options: this.options, on: this.optionOn } : null }, postTurn, (w) => (this.progress = w));
+      const on = this.option ? `${this.option.words}${this.changes?.stretches.length ? ", without your changes, which agents can't read yet" : ""}` : null;
+      const run = await runAgent(agent, { place: this.place, walk: this.walk, decisions: this.decisions, design: this.options ? { options: this.options, on: this.option?.id ?? null } : null }, postTurn, (w) => (this.progress = w));
       this.runs = { ...this.runs, [agent]: run };
       this.runRead = { ...this.runRead, [agent]: on };
     } catch (e) {

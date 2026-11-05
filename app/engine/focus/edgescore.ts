@@ -118,6 +118,17 @@ function networkWith(place: Place, stations: At[], base: Walk): { net: Walk; way
 
 const flat = (l: Line) => l.flatMap((p) => [p[0], p[1]]);
 
+/** New cover a piece adds, m² per metre of bank: what the design wants, less what's already growing on that ground. */
+function coverAdded(t: Station, d0: number, d1: number, wanted: number): number {
+  let sum = 0;
+  for (let d = d0; d < d1; d += SAMPLE_M) {
+    const step = Math.min(SAMPLE_M, d1 - d), mid = d + step / 2;
+    const g = t.ground.reduce((p, q) => (Math.abs(q.d - mid) < Math.abs(p.d - mid) ? q : p), t.ground[0]);
+    sum += Math.max(0, wanted - (g?.trees ?? 0)) * step;
+  }
+  return sum;
+}
+
 /** How far inland the river reaches at a level, metres from the bank: up to the first ground above it.
  *  A hollow behind higher ground stays dry here, though seepage or a drain could fill it. */
 export function waterReach(surface: { d: number; z: number }[], level: number): number {
@@ -182,7 +193,7 @@ export function stretchSums(place: Place, read: EdgeRead, fit: StretchFit, base:
   const len = fit.stretch.length / Math.max(1, fit.sections.length);
   for (const s of fit.sections) for (const e of s.elements) {
     const w = e.d1 - e.d0;
-    if (e.planting) planted += (w * len * fit.shape.trees) / 1e4;
+    if (e.planting) planted += (coverAdded(b.stations[s.k], e.d0, e.d1, fit.shape.trees) * len) / 1e4;
     if (e.works === "hard") paved += (w * len) / 1e4;
     const rise = e.z1 - e.z0;
     if ((e.kind === "wall" || e.kind === "bank") && rise >= SEAT_LO_M && rise <= SEAT_HI_M) seats += len;
@@ -275,9 +286,10 @@ export function scoreEdge(place: Place, read: EdgeRead, fits: StretchFit[], base
     const v = f.checks.find((c) => c.id === "views");
     if (v && !v.holds) viewsHold = false;
     const len = f.stretch.length / Math.max(1, f.sections.length);
+    const bank = read.banks.find((x) => x.stretches.some((y) => y.id === f.stretch.id))!;
     for (const s of f.sections) for (const e of s.elements) {
       const w = e.d1 - e.d0;
-      if (e.planting) planted += (w * len * f.shape.trees) / 1e4;
+      if (e.planting) planted += (coverAdded(bank.stations[s.k], e.d0, e.d1, f.shape.trees) * len) / 1e4;
       if (e.works === "hard") paved += (w * len) / 1e4;
       const rise = e.z1 - e.z0;
       if ((e.kind === "wall" || e.kind === "bank") && rise >= SEAT_LO_M && rise <= SEAT_HI_M) seats += len;
@@ -318,7 +330,7 @@ export function scoreEdge(place: Place, read: EdgeRead, fits: StretchFit[], base
     { key: "seats", words: "Edges to sit on", unit: "m", evidence: "estimate", better: "up",
       today: null, design: r0(seats), note: `Rises of ${SEAT_LO_M} to ${SEAT_HI_M} m along the bank. Today's aren't measured.` },
     { key: "planted", words: "New planting, as cover", unit: "ha", evidence: "estimate", better: "up",
-      today: 0, design: r1(planted), note: "Trees, shrubs, grass or reeds by how often it's wet, at the design's cover. Species come later. Much of this ground is farmed or used today: the map doesn't say by whom, so planting it is a question for stakeholders." },
+      today: 0, design: r1(planted), note: "Trees, shrubs, grass or reeds by how often it's wet, up to the design's cover, counting only what adds to the cover already there. Species come later. Much of this ground is farmed or used today: the map doesn't say by whom, so planting it is a question for stakeholders." },
     { key: "paved", words: "Hard ground and walls", unit: "ha", evidence: "estimate", better: "down",
       today: null, design: r1(paved), note: "Stone and faced banks. None in the lawful design. Today's isn't measured." },
     { key: "earth_moved", words: "Earth moved", unit: "m³", evidence: "estimate", better: "down",

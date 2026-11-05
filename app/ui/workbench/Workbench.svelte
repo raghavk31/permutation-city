@@ -95,8 +95,9 @@
   };
   const crumb = $derived(bench.focused ? bench.focus.place?.meta.name ?? exerciseOf(bench.exercise)!.name : bench.site ? bench.site.meta.name : bench.exercise ? "No site yet" : "Choose an exercise");
   // COPY: run status
-  const sectioned = $derived(Object.keys(bench.focus.choices).length);
-  const pill = $derived(bench.focused ? (bench.focus.option ? `Showing: ${bench.focus.option.words}` : sectioned ? `Sections tried on ${sectioned} ${sectioned === 1 ? "stretch" : "stretches"}` : bench.focus.options ? `${bench.focus.options.length} options to choose from` : "Nothing designed yet") : bench.running ? `Running: generation ${bench.runGen} of ${bench.settings.generations}` : bench.result ? `Run done: ${bench.result.frontSize} on the front` : "No run yet");
+  const held = $derived(bench.focus.design ? Object.keys(bench.focus.design.stretches).length : 0);
+  const heldChanged = $derived(bench.focus.changes?.stretches.length ?? 0);
+  const pill = $derived(bench.focused ? (bench.focus.option ? `${bench.focus.option.words}${heldChanged ? `, ${heldChanged} ${heldChanged === 1 ? "stretch" : "stretches"} changed` : ""}` : held ? `Sections tried on ${held} ${held === 1 ? "stretch" : "stretches"}` : bench.focus.options ? `${bench.focus.options.length} options to choose from` : "Nothing designed yet") : bench.running ? `Running: generation ${bench.runGen} of ${bench.settings.generations}` : bench.result ? `Run done: ${bench.result.frontSize} on the front` : "No run yet");
 </script>
 
 <div class="wb-narrow">
@@ -239,7 +240,7 @@
       <dt><kbd>J</kbd> <kbd>K</kbd></dt><dd>next and previous design</dd>
       <dt><kbd>P</kbd></dt><dd>keep the open design in the pen</dd>
       <dt><kbd>2</kbd> <kbd>3</kbd></dt><dd>plan or 3D, on the Massing step</dd>
-      <dt><kbd>Ctrl</kbd> <kbd>Z</kbd></dt><dd>undo a rule change (on Draw, a move); with <kbd>Shift</kbd>, redo</dd>
+      <dt><kbd>Ctrl</kbd> <kbd>Z</kbd></dt><dd>undo a rule change (on Draw, a move; on a river's Design step, a change to the design); with <kbd>Shift</kbd>, redo</dd>
       <dt><kbd>Enter</kbd> <kbd>Backspace</kbd></dt><dd>on Draw: finish the shape, take a point back (<kbd>Esc</kbd> stops)</dd>
       <dt><kbd>[</kbd> <kbd>]</kbd></dt><dd>fold the steps, fold the inspector</dd>
       <dt><kbd>+</kbd> <kbd>-</kbd> <kbd>0</kbd></dt><dd>zoom the map in, out, and fit it (arrows pan)</dd>

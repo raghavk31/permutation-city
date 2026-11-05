@@ -446,10 +446,12 @@ class Bench {
   }
   removeMove(id: number) { this.setMoves(this.moves.filter((m) => m.id !== id)); }
   updateMove(id: number, patch: Partial<E.Move>) { this.setMoves(this.moves.map((m) => (m.id === id ? { ...m, ...patch } : m))); }
-  /** Undo and redo follow the step: moves on the Draw step, rules elsewhere. */
-  get canUndo() { return this.step === "draw" ? this.movesPast.length > 0 : this.past.length > 0; }
-  get canRedo() { return this.step === "draw" ? this.movesFuture.length > 0 : this.future.length > 0; }
+  /** Undo and redo follow the step: the design on a focused Design step, moves on the Draw step, rules elsewhere. */
+  private get undoesDesign() { return this.focused && this.step === "design"; }
+  get canUndo() { return this.undoesDesign ? this.focus.canUndo : this.step === "draw" ? this.movesPast.length > 0 : this.past.length > 0; }
+  get canRedo() { return this.undoesDesign ? this.focus.canRedo : this.step === "draw" ? this.movesFuture.length > 0 : this.future.length > 0; }
   undo() {
+    if (this.undoesDesign) { this.focus.undo(); return; }
     if (this.step === "draw") {
       if (!this.movesPast.length) return;
       this.movesFuture = [this.moves, ...this.movesFuture];
@@ -464,6 +466,7 @@ class Bench {
     this.past = this.past.slice(0, -1);
   }
   redo() {
+    if (this.undoesDesign) { this.focus.redo(); return; }
     if (this.step === "draw") {
       if (!this.movesFuture.length) return;
       this.movesPast = [...this.movesPast, this.moves];

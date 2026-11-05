@@ -68,7 +68,7 @@
     return on ? f.edge?.banks.find((b) => b.id === on.bank)?.stations[on.k] ?? null : null;
   });
   const bank = $derived(f.edge?.banks.find((b) => b.id === f.stationOn?.bank) ?? null);
-  const version = $derived(`${f.stretchOn}|${f.stationOn?.bank}|${f.stationOn?.k}|${!!f.edge}|${f.decisions.length}|${JSON.stringify(f.choices)}|${f.works}|${f.optionOn}`);
+  const version = $derived(`${f.stretchOn}|${f.stationOn?.bank}|${f.stationOn?.k}|${!!f.edge}|${f.decisions.length}|${f.past.length}|${f.future.length}`);
   /** The tried design at this station. */
   const fitHere = $derived(f.fit && f.stationOn ? f.fit.sections.find((s) => s.k === f.stationOn!.k) ?? null : null);
   const plantings = $derived([...new Set((fitHere?.elements ?? []).map((e) => e.planting).filter(Boolean))]);

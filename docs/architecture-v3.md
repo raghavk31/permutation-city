@@ -1307,6 +1307,14 @@ A section beside water and public ground, with analysis before design.
 3. **Traffic, when there is data.** Volumes need counts; a microsimulator such as SUMO is the
    likely tool. Until then the system makes no claim about traffic flow.
 
+**To plan (the user, 5 November): one component for understanding and designing streets and mobility, which are a single system. Not planned yet. It will
+also be used in neighbourhood block design exercises.** So F7 (mobility) and F9 (junctions and street geometry) shouldn't be planned as separate pieces, and how they're ordered needs revisiting when this is planned. The reference is MIT Media Lab's City Science work, known so far only from a talk's slides and
+not read at source. They show a neighbourhood as a network, with pathways as links and places as nodes ringed by their mix of
+uses (credited to a spinoff, L3cities), and a research sequence: modelling the town, modelling the residents, rehearsing with
+the community, refining the design. Projects named: Synthetic Community Behavior, Travel Agent, CityScope, Urban Performance Model,
+Digital Urban Twin, H-ABM, Participatory Platforms, Urban Theater, Semantic Urban Model, Modeling Decisions, Synthetic Population and
+Beyond Zoning. To read before planning F7 and F9. Synthetic people and travel are modelled, so they'd carry the same evidence labels as the rest.
+
 ### 15.5 The Taj stretch: what we found (4 November, needs checking before use)
 
 | Finding | Status | Consequence |
@@ -1631,7 +1639,7 @@ shows, at the river's worst of three levels, and a test holds the two together. 
 | Today | 132 (129 to 134) | not counted | | | |
 | A path, and little else | 276 (267 to 282) | 0.6 km | 0 | 0 | 0 |
 | Close to the river | 246 (227 to 263) | 4.8 km | 53 m³ | 625 m³ | 0.2 ha |
-| Most planted | 249 (233 to 265) | 3.6 km | 0 | 0 | 60.5 ha |
+| Most planted | 249 (233 to 265) | 3.6 km | 0 | 0 | 41.7 ha (60.5 ha before I1 stopped counting cover already there) |
 | Most room for the river | 261 (243 to 270) | 2.5 km | 123,096 m³ | 142,014 m³ | 3.1 ha |
 
 The what-ifs: 310 days with a 5.9 km path, or 219,268 m³ of room for 231,436 m³ of earth and 15.7 ha of stone.
@@ -1675,6 +1683,100 @@ precedent by hand is still there, folded, and stops showing the option.
   the options, since it can change the ground, and they have to be found again. Options aren't saved across a reload.
 - **F5 is done, apart from the user's check.** Still open: the gauge's record, a survey, whether a path or planting counts as construction, whether
   a path may pass the monuments, and who farms or uses the ground planting would take. Nothing here is hydraulically modelled.
+
+### 15.10 F6 plan: drawings of an option (PAUSED by the user 5 November; not approved, nothing built)
+
+**What it makes.** For any option from F5, a set a designer could open and work from: a key plan, a plan per stretch, a section per stretch,
+schedules of levels, elements and planting, and a DXF in real coordinates. This is level 2 of 15.3, a scheme. It's not for construction.
+
+**The main risk: drawings look surer than their data.** The ground is satellite terrain in cells about 35 m across, read every 50 m along the
+bank. A plan with crisp lines and levels to 0.1 m looks surveyed, and it isn't. So every sheet and the DXF carry the same statement: scheme levels
+relative to each other, not surveyed, a survey comes first. Nothing is drawn finer than 1:1000, and the what-ifs say so in their title.
+
+**What's missing today.**
+
+| Needed | What we have | The gap |
+|---|---|---|
+| Elements as areas in plan | Each piece at each station, 50 m apart, and lines along the bank | Join pieces between stations into polygons; stations of different kinds need an ending; sections overlap on tight bends (E1) |
+| Real coordinates | Metres from an origin, in UTM 44N (EPSG:32644) | `pc place` has to keep the origin in UTM, so a DXF can lie over a survey |
+| Planting by name | Five kinds by how often they're wet, with assumed heights | Species, with sources, and spacing |
+| Existing trees | Tree cover per cell | Single trees aren't known: the drawing can only show cover to keep, and a tree survey is on the list of what comes first |
+| Whether new planting double counts | Planted area is usable width times cover | It ignores cover already there, so 60.5 ha may overstate. D3 corrects this, and the score with it |
+| A DXF writer | None | Writing one is small; a separate library has to read it back |
+
+**Steps, each with a checkpoint.**
+
+- **D1. Elements in plan (`engine/focus/edgeplan.ts`).** Each option's pieces become polygons with a level, class of work and planting kind; paths
+  and level lines go through `smoothTrace`, as the rule says. Bends are clipped, so nothing overlaps. Tests on all eight options: nothing crosses the
+  bank, a building or a street, nothing beside a monument is hard, and areas agree with the sections' sums within a stated tolerance. If they don't
+  agree, that gets reported rather than hidden.
+- **D2. Plans and sections in the Drawings step.** A key plan and one sheet per stretch, in vector: elements, levels, path, existing buildings and
+  streets, north point, scale, title block with the option, its class and the statement. Sections cut at the middle of each stretch, with the river's
+  marks. Printing goes through the browser to PDF, with no PDF engine added.
+- **D3. Schedules and planting.** Level, element and earth schedules per stretch as CSV. A planting schedule by zone: species, spacing and count, each
+  species with its source and status, and each row saying what ground it takes. Quantities compare options and aren't a bill. The double count above is fixed here,
+  and the F5 numbers are restated if they move.
+- **D4. DXF.** Real coordinates in metres, named layers (existing, bank, levels, path, planting by kind, hard and soft works, sections, notes), level text, and the
+  statement in the file. A test reads every option back with `ezdxf`, a separate library, and compares layers, polygon counts and areas. Then the sheets, schedules
+  and DXF download together.
+
+**Species: what can be sourced, from a first search on 5 November, none of it read at source yet.**
+
+- **Delhi's Yamuna floodplain, about 200 km upstream, has a planting record.** Its parks are reported as using flood-tolerant natives chosen from studies of the
+  floodplain's potential vegetation: trees and shrubs such as *Salix tetrasperma*, *Mitragyna parvifolia*, *Tamarix dioica*, *Phoenix sylvestris* and *Prosopis
+  cineraria*, and grasses *Saccharum spontaneum*, *S. bengalense* and *Vetiveria zizanioides*. It's the closest sound precedent found, and it's Asita East's river.
+- **For Agra itself, nothing usable yet.** A thesis on the floodplain's plants at Agra exists but only its title was seen, and a 1995 survey of the ravines at Chhalesar
+  recorded 202 species without being a planting guide. Both should be read first in D3.
+- **Beside the monuments, species are a separate decision.** At Mehtab Bagh, the Supreme Court is reported to have sided with the Archaeological Survey in allowing only plants the
+  Mughals used, and the Survey is reported to have opposed another body's planting list. So the search's "plants only" beside a monument may itself need their approval.
+
+**Not in F6.** Construction details, products, tender quantities or IFC (level 3); irrigation, drainage or structural design; any hydraulic model; 3D. Nothing is certified. Ferries, bridges and
+reaching the river stay in F7.
+
+**Questions.**
+
+- **Q1. Which option?** Proposal: all eight can be drawn, since the pipeline shouldn't depend on one, and they're all tested. Review starts with lawful "Close to the river", for its continuous
+  path, and "Most room", the one with the most to draw. "A path, and little else" has too little to show the drawing work.
+- **Q2. Species before a botanist has seen them?** Proposal: name species from sources, labelled "from Delhi's floodplain, to be checked for Agra". Beside a monument, give only the kind of planting and leave
+  the species to the Archaeological Survey.
+- **Q3. DXF.** Proposal: UTM 44N in metres, so it lies over a survey or GIS layer. Please say if the people opening it use a particular CAD program or layer standard.
+- **Q4. Is 1:1000 the right limit?** Proposal: yes, until there's a survey.
+
+**The user's answers, 5 November, then "Let's pause drawings for now".** Q1: no. Q2: no. Q3: "Local population". Q4: don't know. So the proposals on which options to review first and on naming
+species before a botanist has seen them are declined. Q3 suggests the people opening these may be the local population rather than CAD users, which could change what F6 should make; that's to
+ask before this plan resumes, not to assume. This plan needs revisiting before it's used.
+
+**Stays open while this is paused, and isn't a drawing question.** F5's planted area ignores tree cover already on the ground, so its 60.5 ha may be too high. It was to be fixed in D3, which is now not scheduled.
+
+### 15.11 Iterating on an edge (approved 5 November, Q1-Q4 as proposed)
+
+**The gap.** F5 finds options and compares them, and then the work stops. Trying a precedent on one stretch drops the whole option, a section can only be replaced by a precedent, the search
+can't start from what someone has chosen, and nothing can be kept. A person has to be able to take an option, change it, search again around what they like, and compare the results.
+
+**The one new thing: a design of its own.** Today an option is the search's output. A design is what a person holds: for each stretch its shape, whether the ground is kept, where the path runs and its
+class of work, with a note of where each came from. Fits and scores are always worked out from it, so the limits are checked on every change and nothing can go stale.
+
+**Steps, each with a checkpoint.**
+
+- **I1. Start from an option and change a stretch.** Choosing an option makes a design from it. Changing one stretch changes only that stretch, scores update (about 0.3 s), and undo works. A panel says what
+  changed against the option and against today, including joins made steeper for a wheelchair. Fixes the planted area first, which ignores cover already there (15.10), since comparing on a wrong number is worse than not comparing.
+  A test holds that a design made from an option scores exactly as the option did.
+  **Built 5 November, waiting for the user's check** (`engine/focus/edgedesign.ts`). A design made from an option refits to exactly the option's scores, on all eight. Planted area now counts only what adds to cover already there: "most planted" falls from 60.5 to 41.7 ha, so about a third of the F5 figure was double counted. Lawful or what-if is now read from what's in a design rather than how it was asked for: stone, or earth or a path beside a monument. Until I3, a stakeholder's decision still clears the design.
+- **I2. Other ways to do this stretch, and search again.** For a chosen stretch, a few distinct alternatives with what each gains and costs, chosen so they aren't near-copies. Lock the stretches you like and search the rest, with
+  the joins worked out around what's locked. What a direction values becomes visible and adjustable, including the cost of earth, since those weights are assumed and the choice belongs to people.
+- **I3. Keep and compare.** Name and keep designs, in the browser and as a file, as decisions are. Two side by side on the measures, map and any section. A stakeholder decision no longer clears the work: kept designs are refitted on the new ground,
+  and they say what changed and what no longer holds.
+- **I4. Change a section directly.** Levels, path position and planting on a stretch, by number or dragging on the section, with limits checked as it moves.
+- **I5. The agents on a kept design.** The critic and rules checker read a design and what was changed from where, and a finding can point at a stretch, so a person can act on it. They never change a design. Worth doing only with a real model, so it waits for the OpenRouter key.
+
+**Not in this.** Several people working at once, drawings (paused, 15.10), and any new measure or hydraulic model. The scores still can't count being down at the water or how a place feels, and iterating on them can favour what's counted, so the page keeps saying so.
+
+**Questions.**
+
+- **Q1. Is the order right?** Proposal: I1 to I3 first, since together they make the loop, then I4, with I5 waiting for the key.
+- **Q2. Can someone push a design past a limit?** Proposal: yes, so they can see what it would take. It's shown as broken and can't be called lawful or kept as one.
+- **Q3. A lawful design with one what-if stretch?** Proposal: the whole design is then a what-if, and it lists which stretches make it one.
+- **Q4. Who sets what a direction values?** Proposal: whoever is working, and a kept design records the values it was searched with, so they can be questioned.
 
 ---
 
