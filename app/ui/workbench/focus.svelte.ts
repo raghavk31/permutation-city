@@ -4,6 +4,7 @@
 import { type AgentRun, postTurn, runAgent } from "../../agents/run";
 import type { AgentId } from "../../agents/roles";
 import { type Choice, type Decision, record, releasedCells, type RoleId, withDecisions } from "../../engine/focus/decisions";
+import { type EdgeRead, readEdge } from "../../engine/focus/edge";
 import { checkBrief, lineIndex, type Place, type Stay } from "../../engine/focus/place";
 import { checkRecords, type RecordCheck, riverYear, type RiverYear } from "../../engine/focus/river";
 import { type Today, todayOf } from "../../engine/focus/today";
@@ -30,6 +31,10 @@ export class FocusStep {
   /** The rule pointed at in the list, heavier on the map. */
   ruleOn = $state<string | null>(null);
 
+  /** The design step: the stretch chosen, and the station along it whose section is drawn. */
+  stretchOn = $state<string | null>(null);
+  stationOn = $state<{ bank: number; k: number } | null>(null);
+
   /** Stakeholders' decisions, oldest first. Only ever added to. */
   decisions = $state.raw<Decision[]>([]);
   /** The role the person is deciding as. */
@@ -46,6 +51,8 @@ export class FocusStep {
   today = $derived.by((): Today | null => (this.place && this.walk ? todayOf(this.place, this.mark, this.walk, this.released) : null));
   views = $derived.by((): Views | null => (this.place ? viewsOf(this.place) : null));
   year = $derived.by((): RiverYear | null => (this.place ? riverYear(this.place) : null));
+  /** The banks, read. Only made when the design step asks. */
+  edge = $derived.by((): EdgeRead | null => (this.place ? readEdge(this.place, this.decisions.length ? this.released : null) : null));
   records = $derived.by((): RecordCheck[] => (this.place ? checkRecords(this.place) : []));
 
   async open(id: string, mark?: number) {
@@ -62,11 +69,31 @@ export class FocusStep {
     this.month = null;
     this.viewOn = null;
     this.ruleOn = null;
+    this.stretchOn = null;
+    this.stationOn = null;
     this.decisions = this.load(id);
     this.runs = {};
     this.agentError = "";
     this.id = id;
     this.place = p;
+  }
+
+  /** Choose a stretch: its section is drawn at its middle station. */
+  pickStretch(id: string) {
+    for (const b of this.edge?.banks ?? []) for (const s of b.stretches) if (s.id === id) {
+      this.stretchOn = id;
+      this.stationOn = { bank: b.id, k: Math.round((s.stations[0] + s.stations[1]) / 2) };
+    }
+  }
+
+  /** Choose the station nearest a point on the map, within reason, and its stretch. */
+  pickNear(x: number, y: number, withinM = 150) {
+    let best: { bank: number; k: number; id: string } | null = null, bestD = withinM;
+    for (const b of this.edge?.banks ?? []) b.stations.forEach((t, k) => {
+      const d = Math.hypot(t.x - x, t.y - y);
+      if (d < bestD) { bestD = d; best = { bank: b.id, k, id: b.stretches.find((s) => k >= s.stations[0] && k <= s.stations[1])?.id ?? "" }; }
+    });
+    if (best) { const p = best as { bank: number; k: number; id: string }; this.stationOn = { bank: p.bank, k: p.k }; this.stretchOn = p.id; }
   }
 
   close() { this.place = null; this.walk = null; this.id = null; this.decisions = []; this.runs = {}; }

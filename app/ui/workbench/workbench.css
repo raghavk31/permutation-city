@@ -103,7 +103,21 @@ a { color: inherit; }
 .s-river { fill: var(--pc-water); }
 .s-mark { stroke: var(--pc-muted); stroke-width: .75; stroke-dasharray: 3 3; }
 .s-mark.on { stroke: var(--pc-accent); stroke-width: 1.5; stroke-dasharray: none; }
-.s-text { font: 11px var(--pc-mono); fill: var(--pc-ink-2); }
+.s-text { font: 11px var(--pc-mono); fill: var(--pc-ink-2); paint-order: stroke; stroke: var(--pc-paper); stroke-width: 3px; }
+.s-stop { stroke: var(--pc-ink); stroke-width: 1; }
+.s-water { stroke: var(--pc-water); stroke-width: 2; }
+.s-bed { fill: none; stroke: var(--pc-muted); stroke-width: 1; stroke-dasharray: 2 3; }
+.s-usable { fill: var(--pc-accent); opacity: .14; }
+.s-level { fill: var(--pc-water); opacity: .35; }
+.wb-edge { position: absolute; inset: 0; display: grid; grid-template-rows: minmax(0, 1fr) minmax(220px, 38%); }
+.wb-edge-map { position: relative; min-height: 0; }
+.wb-edge-section { min-height: 0; overflow: auto; padding: var(--wb-s2) 16px; border-top: var(--wb-hair); background: var(--pc-paper); display: grid; gap: 4px; align-content: start; }
+.wb-edge-section svg { width: 100%; height: auto; max-height: 240px; }
+.wb-edge-section b { font-weight: 500; }
+.wb-stretches button { width: 100%; text-align: left; display: grid; gap: 2px; padding: 6px 8px; border: var(--wb-hair); border-radius: var(--pc-radius); background: var(--pc-surface); color: inherit; font: inherit; cursor: pointer; }
+.wb-stretches button[aria-pressed="true"] { border-color: var(--pc-ink); box-shadow: inset 0 0 0 1px var(--pc-ink); }
+.wb-stretches { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.wb-stretches span { font-size: var(--pc-size-small); color: var(--pc-ink-2); }
 
 /* search */
 .wb-search { position: relative; }

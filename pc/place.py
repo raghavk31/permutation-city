@@ -22,6 +22,7 @@ from shapely.ops import nearest_points, substring, unary_union
 
 from pc import grid as cellgrid
 from pc import landform, riveryear
+from pc.layers import _sample
 from pc.export import CREDITS, HEIGHT_SOURCES, SITES_OUT, _open_buildings_heights, height_picker
 from pc.maps import _name
 from pc.metrics.network import STOREY_M
@@ -332,6 +333,9 @@ def build_place(site: Site) -> dict:
         "cells": {
             "x": [round(float(v) - ox, 1) for v in c.x], "y": [round(float(v) - oy, 1) for v in c.y],
             "z": [round(float(v), 1) for v in g["ground"]],
+            # The terrain under the water, which `z` leaves at 0. Terrain models flatten water, so
+            # this reads the water's surface when they flew, except on bars and banks they saw as land.
+            "bed": [round(float(v), 1) if w else None for v, w in zip(_sample(site.terrain, g), (g["water"] > 0).to_numpy() | river)],
             "band": [int(v) for v in band], "rule": [int(v) for v in rule_bits], "stay": [int(v) for v in inside], "bank": [int(v) for v in bank], "side": [int(v) for v in side],
             "tank": [int(w and not r) for w, r in zip((g["water"] > 0).to_numpy(), river)],
             "seasonal": [round(float(v), 3) for v in g["seasonal_water"]],

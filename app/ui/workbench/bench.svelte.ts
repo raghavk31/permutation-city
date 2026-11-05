@@ -25,7 +25,7 @@ export const FOCUS_STEPS: StepDef[] = [
   { id: "site", name: "Place", built: true },
   { id: "read", name: "Read the place", built: true },
   { id: "stays", name: "What stays", built: true },
-  { id: "design", name: "Design", built: false, why: "Not built yet: first the river-edge precedents, then the search" },
+  { id: "design", name: "Design", built: true },
   { id: "drawings", name: "Drawings", built: false, why: "Not built yet: plans, sections, levels and schedules follow the design" },
 ];
 

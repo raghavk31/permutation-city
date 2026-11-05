@@ -1,0 +1,113 @@
+<script lang="ts">
+  // The design step's centre: the banks on the map, cut into stretches, and the real section at a station.
+  import { MONTHS } from "../../engine/focus/river";
+  import type { Place } from "../../engine/focus/place";
+  import * as Draw from "../draw";
+  import { bench } from "./bench.svelte";
+  import { STOP_WORDS } from "./edgewords";
+  import { paintPlace, placeFrame } from "./focuspaint";
+  import MapCanvas from "./MapCanvas.svelte";
+
+  let { place }: { place: Place } = $props();
+  const f = bench.focus;
+  const P = Draw.palette();
+  const frame = $derived(placeFrame(place));
+  const shape = $derived(Draw.shapeOf(frame));
+  const ROOM_WIDTH = { none: 1, narrow: 2.5, wide: 4, broad: 6 };
+
+  const paint = $derived((c: CanvasRenderingContext2D, v: Draw.View) => {
+    paintPlace(c, v, place, { mark: f.mark, layer: "zone", near: null, stayOn: null, shape, released: f.released }, P);
+    c.lineCap = "butt";
+    for (const b of f.edge?.banks ?? []) for (const s of b.stretches) {
+      const on = s.id === f.stretchOn;
+      c.strokeStyle = on ? P.ink : P.t.accent;
+      c.lineWidth = ROOM_WIDTH[s.room] + (on ? 1.5 : 0);
+      c.setLineDash(s.room === "none" ? [3, 4] : []);
+      c.beginPath();
+      for (let k = s.stations[0]; k <= s.stations[1]; k++) {
+        const t = b.stations[k];
+        if (k === s.stations[0]) c.moveTo(v.px(t.x), v.py(t.y)); else c.lineTo(v.px(t.x), v.py(t.y));
+      }
+      c.stroke();
+      c.setLineDash([]);
+      // Stretches are told apart by a tick where each begins.
+      const t = b.stations[s.stations[0]];
+      c.strokeStyle = P.ink;
+      c.lineWidth = 1;
+      c.beginPath();
+      c.moveTo(v.px(t.x - t.nx * 12), v.py(t.y - t.ny * 12));
+      c.lineTo(v.px(t.x + t.nx * 12), v.py(t.y + t.ny * 12));
+      c.stroke();
+    }
+    // The section on the map.
+    if (station) {
+      const t = station;
+      c.strokeStyle = P.ink;
+      c.lineWidth = 2;
+      c.beginPath();
+      c.moveTo(v.px(t.x - t.nx * (t.toWaterLow ?? 0)), v.py(t.y - t.ny * (t.toWaterLow ?? 0)));
+      c.lineTo(v.px(t.x + t.nx * t.reach), v.py(t.y + t.ny * t.reach));
+      c.stroke();
+    }
+  });
+
+  const station = $derived.by(() => {
+    const on = f.stationOn;
+    return on ? f.edge?.banks.find((b) => b.id === on.bank)?.stations[on.k] ?? null : null;
+  });
+  const bank = $derived(f.edge?.banks.find((b) => b.id === f.stationOn?.bank) ?? null);
+  const version = $derived(`${f.stretchOn}|${f.stationOn?.bank}|${f.stationOn?.k}|${!!f.edge}|${f.decisions.length}`);
+
+  /** A section as drawn: out to the water on the left, inland on the right. */
+  const section = $derived.by(() => {
+    const t = station, read = f.edge;
+    if (!t || !read) return null;
+    const land = t.ground.filter((g) => g.z !== null).map((g) => ({ d: g.d, z: g.z! }));
+    const out = t.out.filter((g) => g.z !== null).map((g) => ({ d: -g.d, z: g.z! }));
+    const marks = place.brief.marks, ordinary = read.datum.ordinary;
+    const zs = [...land, ...out].map((g) => g.z).concat(marks.map((m) => m.m), ordinary ?? []);
+    if (!zs.length) return null;
+    const W = 900, H = 240, pad = 26;
+    const x0 = Math.min(0, ...out.map((g) => g.d)), x1 = Math.max(60, ...land.map((g) => g.d));
+    const lo = Math.floor(Math.min(...zs)) - 1, hi = Math.ceil(Math.max(...zs)) + 1;
+    const X = (d: number) => pad + ((W - 2 * pad) * (d - x0)) / (x1 - x0), Y = (z: number) => H - pad - ((H - 2 * pad) * (z - lo)) / (hi - lo);
+    const path = (pts: { d: number; z: number }[]) => pts.map((g, k) => `${k ? "L" : "M"}${X(g.d).toFixed(1)} ${Y(g.z).toFixed(1)}`).join("");
+    return { W, H, pad, X, Y, x0, x1, lo, hi, ground: path(land), bed: path([...out].sort((a, b) => a.d - b.d)), marks, ordinary };
+  });
+</script>
+
+<div class="wb-edge">
+  <div class="wb-edge-map">
+    <MapCanvas site={frame} {paint} {version} onpick={(x, y) => f.pickNear(x, y)} label="Map of the river's two banks, cut into stretches that differ in room, law and views">
+      <div class="wb-legend wb-over br">
+        <!-- COPY: legend of stretches -->
+        <div><i style="--c: {P.t.accent}"></i><span>the bank: thicker has more room</span></div>
+        <div><i style="--c: transparent; box-shadow: inset 0 0 0 1px {P.ink}"></i><span>a tick where each stretch begins</span></div>
+      </div>
+    </MapCanvas>
+  </div>
+  <div class="wb-edge-section">
+    {#if section && station && bank}
+      <b>{bank.words} {f.stretchOn}, {Math.round(station.s)} m along. Water to the left, inland to the right.</b>
+      <svg viewBox="0 0 {section.W} {section.H}" role="img" aria-label="Real section from the water to where the usable ground ends, with the river's levels">
+        {#if section.ordinary}<rect x={section.pad} y={section.Y(section.ordinary[1])} width={section.W - 2 * section.pad} height={section.Y(section.ordinary[0]) - section.Y(section.ordinary[1])} class="s-level" />{/if}
+        <rect x={section.X(0)} y={section.pad} width={section.X(station.reach) - section.X(0)} height={section.H - 2 * section.pad} class="s-usable" />
+        {#each section.marks as m}
+          <line x1={section.pad} x2={section.W - section.pad} y1={section.Y(m.m)} y2={section.Y(m.m)} class="s-mark" />
+          <text x={section.W - section.pad} y={section.Y(m.m) - 3} text-anchor="end" class="s-text">{m.words}</text>
+        {/each}
+        {#if section.bed}<path d={section.bed} class="s-bed" />{/if}
+        <path d={section.ground} class="s-ground" />
+        <line x1={section.X(0)} x2={section.X(0)} y1={section.pad} y2={section.H - section.pad} class="s-stop" />
+        <text x={section.X(0) + 4} y={section.pad + 10} class="s-text">bank</text>
+        {#if station.reach > 0}<text x={section.X(station.reach) + 4} y={section.pad + 22} class="s-text">{station.reach} m: {STOP_WORDS[station.stop]}</text>{/if}
+        {#if f.edge?.months && station.toWaterLow !== null}<line x1={section.X(-station.toWaterLow)} x2={section.X(-station.toWaterLow)} y1={section.H - section.pad - 14} y2={section.H - section.pad} class="s-water" /><text x={section.X(-station.toWaterLow)} y={section.H - 8} text-anchor={section.X(-station.toWaterLow) < 90 ? "start" : "middle"} class="s-text">{MONTHS[f.edge.months.low]} water</text>{/if}
+        {#if f.edge?.months && station.toWaterHigh !== null && station.toWaterHigh !== station.toWaterLow}<line x1={section.X(-station.toWaterHigh)} x2={section.X(-station.toWaterHigh)} y1={section.H - section.pad - 14} y2={section.H - section.pad} class="s-water" /><text x={section.X(-station.toWaterHigh)} y={section.H - 20} text-anchor={section.X(-station.toWaterHigh) < 90 ? "start" : "middle"} class="s-text">{MONTHS[f.edge.months.high]} water</text>{/if}
+      </svg>
+      <!-- COPY: what a section rests on -->
+      <p class="wb-hint">The tinted band is the ground a design could use here. The pale blue band is the river on an ordinary day. The dotted line past the bank is the terrain's flattened water and bars, not a measured bed. Cells are 35 m across and the terrain is satellite-derived, so read the shape, not the centimetres.{station.view !== null ? ` A view limits things here to about ${Math.round(station.view)} m.` : ""}</p>
+    {:else}
+      <p class="wb-hint">Pick a stretch on the left, or click the bank on the map, to draw its real section here.</p>
+    {/if}
+  </div>
+</div>

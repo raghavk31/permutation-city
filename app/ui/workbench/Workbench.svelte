@@ -5,6 +5,8 @@
   import { exerciseOf } from "../../engine/focus/exercise";
   import { bench } from "./bench.svelte";
   import ExerciseCentre from "./ExerciseCentre.svelte";
+  import DesignCentre from "./DesignCentre.svelte";
+  import DesignRail from "./DesignRail.svelte";
   import FocusMap from "./FocusMap.svelte";
   import Icon from "./Icon.svelte";
   import ReadRail from "./ReadRail.svelte";
@@ -66,6 +68,7 @@
     if (bench.focused) {
       if (id === "read" && bench.focus.today) return `${bench.focus.today.measures[0].value} ha`;
       if (id === "stays" && bench.focus.place) return `${bench.focus.place.brief.stays.length} to decide`;
+      if (id === "design" && bench.focus.place && bench.step === "design" && bench.focus.edge) return `${bench.focus.edge.banks.reduce((a, b) => a + b.stretches.length, 0)} stretches`;
       return "";
     }
     if (id === "site" && bench.site) return `${Math.round(bench.site.meta.design_ha)} ha`;
@@ -132,6 +135,7 @@
               {:else if s.id === "site"}<SiteRail />
               {:else if s.id === "read"}<ReadRail />
               {:else if s.id === "stays"}<StaysRail />
+              {:else if s.id === "design"}<DesignRail />
               {:else if s.id === "layers"}<LayersRail />
               {:else if s.id === "rules"}<RulesRail />
               {:else if s.id === "landform"}<LandformRail />
@@ -158,6 +162,8 @@
       <ExerciseCentre />
     {:else if (bench.step === "read" || bench.step === "stays") && bench.focus.place}
       <FocusMap place={bench.focus.place} />
+    {:else if bench.step === "design" && bench.focus.place}
+      <DesignCentre place={bench.focus.place} />
     {:else if bench.step === "layers" && bench.site}
       <LayersMap site={bench.site} />
     {:else if bench.step === "rules" && bench.site && bench.rules}

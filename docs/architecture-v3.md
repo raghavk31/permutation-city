@@ -1450,6 +1450,130 @@ Approved 4 November with all four proposals as they stand.
   under "River edges". Nothing places this family yet, so whole-city runs are unchanged; F5 does. Most
   section numbers are assumed, because projects rarely publish them.
 
+### 15.9 F5 plan: designing an edge (approved 5 November, Q1-Q3 as proposed)
+
+**What it makes.** For each bank, a line along the water cut into stretches, and for each stretch a
+section from the street to the water, fitted to the real ground and held against the river. The
+result is vector with levels (15.3), so F6 can draw it. A person chooses among a few labelled options
+and sees each against today.
+
+**What the bank is like (read from `agra-taj.place.json`).**
+
+| | Taj side | Mehtab Bagh side |
+|---|---|---|
+| Bank, along the traced line (E1) | 3.6 km | 3.1 km |
+| Ground at the bank, 10th / middle / 90th percentile | 147.8 / 151.4 / 156.6 m | 145.5 / 149.3 / 152.6 m |
+| Bank to ground above the record, middle / 90th percentile | 60 / 271 m | 180 / 284 m |
+| Bank cells in a prohibited / regulated area, of all | 18 / 30 of 126 | 13 / 17 of 104 |
+
+So the two banks differ: the Taj side is narrow and higher, the other wide and low. One section can't
+serve both, which is why the search works stretch by stretch.
+
+**The problem to face first.** The middle of the Mehtab side's bank reads 149.3 m, below the 149.6 m
+reported on a steady monsoon day, and low water hadn't been measured at all. The datum was never
+checked. E1 looked (log below): this mostly isn't a terrain error, because the river usually stands
+well below that reading. Every section hangs from these heights, so:
+
+- E1 compares the terrain, the marks and the satellite's wet months, to estimate any offset.
+- Every score that depends on level runs at -1, 0 and +1 m, and a design claims only what holds at all
+  three. The two reports that can be tested disagree by -0.4 and +0.5 m, so this covers them.
+- Levels to 0.1 m are design levels relative to each other. They aren't survey levels, and the
+  drawings have to say that a survey comes before anything is used.
+
+**Three classes of work.** Whether a path, ghat or planting is "construction" is unread (15.8), so the
+search carries the question instead of settling it:
+
+| Class | What | Treated as |
+|---|---|---|
+| Soft | Planting, earth paths at grade, reshaping with no net fill | The lawful design, labelled as resting on this assumption |
+| Hard | Ghat steps, stone paths, walls, raised walks | A what-if, labelled, drawn beside the lawful design |
+| Building | Anything with a roof or floor | Not proposed |
+
+In a prohibited area, the lawful design only plants. Whether more is allowed is for the rules checker
+and stakeholders.
+
+**Limits that nothing may break.** No net fill below the record flood, no wall into the river or change
+to its course, nothing above a view's limit (a tree's full height counts), no building removed, no
+tree cover lost in any cell (only cover is known, not single trees, and felling is a matter for the
+Court). This follows the test for a river edge: it leaves the river its room, works with the flood,
+and doesn't push out the people there.
+
+**Scores, each measured on today as well and labelled by evidence.**
+
+| Score | How | Evidence |
+|---|---|---|
+| Days usable | For each level, its height against the river's estimated monthly level | estimate, coarse: months, not days |
+| Flood passed | Cross-section open to the water at each mark, and cut minus fill, against today | estimate; not a hydraulic model, so it makes no claim about flood levels |
+| Access | A path along the edge on the real walking network, ways in from ground above the flood, people within 10 minutes | map, plus the design |
+| Shade | Hot-afternoon shade along the path, from the street-shade model | estimate |
+| Places to sit | Length of rise that can be sat on | design |
+| Views kept | Margin under each view's limit; a limit, also reported | estimate |
+| River's room | Share of the zone left unpaved and planted, and its change | design |
+
+**Steps, each with a checkpoint.**
+
+- **E1. The line and its stretches.** Each bank traced through `smoothTrace`, stations every 50 m, and
+  a real cross-section at each: ground, marks, rules, view limit, buildings, nearest street, tree cover,
+  days wet. Stretches cut where those change, at least 100 m long. The datum check. Design step shows
+  the stretches and sections, with nothing designed yet.
+- **E2. A section on real ground.** A shape becomes a section for a stretch: reach, drop and flood height
+  are read from the place, the rest are genes. Vector offset lines with levels, cut and fill, each
+  limit checked, each element with its class.
+- **E3. Scores.** As above, today against a hand-set design, each with its label.
+- **E4. The search.** Each stretch starts from the library's members and searches its genes, in the
+  manner of `publicform.ts` (`mapElites` is tied to whole-site ground, so it isn't reused). Then a pass
+  along the bank chooses a chain that joins well: paths meet at a slope a wheelchair can use, with a
+  cost for changing levels. Options: lawful soft works, and the what-if with hard works, each in a few
+  distinct directions, such as most days usable or most planted.
+- **E5. In the workbench.** The Design step: options, each against today; choose a stretch to see its
+  section on the real ground with a river-level slider. New read-only tools, so the critic and rules
+  checker can read a design. No tool to change one.
+
+**Not in F5.** DXF, schedules and species (F6); ferries, bridges and routes across the river (F7); any
+hydraulic model, so no claim about what a design does to flood heights; 3D (the section and plan carry
+the check; the grammar's edge drawing can follow).
+
+**Questions.**
+
+- **Q1.** Is the soft / hard / building split right as the lawful line? Proposal: yes, until the
+  notification or a stakeholder says otherwise.
+- **Q2.** The river's monthly level has no gauge behind it. Proposal: try the Commission's tables once
+  more, otherwise estimate from the satellite's monthly wet area on the terrain and label it. A daily
+  record from anyone who holds one would improve this more than anything else in F5.
+- **Q3.** Should the riverfront park reported in July 2026 stay out of the design? Its site is unmapped.
+  Proposal: ignore it until it's located, and say so on the page.
+
+**E1 built (5 November; waiting for the user's check).** The Design step shows both banks cut into
+stretches, a real section at any station, and how far the heights hold (`engine/focus/edge.ts`).
+
+- **Banks.** Traced from the mapped river's outline through `smoothTrace`, read every 50 m: 25
+  stretches, 15 on the Taj's bank and 10 on Mehtab Bagh's, cut by room, law and whether a view holds
+  trees down. Each section says what ends its usable ground. The Taj's bank has almost no room from
+  about 2 km along, where the river runs at its wall; the east end of the Mehtab side has over 500 m.
+- **The terrain under the river.** `pc place` now keeps it (`cells.bed`), where the export left 0. Terrain
+  models flatten water: 471 of 873 river cells read 145.5 m, and bars that stand dry in November read
+  about 147 m. That gives a low end for every section in the terrain's own heights, independent of the
+  gauge. It's the water's surface when the model was flown, not a measured bed.
+- **The mapped river isn't the water.** Only 188 of its 873 cells are wet in May and 456 in November, so
+  on much of the bank the water is far from the mapped edge: up to about 390 m across sand on the Taj's
+  upstream stretches. Each station records it. A design's "edge" is a different place by season.
+- **The river's level by month.** Sorting what the satellite saw wet from dry, with those heights, gives
+  145.5 to 147.25 m in the 10 months it can read, agreeing 41 to 68%. July is too cloudy, and August
+  doesn't follow the ground. So Q2's fallback gives an ordinary day and not the monsoon: clear days only,
+  and cloud and muddy water hide floods. **Days usable (E3) needs another source for the monsoon.** Next
+  to try: modelled daily discharge (GloFAS) with reported levels to tie it down, labelled as such.
+- **The gauge.** Tried again 5 November, as Q2 proposed. The forecast service now answers but has no
+  documented way to list stations; India-WRIS's open API returns "no data" even for its own documented
+  examples. [The Commission's network list](https://www.slideshare.net/slideshow/hydrologicalnetworkdetailsofcwcpdf/255522242)
+  confirms a station at Agra Poiya Ghat since 1976, so the record exists: someone holds it.
+- **Heights against reports.** September 2025 at Mehtab Bagh: the terrain gives 0.4 m more water than
+  reported. July 2023 at the Taj: the water needs 0.5 m more to reach our outline. Opposite signs, so no
+  steady offset shows, though two reports can't prove there's none. The gauge's zero and how far the
+  river falls between the gauge and here are still unread.
+- **Not done.** Trees and fences aren't in a section. Sections on a tight bend can overlap, so a
+  stretch's hectares are approximate. "A view holds trees down" assumes a 10 m tree, for E2 to replace
+  with a planting's real height.
+
 ---
 
 ## A1 log (2026-10-21): quick visual fixes

@@ -69,6 +69,8 @@ export interface Place {
   year?: YearRecord | null;
   cells: {
     x: number[]; y: number[]; z: number[];
+    /** The terrain under water, where `z` is 0: the water's surface as flattened, or a bar. Null on land. */
+    bed?: (number | null)[];
     /** 0 the river; k the k-th mark reaches it (1-based); marks.length + 1 above them all. */
     band: number[];
     /** Bit k set: the cell is in brief.rules[k]. */
