@@ -120,6 +120,22 @@
     {/if}
   {/if}
 
+  {#if bench.focused && bench.step === "design" && focus.scores.length}
+    <div class="wb-sub">
+      <!-- COPY: the design against today -->
+      <span class="wb-label">This design against today</span>
+      <ul class="wb-today">
+        {#each focus.scores as s (s.key)}
+          <li>
+            <span>{s.words}</span>
+            <div class="wb-score"><span class="wb-was">{s.today === null ? "not measured" : `${s.today.toLocaleString("en-IN")} ${s.unit}`}</span><span>to</span><b>{s.design === null ? "none" : `${s.design.toLocaleString("en-IN")} ${s.unit}`}</b><span class="wb-tag">{s.evidence === "data" ? "measured" : s.evidence === "map" ? "from the map" : "estimated"}</span></div>
+            {#if s.designBand && s.designBand[0] !== s.designBand[1]}<p class="wb-hint">With the river a metre lower or higher: {s.designBand[0].toLocaleString("en-IN")} to {s.designBand[1].toLocaleString("en-IN")}{s.todayBand ? `, against ${s.todayBand[0].toLocaleString("en-IN")} to ${s.todayBand[1].toLocaleString("en-IN")} today` : ""}.</p>{/if}
+            <p class="wb-hint">{s.note}</p>
+          </li>
+        {/each}
+      </ul>
+    </div>
+  {/if}
   {#if bench.focused && (bench.step === "read" || bench.step === "stays" || bench.step === "design") && focus.today && focus.place}
     <div class="wb-sub">
       <span class="wb-label">Today, at the {focus.place.brief.marks[focus.mark].words} line</span>

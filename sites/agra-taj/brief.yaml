@@ -50,6 +50,14 @@ records:
     source: https://agraleaks.com/agra-yamuna-water-update-water-level-constant-149-60-meter-in-agra/
     status: reported, local press
 
+# What ties modelled river flow to level (pc/riverflow.py). An ordinary day is the middle of what the
+# satellite reads on clear days, at the median flow; the rest are the reports above, on their dates.
+flow_anchors:
+  - {words: "An ordinary day", flow: median, m: 146.4}
+  - {words: "12 August 2026", date: "2026-08-12", m: 149.60}
+  - {words: "18 July 2023", date: "2023-07-18", m: 152.0}
+  - {words: "7 September 2025", date: "2025-09-07", m: 152.41}
+
 can_change: land joined to the river at or below the line, except what stays
 affects: buildings and streets within a 10-minute walk (800 m on the street network) of the bank
 reads: the whole study box, river levels, upstream rain, hot-season surface temperature

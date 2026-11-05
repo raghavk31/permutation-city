@@ -38,7 +38,8 @@ describe("every precedent, on every stretch, both ways", () => {
     for (const x of fits) for (const s of x.fit.sections) if (s.window) {
       const t = stationOf(x, s.k);
       // A wall has two heights at one distance, so look for a vertex there at today's height.
-      for (const d of s.window) {
+      // A bank face dug back ends lower on purpose: only its inland end meets today's ground.
+      for (const d of s.face ? [s.window[1]] : s.window) {
         const near = s.vertices.filter((v) => Math.abs(v.d - d) < 1e-6).map((v) => Math.abs(v.z - existingAt(t, d)!));
         expect(Math.min(...near), name(x)).toBeLessThan(0.05);
       }

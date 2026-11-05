@@ -21,7 +21,7 @@ from shapely.geometry import LineString, MultiPolygon, Polygon
 from shapely.ops import nearest_points, substring, unary_union
 
 from pc import grid as cellgrid
-from pc import landform, riveryear
+from pc import landform, riverflow, riveryear
 from pc.layers import _sample
 from pc.export import CREDITS, HEIGHT_SOURCES, SITES_OUT, _open_buildings_heights, height_picker
 from pc.maps import _name
@@ -315,6 +315,10 @@ def build_place(site: Site) -> dict:
         rule_bits[hit] |= 1 << k
     views = [_view(v, named, ox, oy) for v in brief.get("views", [])]
 
+    # How high the river stands through the year (pc/riverflow.py), when it has been fetched.
+    fetched_flow = riverflow.load(site)
+    flow = riverflow.rating(fetched_flow, brief["flow_anchors"]) if fetched_flow and brief.get("flow_anchors") else None
+
     # The river through its year (pc/riveryear.py), when it has been fetched.
     fetched = riveryear.load(site)
     year = None
@@ -330,6 +334,7 @@ def build_place(site: Site) -> dict:
                  "credits": CREDITS, "dropped": dropped, "storey_m": STOREY_M},
         "brief": {k: brief.get(k) for k in ("title", "kind", "makes", "detail", "marks", "mark_source", "records", "line", "can_change", "affects", "reads", "links", "open_checks")} | {"stays": stays, "rules": rules, "views": views},
         "year": year,
+        "flow": flow,
         "cells": {
             "x": [round(float(v) - ox, 1) for v in c.x], "y": [round(float(v) - oy, 1) for v in c.y],
             "z": [round(float(v), 1) for v in g["ground"]],

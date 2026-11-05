@@ -58,6 +58,17 @@ export interface YearRecord {
   wet: number[][];
 }
 
+/** How high the river stands, from modelled flow tied to reported levels (pc/riverflow.py). */
+export interface FlowRecord {
+  source: string; years: [number, number]; a: number; b: number;
+  /** Each reported level the fit was tied to, and how far it misses it, metres. */
+  anchors: { words: string; flow: number; m: number; miss: number }[];
+  /** Days a year the river stands above each level. */
+  days: { z: number; days: number }[];
+  /** The middle level of each month. */
+  months: number[];
+}
+
 export interface Place {
   meta: {
     id: string; name: string; origin: [number, number]; crs: string; cell_size: number; cell_area: number;
@@ -67,6 +78,7 @@ export interface Place {
   };
   brief: Brief;
   year?: YearRecord | null;
+  flow?: FlowRecord | null;
   cells: {
     x: number[]; y: number[]; z: number[];
     /** The terrain under water, where `z` is 0: the water's surface as flattened, or a bar. Null on land. */

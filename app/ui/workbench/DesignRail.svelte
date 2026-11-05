@@ -25,12 +25,16 @@
           <button type="button" aria-pressed={f.works === "hard"} onclick={() => (f.works = "hard")}>What-if</button>
         </div>
         <div class="wb-chips">
-          <button class="wb-chip" type="button" aria-pressed={f.tryFrom === null} onclick={() => (f.tryFrom = null)}>Today</button>
+          <button class="wb-chip" type="button" aria-pressed={f.tryFrom === null} onclick={() => f.choose(null)}>Today</button>
           {#each members as m (m.id)}
-            <button class="wb-chip" type="button" aria-pressed={f.tryFrom === m.id} onclick={() => (f.tryFrom = m.id)}>{m.name}</button>
+            <button class="wb-chip" type="button" aria-pressed={f.tryFrom === m.id} onclick={() => f.choose(m.id)}>{m.name}</button>
           {/each}
         </div>
-        <p class="wb-hint">These are starting points, not designs: the search comes later. Most of their section numbers are assumed.</p>
+        <div class="wb-row-btns">
+          <button class="wb-btn" type="button" disabled={!f.tryFrom} onclick={() => f.chooseAll(f.tryFrom)}>Use on every stretch</button>
+          <button class="wb-btn" type="button" disabled={!Object.keys(f.choices).length} onclick={() => f.chooseAll(null)}>Clear all</button>
+        </div>
+        <p class="wb-hint">These are starting points, not designs: the search comes later. Most of their section numbers are assumed. The scores are on the right.</p>
         {#if f.fit}
           <ul class="wb-checks">
             {#each f.fit.checks as c (c.id)}

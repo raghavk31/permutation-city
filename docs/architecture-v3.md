@@ -1592,9 +1592,34 @@ plants, with each limit checked on the result (`engine/focus/edgeform.ts`).
   banks too steep.
 - **What it shows, for E3 and E4.** Precedents copied blindly move a lot of earth: Adyar on B4 digs about 15,600 m³
   and places 13,600 m³ on nearly flat ground. Nothing scores that yet, so earthworks need a cost.
-- **Open: the bank's face.** A design stops at the mapped bank because the river's course and bed stay. Terrain is
-  coarse enough that the fall from there to the water doesn't show: on B4 the design's lowest level is about 150 m
-  and an ordinary river about 146.5 m. So as it stands, no lawful section brings anyone down to the water.
+- **The bank's face (the user, 5 November).** A design stopped at the mapped bank, so no lawful section reached the
+  water. Earth-only regrading of the face is now allowed: dug back within the mapped bank, so it adds nothing to the
+  river, down to an ordinary day's river, where the water is within 50 m and the first ground is free of trees.
+
+**E3 built (5 November; waiting for the user's check).** Choose a section per stretch, or one for all, and the
+inspector shows the design against today, with each measure's evidence and the river a metre lower and higher
+(`engine/focus/edgescore.ts`, `pc/riverflow.py`).
+
+- **The river's height, Q2's answer.** `pc river-flow`: GloFAS's modelled daily flow, 2003 to 2025, tied through
+  level = a + b ln(flow) to an ordinary day and three reports. It misses the reports by up to 1.4 m, and it put
+  nearly the same flow on two days whose levels differ by 2.4 m, likely because barrage releases aren't modelled. So
+  it gives a rough number of days above a level, and nothing about any one day. Not fitted to them, its dry months
+  land at 145.7 to 146.4 m, inside what the satellite reads. A metre either way doesn't fully cover a 1.4 m miss. The
+  gauge's record would replace this.
+- **Scores.** Days you can walk the edge, room for flood water, path and longest run, ways in, buildings within 10
+  minutes, Taj to Fort on foot, bank that reaches the water, tree cover along the way, edges to sit on, new planting,
+  hard ground, earth moved, tightest view limit. What nobody has measured today says so, rather than claiming none.
+- **Yanweizhou on every stretch, lawful, as a test and not a proposal.** Days walkable 132 to 261 (244 to 272 at a metre
+  either way, against 129 to 134). Path 4.8 km, longest run 1.9 km. Buildings within 10 minutes 53% to 57%. Bank
+  reaching the water 0.1 to 0.8 km. 65,342 m³ of earth moved. Taj to Fort on foot unchanged, 2,852 m: the river is no
+  shortcut, since the streets are already direct.
+- **Findings.** (1) Water and trees go together: of 54 stations with water close and no prohibition, 34 have trees
+  on the bank, which stay. So people reach the water at points, not along the whole edge, and only 0.05 km is dug bank
+  in this test. (2) A path doesn't pass the Taj: its stretches have no room or are prohibited, so the walk along the
+  river breaks there unless stakeholders decide otherwise. (3) Most new planting would fall on ground that's farmed or
+  used today. The map doesn't say by whom, and that's a stakeholder question before it's a score.
+- **Departures from the plan.** Shade is cover overhead, not the hot-afternoon model, which reads streets and buildings.
+  A path at grade over kept ground is assumed to lose no trees, since only cover is known.
 
 ---
 

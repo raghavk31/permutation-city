@@ -113,6 +113,10 @@ a { color: inherit; }
 .s-cut { fill: var(--pc-ink); opacity: .28; }
 .s-fill { fill: var(--pc-ink); opacity: .1; }
 .s-path { fill: var(--pc-paper); stroke: var(--pc-ink); stroke-width: 1.5; }
+.wb-score { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+.wb-score b { font-weight: 500; }
+.wb-was { color: var(--pc-ink-2); }
+.wb-row-btns { display: flex; flex-wrap: wrap; gap: 6px; }
 .wb-checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .wb-checks li { display: grid; gap: 1px; font-size: var(--pc-size-small); }
 .wb-checks b { font-weight: 500; }

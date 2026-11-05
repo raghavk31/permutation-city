@@ -6,6 +6,7 @@ import type { AgentId } from "../../agents/roles";
 import { type Choice, type Decision, record, releasedCells, type RoleId, withDecisions } from "../../engine/focus/decisions";
 import { type EdgeRead, readEdge } from "../../engine/focus/edge";
 import { fitStretch, type StretchFit, type Works } from "../../engine/focus/edgeform";
+import { type Score, scoreEdge } from "../../engine/focus/edgescore";
 import { edgeShapeOf } from "../../engine/typology/openshape";
 import { checkBrief, lineIndex, type Place, type Stay } from "../../engine/focus/place";
 import { checkRecords, type RecordCheck, riverYear, type RiverYear } from "../../engine/focus/river";
@@ -37,9 +38,23 @@ export class FocusStep {
   stretchOn = $state<string | null>(null);
   stationOn = $state<{ bank: number; k: number } | null>(null);
 
-  /** A precedent's section to try on the chosen stretch, and which class of work. */
-  tryFrom = $state<string | null>(null);
+  /** Which precedent's section each stretch tries, by stretch, and which class of work. */
+  choices = $state.raw<Record<string, string>>({});
   works = $state<Works>("soft");
+
+  get tryFrom(): string | null { return this.stretchOn ? this.choices[this.stretchOn] ?? null : null; }
+  /** Try a precedent's section on the chosen stretch, or null for today's ground. */
+  choose(id: string | null) {
+    if (!this.stretchOn) return;
+    const { [this.stretchOn]: _, ...rest } = this.choices;
+    this.choices = id ? { ...rest, [this.stretchOn]: id } : rest;
+  }
+  /** The same on every stretch, or clear them all. */
+  chooseAll(id: string | null) {
+    const out: Record<string, string> = {};
+    if (id) for (const b of this.edge?.banks ?? []) for (const s of b.stretches) out[s.id] = id;
+    this.choices = out;
+  }
 
   /** Stakeholders' decisions, oldest first. Only ever added to. */
   decisions = $state.raw<Decision[]>([]);
@@ -59,12 +74,20 @@ export class FocusStep {
   year = $derived.by((): RiverYear | null => (this.place ? riverYear(this.place) : null));
   /** The banks, read. Only made when the design step asks. */
   edge = $derived.by((): EdgeRead | null => (this.place ? readEdge(this.place, this.decisions.length ? this.released : null) : null));
-  /** The chosen precedent's section, fitted to the chosen stretch. */
-  fit = $derived.by((): StretchFit | null => {
-    const shape = this.tryFrom ? edgeShapeOf(this.tryFrom) : null;
-    if (!this.place || !this.edge || !shape || !this.stretchOn || !this.stationOn) return null;
-    return fitStretch(this.place, this.edge, this.stationOn.bank, this.stretchOn, shape, this.works);
+  /** Every stretch with a chosen section, fitted. */
+  fits = $derived.by((): StretchFit[] => {
+    const out: StretchFit[] = [];
+    if (!this.place || !this.edge) return out;
+    for (const b of this.edge.banks) for (const s of b.stretches) {
+      const shape = this.choices[s.id] ? edgeShapeOf(this.choices[s.id]) : null;
+      if (shape) out.push(fitStretch(this.place, this.edge, b.id, s.id, shape, this.works));
+    }
+    return out;
   });
+  /** The chosen stretch's fit. */
+  fit = $derived.by((): StretchFit | null => this.fits.find((x) => x.stretch.id === this.stretchOn) ?? null);
+  /** The design so far against today. */
+  scores = $derived.by((): Score[] => (this.place && this.edge && this.walk && this.fits.length ? scoreEdge(this.place, this.edge, this.fits, this.walk) : []));
   records = $derived.by((): RecordCheck[] => (this.place ? checkRecords(this.place) : []));
 
   async open(id: string, mark?: number) {
@@ -83,7 +106,7 @@ export class FocusStep {
     this.ruleOn = null;
     this.stretchOn = null;
     this.stationOn = null;
-    this.tryFrom = null;
+    this.choices = {};
     this.works = "soft";
     this.decisions = this.load(id);
     this.runs = {};

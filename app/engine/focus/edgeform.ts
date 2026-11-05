@@ -22,6 +22,7 @@ const STEP_M = 1;                 // how finely earth is added up
 const LEVEL_TOL_M = 0.05;         // differences under this aren't earthworks
 const TREE_M = 10, SHRUB_M = 3, GRASS_M = 0.5, REED_M = 2;   // grown heights, assumed until species are chosen (F6)
 const BISECT = 14;
+const FACE_WATER_M = 50;           // the bank's face is regraded only where the water is this near: further off, it's sand, and the bed stays
 const MIN_FREE_SHARE = 0.5;       // a stretch reshapes only if this much of it can take the levels (assumed)
 const PATH_SMOOTH_M = 30;
 
@@ -52,6 +53,8 @@ export interface SectionFit {
   cut: number; fill: number;
   /** Earth added minus taken, below the line, per metre of bank. */
   net: number;
+  /** The bank's face is dug back, so the section ends at an ordinary day's river instead of today's ground. */
+  face: boolean;
 }
 
 export interface Check { id: string; words: string; holds: boolean; found: string }
@@ -129,22 +132,22 @@ function keptSection(t: Station, k: number, mode: Mode, b: Budget, trees: number
   const vertices = t.ground.filter((g) => g.d <= t.reach && g.z !== null).map((g) => ({ d: g.d, z: g.z! }));
   const z0 = vertices[0]?.z ?? 0, z1 = vertices[vertices.length - 1]?.z ?? z0, mid = (z0 + z1) / 2;
   const elements: Element[] = vertices.length > 1 ? [{ kind: "kept", works: "none", d0: 0, d1: t.reach, z0, z1, floodsAt: floods(mid, b), planting: plantingAt(mid, 0, b, trees) }] : [];
-  return { k, mode, window: null, vertices, elements, path: null, cut: 0, fill: 0, net: 0 };
+  return { k, mode, window: null, vertices, elements, path: null, cut: 0, fill: 0, net: 0, face: false };
 }
 
-interface Plan { t: Station; k: number; a: number; b: number; toe: number; top: number; tiers: number }
+interface Plan { t: Station; k: number; a: number; b: number; toe: number; top: number; tiers: number; face: number | null }
 
 /** A section's vertices and elements for levels `z`, or null if they don't fit its ground. */
 function reshape(plan: Plan, shape: Shape, zs: number[], works: Works, budget: Budget): SectionFit | null {
-  const { t, k, a, b, toe, top } = plan, W = b - a, n = zs.length;
+  const { t, k, a, b, toe, top } = plan, W = b - a, n = zs.length, foot = plan.face ?? toe;
   const levels: number[] = [];
   for (let i = 0; i < n; i++) levels.push(Math.max(toe, Math.min(i ? levels[i - 1] : top, zs[i])));
   // Falls: into each level from above, and out of the last to the foot.
-  const falls = levels.map((z, i) => (i ? levels[i - 1] : top) - z).concat(levels[n - 1] - toe);
+  const falls = levels.map((z, i) => (i ? levels[i - 1] : top) - z).concat(levels[n - 1] - foot);
   const wall = works === "hard" ? shape.wall : 0, slope = works === "hard" ? shape.bank : Math.min(shape.bank, SOFT_BANK);
   const runs = falls.map((f) => (f * (1 - wall)) / slope);
   const level = W - runs.reduce((p, q) => p + q, 0);
-  if (level < n * MIN_TREAD_M) return null;
+  if (level < n * MIN_TREAD_M) return plan.face !== null ? reshape({ ...plan, face: null }, shape, zs, works, budget) : null;
   const tiers = edgeSection({ ...shape, reach: W, drop: Math.max(top - toe, 0.1), tiers: n });
   const shareSum = tiers.reduce((p, q) => p + q.tread, 0) || 1;
   const treads = tiers.map((q) => Math.max(MIN_TREAD_M, (q.tread / shareSum) * level));
@@ -157,7 +160,7 @@ function reshape(plan: Plan, shape: Shape, zs: number[], works: Works, budget: B
   let d = b, z = top;
   const stoneTread = works === "hard" && shape.trees < 0.15;
   const addFall = (i: number) => {
-    const to = i < n ? levels[i] : toe;
+    const to = i < n ? levels[i] : foot;
     if (falls[i] <= 1e-9) return;
     const run = runs[i], isWall = works === "hard" && wall > 0.5;
     const stone = isWall || falls[i] / run > SOFT_BANK + 1e-6;   // too steep to stay up as earth, so it's faced
@@ -193,7 +196,7 @@ function reshape(plan: Plan, shape: Shape, zs: number[], works: Works, budget: B
     e.planting = plantingAt((e.z0 + e.z1) / 2, raisedOver(t, vertices, e.d0, e.d1), budget, shape.trees);
   }
   const sums = earth(t, vertices, a, b, budget.line);
-  return { k, mode: "reshape", window: [a, b], vertices, elements, path: null, ...sums };
+  return { k, mode: "reshape", window: [a, b], vertices, elements, path: null, ...sums, face: plan.face !== null };
 }
 
 /** The most the surface stands above today's ground along a piece. */
@@ -239,7 +242,9 @@ export function fitStretch(place: Place, read: EdgeRead, bankId: number, stretch
     if (!w) continue;
     const toe = existingAt(t, w[0]), top = existingAt(t, w[1]);
     if (toe === null || top === null || top <= toe) continue;   // ground falling away from the river is left as it is
-    plans.push({ t, k, a: w[0], b: w[1], toe, top, tiers: 0 });
+    // Down the bank's face to the water, in earth only, where the water is close and nothing's in the way.
+    const near = t.toWaterHigh !== null && t.toWaterHigh <= FACE_WATER_M && w[0] === 0 && toe > ordinary;
+    plans.push({ t, k, a: w[0], b: w[1], toe, top, tiers: 0, face: near ? ordinary : null });
   }
 
   const keepAll = (mode: Mode) => span.map(({ t, k }) => keptSection(t, k, mode, budget(t), mode === "none" ? 0 : shape.trees));
@@ -310,6 +315,7 @@ export function fitStretch(place: Place, read: EdgeRead, bankId: number, stretch
   if (mode === "none") fit.notes.push("There's no room here, so the design leaves this stretch as it is.");
   if (lawOnlyPlants) fit.notes.push("Next to a monument: the lawful design only plants, and adds no path.");
   else if (works === "hard" && stretch.law === "prohibited") fit.notes.push("Next to a monument: even as a what-if, nothing here is hard.");
+  if (sections.some((s) => s.face)) fit.notes.push("The bank's face is dug back to an ordinary day's river. The terrain barely shows this drop, so these are the least certain levels here and need a survey.");
   if (worksHere === "soft" && mode !== "none") fit.notes.push("Assumes planting, earth paths and reshaping with no earth added aren't construction. Nobody has read that in the rules yet.");
   if (worksHere === "hard") fit.notes.push("A what-if: stone and walls aren't allowed by the rules as reported.");
   if (stretch.law === "regulated" && mode !== "none") fit.notes.push("Near a monument: this would need permission.");
