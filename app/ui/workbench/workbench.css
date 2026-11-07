@@ -124,6 +124,11 @@ a { color: inherit; }
 .wb-checks li.broken b { color: var(--pc-forbidden, #b3261e); }
 .s-level { fill: var(--pc-water); opacity: .35; }
 .s-river { fill: var(--pc-water); opacity: .55; }
+.wb-values { display: grid; gap: 6px; }
+.wb-values label { display: grid; grid-template-columns: 1fr 34px; gap: 0 6px; align-items: center; font-size: var(--pc-size-small); }
+.wb-values label span { grid-column: 1 / -1; color: var(--pc-ink-2); }
+.wb-values input { width: 100%; }
+.wb-values b { font-weight: 500; text-align: right; }
 .wb-river { display: grid; gap: 4px; }
 .wb-river label { font-weight: 500; }
 .wb-river input[type="range"] { width: 100%; }

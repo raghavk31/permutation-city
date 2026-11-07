@@ -5,7 +5,7 @@ import type { Shape } from "../typology/openshape.js";
 import type { EdgeRead } from "./edge.js";
 import { fitStretch, type StretchFit, type Works } from "./edgeform.js";
 import { pathJoins, type Score, WHEELCHAIR_SLOPE } from "./edgescore.js";
-import type { EdgeOption } from "./edgesearch.js";
+import { type EdgeOption, type Values, valuesOf } from "./edgesearch.js";
 import type { Place } from "./place.js";
 
 export interface StretchChoice {
@@ -18,19 +18,21 @@ export interface EdgeDesign {
   /** The option it started from, if any. */
   basedOn: string | null;
   stretches: Record<string, StretchChoice>;
+  /** What the search that last made it valued, and what it held still, so that can be questioned. */
+  searched?: { values: Values; locked: string[]; works: Works; seed: number };
 }
 
 /** A design that starts as an option exactly. */
 export function designOf(o: EdgeOption): EdgeDesign {
   const stretches: Record<string, StretchChoice> = {};
   for (const s of o.stretches) stretches[s.id] = { shape: s.shape, works: o.works, keepGround: s.keepGround, pathD: s.pathD, from: o.id };
-  return { basedOn: o.id, stretches };
+  return { basedOn: o.id, stretches, searched: { values: valuesOf(o.direction), locked: [], works: o.works, seed: 1 } };
 }
 
 /** Change one stretch, or with null leave it as it is today. Everything else stays the same object. */
 export function withStretch(d: EdgeDesign, id: string, choice: StretchChoice | null): EdgeDesign {
   const { [id]: _, ...rest } = d.stretches;
-  return { basedOn: d.basedOn, stretches: choice ? { ...rest, [id]: choice } : rest };
+  return { ...d, stretches: choice ? { ...rest, [id]: choice } : rest };
 }
 
 const fitted = new WeakMap<EdgeRead, WeakMap<StretchChoice, StretchFit>>();

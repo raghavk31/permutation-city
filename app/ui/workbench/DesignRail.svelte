@@ -1,6 +1,7 @@
 <script lang="ts">
   // The design step, so far: each bank's stretches to choose from, and how far the heights hold.
-  import { closestMember, type EdgeOption } from "../../engine/focus/edgesearch";
+  import { stretchSums, type StretchSums } from "../../engine/focus/edgescore";
+  import { type Alternative, closestMember, DIRECTIONS, type EdgeOption, type Values } from "../../engine/focus/edgesearch";
   import { MONTHS } from "../../engine/focus/river";
   import { LIBRARY } from "../../engine/typology/library";
   import { EDGE_SECTIONS } from "../../engine/typology/library/edgesections";
@@ -17,6 +18,40 @@
   const whatIf = $derived(f.options?.filter((o) => o.works === "hard") ?? []);
   const at = (o: EdgeOption, key: string) => o.scores.find((s) => s.key === key)?.design ?? 0;
   const n = (v: number) => v.toLocaleString("en-IN");
+  // COPY: what a search can value
+  const VALUES: { key: keyof Values; words: string; max: number; step: number }[] = [
+    { key: "days", words: "A path that stays dry", max: 1.5, step: 0.05 },
+    { key: "close", words: "A path beside the bank", max: 1.5, step: 0.05 },
+    { key: "water", words: "Bank reaching the water", max: 2, step: 0.05 },
+    { key: "room", words: "Room for flood water", max: 1.5, step: 0.05 },
+    { key: "planted", words: "New planting", max: 1.5, step: 0.05 },
+    { key: "seats", words: "Places to sit", max: 1.5, step: 0.05 },
+    { key: "earth", words: "The cost of moving earth", max: 4, step: 0.25 },
+  ];
+  const unlocked = $derived((f.edge?.banks.reduce((a, b) => a + b.stretches.length, 0) ?? 0) - f.locks.length);
+  const sumsHere = $derived(f.place && f.edge && f.walk && f.fit ? stretchSums(f.place, f.edge, f.fit, f.walk) : null);
+  const showOthers = $derived(f.others && f.others.stretch === f.stretchOn ? f.others.list : null);
+  /** One alternative in words on this stretch, against what's there now. Dry days are at the river's worst of three levels. */
+  function otherLine(a: Alternative, now: StretchSums | null) {
+    const km = Math.max(0.05, (f.fit?.stretch.length ?? f.edge?.banks.flatMap((b) => b.stretches).find((s) => s.id === f.stretchOn)?.length ?? 50) / 1000);
+    const days = (s: StretchSums) => (s.days / km) * 365;
+    const part = (words: string, of: (s: StretchSums) => number, unit: string, digits = 0) => {
+      const k = 10 ** digits, round = (x: number) => Math.round(x * k) / k;
+      const v = round(of(a.sums)), was = now ? round(of(now)) : null;
+      if (v === 0 && (was === null || was === 0)) return "";
+      const change = was !== null && v !== was ? ` (${v > was ? "+" : ""}${n(round(v - was))})` : "";
+      return `${words} ${n(v)}${unit}${change}`;
+    };
+    return [
+      part("dry", days, " days"),
+      part("beside the bank", (s) => s.close * 1000, " m"),
+      part("flood room", (s) => s.room, " m³"),
+      part("earth moved", (s) => s.earth, " m³"),
+      part("planted", (s) => s.planted, " ha", 1),
+      part("to sit on", (s) => s.seats, " m"),
+      a.steep ? `${a.steep} too steep for a wheelchair` : "",
+    ].filter(Boolean).join(", ");
+  }
   /** An option's numbers in a line, leaving out what it doesn't touch. */
   const line = (o: EdgeOption) => [
     `${n(at(o, "days_walkable"))} days walkable`,
@@ -81,6 +116,28 @@
           <button class="wb-btn is-quiet" type="button" disabled={!f.design} onclick={() => f.chooseAll(null)}>Clear the design</button>
         </div>
         <p class="wb-hint">Precedents are starting points, and most of their section numbers are assumed. Limits are checked on whatever you choose.</p>
+        <div class="wb-row-btns">
+          <button class="wb-btn" type="button" aria-pressed={f.locks.includes(f.stretchOn)} onclick={() => f.toggleLock(f.stretchOn!)}>{f.locks.includes(f.stretchOn) ? "Locked: free it" : "Lock this stretch"}</button>
+          <button class="wb-btn" type="button" aria-busy={f.othersBusy} disabled={f.othersBusy || f.searching} onclick={() => f.otherWays()}>{f.othersBusy ? "Looking" : "Other ways to do this"}</button>
+        </div>
+        {#if showOthers}
+          {#if showOthers.length}
+            <p class="wb-hint">Each is the best the search found at something, {f.others?.works === "hard" ? "as a what-if" : "lawfully"}. Numbers are for this stretch{sumsHere ? ", with the change from what's here now in brackets" : ""}; dry days are with the river a metre higher.</p>
+            <ul class="wb-stretches">
+              {#each showOthers as a, i (i)}
+                <li>
+                  <button type="button" onclick={() => f.useOther(a)}>
+                    <b>{a.best[0][0].toUpperCase() + a.best[0].slice(1)}{a.best.length > 1 ? `, and ${a.best.slice(1).join(", ")}` : ""}</b>
+                    <span>{a.mode === "reshape" ? `Reshaped into ${a.levels} ${a.levels === 1 ? "level" : "levels"}${a.like ? `, closest to ${nameOf(a.like)}` : ""}.` : a.mode === "none" ? "No room, left as it is." : "The ground stays as it is."}</span>
+                    <span>{otherLine(a, sumsHere) || "Nothing to measure here."}</span>
+                  </button>
+                </li>
+              {/each}
+            </ul>
+          {:else}
+            <p class="wb-hint">Nothing here can differ: there's no room, or the law leaves only one thing to do.</p>
+          {/if}
+        {/if}
         {#if f.fit}
           <ul class="wb-checks">
             {#each f.fit.checks as c (c.id)}
@@ -91,6 +148,31 @@
         {/if}
       </div>
     {/if}
+    {#if f.design}
+      <div class="wb-sub">
+        <!-- COPY: searching around what's locked -->
+        <span class="wb-label">Search around what you've locked</span>
+        <p class="wb-hint">{f.locks.length ? `Locked: ${f.locks.join(", ")}. These stay exactly as they are.` : "Nothing locked yet, so this searches every stretch again."} {f.works === "hard" ? "The rest are searched as a what-if." : "The rest are searched lawfully."} Undo brings back what's there now.</p>
+        <div class="wb-chips">
+          {#each DIRECTIONS as d (d.id)}
+            <button class="wb-chip" type="button" aria-pressed={f.aim === d.id} onclick={() => f.aimAt(d.id)}>{d.words}</button>
+          {/each}
+        </div>
+        <details class="wb-group">
+          <summary>What this search values</summary>
+          <p class="wb-hint">These are choices, not findings, and a design keeps the ones that made it. They start from the direction chosen above.</p>
+          <div class="wb-values">
+            {#each VALUES as v (v.key)}
+              <label><span>{v.words}</span><input type="range" min="0" max={v.max} step={v.step} value={Math.max(0, f.values[v.key])} oninput={(e) => f.setValue(v.key, +e.currentTarget.value)} /><b>{Math.max(0, f.values[v.key]).toFixed(2)}</b></label>
+            {/each}
+          </div>
+        </details>
+        <button class="wb-btn is-primary" type="button" aria-busy={f.searching} disabled={f.searching || unlocked === 0} onclick={() => f.searchRest()}>{f.searching ? "Searching, up to 15 seconds" : `Search the other ${unlocked} ${unlocked === 1 ? "stretch" : "stretches"}`}</button>
+        {#if f.design.searched?.locked.length}<p class="wb-hint">This design came from a search around {f.design.searched.locked.length} locked {f.design.searched.locked.length === 1 ? "stretch" : "stretches"}.</p>{/if}
+        {#if f.searchError}<p class="wb-hint" role="alert">{f.searchError}</p>{/if}
+      </div>
+    {/if}
+
     <div class="wb-sub">
       <!-- COPY: the search's options -->
       <span class="wb-label">Options for the whole edge</span>
@@ -129,7 +211,7 @@
             <li>
               <button type="button" aria-pressed={f.stretchOn === s.id} onclick={() => f.pickStretch(s.id)}>
                 <!-- COPY: one stretch -->
-                <b>{s.id}: {ROOM_WORDS[s.room]}, {km(s.length)}</b>
+                <b>{s.id}: {ROOM_WORDS[s.room]}, {km(s.length)}{f.locks.includes(s.id) ? ", locked" : ""}</b>
                 <span>{s.room === "none" ? "" : `About ${s.reach.mid} m of ground, up to ${STOP_WORDS[mainStop(s)]}. `}{LAW_WORDS[s.law]}{s.viewLow ? "; a view holds trees down" : ""}.</span>
               </button>
             </li>

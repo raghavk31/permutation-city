@@ -4,7 +4,8 @@
 // The weights say what each direction values: they're choices, not findings, so they're named here.
 import { clampShape, edgeShapeOf, OPEN_GENES, type Shape } from "../typology/openshape.js";
 import { EDGE_SECTIONS } from "../typology/library/edgesections.js";
-import type { EdgeRead } from "./edge.js";
+import type { EdgeRead, Stretch } from "./edge.js";
+import type { EdgeDesign, StretchChoice } from "./edgedesign.js";
 import { fitStretch, type StretchFit, type Works } from "./edgeform.js";
 import { pathJoins, type Score, scoreEdge, type StretchSums, stretchSums, WHEELCHAIR_SLOPE } from "./edgescore.js";
 import type { Place } from "./place.js";
@@ -19,7 +20,10 @@ export const EARTH_M3 = 20_000;                         // this much earth moved
 const LEVEL_COST = 0.02;                                // per metre the path changes level between stretches
 const STEEP_COST = 0.15;                                // per length of path a wheelchair can't use
 
-const WEIGHTS: Record<Direction, { days: number; close: number; water: number; room: number; planted: number; seats: number }> = {
+/** What a search values: how much each thing is worth, and earth's cost as a multiple of EARTH_M3's. A person can change these. */
+export interface Values { days: number; close: number; water: number; room: number; planted: number; seats: number; earth: number }
+
+const WEIGHTS: Record<Direction, Omit<Values, "earth">> = {
   // Planting takes ground that's often farmed or used, so it's a small cost unless it's what's wanted.
   path: { days: 1, close: 0.1, water: 0, room: 0, planted: -0.01, seats: 0 },
   river: { days: 0.25, close: 1, water: 1.5, room: 0, planted: -0.01, seats: 0.1 },
@@ -54,15 +58,20 @@ function rng(seed: number) {
 }
 const hash = (s: string) => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
 
-/** What a stretch is worth to a direction, before it's joined to its neighbours. */
-export function worth(c: Candidate, d: Direction, earthM3 = EARTH_M3): number {
-  const w = WEIGHTS[d], s = c.sums;
+/** What a direction values as it comes, with earth's cost at `earth` times the usual. */
+export const valuesOf = (d: Direction, earth = 1): Values => ({ ...WEIGHTS[d], earth });
+
+const sameValues = (a: Values, b: Values) => (Object.keys(a) as (keyof Values)[]).every((k) => a[k] === b[k]);
+
+/** What a stretch is worth, before it's joined to its neighbours. */
+export function worth(c: Candidate, w: Values): number {
+  const s = c.sums;
   return w.days * s.days + w.close * s.close + w.water * s.water + (w.room * Math.max(0, s.room)) / ROOM_M3 + (w.planted * s.planted) / PLANTED_HA + (w.seats * s.seats) / SEAT_M
-    - s.earth / earthM3 - c.steep * STEEP_COST;
+    - (s.earth * w.earth) / EARTH_M3 - c.steep * STEEP_COST;
 }
 
 /** Everything worth keeping on one stretch: the members, the ground left alone, and what grew from them. */
-export function searchStretch(place: Place, read: EdgeRead, base: Walk, bankId: number, stretchId: string, works: Works, seed: number, earthM3 = EARTH_M3): Candidate[] {
+export function searchStretch(place: Place, read: EdgeRead, base: Walk, bankId: number, stretchId: string, works: Works, seed: number, parents: Values[] = DIRECTIONS.map((d) => valuesOf(d.id))): Candidate[] {
   const make = (shape0: Shape, keepGround = false, pathD?: number): Candidate | null => {
     const shape = works === "soft" && !keepGround ? { ...shape0, trees: Math.max(SOFT_COVER, shape0.trees) } : shape0;
     const fit = fitStretch(place, read, bankId, stretchId, shape, works, { keepGround, pathD });
@@ -76,8 +85,8 @@ export function searchStretch(place: Place, read: EdgeRead, base: Walk, bankId: 
   // The ground left alone, with a path somewhere along it and more or less planted.
   for (const trees of [0, 0.2, 0.4, 0.6]) for (const d of [undefined, ...PATH_DS]) add(make(clampShape("edge", { ...edgeShapeOf(members[0])!, trees }), true, d));
   const r = rng(seed ^ hash(stretchId));
-  for (let round = 0; round < ROUNDS; round++) for (const d of DIRECTIONS) {
-    const parent = all.reduce((p, q) => (worth(q, d.id, earthM3) > worth(p, d.id, earthM3) ? q : p));
+  for (let round = 0; round < ROUNDS; round++) for (const v of parents) {
+    const parent = all.reduce((p, q) => (worth(q, v) > worth(p, v) ? q : p));
     for (let k = 0; k < CHILDREN; k++) {
       const child: Shape = { ...parent.fit.shape };
       for (let t = 0, n = r() < 0.5 ? 1 : 2; t < n; t++) {
@@ -105,11 +114,10 @@ export function closestMember(shape: Shape): string {
 
 const endOf = (f: StretchFit, last: boolean) => { const s = last ? f.sections[f.sections.length - 1] : f.sections[0]; return s?.path ?? null; };
 
-/** Along one bank, the chain of candidates worth most once they've been joined. */
-function chain(read: EdgeRead, bankId: number, pools: Map<string, Candidate[]>, d: Direction, earthM3: number): Candidate[] {
-  const b = read.banks.find((x) => x.id === bankId)!;
-  const short = b.stretches.map((s) => {
-    const pool = [...pools.get(s.id)!].sort((p, q) => worth(q, d, earthM3) - worth(p, d, earthM3));
+/** Along a run of neighbouring stretches, the chain of candidates worth most once they've been joined. */
+function chain(stretches: Stretch[], pools: Map<string, Candidate[]>, d: Values): Candidate[] {
+  const short = stretches.map((s) => {
+    const pool = [...pools.get(s.id)!].sort((p, q) => worth(q, d) - worth(p, d));
     const out: Candidate[] = [], levels = new Set<string>();
     // The best few, but at different path levels, so a join has something to choose between.
     for (const c of pool) {
@@ -126,26 +134,27 @@ function chain(read: EdgeRead, bankId: number, pools: Map<string, Candidate[]>, 
     const rise = Math.abs(p.z - q.z);
     return rise * LEVEL_COST + (rise / 50 > WHEELCHAIR_SLOPE ? STEEP_COST : 0);
   };
-  let best = short[0].map((c) => ({ v: worth(c, d, earthM3), back: [c] }));
+  let best = short[0].map((c) => ({ v: worth(c, d), back: [c] }));
   for (let i = 1; i < short.length; i++) {
     best = short[i].map((c) => {
       let top = best[0], topV = -Infinity;
       for (const p of best) { const v = p.v - joinCost(p.back[p.back.length - 1], c); if (v > topV) { topV = v; top = p; } }
-      return { v: topV + worth(c, d, earthM3), back: [...top.back, c] };
+      return { v: topV + worth(c, d), back: [...top.back, c] };
     });
   }
   return best.reduce((p, q) => (q.v > p.v ? q : p)).back;
 }
 
 /** The options: each direction, lawful and as a what-if. Directions that land on the same design are one option. */
-export function searchEdge(place: Place, read: EdgeRead, base: Walk, seed = 1, earthM3 = EARTH_M3): EdgeOption[] {
+export function searchEdge(place: Place, read: EdgeRead, base: Walk, seed = 1, earth = 1): EdgeOption[] {
+  const parents = DIRECTIONS.map((d) => valuesOf(d.id, earth));
   const out: EdgeOption[] = [];
   for (const works of ["soft", "hard"] as Works[]) {
     const pools = new Map<string, Candidate[]>();
-    for (const b of read.banks) for (const s of b.stretches) pools.set(s.id, searchStretch(place, read, base, b.id, s.id, works, seed, earthM3));
+    for (const b of read.banks) for (const s of b.stretches) pools.set(s.id, searchStretch(place, read, base, b.id, s.id, works, seed, parents));
     const seen = new Set<string>();
     for (const d of DIRECTIONS) {
-      const picked = read.banks.flatMap((b) => chain(read, b.id, pools, d.id, earthM3));
+      const picked = read.banks.flatMap((b) => chain(b.stretches, pools, valuesOf(d.id, earth)));
       const key = picked.map((c) => JSON.stringify([c.fit.levels, c.fit.shape.trees, c.keepGround, c.pathD])).join();
       if (seen.has(key)) continue;
       seen.add(key);
@@ -160,4 +169,70 @@ export function searchEdge(place: Place, read: EdgeRead, base: Walk, seed = 1, e
     }
   }
   return out;
+}
+
+const choiceOf = (c: Candidate, works: Works): StretchChoice => ({ shape: c.fit.shape, works, keepGround: c.keepGround, pathD: c.pathD, from: "search" });
+
+/** Search everything that isn't locked, around what is (docs/architecture-v3.md section 15.11, step I2). A locked stretch
+ *  stays exactly as chosen, even if it breaks a limit, and one locked at today has no path, so nothing joins across it. */
+export function searchAround(place: Place, read: EdgeRead, base: Walk, ask: { design: EdgeDesign | null; locked: string[]; values: Values; works: Works; seed?: number }): EdgeDesign {
+  const { design, locked, values, works, seed = 1 } = ask;
+  const usual = DIRECTIONS.map((d) => valuesOf(d.id));
+  const parents = usual.some((v) => sameValues(v, values)) ? usual : [...usual, values];
+  const stretches: Record<string, StretchChoice> = {};
+  for (const b of read.banks) {
+    const pools = new Map<string, Candidate[]>();
+    let run: Stretch[] = [];
+    const finish = () => {
+      if (run.length) for (const c of chain(run, pools, values)) {
+        const id = c.fit.stretch.id;
+        stretches[id] = locked.includes(id) ? design!.stretches[id] : choiceOf(c, works);
+      }
+      run = [];
+    };
+    for (const s of b.stretches) {
+      if (locked.includes(s.id)) {
+        const c = design?.stretches[s.id];
+        if (!c) { finish(); continue; }   // left as it is today
+        const fit = fitStretch(place, read, b.id, s.id, c.shape, c.works, { keepGround: c.keepGround, pathD: c.pathD });
+        pools.set(s.id, [{ fit, sums: stretchSums(place, read, fit, base), steep: pathJoins(read, [fit]).filter((j) => j.slope > WHEELCHAIR_SLOPE).length, keepGround: c.keepGround, pathD: c.pathD }]);
+      } else pools.set(s.id, searchStretch(place, read, base, b.id, s.id, works, seed, parents));
+      run.push(s);
+    }
+    finish();
+  }
+  return { basedOn: design?.basedOn ?? null, stretches, searched: { values, locked, works, seed } };
+}
+
+export interface Alternative {
+  choice: StretchChoice; sums: StretchSums; steep: number; mode: StretchFit["mode"]; levels: number; like: string | null;
+  /** What it's the best of the search at, in words. */
+  best: string[];
+}
+
+// COPY: what an alternative is best at
+const BEST_AT: { words: string; of: (s: StretchSums) => number }[] = [
+  { words: "the driest path", of: (s) => s.days },
+  { words: "the path nearest the bank", of: (s) => s.close },
+  { words: "the most bank reaching the water", of: (s) => s.water },
+  { words: "the most room for flood water", of: (s) => s.room },
+  { words: "the most new planting", of: (s) => s.planted },
+  { words: "the most places to sit", of: (s) => s.seats },
+  { words: "the least earth moved", of: (s) => -s.earth },
+];
+const NEAR_BEST = 0.01;   // within this share of the range counts as level, and then the least earth and planting wins
+
+/** A few ways to do one stretch, each the best at something, so none is a near-copy of another. */
+export function alternativesFor(place: Place, read: EdgeRead, base: Walk, bankId: number, stretchId: string, works: Works, seed = 1): Alternative[] {
+  const pool = searchStretch(place, read, base, bankId, stretchId, works, seed);
+  const picked = new Map<Candidate, string[]>();
+  for (const t of BEST_AT) {
+    const v = pool.map((c) => t.of(c.sums)), top = Math.max(...v), range = top - Math.min(...v);
+    if (range <= 1e-6) continue;   // nothing here can change this
+    const level = pool.filter((_, i) => v[i] >= top - range * NEAR_BEST);
+    // One already listed that's level at this too just says so, rather than a near-copy being added.
+    const c = level.find((x) => picked.has(x)) ?? level.reduce((p, q) => (q.sums.earth < p.sums.earth || (q.sums.earth === p.sums.earth && q.sums.planted < p.sums.planted) ? q : p));
+    picked.set(c, [...(picked.get(c) ?? []), t.words]);
+  }
+  return [...picked].map(([c, best]) => ({ choice: choiceOf(c, works), sums: c.sums, steep: c.steep, mode: c.fit.mode, levels: c.fit.levels.length, like: c.fit.mode === "reshape" ? closestMember(c.fit.shape) : null, best }));
 }

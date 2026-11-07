@@ -9,7 +9,7 @@ import { type EdgeRead, readEdge } from "../../engine/focus/edge";
 import { changesFrom, type DesignChange, designOf, type EdgeDesign, fitDesign, type StretchChoice, whatIfStretches, withStretch } from "../../engine/focus/edgedesign";
 import type { StretchFit, Works } from "../../engine/focus/edgeform";
 import { type Score, scoreEdge } from "../../engine/focus/edgescore";
-import type { EdgeOption } from "../../engine/focus/edgesearch";
+import { type Alternative, DIRECTIONS, type Direction, type EdgeOption, type Values, valuesOf } from "../../engine/focus/edgesearch";
 import type { EdgeWorker } from "../../engine/focus/edgeworker";
 import { edgeShapeOf } from "../../engine/typology/openshape";
 import { checkBrief, lineIndex, type Place, type Stay } from "../../engine/focus/place";
@@ -59,23 +59,82 @@ export class FocusStep {
   option = $derived.by((): EdgeOption | null => this.options?.find((o) => o.id === this.design?.basedOn) ?? null);
   river = $derived.by((): number => this.riverAt ?? this.edge?.datum.ordinary?.[1] ?? this.place?.brief.marks[0].m ?? 0);
 
-  /** Run the search off the main thread. The result stands until a decision changes the ground. */
-  async search() {
+  /** Stretches the search must leave as they are. */
+  locks = $state.raw<string[]>([]);
+  /** What the next search around them values, starting from a direction. */
+  aim = $state<Direction>("river");
+  values = $state.raw<Values>(valuesOf("river"));
+  /** Other ways to do the chosen stretch. */
+  others = $state.raw<{ stretch: string; works: Works; list: Alternative[] } | null>(null);
+  othersBusy = $state(false);
+
+  private raw: Worker | null = null;
+  private api: Comlink.Remote<EdgeWorker> | null = null;
+  private workerFor = "";
+
+  /** The search's worker, kept for the place, and told when a decision changes the ground. */
+  private async engine() {
+    if (!this.raw) {
+      this.raw = new Worker(new URL("../../engine/focus/edgeworker.ts", import.meta.url), { type: "module" });
+      this.api = Comlink.wrap<EdgeWorker>(this.raw);
+      this.workerFor = "";
+    }
+    const key = `${this.id}|${this.decisions.length}`;
+    if (key !== this.workerFor) { await this.api!.setPlace(this.place!, this.released); this.workerFor = key; }
+    return this.api!;
+  }
+  private endWorker() { this.raw?.terminate(); this.raw = null; this.api = null; }
+
+  /** Run a long job off the main thread, one at a time; `done` is skipped if the place has changed meanwhile. */
+  private async job<T>(work: (api: Comlink.Remote<EdgeWorker>) => Promise<T>, done: (out: T) => void) {
     if (!this.place || this.searching) return;
     const id = this.id;
     this.searching = true;
     this.searchError = "";
-    const raw = new Worker(new URL("../../engine/focus/edgeworker.ts", import.meta.url), { type: "module" });
     try {
-      const out = await Comlink.wrap<EdgeWorker>(raw).search(this.place, this.released);
-      if (id === this.id) this.options = out;
+      const out = await work(await this.engine());
+      if (id === this.id) done(out);
     } catch (e) {
       this.searchError = e instanceof Error ? e.message : "The search couldn't finish.";
     } finally {
-      raw.terminate();
       this.searching = false;
     }
   }
+
+  /** Find the options. They stand until a decision changes the ground. */
+  search() { return this.job((api) => api.search(), (out) => (this.options = out)); }
+
+  /** Lock a stretch as it stands, or free it. */
+  toggleLock(id: string) { this.locks = this.locks.includes(id) ? this.locks.filter((x) => x !== id) : [...this.locks, id]; }
+  /** Start the values from a direction. */
+  aimAt(d: Direction) { this.aim = d; this.values = valuesOf(d); }
+  setValue(k: keyof Values, v: number) {
+    // Planting at nothing still keeps its small cost, or a search would plant for no reason.
+    this.values = { ...this.values, [k]: k === "planted" && v === 0 ? valuesOf("path").planted : v };
+  }
+  /** Search everything not locked, around what is. Undo brings back what was there. */
+  searchRest() {
+    const design = this.design ? $state.snapshot(this.design) as EdgeDesign : null;
+    return this.job((api) => api.around({ design, locked: [...this.locks], values: { ...this.values }, works: this.works }), (out) => this.hold(out));
+  }
+  /** Find other ways to do the chosen stretch. */
+  async otherWays() {
+    const id = this.stretchOn, bank = this.edge?.banks.find((b) => b.stretches.some((s) => s.id === id));
+    if (!id || !bank || !this.place || this.othersBusy) return;
+    const works = this.works;
+    this.othersBusy = true;
+    this.searchError = "";
+    try {
+      const api = await this.engine(), list = await api.alternatives(bank.id, id, works);
+      if (this.stretchOn === id) this.others = { stretch: id, works, list };
+    } catch (e) {
+      this.searchError = e instanceof Error ? e.message : "That couldn't finish.";
+    } finally {
+      this.othersBusy = false;
+    }
+  }
+  /** Use one of those on the chosen stretch. */
+  useOther(a: Alternative) { if (this.stretchOn) this.change(this.stretchOn, a.choice); }
   /** Change the design, keeping what it was for undo. */
   private hold(d: EdgeDesign | null) {
     this.past = [...this.past, this.design];
@@ -139,6 +198,7 @@ export class FocusStep {
   }
   /** One precedent on every stretch, as a design of its own, or clear the design. */
   chooseAll(id: string | null) {
+    this.locks = [];
     if (!id) { this.hold(null); return; }
     const stretches: Record<string, StretchChoice> = {};
     for (const b of this.edge?.banks ?? []) for (const s of b.stretches) { const c = this.fromPrecedent(id); if (c) stretches[s.id] = c; }
@@ -198,6 +258,10 @@ export class FocusStep {
     this.future = [];
     this.works = "soft";
     this.options = null;
+    this.locks = [];
+    this.others = null;
+    this.aimAt("river");
+    this.endWorker();
     this.searchError = "";
     this.riverAt = null;
     this.decisions = this.load(id);
@@ -226,7 +290,7 @@ export class FocusStep {
     if (best) { const p = best as { bank: number; k: number; id: string }; this.stationOn = { bank: p.bank, k: p.k }; this.stretchOn = p.id; }
   }
 
-  close() { this.place = null; this.walk = null; this.id = null; this.decisions = []; this.runs = {}; }
+  close() { this.endWorker(); this.place = null; this.walk = null; this.id = null; this.decisions = []; this.runs = {}; }
 
   private load(id: string): Decision[] {
     try {
@@ -244,6 +308,8 @@ export class FocusStep {
     this.design = null;
     this.past = [];
     this.future = [];
+    this.locks = [];
+    this.others = null;
     try { localStorage.setItem(storeKey(this.id), JSON.stringify(this.decisions)); } catch { /* still held for this session */ }
   }
 

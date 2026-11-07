@@ -1764,6 +1764,7 @@ class of work, with a note of where each came from. Fits and scores are always w
   **Built 5 November, waiting for the user's check** (`engine/focus/edgedesign.ts`). A design made from an option refits to exactly the option's scores, on all eight. Planted area now counts only what adds to cover already there: "most planted" falls from 60.5 to 41.7 ha, so about a third of the F5 figure was double counted. Lawful or what-if is now read from what's in a design rather than how it was asked for: stone, or earth or a path beside a monument. Until I3, a stakeholder's decision still clears the design.
 - **I2. Other ways to do this stretch, and search again.** For a chosen stretch, a few distinct alternatives with what each gains and costs, chosen so they aren't near-copies. Lock the stretches you like and search the rest, with
   the joins worked out around what's locked. What a direction values becomes visible and adjustable, including the cost of earth, since those weights are assumed and the choice belongs to people.
+  **Built 5 November, waiting for the user's check** (`edgesearch.ts`: `searchAround`, `alternativesFor`, `Values`). With nothing locked and a direction's own values the search finds that option again, which a test holds. A stretch locked at today has no path, so nothing joins across it. A locked stretch stays as chosen even if it breaks a limit; only what's searched has to hold them. Alternatives are each the best at something, and where they're level the one with least earth and planting wins, so the list can't fill up with near-copies. Dry days on an alternative are with the river a metre higher, the same worst case the search uses.
 - **I3. Keep and compare.** Name and keep designs, in the browser and as a file, as decisions are. Two side by side on the measures, map and any section. A stakeholder decision no longer clears the work: kept designs are refitted on the new ground,
   and they say what changed and what no longer holds.
 - **I4. Change a section directly.** Levels, path position and planting on a stretch, by number or dragging on the section, with limits checked as it moves.
@@ -1777,6 +1778,73 @@ class of work, with a note of where each came from. Fits and scores are always w
 - **Q2. Can someone push a design past a limit?** Proposal: yes, so they can see what it would take. It's shown as broken and can't be called lawful or kept as one.
 - **Q3. A lawful design with one what-if stretch?** Proposal: the whole design is then a what-if, and it lists which stretches make it one.
 - **Q4. Who sets what a direction values?** Proposal: whoever is working, and a kept design records the values it was searched with, so they can be questioned.
+
+## 16. Integrated city systems: a place for agents to practise (proposed 6 November, not approved, nothing built)
+
+The user's question on 6 November: can the whole product have a reinforcement learning (RL) environment, for designing integrated city systems using agentic modelling? An environment is a simulator a learner can practise in: it sees a situation, takes an action and gets a score, over many tries. This section proposes what that would mean here. It extends section 15 and doesn't change the iteration work in 15.11 until it's approved.
+
+### 16.1 What it would be
+
+A simulated city where water, streets, public ground and buildings affect each other, and where agents design it, live in it and test it. It compares designs. It doesn't predict what a real city will do.
+
+| Who | What they do | Today | Missing |
+|---|---|---|---|
+| Design team: water, mobility, public realm, built form, rules, critic | Propose changes to a shared design | Analyst, rules checker and critic, all read-only (`engine/focus/tools.ts`, `agents/roles.ts`) | The other roles, and a sandbox they can edit |
+| Simulated residents | Live, walk and travel in the design | Measures of access and street networks, but no simulated people | A behaviour model and real counts to check it against |
+| The world | Rain, flood, heat, sea level, growth | `shocks.ts`, `plan/storm.ts`, and `piecemeal.ts` for 2025, 2035 and 2050 with fixed conditions per year | Sequences of events a design has to respond to |
+| Stakeholders | Decide what stays | Decisions kept as records | Nothing. Simulated ones can help rehearse, but never count as a decision |
+
+### 16.2 The main gap: one shared design
+
+The systems don't yet share one design. The river edge holds an `EdgeDesign` and the city plan holds its own structures, so a change to water can't show up in a mobility score. `plan/storm.ts` is the pattern to extend, because rain already passes from lots to overflow streets to public water spaces. This is worth doing even if no agent ever uses it, since it's what "integrated" has to mean in the product. It also builds on 15.1, where engine stages become switches that either run or load the real thing.
+
+### 16.3 What agents do
+
+Agents make high-level moves: set the brief, lock things, change what a search values, run a search, edit the result, and raise conflicts between systems. The engine's searches still do the detailed work. The rule in 15.2 still holds: no number from a model, only from an engine tool or a cited source.
+
+Agents edit copies. Only a person can accept a change into the real design, so "people decide" still holds. Step I5 says agents never change a design, and it would stay true of the design a person holds.
+
+A trained model isn't the place to start. The searches already work within one system. Choosing moves across coupled systems is a far larger problem, so a learned guide might help later, and only if the test in 16.5 shows there's something for it to gain.
+
+### 16.4 Reward
+
+- **No single score.** One number would hide the trade-offs the product exists to show. Reward better sets of options, across the measures a brief is judged by.
+- **Limits stay hard rules.** A move that breaks a limit is shown as broken, as in 15.11 Q2, and earns nothing as a lawful design.
+- **False claims are penalised.** A number that doesn't match what a tool returned counts against the agent, using the check that already exists.
+- **Held-out tests.** Test on sites and shocks the agents haven't practised on, so they can't simply learn to satisfy our weights.
+- **What can't be counted stays named.** Being down at the water or how a place feels isn't scored, so a learner would treat it as worthless. Results keep saying so.
+
+### 16.5 The test that matters
+
+Give the same brief and the same number of engine evaluations to three approaches:
+
+1. **System by system,** in more than one order, so the comparison isn't against one bad sequence.
+2. **One joint search** across the systems.
+3. **The agent team,** with its model cost reported separately.
+
+Fix what counts as better before running it. If integration doesn't beat system by system, the premise is in trouble. If the agents don't beat the joint search, they're useful for explaining and negotiating but not for finding better designs. Either result is worth publishing, and it would sit beside the main claim in `docs/research/claim.md`.
+
+### 16.6 Limits
+
+- **Modelled people are modelled.** Simulated residents carry the same evidence labels as everything else, and 15.4's rule stands: no traffic claims without counts.
+- **Replay what really happened.** Where records exist, run real floods through the models before trusting comparisons that depend on them. The river's height today gives only a rough count of days above a level, and nothing about any one day (E3), so it can't yet support sequences of events.
+- **Speed is unknown.** A whole run takes 14 to 59 s by site (Docks and Bengaluru, measured before the river edge work) and the edge search about 12 s, so thousands of tries are expensive. Measure this at S2 before designing around it.
+- **City Science isn't read yet.** It's known only from a talk's slides (15.4). Read it at source before planning S3.
+
+### 16.7 Steps, in order of value
+
+- **S1. One shared design.** Start with streets and water on one brief: a change in one shows up in the other's scores, with limits checked on every change.
+- **S2. The environment.** Sandbox editing, the engine running without the browser, and grading. Test it first with scripted agents, which need no model key, then run the three-way test in 16.5 with a real model.
+- **S3. Simulated residents.** Part of the single streets and mobility system in 15.4, not a separate piece, and also usable in neighbourhood block exercises.
+- **S4. Events over time.** Floods, heat and growth in sequence, so a strategy that adapts can be tested. Needs a hydraulic model or the gauge record first.
+- **S5. A trained guide, only if S2 shows there's something to gain.**
+
+### 16.8 Questions
+
+- **Q1. Is S1 first?** Proposal: yes, since it's useful without agents and everything else depends on it.
+- **Q2. Which brief first?** Proposal: streets and water on the Taj stretch, which has the most checked ground and limits. The river's rough height is a weakness, so S1 shouldn't lean on any one day's level.
+- **Q3. Can agents edit copies?** Proposal: yes, with only a person able to accept a change.
+- **Q4. Where does this sit against 15.11?** Proposal: after I1 to I3, which make the loop people use. S1 should reuse what they establish about holding a design.
 
 ---
 
