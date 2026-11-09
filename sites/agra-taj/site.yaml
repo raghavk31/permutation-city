@@ -1,0 +1,8 @@
+name: 'Agra: Yamuna from the Fort to the Taj and Mehtab Bagh'
+grid:
+  type: hex
+  size: 20.0
+design_storm_mm: 100
+target_far: 1.5
+boundary: boundary.geojson
+context_m: 250

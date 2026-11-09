@@ -1230,7 +1230,621 @@ buildings fit round it.
   Form search: water dominates (3 times, usability in proportion); squares at most 3 m deep.
   Fixed an import cycle from P5 that stopped the browser's grower worker loading (whereOf
   moved to massing/sun.ts; test/imports.test.ts guards against new cycles).
-  Still to decide: one public space as its own page.
+  Still to decide: one public space as its own page. (Part of section 15 now.)
+
+## 15. An agentic design system for cities (approved 4 November)
+
+The user's direction on 4 November: an agentic design system for our cities. People choose a
+stretch of a real place and a brief; the system analyses it and designs what the brief asks for,
+keeping the rest; stakeholders decide what stays; the output eventually gets very detailed;
+mobility is a section of its own. First test: the Yamuna along the Taj Mahal. This goes ahead of
+the business-as-usual baseline, which waits.
+
+### 15.1 One mechanism: the brief
+
+A riverfront, a junction and one plot are one thing with different settings. A brief has:
+
+| Part | Meaning | Taj riverfront |
+|---|---|---|
+| Place | where, on the real map | the chosen stretch |
+| Can change | the zone the design may touch | river edge and floodplain within the line |
+| Affects | judged but not changed | the city's routes to the river, views, the monuments' setting |
+| Reads | data from further out | river levels, upstream rain, approach streets |
+| Stays | fixed, each with who decided and why | monuments, the Taj-Mehtab Bagh axis, legal limits |
+| Makes | the systems that run | public ground, water, planting; no massing unless allowed |
+| Judged by | scores for this brief | days usable through the river's year, flood passed, shade, access, views kept |
+| Detail | how far to take it | see 15.3 |
+
+Engine stages (streets, blocks, plots, public ground, buildings) become switches: a stage either
+runs or loads the real thing. `piecemeal.ts` already grows around fixed fabric and `locked` holds
+cells, but both are per cell, so this is new at the level of streets and buildings.
+
+What exists: `pc/export.py` already exports real footprints with heights (`existing_buildings`:
+100 m round the design ground, and those on it) and existing streets to 1 km; `massing/plot.ts`
+takes neighbours as prisms. Scoring today's condition with the same scores gives each brief its
+baseline: today against the design.
+
+### 15.2 What makes it agentic
+
+Agents read, propose, check and explain; the engine does the numbers; people decide.
+
+- **The rule already in the repo.** The brief compiler (`app/api/brief.ts`, `engine/brief.ts`)
+  may only pick from a fixed vocabulary within limits, and must cite a source or say "assumed".
+  Every agent keeps to that: no number from a model, only from an engine tool or a cited source.
+- **Roles.** Analyst (reads the place), water, mobility, public realm, built form, rules checker,
+  critic (argues against the proposal, from the scores and the rules). Start with few: analyst,
+  rules checker and critic, adding a role when there is a tool for it to use.
+- **Stakeholder decisions are records.** Who decided, what, on what evidence, and what it changed.
+  An agent proposes what stays and asks; it doesn't decide.
+- **Tools first.** An agent is as good as what it can call, so each design step ships as a
+  callable tool. The engine already runs under Node for tests and surveys, so a server can call
+  it. Which agent framework to use is decided at step F3, not before.
+
+### 15.3 Detail
+
+The output must get very detailed, so the geometry can't be another grid.
+
+| Level | Unit | Output |
+|---|---|---|
+| 1. Concept | 2 m raster | layout options, scores, key sections |
+| 2. Scheme | vector, levels to 0.1 m | plans, sections, levels, element and planting schedules, DXF |
+| 3. Detailed | vector, real products | construction details, quantities, IFC |
+
+Decision now: elements in a focused brief are vector with levels from the start, so they can
+carry more detail later. Level 3 needs people too: structure, hydraulics and approvals need
+qualified sign-off. The system prepares, labels what is assumed and doesn't certify.
+
+### 15.4 Mobility
+
+A section beside water and public ground, with analysis before design.
+
+1. **Analysis, from data we hold.** Overture streets, existing-street syntax (already computed),
+   walking access to places, gaps and barriers. Bus routes, lanes and counts come from
+   stakeholders or new sources, each labelled.
+2. **Design.** Junction geometry (kerbs, crossings, refuges, corner radii, space reclaimed), street
+   sections (`streetroles.ts`), walking and cycling links, stops. Needs finer geometry than the
+   street sections have today.
+3. **Traffic, when there is data.** Volumes need counts; a microsimulator such as SUMO is the
+   likely tool. Until then the system makes no claim about traffic flow.
+
+**To plan (the user, 5 November): one component for understanding and designing streets and mobility, which are a single system. Not planned yet. It will
+also be used in neighbourhood block design exercises.** So F7 (mobility) and F9 (junctions and street geometry) shouldn't be planned as separate pieces, and how they're ordered needs revisiting when this is planned. The reference is MIT Media Lab's City Science work, known so far only from a talk's slides and
+not read at source. They show a neighbourhood as a network, with pathways as links and places as nodes ringed by their mix of
+uses (credited to a spinoff, L3cities), and a research sequence: modelling the town, modelling the residents, rehearsing with
+the community, refining the design. Projects named: Synthetic Community Behavior, Travel Agent, CityScope, Urban Performance Model,
+Digital Urban Twin, H-ABM, Participatory Platforms, Urban Theater, Semantic Urban Model, Modeling Decisions, Synthetic Population and
+Beyond Zoning. To read before planning F7 and F9. Synthetic people and travel are modelled, so they'd carry the same evidence labels as the rest.
+
+### 15.5 The Taj stretch: what we found (4 November, needs checking before use)
+
+| Finding | Status | Consequence |
+|---|---|---|
+| [NGT restrained construction on Agra's Yamuna floodplain in 2015 and refused to lift it](https://housing.com/news/ngt-refuses-vacate-2015-order-construction-yamuna-floodplains-agra) | reported; current status not confirmed | treat the floodplain as no-build |
+| [80 acres of river bed between Taj and Fort were the Taj Corridor; demolition ordered](https://www.deccanherald.com/content/336049/authorities-fail-act-green-bodys.html) | reported, old | check what stands today |
+| [Floodplain behind the Taj reported not demarcated as of 2025](https://livelaw.in/news-updates/ngt-ravine-destruction-illegal-mining-taj-mahal-yamuna-restricted-floodplain-area-uttar-pradesh-285101) | superseded in part: see the F2 log, 15.8 | the map is still missing: test more than one line |
+| Flood marks [495, 499 and 508 ft](https://theprint.in/india/yamuna-breaches-low-flood-level-mark-in-agra-officials-step-up-relief-preparedness/1672335) | replaced by [metres from the Commission's figures, as reported](https://www.arabnews.com/world/indias-yamuna-river-laps-walls-of-taj-mahal-after-heavy-rain-2340376), F2 | the Commission's own tables still to read |
+| [River reached beyond the danger mark in September 2025](https://www.freepressjournal.in/india/uttar-pradesh-news-rising-yamuna-poses-threat-to-taj-mahal-as-floodwaters-engulf-agras-riverfront); [dry-river concern too](https://www.nationalheraldindia.com/national/drying-yamuna-could-endanger-taj-mahal) | reported | design for both low water and flood |
+| [Rubber dam proposed 1.5 km downstream of the Taj](https://rsdebate.nic.in/bitstream/123456789/731472/1/PQ_257_01082022_U1674_p358_p358.pdf) | proposal, 2022; present status unknown | score with and without it |
+| [Riverfront park reported, foundation stone 25 July 2026](https://www.prabhatkhabar.com/state/uttar-pradesh/agra-yamuna-river-front-park-project-amrit-2-0-yogi-government-development/amp) | one report, location to map | check overlap; it may be a stay |
+| [Koch: Mughal Agra as a riverfront garden city](https://bagchee.com/books/BB41021/the-complete-taj-mahal-and-the-river-front-gardens-of-agra); [Mehtab Bagh in the riverfront terrace pattern](https://en.wikipedia.org/wiki/Mehtab_Bagh) | established; garden count conflicts (44 or 11), read the book | the place's own precedent, for the library |
+| [WMF and ASI restored Mehtab Bagh's garden](https://wmf.org/node/14641) | reported | a partner body; a stay |
+| Monument limits ([prohibited 100 m](https://lawgist.in/ancient-monuments-and-archaeological-sites-and-remains-act-1958/20A), [regulated 200 m further](https://lawchakra.in/high-court/karnataka-high-court/karnataka-hc-amasr-act/), AMASR Act) and the Taj Trapezium Zone | Act read in a copy; rule layers since F2, from our outlines | get the Archaeological Survey's limits |
+
+**What this means.** Mostly a no-build problem: the search can't reach for massing. It has to
+design ground, water, planting, access from outside the floodplain, and things that flood or
+lift. A good first test of the public-ground work, and a real answer to "keep the context". This
+is a study, not a permission: what's legal gets stakeholder and legal review, and anything beyond
+today's rules is labelled as a what-if.
+
+### 15.6 Steps, in order of value, with a checkpoint after each
+
+- **F1. The brief and the real place.** The brief record, the Agra site (fetch, boundary), zones
+  drawn on the map, real streets and buildings as fixed geometry, today scored as the baseline.
+- **F2. Reading the stretch.** River through its year (gauge records; levels as bands on the
+  ground), rule layers (15.5), views from the Taj and Mehtab Bagh as a measured limit.
+- **F3. First agents.** Analyst, rules checker and critic on the tools from F1-F2; proposals of
+  what stays and stakeholders' decisions as records; framework chosen here.
+- **F4. River-edge library round.** Ghats, Mughal riverfront terraces and others, photo-checked;
+  a family of river-edge spaces with genes (the linear family has only 3 members).
+- **F5. Designing an edge.** Search along a line: section by section, vector with levels, scored
+  against river bands, access, shade, views.
+- **F6. Level 2 output.** Plans, sections, level and planting schedules, DXF, for the Taj edge.
+- **F7. Mobility analysis**, then reaching the river as its first design job.
+- **F8. Plot brief** with real neighbours, built and open composed together (40,000 m2 housing,
+  cultural programmes), on `/build`.
+- **F9. Junction brief**, with mobility design and finer street geometry.
+
+Then the one-public-space page is a kind of brief, and the BAU baseline returns for whole sites.
+
+### 15.7 Questions
+
+- **Q1. Which extent?** Proposal: both banks from Agra Fort to the Taj and Mehtab Bagh, since the
+  Mughal scheme crossed the river.
+- **Q2. Who are the stakeholders in the first test?** Proposal: one person acts in named roles
+  (ASI, Agra Development Authority, irrigation, residents, boat and ghat users), with logins later.
+- **Q3. What's the first detailed deliverable?** Proposal: level 2 of 15.3, DXF included.
+- **Q4. Stay within today's rules?** Proposal: a lawful design first, what-ifs beside it, labelled.
+
+Approved 4 November with all four proposals as they stand.
+
+### 15.8 Log
+
+- **F1 built (4 November; waiting for the user's check).** `sites/agra-taj` (study box, both
+  banks) and `sites/agra-taj/brief.yaml`, every stay a proposal with its reason, source and status.
+  `pc place` (pc/place.py) writes `app/public/sites/agra-taj.place.json`: 11,832 buildings with
+  height and height source, streets cut at the map's own junctions so a bridge doesn't join the
+  road below it, water, land use, per-cell ground, river bands, satellite wet record, trees and
+  surface heat. `engine/focus`: `place.ts` (brief, `checkBrief`, `zoneOf`, `profile`), `walk.ts`
+  (walking on real lines), `today.ts` (the baseline, each measure labelled measured, from the
+  map or estimated). The first page showed the zone at each river mark, what stays, a real section and
+  today's numbers.
+  **Moved into the workbench the same day (the user's direction):** the exercise is the first
+  choice, and everything after it happens in the workbench. `engine/focus/exercise.ts` lists the
+  four exercises; the Exercise step (`ExerciseCentre`, four diagrams) decides the steps that follow.
+  A whole neighbourhood keeps its nine steps and its links (a `?site=` link is still that exercise);
+  a river edge has Place, Read the place, What stays, then Design and Drawings shown as not built.
+  Read the place draws on the workbench's `MapCanvas` (`focuspaint.ts`) with six layers (what can
+  change, river levels, 10-minute walk, hot ground, wet record, tree cover), a readout of the spot,
+  a real section, and today's numbers in the inspector. Links: `?exercise=riverfront&place=agra-taj
+  &step=read&mark=2`. `pc place` also writes `places.json`, what the Place step lists. The
+  separate `/focus` page is gone.
+  Today at the 508 ft line: 201 ha can change, 575 buildings stand in it (13.1 ha of footprint,
+  19.3 ha of floor, 39% of heights guessed), 22% tree cover, 42.2 °C hot-season ground against 41.1
+  for the box. Taj to Mehtab Bagh is 956 m straight, 6.5 km on mapped streets. The zone is 54 ha at
+  495 ft and 103 ha at 499 ft, so the line's uncertainty is large; it is shown, not hidden.
+  Data traps found: "Agra Fort" in Overture is the railway station (the stay uses the Fort's
+  buildings); a Pacific marine monument's land use reaches the box (dropped, reported); ground
+  height is 0 on water cells (treated as unknown, and tanks aren't the river).
+  Not done: stays can't be decided yet (F3); streets and buildings as fixed geometry are read
+  by the baseline but no design search uses them yet (F5).
+- **F2 built (4 November; waiting for the user's check).** Read the place gains three layers,
+  and the engine three tools for F3's agents (`engine/focus/river.ts`, `views.ts`, rules on
+  the cells as bits).
+  - **The river's records.** Marks are now 151.4 m (the Central Water Commission's warning
+    level), 152.4 m (September 2025 at 2 pm; 152.49 m was reported that evening) and 154.76 m (the 1978 record), read
+    from reports of the Commission's figures. The line is the record, nearest to what the
+    floodplain notification is reported to use. At the record: 199 ha can change, 555 buildings
+    stand in it. At 151.4 m: 59 ha; at 152.4 m: 113 ha.
+  - **The ground model held against what happened.** `checkRecords` at the same level: July 2023,
+    water reported at the Taj's walls, the model stops 35 m from our approximate outline. September
+    2025, 0.6-0.9 m reported at Mehtab Bagh, the model wets 30% of it, 1.1 m deep where wet. So
+    it's about right, to within a metre, which is about what the terrain can do.
+  - **The river's year.** `pc river-year`: Sentinel-2 month by month, 2022-2025, 12 to 114 clear looks
+    a pixel per month. No daily gauge series could be read (the Commission's service timed out). Water
+    seen runs from 20 ha in May to 55 ha in November. That the monsoon doesn't lead is partly the
+    method: cloud hides short floods, and muddy water reads weakly. It measures where water is on
+    clear days, not depth. 7 ha of the zone is seen wet over 30 days a year.
+  - **Rules as layers.** Prohibited (100 m) and regulated (the next 200 m) around the three
+    monuments, from our outlines; the floodplain, its reach standing in; a 2010 report of 500 m round
+    the Taj, drawn dotted and not counted as law; trees within 5 km and the Trapezium, across the whole
+    study area. Of the zone, 21 ha is prohibited and 45 ha regulated.
+  - **Views as a measured limit.** On terrain and every building: toward the Taj, the sight line to
+    its plinth's top; north from its terrace, the skyline behind. From Mehtab Bagh the sight line is
+    clear today; from the Fort, 45% of the Taj's width is clear down to the plinth, with the Taj's
+    mosque and one other building across it (the mosque's height is estimated). 4 ha of the
+    zone is held under 3 m. Trees are left out, so what's "seen" is an upper bound.
+  - **Findings that change this section.** Uttar Pradesh notified the floodplain on 22 January 2025
+    ([ThePrint](https://theprint.in/india/over-5000-buildings-in-agra-face-risk-of-demolition-after-up-govt-demarcates-yamuna-floodplain/2478998/)),
+    banning new construction and calling existing buildings illegal; that replaces 15.5's "not
+    demarcated" as the leading reading, though a 2025 report still said so of the Taj's back. Its map
+    wasn't found, and reported widths of 5.09 and 2.55 km can't be drawn as a line. The terrain reads
+    about 166 m at the Taj's plinth, so it already holds the plinth, and adding its height would
+    count it twice. The depth at Mehtab Bagh in September 2025 comes from local reports (2 to 3 ft).
+  - **The question most of the design rests on:** whether a path, a ghat or planting counts as
+    construction under the monument and floodplain rules. Unread, and first for the rules checker.
+  Not done: the notification and the Archaeological Survey's limits unread; no depth through the year.
+- **F3 built (5 November; never yet run on a real model).** What stays now takes decisions, and three
+  agents read the place.
+  - **Decisions as records** (`engine/focus/decisions.ts`). Role, keep or change, a reason (required)
+    and what it changed, in a log that only grows: reopening adds a record. Changing a stay on the map
+    adds its land to the zone and today's numbers follow (Mehtab Bagh: 199 to 207 ha); changing a limit
+    moves no land and says any law behind it still applies. Held in the browser, with a download:
+    nothing is shared yet.
+  - **Tools** (`engine/focus/tools.ts`): eight, all read-only. There's no tool to write a decision.
+  - **Agents** (`agents/roles.ts`): analyst, rules checker, critic. **Framework: none.** A plain loop
+    (`agents/run.ts`) in the browser, which holds the place and runs the tools, and one turn per
+    request through `POST /api/agent` (`agents/turn.ts`), which holds the key, the instructions and the
+    tool list. It uses OpenRouter as the brief compiler does, one bill and no new dependency, with
+    the "careful" model (Claude Opus 5.5). Only `turn.ts` would change to call Anthropic directly.
+  - **The check** (`engine/focus/findings.ts`). The rule of 15.2 in code: a finding with a number no
+    tool returned, a "sourced" finding whose link isn't on record, or an assumption carrying a number
+    is removed, and the person sees what was removed and why. It can't catch a wrong claim with no
+    number in it, so the prompts ask for those as questions; a live run has to test that.
+  - Tested with a stand-in model only: there's no key on the development laptop. Prompt quality, cost
+    per run and whether agents keep to their roles are all unknown until a real run.
+- **F4 built (5 November).** "At the river's edge", a seventh family of public space, with seven new
+  precedents and genes for a section from the street to the water (`typology/library/edge.ts`,
+  `edgesections.ts`, `openshape.ts` `edgeSection`). Details and what's unsure in `docs/typologies.md`
+  under "River edges". Nothing places this family yet, so whole-city runs are unchanged; F5 does. Most
+  section numbers are assumed, because projects rarely publish them.
+
+### 15.9 F5 plan: designing an edge (approved 5 November, Q1-Q3 as proposed)
+
+**What it makes.** For each bank, a line along the water cut into stretches, and for each stretch a
+section from the street to the water, fitted to the real ground and held against the river. The
+result is vector with levels (15.3), so F6 can draw it. A person chooses among a few labelled options
+and sees each against today.
+
+**What the bank is like (read from `agra-taj.place.json`).**
+
+| | Taj side | Mehtab Bagh side |
+|---|---|---|
+| Bank, along the traced line (E1) | 3.6 km | 3.1 km |
+| Ground at the bank, 10th / middle / 90th percentile | 147.8 / 151.4 / 156.6 m | 145.5 / 149.3 / 152.6 m |
+| Bank to ground above the record, middle / 90th percentile | 60 / 271 m | 180 / 284 m |
+| Bank cells in a prohibited / regulated area, of all | 18 / 30 of 126 | 13 / 17 of 104 |
+
+So the two banks differ: the Taj side is narrow and higher, the other wide and low. One section can't
+serve both, which is why the search works stretch by stretch.
+
+**The problem to face first.** The middle of the Mehtab side's bank reads 149.3 m, below the 149.6 m
+reported on a steady monsoon day, and low water hadn't been measured at all. The datum was never
+checked. E1 looked (log below): this mostly isn't a terrain error, because the river usually stands
+well below that reading. Every section hangs from these heights, so:
+
+- E1 compares the terrain, the marks and the satellite's wet months, to estimate any offset.
+- Every score that depends on level runs at -1, 0 and +1 m, and a design claims only what holds at all
+  three. The two reports that can be tested disagree by -0.4 and +0.5 m, so this covers them.
+- Levels to 0.1 m are design levels relative to each other. They aren't survey levels, and the
+  drawings have to say that a survey comes before anything is used.
+
+**Three classes of work.** Whether a path, ghat or planting is "construction" is unread (15.8), so the
+search carries the question instead of settling it:
+
+| Class | What | Treated as |
+|---|---|---|
+| Soft | Planting, earth paths at grade, reshaping with no net fill | The lawful design, labelled as resting on this assumption |
+| Hard | Ghat steps, stone paths, walls, raised walks | A what-if, labelled, drawn beside the lawful design |
+| Building | Anything with a roof or floor | Not proposed |
+
+In a prohibited area, the lawful design only plants. Whether more is allowed is for the rules checker
+and stakeholders.
+
+**Limits that nothing may break.** No net fill below the record flood, no wall into the river or change
+to its course, nothing above a view's limit (a tree's full height counts), no building removed, no
+tree cover lost in any cell (only cover is known, not single trees, and felling is a matter for the
+Court). This follows the test for a river edge: it leaves the river its room, works with the flood,
+and doesn't push out the people there.
+
+**Scores, each measured on today as well and labelled by evidence.**
+
+| Score | How | Evidence |
+|---|---|---|
+| Days usable | For each level, its height against the river's estimated monthly level | estimate, coarse: months, not days |
+| Flood passed | Cross-section open to the water at each mark, and cut minus fill, against today | estimate; not a hydraulic model, so it makes no claim about flood levels |
+| Access | A path along the edge on the real walking network, ways in from ground above the flood, people within 10 minutes | map, plus the design |
+| Shade | Hot-afternoon shade along the path, from the street-shade model | estimate |
+| Places to sit | Length of rise that can be sat on | design |
+| Views kept | Margin under each view's limit; a limit, also reported | estimate |
+| River's room | Share of the zone left unpaved and planted, and its change | design |
+
+**Steps, each with a checkpoint.**
+
+- **E1. The line and its stretches.** Each bank traced through `smoothTrace`, stations every 50 m, and
+  a real cross-section at each: ground, marks, rules, view limit, buildings, nearest street, tree cover,
+  days wet. Stretches cut where those change, at least 100 m long. The datum check. Design step shows
+  the stretches and sections, with nothing designed yet.
+- **E2. A section on real ground.** A shape becomes a section for a stretch: reach, drop and flood height
+  are read from the place, the rest are genes. Vector offset lines with levels, cut and fill, each
+  limit checked, each element with its class.
+- **E3. Scores.** As above, today against a hand-set design, each with its label.
+- **E4. The search.** Each stretch starts from the library's members and searches its genes, in the
+  manner of `publicform.ts` (`mapElites` is tied to whole-site ground, so it isn't reused). Then a pass
+  along the bank chooses a chain that joins well: paths meet at a slope a wheelchair can use, with a
+  cost for changing levels. Options: lawful soft works, and the what-if with hard works, each in a few
+  distinct directions, such as most days usable or most planted.
+- **E5. In the workbench.** The Design step: options, each against today; choose a stretch to see its
+  section on the real ground with a river-level slider. New read-only tools, so the critic and rules
+  checker can read a design. No tool to change one.
+
+**Not in F5.** DXF, schedules and species (F6); ferries, bridges and routes across the river (F7); any
+hydraulic model, so no claim about what a design does to flood heights; 3D (the section and plan carry
+the check; the grammar's edge drawing can follow).
+
+**Questions.**
+
+- **Q1.** Is the soft / hard / building split right as the lawful line? Proposal: yes, until the
+  notification or a stakeholder says otherwise.
+- **Q2.** The river's monthly level has no gauge behind it. Proposal: try the Commission's tables once
+  more, otherwise estimate from the satellite's monthly wet area on the terrain and label it. A daily
+  record from anyone who holds one would improve this more than anything else in F5.
+- **Q3.** Should the riverfront park reported in July 2026 stay out of the design? Its site is unmapped.
+  Proposal: ignore it until it's located, and say so on the page.
+
+**E1 built (5 November; waiting for the user's check).** The Design step shows both banks cut into
+stretches, a real section at any station, and how far the heights hold (`engine/focus/edge.ts`).
+
+- **Banks.** Traced from the mapped river's outline through `smoothTrace`, read every 50 m: 25
+  stretches, 15 on the Taj's bank and 10 on Mehtab Bagh's, cut by room, law and whether a view holds
+  trees down. Each section says what ends its usable ground. The Taj's bank has almost no room from
+  about 2 km along, where the river runs at its wall; the east end of the Mehtab side has over 500 m.
+- **The terrain under the river.** `pc place` now keeps it (`cells.bed`), where the export left 0. Terrain
+  models flatten water: 471 of 873 river cells read 145.5 m, and bars that stand dry in November read
+  about 147 m. That gives a low end for every section in the terrain's own heights, independent of the
+  gauge. It's the water's surface when the model was flown, not a measured bed.
+- **The mapped river isn't the water.** Only 188 of its 873 cells are wet in May and 456 in November, so
+  on much of the bank the water is far from the mapped edge: up to about 390 m across sand on the Taj's
+  upstream stretches. Each station records it. A design's "edge" is a different place by season.
+- **The river's level by month.** Sorting what the satellite saw wet from dry, with those heights, gives
+  145.5 to 147.25 m in the 10 months it can read, agreeing 41 to 68%. July is too cloudy, and August
+  doesn't follow the ground. So Q2's fallback gives an ordinary day and not the monsoon: clear days only,
+  and cloud and muddy water hide floods. **Days usable (E3) needs another source for the monsoon.** Next
+  to try: modelled daily discharge (GloFAS) with reported levels to tie it down, labelled as such.
+- **The gauge.** Tried again 5 November, as Q2 proposed. The forecast service now answers but has no
+  documented way to list stations; India-WRIS's open API returns "no data" even for its own documented
+  examples. [The Commission's network list](https://www.slideshare.net/slideshow/hydrologicalnetworkdetailsofcwcpdf/255522242)
+  confirms a station at Agra Poiya Ghat since 1976, so the record exists: someone holds it.
+- **Heights against reports.** September 2025 at Mehtab Bagh: the terrain gives 0.4 m more water than
+  reported. July 2023 at the Taj: the water needs 0.5 m more to reach our outline. Opposite signs, so no
+  steady offset shows, though two reports can't prove there's none. The gauge's zero and how far the
+  river falls between the gauge and here are still unread.
+- **Not done.** Trees and fences aren't in a section. Sections on a tight bend can overlap, so a
+  stretch's hectares are approximate. "A view holds trees down" assumes a 10 m tree, for E2 to replace
+  with a planting's real height.
+
+**E2 built (5 November; waiting for the user's check).** On a chosen stretch, any of the ten precedents can
+be tried, lawful or what-if, and drawn over today's ground with the earth it moves, its path and what it
+plants, with each limit checked on the result (`engine/focus/edgeform.ts`).
+
+- **How a shape fits.** How far and how far down come from the place; the rest are genes. Levels hold along
+  the stretch, as a terrace does, and meet today's ground at both ends of what's reshaped. The output is
+  vector: pieces with levels and works class per section, and lines along the bank for each level and the path.
+- **Choices made while building, all assumptions to review.** Cell tree cover of 5% or more keeps its ground,
+  because only cover is known, so a section reshapes its longest tree-free run. A stretch reshapes only if half
+  of it can take the levels: one free section is a hole, not a terrace. Levels sink together until no earth is
+  added below the record flood. Ground falling away from the river is left alone. Beside a monument, nothing is
+  hard even as a what-if, which goes further than the plan said. A bank steeper than 1 in 3 counts as hard, since
+  it needs a facing. Planting is by kind and assumed height, with species left to F6.
+- **Checks.** All ten precedents on all 25 stretches both ways (500 fits): river, buildings and streets, earth,
+  views, trees, banks and law all hold. They caught real errors while building, including stale levels making
+  banks too steep.
+- **What it shows, for E3 and E4.** Precedents copied blindly move a lot of earth: Adyar on B4 digs about 15,600 m³
+  and places 13,600 m³ on nearly flat ground. Nothing scores that yet, so earthworks need a cost.
+- **The bank's face (the user, 5 November).** A design stopped at the mapped bank, so no lawful section reached the
+  water. Earth-only regrading of the face is now allowed: dug back within the mapped bank, so it adds nothing to the
+  river, down to an ordinary day's river, where the water is within 50 m and the first ground is free of trees.
+
+**E3 built (5 November; waiting for the user's check).** Choose a section per stretch, or one for all, and the
+inspector shows the design against today, with each measure's evidence and the river a metre lower and higher
+(`engine/focus/edgescore.ts`, `pc/riverflow.py`).
+
+- **The river's height, Q2's answer.** `pc river-flow`: GloFAS's modelled daily flow, 2003 to 2025, tied through
+  level = a + b ln(flow) to an ordinary day and three reports. It misses the reports by up to 1.4 m, and it put
+  nearly the same flow on two days whose levels differ by 2.4 m, likely because barrage releases aren't modelled. So
+  it gives a rough number of days above a level, and nothing about any one day. Not fitted to them, its dry months
+  land at 145.7 to 146.4 m, inside what the satellite reads. A metre either way doesn't fully cover a 1.4 m miss. The
+  gauge's record would replace this.
+- **Scores.** Days you can walk the edge, room for flood water, path and longest run, ways in, buildings within 10
+  minutes, Taj to Fort on foot, bank that reaches the water, tree cover along the way, edges to sit on, new planting,
+  hard ground, earth moved, tightest view limit. What nobody has measured today says so, rather than claiming none.
+- **Yanweizhou on every stretch, lawful, as a test and not a proposal.** Days walkable 132 to 261 (244 to 272 at a metre
+  either way, against 129 to 134). Path 4.8 km, longest run 1.9 km. Buildings within 10 minutes 53% to 57%. Bank
+  reaching the water 0.1 to 0.8 km. 65,342 m³ of earth moved. Taj to Fort on foot unchanged, 2,852 m: the river is no
+  shortcut, since the streets are already direct.
+- **Findings.** (1) Water and trees go together: of 54 stations with water close and no prohibition, 34 have trees
+  on the bank, which stay. So people reach the water at points, not along the whole edge, and only 0.05 km is dug bank
+  in this test. (2) A path doesn't pass the Taj: its stretches have no room or are prohibited, so the walk along the
+  river breaks there unless stakeholders decide otherwise. (3) Most new planting would fall on ground that's farmed or
+  used today. The map doesn't say by whom, and that's a stakeholder question before it's a score.
+- **Departures from the plan.** Shade is cover overhead, not the hot-afternoon model, which reads streets and buildings.
+  A path at grade over kept ground is assumed to lose no trees, since only cover is known.
+
+**E4 built (5 November; waiting for the user's check).** Each stretch starts from the ten members and the ground left alone,
+and searches its genes; a pass along each bank then chooses a chain that joins well, with a cost for changing level and for
+slopes a wheelchair can't use (`engine/focus/edgesearch.ts`). It reads each stretch's share of the same measures the score panel
+shows, at the river's worst of three levels, and a test holds the two together. Eight options, about 12 s, not yet on screen (E5).
+
+| Lawful | Days walkable (at a metre either way) | Path beside the river, of 4.8 km | Room for flood water | Earth moved | New planting |
+|---|---|---|---|---|---|
+| Today | 132 (129 to 134) | not counted | | | |
+| A path, and little else | 276 (267 to 282) | 0.6 km | 0 | 0 | 0 |
+| Close to the river | 246 (227 to 263) | 4.8 km | 53 m³ | 625 m³ | 0.2 ha |
+| Most planted | 249 (233 to 265) | 3.6 km | 0 | 0 | 41.7 ha (60.5 ha before I1 stopped counting cover already there) |
+| Most room for the river | 261 (243 to 270) | 2.5 km | 123,096 m³ | 142,014 m³ | 3.1 ha |
+
+The what-ifs: 310 days with a 5.9 km path, or 219,268 m³ of room for 231,436 m³ of earth and 15.7 ha of stone.
+
+- **Finding 1: nothing measured here pays for moving earth, except room for flood water.** Most stretches are left at today's
+  ground with only a path. This doesn't come from the earth cost: with earth free, walkable days stay at 276 and bank reaching the
+  water stays at 0.8 km. Free earth buys only flood room and places to sit. A higher path is dry more days, and digging lowers it.
+- **Finding 2: the trade is where the path runs.** High and inland, 276 days and 0.6 km beside the river. Beside the bank, 246 days
+  and 4.8 km. That's a decision for people, so both are options.
+- **Finding 3: "most room" isn't a flood remedy.** 123,000 m³ is about 17 s of the record flood's flow, at the roughly 7,300 m³/s our
+  own rough fit gives for 154.76 m, and it has to be carried off the floodplain, about 12,000 loads at 10 m³. If lowering ground
+  helps a flood, it's by giving it a wider way through, which only a hydraulic model can show, and that's outside F5.
+- **Finding 4: the what-ifs' biggest gain isn't stone.** Their path runs on past the monuments, 1.1 km more, which is what lifts days
+  from 276 to 310, and that one has no hard works at all. The question for stakeholders is whether a path may pass the monuments.
+- **What the search doesn't see.** Measures favour what can be counted: being down at the water's level, and how a place feels, aren't
+  scored, so this doesn't show terraces are worthless. The terrain is satellite, a cell with 5% tree cover keeps its ground (which rules
+  out most reshaping near the water), and the weights are assumed, named in the code. Bank reaching the water reads 0.8 km in every
+  option, so the "close to the river" option gets its path beside the bank and no more of the water.
+- **Choices made while building, to review.** The score now counts a path within 30 m of the bank, since a path 150 m inland read the
+  same as a riverside one. The search can place a path at grade, where it was fixed at the middle of the ground. Planting is a small
+  cost outside "most planted", since it takes ground that's often farmed or used. Lawful reshaped earth is planted at 10% or more, since
+  bare earth won't hold. 1 in 20 is taken as a wheelchair's limit, assumed and not read for India. Ways in from streets aren't checked,
+  because the map has no street heights.
+- **Checks.** No limit breaks on any option. Every option beats today at all three river levels. Five seeds agree: the three directions
+  that move little earth give the same days and path every time, and differ by a little over 100 m³ of earth at most. "Most room" is
+  less settled: the lawful one lands at 123,000 to 126,000 m³ of room, moving 130,000 to 142,000 m³, with 249 to 261 days.
+
+**E5 built (5 November; waiting for the user's check).** The Design step finds the options off the main thread
+(`engine/focus/edgeworker.ts`) and lists them, lawful and what-if, each with its numbers. Choosing one draws it on the map and section
+and shows it against today in the inspector. Choosing a stretch shows what the option does there and the limits checked on it. Trying a
+precedent by hand is still there, folded, and stops showing the option.
+
+- **The river on the section.** A slider from below an ordinary day to a metre above the record, with buttons for an ordinary day and each
+  mark. It says how far the water comes in, how far the path stands from it, how much of the design's path is under and how many days a year the
+  river stands that high. It's a level, not a flood model: water is flat across the section and stops at the first higher ground, so a
+  hollow behind a rise reads dry.
+- **What agents can read.** `edge_stretches`, `design_options` and `design_stretch`, read-only, with the same check on numbers and with
+  no tool to change a design. The rules checker and critic are asked to read the options, and the Design step offers both. A report says which
+  option was on show. **These have only run on a stand-in model**, as with F3, because there's no OpenRouter key here.
+- **Choices made while building, to review.** The search runs when asked, since it takes about 15 s in the browser. A stakeholder's decision clears
+  the options, since it can change the ground, and they have to be found again. Options aren't saved across a reload.
+- **F5 is done, apart from the user's check.** Still open: the gauge's record, a survey, whether a path or planting counts as construction, whether
+  a path may pass the monuments, and who farms or uses the ground planting would take. Nothing here is hydraulically modelled.
+
+### 15.10 F6 plan: drawings of an option (PAUSED by the user 5 November; not approved, nothing built)
+
+**What it makes.** For any option from F5, a set a designer could open and work from: a key plan, a plan per stretch, a section per stretch,
+schedules of levels, elements and planting, and a DXF in real coordinates. This is level 2 of 15.3, a scheme. It's not for construction.
+
+**The main risk: drawings look surer than their data.** The ground is satellite terrain in cells about 35 m across, read every 50 m along the
+bank. A plan with crisp lines and levels to 0.1 m looks surveyed, and it isn't. So every sheet and the DXF carry the same statement: scheme levels
+relative to each other, not surveyed, a survey comes first. Nothing is drawn finer than 1:1000, and the what-ifs say so in their title.
+
+**What's missing today.**
+
+| Needed | What we have | The gap |
+|---|---|---|
+| Elements as areas in plan | Each piece at each station, 50 m apart, and lines along the bank | Join pieces between stations into polygons; stations of different kinds need an ending; sections overlap on tight bends (E1) |
+| Real coordinates | Metres from an origin, in UTM 44N (EPSG:32644) | `pc place` has to keep the origin in UTM, so a DXF can lie over a survey |
+| Planting by name | Five kinds by how often they're wet, with assumed heights | Species, with sources, and spacing |
+| Existing trees | Tree cover per cell | Single trees aren't known: the drawing can only show cover to keep, and a tree survey is on the list of what comes first |
+| Whether new planting double counts | Planted area is usable width times cover | It ignores cover already there, so 60.5 ha may overstate. D3 corrects this, and the score with it |
+| A DXF writer | None | Writing one is small; a separate library has to read it back |
+
+**Steps, each with a checkpoint.**
+
+- **D1. Elements in plan (`engine/focus/edgeplan.ts`).** Each option's pieces become polygons with a level, class of work and planting kind; paths
+  and level lines go through `smoothTrace`, as the rule says. Bends are clipped, so nothing overlaps. Tests on all eight options: nothing crosses the
+  bank, a building or a street, nothing beside a monument is hard, and areas agree with the sections' sums within a stated tolerance. If they don't
+  agree, that gets reported rather than hidden.
+- **D2. Plans and sections in the Drawings step.** A key plan and one sheet per stretch, in vector: elements, levels, path, existing buildings and
+  streets, north point, scale, title block with the option, its class and the statement. Sections cut at the middle of each stretch, with the river's
+  marks. Printing goes through the browser to PDF, with no PDF engine added.
+- **D3. Schedules and planting.** Level, element and earth schedules per stretch as CSV. A planting schedule by zone: species, spacing and count, each
+  species with its source and status, and each row saying what ground it takes. Quantities compare options and aren't a bill. The double count above is fixed here,
+  and the F5 numbers are restated if they move.
+- **D4. DXF.** Real coordinates in metres, named layers (existing, bank, levels, path, planting by kind, hard and soft works, sections, notes), level text, and the
+  statement in the file. A test reads every option back with `ezdxf`, a separate library, and compares layers, polygon counts and areas. Then the sheets, schedules
+  and DXF download together.
+
+**Species: what can be sourced, from a first search on 5 November, none of it read at source yet.**
+
+- **Delhi's Yamuna floodplain, about 200 km upstream, has a planting record.** Its parks are reported as using flood-tolerant natives chosen from studies of the
+  floodplain's potential vegetation: trees and shrubs such as *Salix tetrasperma*, *Mitragyna parvifolia*, *Tamarix dioica*, *Phoenix sylvestris* and *Prosopis
+  cineraria*, and grasses *Saccharum spontaneum*, *S. bengalense* and *Vetiveria zizanioides*. It's the closest sound precedent found, and it's Asita East's river.
+- **For Agra itself, nothing usable yet.** A thesis on the floodplain's plants at Agra exists but only its title was seen, and a 1995 survey of the ravines at Chhalesar
+  recorded 202 species without being a planting guide. Both should be read first in D3.
+- **Beside the monuments, species are a separate decision.** At Mehtab Bagh, the Supreme Court is reported to have sided with the Archaeological Survey in allowing only plants the
+  Mughals used, and the Survey is reported to have opposed another body's planting list. So the search's "plants only" beside a monument may itself need their approval.
+
+**Not in F6.** Construction details, products, tender quantities or IFC (level 3); irrigation, drainage or structural design; any hydraulic model; 3D. Nothing is certified. Ferries, bridges and
+reaching the river stay in F7.
+
+**Questions.**
+
+- **Q1. Which option?** Proposal: all eight can be drawn, since the pipeline shouldn't depend on one, and they're all tested. Review starts with lawful "Close to the river", for its continuous
+  path, and "Most room", the one with the most to draw. "A path, and little else" has too little to show the drawing work.
+- **Q2. Species before a botanist has seen them?** Proposal: name species from sources, labelled "from Delhi's floodplain, to be checked for Agra". Beside a monument, give only the kind of planting and leave
+  the species to the Archaeological Survey.
+- **Q3. DXF.** Proposal: UTM 44N in metres, so it lies over a survey or GIS layer. Please say if the people opening it use a particular CAD program or layer standard.
+- **Q4. Is 1:1000 the right limit?** Proposal: yes, until there's a survey.
+
+**The user's answers, 5 November, then "Let's pause drawings for now".** Q1: no. Q2: no. Q3: "Local population". Q4: don't know. So the proposals on which options to review first and on naming
+species before a botanist has seen them are declined. Q3 suggests the people opening these may be the local population rather than CAD users, which could change what F6 should make; that's to
+ask before this plan resumes, not to assume. This plan needs revisiting before it's used.
+
+**Stays open while this is paused, and isn't a drawing question.** F5's planted area ignores tree cover already on the ground, so its 60.5 ha may be too high. It was to be fixed in D3, which is now not scheduled.
+
+### 15.11 Iterating on an edge (approved 5 November, Q1-Q4 as proposed)
+
+**The gap.** F5 finds options and compares them, and then the work stops. Trying a precedent on one stretch drops the whole option, a section can only be replaced by a precedent, the search
+can't start from what someone has chosen, and nothing can be kept. A person has to be able to take an option, change it, search again around what they like, and compare the results.
+
+**The one new thing: a design of its own.** Today an option is the search's output. A design is what a person holds: for each stretch its shape, whether the ground is kept, where the path runs and its
+class of work, with a note of where each came from. Fits and scores are always worked out from it, so the limits are checked on every change and nothing can go stale.
+
+**Steps, each with a checkpoint.**
+
+- **I1. Start from an option and change a stretch.** Choosing an option makes a design from it. Changing one stretch changes only that stretch, scores update (about 0.3 s), and undo works. A panel says what
+  changed against the option and against today, including joins made steeper for a wheelchair. Fixes the planted area first, which ignores cover already there (15.10), since comparing on a wrong number is worse than not comparing.
+  A test holds that a design made from an option scores exactly as the option did.
+  **Built 5 November, waiting for the user's check** (`engine/focus/edgedesign.ts`). A design made from an option refits to exactly the option's scores, on all eight. Planted area now counts only what adds to cover already there: "most planted" falls from 60.5 to 41.7 ha, so about a third of the F5 figure was double counted. Lawful or what-if is now read from what's in a design rather than how it was asked for: stone, or earth or a path beside a monument. Until I3, a stakeholder's decision still clears the design.
+- **I2. Other ways to do this stretch, and search again.** For a chosen stretch, a few distinct alternatives with what each gains and costs, chosen so they aren't near-copies. Lock the stretches you like and search the rest, with
+  the joins worked out around what's locked. What a direction values becomes visible and adjustable, including the cost of earth, since those weights are assumed and the choice belongs to people.
+  **Built 5 November, waiting for the user's check** (`edgesearch.ts`: `searchAround`, `alternativesFor`, `Values`). With nothing locked and a direction's own values the search finds that option again, which a test holds. A stretch locked at today has no path, so nothing joins across it. A locked stretch stays as chosen even if it breaks a limit; only what's searched has to hold them. Alternatives are each the best at something, and where they're level the one with least earth and planting wins, so the list can't fill up with near-copies. Dry days on an alternative are with the river a metre higher, the same worst case the search uses.
+- **I3. Keep and compare.** Name and keep designs, in the browser and as a file, as decisions are. Two side by side on the measures, map and any section. A stakeholder decision no longer clears the work: kept designs are refitted on the new ground,
+  and they say what changed and what no longer holds.
+- **I4. Change a section directly.** Levels, path position and planting on a stretch, by number or dragging on the section, with limits checked as it moves.
+- **I5. The agents on a kept design.** The critic and rules checker read a design and what was changed from where, and a finding can point at a stretch, so a person can act on it. They never change a design. Worth doing only with a real model, so it waits for the OpenRouter key.
+
+**Not in this.** Several people working at once, drawings (paused, 15.10), and any new measure or hydraulic model. The scores still can't count being down at the water or how a place feels, and iterating on them can favour what's counted, so the page keeps saying so.
+
+**Questions.**
+
+- **Q1. Is the order right?** Proposal: I1 to I3 first, since together they make the loop, then I4, with I5 waiting for the key.
+- **Q2. Can someone push a design past a limit?** Proposal: yes, so they can see what it would take. It's shown as broken and can't be called lawful or kept as one.
+- **Q3. A lawful design with one what-if stretch?** Proposal: the whole design is then a what-if, and it lists which stretches make it one.
+- **Q4. Who sets what a direction values?** Proposal: whoever is working, and a kept design records the values it was searched with, so they can be questioned.
+
+## 16. Integrated city systems: a place for agents to practise (proposed 6 November, not approved, nothing built)
+
+The user's question on 6 November: can the whole product have a reinforcement learning (RL) environment, for designing integrated city systems using agentic modelling? An environment is a simulator a learner can practise in: it sees a situation, takes an action and gets a score, over many tries. This section proposes what that would mean here. It extends section 15 and doesn't change the iteration work in 15.11 until it's approved.
+
+### 16.1 What it would be
+
+A simulated city where water, streets, public ground and buildings affect each other, and where agents design it, live in it and test it. It compares designs. It doesn't predict what a real city will do.
+
+| Who | What they do | Today | Missing |
+|---|---|---|---|
+| Design team: water, mobility, public realm, built form, rules, critic | Propose changes to a shared design | Analyst, rules checker and critic, all read-only (`engine/focus/tools.ts`, `agents/roles.ts`) | The other roles, and a sandbox they can edit |
+| Simulated residents | Live, walk and travel in the design | Measures of access and street networks, but no simulated people | A behaviour model and real counts to check it against |
+| The world | Rain, flood, heat, sea level, growth | `shocks.ts`, `plan/storm.ts`, and `piecemeal.ts` for 2025, 2035 and 2050 with fixed conditions per year | Sequences of events a design has to respond to |
+| Stakeholders | Decide what stays | Decisions kept as records | Nothing. Simulated ones can help rehearse, but never count as a decision |
+
+### 16.2 The main gap: one shared design
+
+The systems don't yet share one design. The river edge holds an `EdgeDesign` and the city plan holds its own structures, so a change to water can't show up in a mobility score. `plan/storm.ts` is the pattern to extend, because rain already passes from lots to overflow streets to public water spaces. This is worth doing even if no agent ever uses it, since it's what "integrated" has to mean in the product. It also builds on 15.1, where engine stages become switches that either run or load the real thing.
+
+### 16.3 What agents do
+
+Agents make high-level moves: set the brief, lock things, change what a search values, run a search, edit the result, and raise conflicts between systems. The engine's searches still do the detailed work. The rule in 15.2 still holds: no number from a model, only from an engine tool or a cited source.
+
+Agents edit copies. Only a person can accept a change into the real design, so "people decide" still holds. Step I5 says agents never change a design, and it would stay true of the design a person holds.
+
+A trained model isn't the place to start. The searches already work within one system. Choosing moves across coupled systems is a far larger problem, so a learned guide might help later, and only if the test in 16.5 shows there's something for it to gain.
+
+### 16.4 Reward
+
+- **No single score.** One number would hide the trade-offs the product exists to show. Reward better sets of options, across the measures a brief is judged by.
+- **Limits stay hard rules.** A move that breaks a limit is shown as broken, as in 15.11 Q2, and earns nothing as a lawful design.
+- **False claims are penalised.** A number that doesn't match what a tool returned counts against the agent, using the check that already exists.
+- **Held-out tests.** Test on sites and shocks the agents haven't practised on, so they can't simply learn to satisfy our weights.
+- **What can't be counted stays named.** Being down at the water or how a place feels isn't scored, so a learner would treat it as worthless. Results keep saying so.
+
+### 16.5 The test that matters
+
+Give the same brief and the same number of engine evaluations to three approaches:
+
+1. **System by system,** in more than one order, so the comparison isn't against one bad sequence.
+2. **One joint search** across the systems.
+3. **The agent team,** with its model cost reported separately.
+
+Fix what counts as better before running it. If integration doesn't beat system by system, the premise is in trouble. If the agents don't beat the joint search, they're useful for explaining and negotiating but not for finding better designs. Either result is worth publishing, and it would sit beside the main claim in `docs/research/claim.md`.
+
+### 16.6 Limits
+
+- **Modelled people are modelled.** Simulated residents carry the same evidence labels as everything else, and 15.4's rule stands: no traffic claims without counts.
+- **Replay what really happened.** Where records exist, run real floods through the models before trusting comparisons that depend on them. The river's height today gives only a rough count of days above a level, and nothing about any one day (E3), so it can't yet support sequences of events.
+- **Speed is unknown.** A whole run takes 14 to 59 s by site (Docks and Bengaluru, measured before the river edge work) and the edge search about 12 s, so thousands of tries are expensive. Measure this at S2 before designing around it.
+- **City Science isn't read yet.** It's known only from a talk's slides (15.4). Read it at source before planning S3.
+
+### 16.7 Steps, in order of value
+
+- **S1. One shared design.** Start with streets and water on one brief: a change in one shows up in the other's scores, with limits checked on every change.
+- **S2. The environment.** Sandbox editing, the engine running without the browser, and grading. Test it first with scripted agents, which need no model key, then run the three-way test in 16.5 with a real model.
+- **S3. Simulated residents.** Part of the single streets and mobility system in 15.4, not a separate piece, and also usable in neighbourhood block exercises.
+- **S4. Events over time.** Floods, heat and growth in sequence, so a strategy that adapts can be tested. Needs a hydraulic model or the gauge record first.
+- **S5. A trained guide, only if S2 shows there's something to gain.**
+
+### 16.8 Questions
+
+- **Q1. Is S1 first?** Proposal: yes, since it's useful without agents and everything else depends on it.
+- **Q2. Which brief first?** Proposal: streets and water on the Taj stretch, which has the most checked ground and limits. The river's rough height is a weakness, so S1 shouldn't lean on any one day's level.
+- **Q3. Can agents edit copies?** Proposal: yes, with only a person able to accept a change.
+- **Q4. Where does this sit against 15.11?** Proposal: after I1 to I3, which make the loop people use. S1 should reuse what they establish about holding a design.
 
 ---
 

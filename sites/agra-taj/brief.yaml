@@ -1,0 +1,209 @@
+# A focused brief (docs/architecture-v3.md section 15): design part of a real place, keep the rest.
+# Built into app/public/sites/<site>.place.json by `uv run pc place <site>`.
+#
+# Every stay is a PROPOSAL until a stakeholder decides it: `decided_by` stays null until then.
+# Nothing here is legal advice. Facts carry a source and a status; "unchecked" means it has
+# not been read at the source yet (section 15.5).
+title: The Yamuna from the Fort to the Taj and Mehtab Bagh
+kind: riverfront
+makes: [public ground, water, planting]    # no massing: the floodplain is treated as no-build
+detail: 2                                  # section 15.3: plans, sections, levels, schedules, DXF
+
+# River levels in metres, read from reports of the Central Water Commission's Agra station and the
+# city's gauge. The Commission's own tables couldn't be reached (its service timed out, 4 Nov 2026),
+# and whether gauge metres and the terrain's metres share a datum is unchecked.
+# Reports also use feet: low flood 495 ft (150.88 m), danger or medium flood 499 ft (152.10 m), high
+# flood 507 or 508 ft (the 1978 crest). The danger level itself is reported as 152.0 and as 152.4 m.
+marks:
+  - {id: warning, words: "151.4 m", m: 151.40, note: "The Central Water Commission's warning level"}
+  - {id: sept2025, words: "152.4 m", m: 152.41, note: "September 2025 at the city's gauge at 2 pm (152.49 m was reported that evening); about the danger level"}
+  - {id: record, words: "154.76 m", m: 154.76, note: "The record, 1978, and the flood the floodplain notification is reported to refer to"}
+mark_source: https://www.arabnews.com/world/indias-yamuna-river-laps-walls-of-taj-mahal-after-heavy-rain-2340376
+line: record   # stands in for the notified floodplain, whose map hasn't been found
+
+# What the river has done, as reported. A `check` holds our ground model against the report.
+records:
+  - date: "1978"
+    m: 154.76
+    words: The record flood
+    what: "The highest level on record at the Commission's station."
+    source: https://www.tribuneindia.com/news/nation/yamuna-threatens-taj-526919
+    status: reported, from the Commission's data
+  - date: "18 July 2023"
+    m: 152.0
+    words: Water at the Taj's walls
+    what: "Reported to lap the Taj's compound walls, for the first time in 45 years."
+    source: https://www.tribuneindia.com/news/nation/yamuna-threatens-taj-526919
+    status: reported, news agency
+    check: {stay: taj, reaches_edge: true}
+  - date: "7 September 2025"
+    m: 152.41
+    words: Above the danger level
+    what: "152.405 m at 2 pm at the city's gauge. Reported 2 to 3 ft of water at Mehtab Bagh and behind the Taj."
+    source: https://www.aurguru.com/yamuna-river-agra-125-feet-above-danger-mark-september-2025
+    status: reported, local press
+    check: {stay: mehtab, depth_m: [0.6, 0.9]}
+  - date: "12 August 2026"
+    m: 149.60
+    words: A monsoon day, steady
+    what: "A reading well below the warning level, with barrages upstream releasing about 30,000 cusecs."
+    source: https://agraleaks.com/agra-yamuna-water-update-water-level-constant-149-60-meter-in-agra/
+    status: reported, local press
+
+# What ties modelled river flow to level (pc/riverflow.py). An ordinary day is the middle of what the
+# satellite reads on clear days, at the median flow; the rest are the reports above, on their dates.
+flow_anchors:
+  - {words: "An ordinary day", flow: median, m: 146.4}
+  - {words: "12 August 2026", date: "2026-08-12", m: 149.60}
+  - {words: "18 July 2023", date: "2023-07-18", m: 152.0}
+  - {words: "7 September 2025", date: "2025-09-07", m: 152.41}
+
+can_change: land joined to the river at or below the line, except what stays
+affects: buildings and streets within a 10-minute walk (800 m on the street network) of the bank
+reads: the whole study box, river levels, upstream rain, hot-season surface temperature
+
+stays:
+  - id: taj
+    words: The Taj Mahal complex
+    why: A World Heritage monument. Its fabric and its setting are not up for design.
+    features: [Taj Mahal, Taj Mahal Masjid, Jawab, Darwaza-i-Rauza]
+    buffer_m: 40
+    outline: approximate, from the footprints of its main buildings
+    source: https://whc.unesco.org/en/list/252/
+    status: unchecked
+  - id: fort
+    words: Agra Fort
+    why: A World Heritage monument.
+    features: [Hathi Pol, Diwan-i-Aam, Jahangiri Mahal, Musammun Burj, Sheesh Mahal, Anguri Bagh]
+    buffer_m: 120
+    outline: approximate, from the footprints inside it; its walls are not mapped here
+    source: https://whc.unesco.org/en/list/251/
+    status: unchecked
+  - id: mehtab
+    words: Mehtab Bagh
+    why: The Mughal garden laid out with the Taj, across the river; restored by WMF and ASI.
+    features: [Mehtab Bagh]
+    buffer_m: 0
+    outline: as mapped
+    source: https://wmf.org/node/14641
+    status: reported
+  - id: homes
+    words: Every building now standing in the zone
+    why: >-
+      The design does not remove people's homes or anything else by itself. The floodplain
+      notification is reported to call existing buildings illegal; whether any go is for
+      stakeholders and the courts, not this tool.
+    applies: buildings_in_zone
+    source: null
+    status: assumed
+  - id: axis
+    words: The view between the Taj and Mehtab Bagh
+    why: The two gardens were laid out to face each other across the river. What it limits is measured under Read the place.
+    applies: limit
+    source: null
+    status: assumed
+  - id: river
+    words: The river's course and bed
+    why: No channel works are proposed; the design meets the river as it runs.
+    applies: river
+    source: null
+    status: assumed
+  - id: nobuild
+    words: No new building on the floodplain
+    why: Uttar Pradesh notified the floodplain on 22 January 2025 and is reported to have banned new construction in it, after the National Green Tribunal's orders.
+    applies: limit
+    source: https://theprint.in/india/over-5000-buildings-in-agra-face-risk-of-demolition-after-up-govt-demarcates-yamuna-floodplain/2478998/
+    status: reported, the notification itself not read
+
+# Rules that apply here. Each says what it does, where that comes from and how sure we are. `from`
+# measures out from what stays; our outlines are approximate, so these rings are too.
+rules:
+  - id: prohibited
+    words: Monument, prohibited area
+    effect: No construction, except repairs and work under the Act's permissions.
+    kind: no_build
+    from: [taj, fort, mehtab]
+    reach_m: 100
+    source: https://lawgist.in/ancient-monuments-and-archaeological-sites-and-remains-act-1958/20A
+    status: "the Act read in a copy; drawn from our outlines, not the Archaeological Survey's limits"
+  - id: regulated
+    words: Monument, regulated area
+    effect: Construction needs permission, considered by the National Monuments Authority.
+    kind: permission
+    from: [taj, fort, mehtab]
+    inner_m: 100
+    reach_m: 300
+    source: https://lawchakra.in/high-court/karnataka-high-court/karnataka-hc-amasr-act/
+    status: "reported from a High Court ruling; drawn from our outlines"
+  - id: taj500
+    words: 500 m around the Taj, as reported in 2010
+    effect: One report says no construction within 500 m of the Taj. Not confirmed, so it isn't counted as law here.
+    kind: unconfirmed
+    from: [taj]
+    reach_m: 500
+    source: https://www.deccanherald.com/amp/story/india%2Fconstructions-banned-around-agra-monuments-2472024
+    status: reported in 2010, not confirmed
+  - id: floodplain
+    words: Notified floodplain (stand-in)
+    effect: New construction banned and existing buildings called illegal, as reported. Its map hasn't been found, so the record flood's reach stands in for it.
+    kind: no_build
+    mark: record
+    source: https://theprint.in/india/over-5000-buildings-in-agra-face-risk-of-demolition-after-up-govt-demarcates-yamuna-floodplain/2478998/
+    status: reported, the notification itself not read
+  - id: trees
+    words: Trees within 5 km of the Taj
+    effect: No felling without the Supreme Court's permission. So planting can be added here, but removing a tree is a matter for the Court.
+    kind: trees
+    from: [taj]
+    reach_m: 5000
+    source: https://www.deccanherald.com/india/uttar-pradesh/no-tree-felling-within-5-km-of-taj-mahal-without-our-nod-says-supreme-court-3520228
+    status: reported May 2025, the order not read
+  - id: ttz
+    words: Taj Trapezium Zone
+    effect: The whole study area lies in it. It limits polluting industry and fuel since 1996; what it asks of a public space hasn't been read.
+    kind: context
+    whole: true
+    source: https://en.wikipedia.org/wiki/Taj_Trapezium_Zone
+    status: "encyclopedia, the Court's orders not read"
+
+# Views measured on the terrain and every building (engine/focus/views.ts). The eye and the Taj's foot
+# are our assumptions, so are the heights below, and trees are left out. See `status`.
+views:
+  - id: mehtab_taj
+    words: The Taj from Mehtab Bagh
+    why: The view the garden was made for, along the Taj's axis.
+    eye: {feature: Mehtab Bagh, nearest_to: Taj Mahal}
+    eye_m: 1.6
+    target: {feature: Taj Mahal, foot_m: 0}
+    status: "assumed: an eye at the garden's river edge, and keep the view down to the top of the Taj's plinth, which the terrain reads as about 166 m"
+  - id: fort_taj
+    words: The Taj from Agra Fort
+    why: The long view along the river from the Musamman Burj.
+    eye: {feature: Musammun Burj}
+    eye_m: 1.6
+    on_high: true
+    target: {feature: Taj Mahal, foot_m: 0}
+    status: "assumed: an eye on the highest terrain at the tower, which satellite terrain may have wrong"
+  - id: taj_north
+    words: North from the Taj's terrace
+    why: What a visitor sees across the river. Here the limit is the skyline, so that nothing new rises above what is behind it.
+    eye: {feature: Taj Mahal, nearest_to: Mehtab Bagh}
+    eye_m: 1.6
+    on_high: true
+    looks: {feature: Mehtab Bagh, fan_deg: 40}
+    status: "assumed: an eye on the plinth's top as the terrain reads it, looking 40 degrees either side; beyond the study area nothing is counted"
+
+# Walks to measure today, on the mapped streets and paths.
+links:
+  - {words: "Taj Mahal to Mehtab Bagh", from: East Gate, to: Mehtab Bagh, straight_note: "the two gardens face each other across the river"}
+  - {words: "Taj Mahal to Agra Fort", from: West Gate, to: Hathi Pol, straight_note: "the Mughal riverfront ran between them"}
+
+open_checks:
+  - The floodplain notification of 22 January 2025 and its map. Reported widths of 5.09 km on the right bank and 2.55 km on the left can't be drawn as a line, and read plainly would cover the whole study area. A 2025 report also said the area behind the Taj wasn't demarcated.
+  - Whether a path, a ghat or planting counts as construction under the monument and floodplain rules. Most of this design depends on the answer.
+  - The Archaeological Survey's protected limits, and any monuments here beyond these three.
+  - The Central Water Commission's tables for Agra, the gauge's datum, and a daily record of its level.
+  - The terrain is satellite-derived (FABDEM), good to a couple of metres at best, so any line or height limit drawn from it is rough.
+  - Trees aren't in the view measures, and neither is anything beyond the study area.
+  - Where the riverfront park reported in July 2026 sits.
+  - Whether a rubber dam 1.5 km downstream will be built; it would change the river's low water.

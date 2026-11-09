@@ -28,7 +28,7 @@
   const cells = $derived(estimatedCells(km2, "hex", 20));
   const tooBig = $derived(!!limits && !!bench.polygon && (km2 > limits.max_km2 || cells > limits.max_cells));
   const stepIndex = $derived(job?.step && job.steps ? job.steps.indexOf(job.step) : -1);
-  const cards = $derived(Object.entries(bench.index).filter(([id]) => !id.endsWith("-quad")));
+  const cards = $derived(Object.entries(bench.cards).filter(([id]) => !id.endsWith("-quad")));
 
   onMount(() => {
     Service.limits().then((l) => {
@@ -67,7 +67,7 @@
 
   function pick(id: string) {
     bench.picked = id;
-    const c = bench.index[id];
+    const c = bench.cards[id];
     if (c?.outline?.length) {
       const xs = c.outline.map((p) => p[0]), ys = c.outline.map((p) => p[1]);
       bench.map?.fitBounds([Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]);
@@ -118,14 +118,15 @@
   </div>
 
   <div class="wb-sub">
-    <span class="wb-label">Ready-made sites</span>
+    <span class="wb-label">{bench.focused ? "Prepared places" : "Ready-made sites"}</span>
+    {#if bench.error}<p class="wb-error" role="alert">{bench.error}</p>{/if}
     <div class="wb-cards">
       {#each cards as [id, c] (id)}
         <button type="button" class="wb-card" aria-pressed={bench.picked === id} onclick={() => pick(id)} ondblclick={() => bench.open(id)}>
           <span class="wb-card-pic">{#if c.thumb}<Thumb rows={c.thumb} />{/if}</span>
           <span class="wb-card-text">
             <b>{c.name.replace(/ \(.*\)$/, "")}</b>
-            <span class="wb-num">{Math.round(c.design_ha)} ha · {c.relief ? HILLY[c.relief] : "relief unknown"}</span>
+            <span class="wb-num">{Math.round(c.design_ha)} ha{bench.focused ? " could change" : ""} · {c.relief ? HILLY[c.relief] : "relief unknown"}</span>
             {#if c.confidence === "low" || (c.terrain && c.terrain !== "fabdem")}<span class="wb-tag is-low">low confidence</span>{/if}
           </span>
         </button>
@@ -133,6 +134,10 @@
     </div>
   </div>
 
+  {#if bench.focused}
+    <!-- COPY: places for a focused brief -->
+    <p class="wb-hint">Only prepared places for now. Choosing your own stretch on the map comes later.</p>
+  {:else}
   <div class="wb-sub">
     <span class="wb-label">Or open a saved run</span>
     <!-- COPY: open a run on the Site step -->
@@ -171,4 +176,5 @@
       </div>
     {/if}
   </div>
+  {/if}
 </div>

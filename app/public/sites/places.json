@@ -1,0 +1,39 @@
+{
+ "agra-taj": {
+  "name": "Agra: Yamuna from the Fort to the Taj and Mehtab Bagh",
+  "kind": "riverfront",
+  "origin": [
+   78.033749,
+   27.179001
+  ],
+  "design_ha": 198.8,
+  "target_ha": 0,
+  "cells": 6953,
+  "relief": "gentle",
+  "relief_m": 19.5,
+  "confidence": "low",
+  "terrain": "fabdem",
+  "outline": [
+   [
+    78.0155,
+    27.17
+   ],
+   [
+    78.052,
+    27.17
+   ],
+   [
+    78.052,
+    27.188
+   ],
+   [
+    78.0155,
+    27.188
+   ],
+   [
+    78.0155,
+    27.17
+   ]
+  ]
+ }
+}

@@ -2,8 +2,15 @@
   // The workbench frame (brief 10.4): top bar; the steps on the left, the active one open with
   // its controls; the map in the centre; the inspector on the right; the pen below.
   import { ChevronLeft, ChevronRight, CircleHelp, Keyboard, Redo2, Share2, Undo2 } from "lucide";
-  import { bench, STEPS } from "./bench.svelte";
+  import { exerciseOf } from "../../engine/focus/exercise";
+  import { bench } from "./bench.svelte";
+  import ExerciseCentre from "./ExerciseCentre.svelte";
+  import DesignCentre from "./DesignCentre.svelte";
+  import DesignRail from "./DesignRail.svelte";
+  import FocusMap from "./FocusMap.svelte";
   import Icon from "./Icon.svelte";
+  import ReadRail from "./ReadRail.svelte";
+  import StaysRail from "./StaysRail.svelte";
   import Inspector from "./Inspector.svelte";
   import LayersMap from "./LayersMap.svelte";
   import * as Draw from "../draw";
@@ -57,6 +64,13 @@
   }
 
   const stepMeta = (id: string) => {
+    if (id === "exercise") return exerciseOf(bench.exercise)?.name ?? "";
+    if (bench.focused) {
+      if (id === "read" && bench.focus.today) return `${bench.focus.today.measures[0].value} ha`;
+      if (id === "stays" && bench.focus.place) return `${bench.focus.place.brief.stays.length} to decide`;
+      if (id === "design" && bench.focus.place && bench.step === "design" && bench.focus.edge) return `${bench.focus.edge.banks.reduce((a, b) => a + b.stretches.length, 0)} stretches`;
+      return "";
+    }
     if (id === "site" && bench.site) return `${Math.round(bench.site.meta.design_ha)} ha`;
     if (id === "layers" && bench.site) return `${Object.keys(bench.site.grid.layers ?? {}).length}`;
     if (id === "rules" && bench.rules) return bench.edited ? "changed" : `${bench.rules.list.length}`;
@@ -72,7 +86,18 @@
     return "";
   };
   // COPY: why a step is blocked
-  const blockedWhy = (id: string) => (!STEPS.find((s) => s.id === id)!.built ? "Built next, in A3" : bench.site ? "Run an evolution first" : "Pick a site first");
+  const blockedWhy = (id: string) => {
+    const s = bench.steps.find((x) => x.id === id)!;
+    if (!s.built) return s.why ?? "Not built yet";
+    if (!bench.exercise) return "Choose what you're designing first";
+    if (bench.focused) return "Pick a place first";
+    return bench.site ? "Run an evolution first" : "Pick a site first";
+  };
+  const crumb = $derived(bench.focused ? bench.focus.place?.meta.name ?? exerciseOf(bench.exercise)!.name : bench.site ? bench.site.meta.name : bench.exercise ? "No site yet" : "Choose an exercise");
+  // COPY: run status
+  const held = $derived(bench.focus.design ? Object.keys(bench.focus.design.stretches).length : 0);
+  const heldChanged = $derived(bench.focus.changes?.stretches.length ?? 0);
+  const pill = $derived(bench.focused ? (bench.focus.option ? `${bench.focus.option.words}${heldChanged ? `, ${heldChanged} ${heldChanged === 1 ? "stretch" : "stretches"} changed` : ""}` : held ? `Sections tried on ${held} ${held === 1 ? "stretch" : "stretches"}` : bench.focus.options ? `${bench.focus.options.length} options to choose from` : "Nothing designed yet") : bench.running ? `Running: generation ${bench.runGen} of ${bench.settings.generations}` : bench.result ? `Run done: ${bench.result.frontSize} on the front` : "No run yet");
 </script>
 
 <div class="wb-narrow">
@@ -84,10 +109,9 @@
 <div class="wb-app" class:no-rail={!bench.railOpen} class:no-insp={!bench.inspOpen} class:is-presenting={bench.step === "massing" && bench.mass.presenting}>
   <header class="wb-top">
     <a class="wb-brand" href="./">Permutation City</a>
-    <span class="wb-crumb">{bench.site ? bench.site.meta.name : "No site yet"}</span>
+    <span class="wb-crumb">{crumb}</span>
     <div class="wb-top-right">
-      <!-- COPY: run status -->
-      <span class="wb-pill">{bench.running ? `Running: generation ${bench.runGen} of ${bench.settings.generations}` : bench.result ? `Run done: ${bench.result.frontSize} on the front` : "No run yet"}</span>
+      <span class="wb-pill">{pill}</span>
       <button class="wb-icon-btn" type="button" aria-label="Undo" title="Undo (Ctrl Z)" disabled={!bench.canUndo} onclick={() => bench.undo()}><Icon icon={Undo2} /></button>
       <button class="wb-icon-btn" type="button" aria-label="Redo" title="Redo (Ctrl Shift Z)" disabled={!bench.canRedo} onclick={() => bench.redo()}><Icon icon={Redo2} /></button>
       <button class="wb-btn" type="button" onclick={share}><Icon icon={Share2} />{copied ? "Copied" : "Share"}</button>
@@ -100,7 +124,7 @@
 
   <aside class="wb-rail" aria-label="Steps">
     <ol class="wb-steps">
-      {#each STEPS as s (s.id)}
+      {#each bench.steps as s (s.id)}
         {@const st = bench.stateOf(s.id)}
         <li class="wb-step" data-state={st}>
           <button type="button" aria-current={st === "now" ? "step" : undefined} aria-disabled={st === "blocked"}
@@ -109,7 +133,11 @@
           </button>
           {#if st === "now"}
             <div class="wb-rail-panel">
-              {#if s.id === "site"}<SiteRail />
+              {#if s.id === "exercise"}<p class="wb-hint">Choose what kind of design this is. It decides the steps that follow.</p>
+              {:else if s.id === "site"}<SiteRail />
+              {:else if s.id === "read"}<ReadRail />
+              {:else if s.id === "stays"}<StaysRail />
+              {:else if s.id === "design"}<DesignRail />
               {:else if s.id === "layers"}<LayersRail />
               {:else if s.id === "rules"}<RulesRail />
               {:else if s.id === "landform"}<LandformRail />
@@ -132,7 +160,13 @@
     {#if siteMapOn || bench.step === "site"}
       <div style:display={bench.step === "site" ? "contents" : "none"}><SiteMap active={bench.step === "site"} /></div>
     {/if}
-    {#if bench.step === "layers" && bench.site}
+    {#if bench.step === "exercise"}
+      <ExerciseCentre />
+    {:else if (bench.step === "read" || bench.step === "stays") && bench.focus.place}
+      <FocusMap place={bench.focus.place} />
+    {:else if bench.step === "design" && bench.focus.place}
+      <DesignCentre place={bench.focus.place} />
+    {:else if bench.step === "layers" && bench.site}
       <LayersMap site={bench.site} />
     {:else if bench.step === "rules" && bench.site && bench.rules}
       <RulesMap site={bench.site} />
@@ -206,7 +240,7 @@
       <dt><kbd>J</kbd> <kbd>K</kbd></dt><dd>next and previous design</dd>
       <dt><kbd>P</kbd></dt><dd>keep the open design in the pen</dd>
       <dt><kbd>2</kbd> <kbd>3</kbd></dt><dd>plan or 3D, on the Massing step</dd>
-      <dt><kbd>Ctrl</kbd> <kbd>Z</kbd></dt><dd>undo a rule change (on Draw, a move); with <kbd>Shift</kbd>, redo</dd>
+      <dt><kbd>Ctrl</kbd> <kbd>Z</kbd></dt><dd>undo a rule change (on Draw, a move; on a river's Design step, a change to the design); with <kbd>Shift</kbd>, redo</dd>
       <dt><kbd>Enter</kbd> <kbd>Backspace</kbd></dt><dd>on Draw: finish the shape, take a point back (<kbd>Esc</kbd> stops)</dd>
       <dt><kbd>[</kbd> <kbd>]</kbd></dt><dd>fold the steps, fold the inspector</dd>
       <dt><kbd>+</kbd> <kbd>-</kbd> <kbd>0</kbd></dt><dd>zoom the map in, out, and fit it (arrows pan)</dd>

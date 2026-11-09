@@ -230,7 +230,7 @@ export interface VectorPlan {
   shared?: { squares: { at: [number, number]; plot: number }[]; parks: { level: "doorstep" | "housing" | "neighbourhood"; block: number; area: number }[];
     access: Record<"doorstep" | "housing" | "neighbourhood", number>; share: number;
     /** Part C: every public space the rules placed, its family, storm and water (plan/shared.ts PublicSpace). */
-    spaces: { rule: "water" | "square" | "park" | "doorstep" | "field"; family: "stepped" | "basin" | "linear" | "canopy" | "field" | "doorstep" | "street";
+    spaces: { rule: "water" | "square" | "park" | "doorstep" | "field"; family: "stepped" | "basin" | "linear" | "edge" | "canopy" | "field" | "doorstep" | "street";
       plots: number[]; block?: number; at: [number, number]; area: number; fillsAt?: number; storage: number; gather?: number; of?: number;
       need?: number; shape?: Record<string, number>; like?: string; measures?: { storage: number; wetUse: number; seats: number; shade: number; enclosure: number } }[];
     water: { need: number; held: number; unheld: number } };

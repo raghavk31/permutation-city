@@ -12,6 +12,7 @@
     uv run pc app              the designer's sandbox (Streamlit, in the browser)
     uv run pc export <site>... [--fixture]   sites for the web app (app/public/sites/)
     uv run pc brief <site> <brief.json>      save a confirmed brief with the site (pc/brief.py)
+    uv run pc place <site>...                a real place with its focused brief (pc/place.py)
 """
 
 import argparse
@@ -229,6 +230,34 @@ def cmd_brief(a):
           f"pc grow / pc evolve now use it (delete the file to stop).")
 
 
+def cmd_river_year(a):
+    import geopandas as gpd
+
+    from pc import riveryear
+
+    for sid in a.sites:
+        site = load(sid)
+        riveryear.fetch_river_year(site, gpd.read_file(site.layers / "grid.gpkg", layer="cells"))
+
+
+def cmd_river_flow(a):
+    from pc import riverflow
+
+    for sid in a.sites:
+        site = load(sid)
+        print(f"{site.name}:")
+        riverflow.fetch_river_flow(site)
+
+
+def cmd_place(a):
+    from pc import place
+
+    for sid in a.sites:
+        site = load(sid)
+        print(f"{site.name}:")
+        place.write(site)
+
+
 def cmd_export(a):
     from pc import export
 
@@ -292,13 +321,16 @@ def main():
     ex = sub.add_parser("export", help="export sites for the web app (app/public/sites/)")
     ex.add_argument("sites", nargs="+")
     ex.add_argument("--fixture", action="store_true", help="also write a parity test fixture")
+    sub.add_parser("river-flow", help="modelled daily river flow for a place (pc/riverflow.py)").add_argument("sites", nargs="+")
+    sub.add_parser("place", help="a real place with its focused brief, for the web app").add_argument("sites", nargs="+")
+    sub.add_parser("river-year", help="the river through its year, from the satellite, month by month").add_argument("sites", nargs="+")
     br = sub.add_parser("brief", help="save a confirmed brief (from the web app) with a site")
     br.add_argument("site")
     br.add_argument("file", help="the brief JSON the web app downloads")
     a = p.parse_args()
     {"new": cmd_new, "fetch": cmd_fetch, "build": cmd_build, "rules": cmd_rules,
      "grow": cmd_grow, "evolve": cmd_evolve, "sites": cmd_sites, "app": cmd_app,
-     "export": cmd_export, "brief": cmd_brief}[a.cmd](a)
+     "export": cmd_export, "brief": cmd_brief, "place": cmd_place, "river-year": cmd_river_year, "river-flow": cmd_river_flow}[a.cmd](a)
 
 
 if __name__ == "__main__":

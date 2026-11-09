@@ -32,6 +32,7 @@ import numpy as np
 
 from pc import elites, evolve, fitness, genome, landform, lst, metrics, rules, seasonal, skeleton, syntax, wind
 from pc import grid as cellgrid
+from pc.metrics.network import STOREY_M
 from pc.rng import Rng
 from pc.site import ROOT, Site, utc_offset_of
 
@@ -196,6 +197,21 @@ def _open_buildings_heights(site: Site, geoms) -> np.ndarray:
     return out
 
 
+def height_picker(h, f, ob, cx, cy, kx, ky, kh):
+    """A function from a building's index to (height in metres, index into HEIGHT_SOURCES):
+    Overture's height, its floors, Open Buildings, nearby known heights, else a default."""
+    def pick(k):
+        if np.isfinite(h[k]) and 2 < h[k] < 300:
+            return float(h[k]), 0
+        if np.isfinite(f[k]) and f[k] > 0:
+            return float(f[k]) * STOREY_M, 1
+        if np.isfinite(ob[k]) and ob[k] >= OB_MIN_M:
+            return float(ob[k]), 2
+        near = kh[(kx - float(cx[k])) ** 2 + (ky - float(cy[k])) ** 2 <= NEARBY_M ** 2]
+        return (float(np.median(near)), 3) if len(near) >= NEARBY_MIN else (DEFAULT_STOREYS * STOREY_M, 4)
+    return pick
+
+
 def existing_buildings(site: Site, ground) -> dict | None:
     """Existing buildings near the design ground, for building-scale massing (shade on and from
     neighbours; app/engine/massing). Footprints (outer rings, 0.5 m simplified, local metres)
@@ -209,7 +225,6 @@ def existing_buildings(site: Site, ground) -> dict | None:
     Buildings on the design ground are listed apart, under "ground": the design replaces them,
     unless a person keeps one (a drawn constraint; app/engine/moves.ts)."""
     from pc import syntax as sx
-    from pc.metrics.network import STOREY_M
     p = site.overture("building")
     if not p.exists():
         return None
@@ -231,20 +246,13 @@ def existing_buildings(site: Site, ground) -> dict | None:
     for which in (keep, on):
         if which:
             ob.update(zip(which, _open_buildings_heights(site, b.geometry.iloc[which].tolist())))
+    pick = height_picker(h, f, ob, cx, cy, kx, ky, kh)
 
     def footprints(which):
         rings, heights, src = [], [], []
         for k in which:
-            geom, x, y = b.geometry.iloc[k], float(cx[k]), float(cy[k])
-            if np.isfinite(h[k]) and 2 < h[k] < 300:
-                hk, sk = float(h[k]), 0
-            elif np.isfinite(f[k]) and f[k] > 0:
-                hk, sk = float(f[k]) * STOREY_M, 1
-            elif np.isfinite(ob[k]) and ob[k] >= OB_MIN_M:
-                hk, sk = float(ob[k]), 2
-            else:
-                near = kh[(kx - x) ** 2 + (ky - y) ** 2 <= NEARBY_M ** 2]
-                hk, sk = (float(np.median(near)), 3) if len(near) >= NEARBY_MIN else (DEFAULT_STOREYS * STOREY_M, 4)
+            geom = b.geometry.iloc[k]
+            hk, sk = pick(k)
             poly = max(getattr(geom, "geoms", [geom]), key=lambda g: g.area).simplify(0.5)
             pts = [(round(px - ox, 1), round(py - oy, 1)) for px, py in poly.exterior.coords][:-1]
             if len(pts) < 3:

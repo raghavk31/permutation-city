@@ -100,6 +100,28 @@ export const OPEN: Record<string, OpenRecord> = {
   "medellin-corridors": { family: "linear", jobs: ["pass", "nature", "linger"], holds: "never", wetUse: 1, conf: "assumed",
     dry: "Roads and streams lined with layers of native planting, joining the city's parks and hills." },
 
+  // ---- at the river's edge (library/edge.ts) ----
+  "mehtab-bagh": { family: "edge", jobs: ["linger", "nature", "gather"], holds: "season", wetUse: 0.5, conf: "low", fill: 3.5,
+    dry: "A walled garden on the low bank, with long views of the Taj across the water.",
+    wet: "In a big monsoon the river comes over its lower parts: 2 to 3 ft was reported in 2025, and then the silt has to be cleared." },
+  "riverfront-terrace": { family: "edge", jobs: ["linger", "gather", "ritual", "nature"], holds: "never", wetUse: 1, conf: "assumed",
+    dry: "A high terrace with pavilions over the river wall, and a four-part garden behind it." },
+  "maheshwar-ghat": { family: "edge", jobs: ["ritual", "water", "gather", "work", "linger"], holds: "season", wetUse: 0.5, conf: "assumed", fill: 3.2,
+    dry: "Platforms, shrines and steps at the water, used for bathing, boats and rites, under the fort.",
+    wet: "When the river rises it takes the lower platforms, and life moves up to the higher ones." },
+  "asita-east": { family: "edge", jobs: ["nature", "pass", "linger"], holds: "season", wetUse: 0.2, conf: "assumed", fill: 3.6,
+    dry: "Grassland, young floodplain forest and hollows holding water, with walks through them.",
+    wet: "The floodplain does what it's for: the river spreads across it and soaks in." },
+  "adyar-poonga": { family: "edge", jobs: ["nature", "pass"], holds: "always", wetUse: 0.6, conf: "assumed", fill: 2,
+    dry: "Walks on mounds through planted woods, round a creek that rises and falls with the tide.",
+    wet: "The creek stores storm water and tide as it did before; the mounds stay above it." },
+  "berges-du-rhone": { family: "edge", jobs: ["pass", "linger", "play", "gather"], holds: "storm", fillsAt: 5, wetUse: 0.5, conf: "assumed", fill: 2.5,
+    dry: "A promenade with meadows, tiered seats, sports, boats and trees, changing with its width.",
+    wet: "The lower level goes under, which is why nothing on it is fenced or fragile; the upper level stays open." },
+  "buffalo-bayou": { family: "edge", jobs: ["pass", "play", "nature", "linger"], holds: "storm", fillsAt: 1, wetUse: 0.2, conf: "medium", fill: 10.8,
+    dry: "Trails, lawns, woodland and bridges down a green valley, in sight of downtown.",
+    wet: "The bayou fills its valley, sometimes for weeks low down; afterward the silt is cleared and fittings are washed." },
+
   // ---- shade over open ground ----
   katte: { family: "canopy", jobs: ["gather", "linger", "ritual"], holds: "never", wetUse: 1, conf: "assumed",
     dry: "A platform round a tree's trunk: a meeting place and resting place in its shade." },

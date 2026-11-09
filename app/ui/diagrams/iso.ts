@@ -603,6 +603,82 @@ export function moves(): Diagram {
   return { id: "moves", title: "Moves", caption: "Draw what you are sure of; every design keeps it, and evolution explores the rest.", svg: s.svg("A block of white buildings crossed by an orange main street and a green band of trees, with an orange-paved square and one dark building kept.") };
 }
 
+/** A row of paper buildings for the exercise diagrams, skipping what `free` rules out. */
+function city(W: number, D: number, T: number, seed: number, free: (x: number, y: number, w: number, d: number) => boolean): Thing[] {
+  const r = rng(seed), th: Thing[] = [];
+  for (let i = 0; i * 14 + 12 < W; i++) for (let j = 0; j * 14 + 12 < D; j++) {
+    const x = 3 + i * 14, y = 3 + j * 14;
+    if (free(x, y, 10, 10) && r() > .12) th.push({ x, y, z: T, w: 10, d: 10, h: 4 + r() * 10 });
+  }
+  return th;
+}
+
+/** Exercise: a whole neighbourhood. Everything on the land is the design's, so all of it is in colour. */
+export function exerciseCity(): Diagram {
+  const s = new Scene("ex-city"), W = 100, D = 72, T = 2;
+  s.slab(0, 0, 0, W, D, T);
+  s.street([[0, 34, T + .1], [W, 34, T + .1]], 5, "color-mix(in srgb, var(--pc-accent) 45%, var(--pc-surface))");
+  s.street([[50, 0, T + .1], [50, D, T + .1]], 5, "color-mix(in srgb, var(--pc-accent) 45%, var(--pc-surface))");
+  const th = city(W, D, T, 81, (x, y, w, d) => Math.abs(y + d / 2 - 34) > d / 2 + 4 && Math.abs(x + w / 2 - 50) > w / 2 + 4)
+    .map((b): Thing => ({ ...b, fill: "color-mix(in srgb, var(--pc-accent) 35%, var(--pc-surface))" } as Thing));
+  s.things(th, { x0: 0, y0: 0, x1: W, y1: D });
+  return { id: "ex-city", title: "A whole neighbourhood", caption: "Streets, plots, public ground and buildings are all designed.", svg: s.svg("A block of land where every street and building is coloured, because all of it is designed.") };
+}
+
+/** Exercise: a river edge. The city stays in paper; only the strip along the water is in colour. */
+export function exerciseRiver(): Diagram {
+  const s = new Scene("ex-river"), W = 100, D = 72, T = 2, BANK = 40, EDGE = 24;
+  s.slab(0, 0, 0, W, D, T);
+  s.poly([[0, BANK, T + .05], [W, BANK, T + .05], [W, D, T + .05], [0, D, T + .05]], "var(--pc-water)", false);
+  s.poly([[0, BANK - EDGE, T + .08], [W, BANK - EDGE, T + .08], [W, BANK, T + .08], [0, BANK, T + .08]], "color-mix(in srgb, var(--pc-accent) 22%, var(--pc-surface))");
+  const th = city(W, BANK - EDGE, T, 83, () => true);
+  for (let x = 8; x < W; x += 15) th.push({ kind: "tree", x, y: BANK - EDGE + 9, z: T, s: 2.2 });
+  s.things(th, { x0: 0, y0: 0, x1: W, y1: D });
+  s.line([[0, BANK - EDGE, T + .1], [W, BANK - EDGE, T + .1]], "var(--pc-accent)", 1.4);
+  return { id: "ex-river", title: "A river edge", caption: "Only the strip along the water is designed; the city behind it stays.", svg: s.svg("A white city behind an orange strip of bank with trees, beside a blue river.") };
+}
+
+/** Exercise: a street junction. Buildings stay in paper; the street space between them is in colour. */
+export function exerciseJunction(): Diagram {
+  const s = new Scene("ex-junction"), W = 100, D = 72, T = 2, CX = 50, CY = 36, ST = 15;
+  s.slab(0, 0, 0, W, D, T);
+  s.street([[0, CY, T + .1], [W, CY, T + .1]], ST, "var(--pc-street-ground)");
+  s.street([[CX, 0, T + .1], [CX, D, T + .1]], ST, "var(--pc-street-ground)");
+  const R = 16;
+  s.poly([[CX - R, CY - R, T + .15], [CX + R, CY - R, T + .15], [CX + R, CY + R, T + .15], [CX - R, CY + R, T + .15]], "color-mix(in srgb, var(--pc-accent) 40%, var(--pc-surface))");
+  const free = (x: number, y: number, w: number, d: number) => Math.abs(y + d / 2 - CY) > d / 2 + R && Math.abs(x + w / 2 - CX) > w / 2 + R;
+  s.things(city(W, D, T, 85, free), { x0: 0, y0: 0, x1: W, y1: D });
+  return { id: "ex-junction", title: "A street junction", caption: "The space between the buildings is designed; the buildings stay.", svg: s.svg("Two streets crossing between white buildings, with the crossing itself coloured orange.") };
+}
+
+/** Exercise: one plot. The neighbours stay in paper; one plot's buildings and open ground are designed. */
+export function exercisePlot(): Diagram {
+  const s = new Scene("ex-plot"), W = 100, D = 72, T = 2, P = { x: 34, y: 20, w: 34, d: 30 };
+  s.slab(0, 0, 0, W, D, T);
+  s.poly([[P.x, P.y, T + .1], [P.x + P.w, P.y, T + .1], [P.x + P.w, P.y + P.d, T + .1], [P.x, P.y + P.d, T + .1]], "var(--pc-green-light)");
+  const free = (x: number, y: number, w: number, d: number) => x + w < P.x - 2 || x > P.x + P.w + 2 || y + d < P.y - 2 || y > P.y + P.d + 2;
+  const fill = "color-mix(in srgb, var(--pc-accent) 55%, var(--pc-surface))";
+  const th: Thing[] = [...city(W, D, T, 87, free),
+    { x: P.x + 2, y: P.y + 2, z: T, w: 10, d: 26, h: 16, fill, floors: true }, { x: P.x + 12, y: P.y + 2, z: T, w: 20, d: 8, h: 10, fill, floors: true },
+    { kind: "tree", x: P.x + 22, y: P.y + 20, z: T, s: 2.4 }];
+  s.things(th, { x0: 0, y0: 0, x1: W, y1: D });
+  s.line([[P.x, P.y, T + .15], [P.x + P.w, P.y, T + .15], [P.x + P.w, P.y + P.d, T + .15], [P.x, P.y + P.d, T + .15], [P.x, P.y, T + .15]], "var(--pc-accent)", 1.4);
+  return { id: "ex-plot", title: "One plot", caption: "Buildings and open ground on one plot are designed together; the neighbours stay.", svg: s.svg("One plot outlined in orange with coloured buildings around a green court, among white neighbours.") };
+}
+
+/** River levels: the same bank at low water and in flood, each reaching further over the land. */
+export function riverLevels(): Diagram {
+  const s = new Scene("river-levels"), W = 110, D = 62, STEP = 12;
+  const steps = [0, 3, 6, 9, 12];
+  steps.forEach((z, k) => s.box({ x: 0, y: k * STEP, z: 0, w: W, d: STEP, h: 16 - z, fill: "var(--pc-surface)", style: "paper" }));
+  const level = (k: number, c: string) => s.poly([[0, D - 2, 16 - steps[k] + .4], [W, D - 2, 16 - steps[k] + .4], [W, k * STEP, 16 - steps[k] + .4], [0, k * STEP, 16 - steps[k] + .4]], c, false);
+  level(2, "color-mix(in srgb, var(--pc-water-flood) 55%, transparent)");
+  level(4, "var(--pc-water)");
+  s.label([W, 60, 5], "low water", { dx: 14, dy: 6, strong: true });
+  s.label([W, 26, 11], "in flood", { dx: 14, dy: -6, strong: true });
+  return { id: "river-levels", title: "River levels", caption: "The higher the river, the further it reaches over the land.", svg: s.svg("A bank stepping down to a river, with water reaching one terrace at low water and further up in flood.") };
+}
+
 /** Every diagram, in the order the story tells them. */
 export const DIAGRAMS = () => [site(), layers(), rules(), landform(), brief(), streets(), recipe(), evolution(), tradeoff(), massing(), growth()];
 

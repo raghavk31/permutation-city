@@ -96,8 +96,8 @@
   });
 
   const seedRows = (p: Precedent) => Object.entries(p.seed)
-    .filter(([k]) => k !== "arrangement")
-    .map(([k, v]) => [SEED_WORDS[k] ?? k, Array.isArray(v) ? v.map(featureWords).join("; ") : typeof v === "object" ? `${v.width} × ${v.depth} m, ${v.storeys} storeys` : String(v)]);
+    .filter(([k]) => k !== "arrangement" && k !== "river")
+    .map(([k, v]) => [SEED_WORDS[k] ?? k, k === "tiers" ? (v as { z: number; tread: number }[]).map((t) => `${fmt(t.z, 1)} m up, ${fmt(t.tread, 0)} m wide`).join("; ") : Array.isArray(v) ? v.map(featureWords).join("; ") : typeof v === "object" ? `${v.width} × ${v.depth} m, ${v.storeys} storeys` : String(v)]);
   const featureWords = (f: Feature) =>
     f.kind === "windcatcher" ? `windcatcher ${f.height} m` : f.kind === "stack" ? `stacks ${f.height} m` : f.kind === "dome" ? "dome"
     : f.kind === "vault" ? "vault over the street" : f.kind === "arcade" ? `arcade ${f.depth} m deep` : f.kind === "slope" ? `roof rising ${f.rise} m`
@@ -106,15 +106,15 @@
     footprint: "Unit shape", width: "Unit width (m)", depth: "Unit depth (m)", storeys: "Storeys", floorH: "Floor to floor (m)",
     count: "Units or rooms", rows: "Rows, rings or sides", court: "Court (m)", diameter: "Diameter (m)", street: "Street or lane (m)",
     gap: "Gap between units (m)", well: "Chowk or air well (share of plan)", raised: "Floor raised (m)", sunken: "Sunk below ground (m)",
-    steps: "Steps or terraces", fill: "Water on its wet day (m)", tower: "Tower", trees: "Trees", features: "Features", eave: "Eave or gallery (m)", roof: "Roof", porosity: "Façade open (share)", wall: "Wall thickness (m)", water: "Water held (m deep)",
+    tiers: "Levels above low water", steps: "Steps or terraces", fill: "Water on its wet day (m)", tower: "Tower", trees: "Trees", features: "Features", eave: "Eave or gallery (m)", roof: "Roof", porosity: "Façade open (share)", wall: "Wall thickness (m)", water: "Water held (m deep)",
   };
   const ARR_A: Record<string, string> = {
     row: "a row", ring: "a ring", court: "wings round a court", cluster: "a cluster round a yard", slab: "a slab", tower: "a podium and tower",
-    sunken: "a pit sunk in the ground", terraces: "terraces", ponds: "ponds or beds", shed: "sheds", canopy: "a canopy",
+    sunken: "a pit sunk in the ground", terraces: "terraces", ponds: "ponds or beds", shed: "sheds", canopy: "a canopy", edge: "a section from the street down to the river",
   };
   const ARR: Record<string, string> = {
     row: "Row", ring: "Ring", court: "Court", cluster: "Cluster", slab: "Slab", tower: "Podium and tower",
-    sunken: "Sunk in the ground", terraces: "Terraces", ponds: "Ponds or beds", shed: "Sheds", canopy: "Canopy",
+    sunken: "Sunk in the ground", terraces: "Terraces", ponds: "Ponds or beds", shed: "Sheds", canopy: "Canopy", edge: "River's edge",
   };
 </script>
 

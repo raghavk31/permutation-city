@@ -30,6 +30,19 @@ const devApi: Plugin = {
       res.setHeader("Content-Type", "application/json");
       res.end(await out.text());
     });
+    // POST /api/agent, the same handler as the Vercel function. With no key it says so.
+    server.middlewares.use("/api/agent", async (req, res) => {
+      const chunks: Buffer[] = [];
+      for await (const c of req) chunks.push(c as Buffer);
+      const { agentTurn } = await server.ssrLoadModule("/agents/turn.ts");
+      const request = new Request(`http://localhost${req.url ?? ""}`, {
+        method: req.method, headers: req.headers as Record<string, string>, body: Buffer.concat(chunks),
+      });
+      const out: Response = await agentTurn(request, { fetch, env: process.env, now: Date.now });
+      res.statusCode = out.status;
+      res.setHeader("Content-Type", "application/json");
+      res.end(await out.text());
+    });
   },
 };
 
